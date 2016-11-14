@@ -1,0 +1,13 @@
+target
+*.iml
+*.sh
+.idea
+Test.scala
+scalastyle_config.xml
+scalastyle-output.xml
+DefaultModelRegistry/
+tests/
+*.png
+doc/
+.DS_Store
+foobar
