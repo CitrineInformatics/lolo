@@ -188,31 +188,28 @@ object SimpleTrainingNode {
     var bestPivot = Double.MinValue
     var bestVariance = Double.MaxValue
     var bestIndex = -1
+
+    val totalSum = data.map(d => d._2).sum
+    val totalNum = data.size
+
     /* Try every feature index */
     (0 until data.head._1.size).foreach { index =>
       /* Get the list of feature values */
       val thinData = data.map(dat => (dat._1(index), dat._2)).sortBy(_._1)
 
-      var rightSum = thinData.map(d => d._2).sum
-      var rightSq = thinData.map(d => d._2 * d._2).sum
-      var rightNum = thinData.size
       var leftSum = 0.0
-      var leftSq = 0.0
 
       /* Try pivots at the midpoints between consecutive member values */
-      (0 until thinData.size - 1).foreach { j =>
-        leftSum = leftSum + thinData(j)._2
-        rightSum = rightSum - thinData(j)._2
-        leftSq = leftSq + thinData(j)._2 * thinData(j)._2
-        rightSq = rightSq - thinData(j)._2 * thinData(j)._2
-        rightNum = rightNum - 1
+      (1 until thinData.size).foreach { j =>
+        leftSum = leftSum + thinData(j-1)._2
 
-        val totalVariance = (leftSq - leftSum * leftSum / (thinData.size - rightNum)) + (rightSq - rightSum * rightSum / rightNum)
+        /* This is just relative, so we can subtract off the sum of the squares, data.map(Math.pow(_._2, 2)) */
+        val totalVariance = - leftSum * leftSum / j - Math.pow(totalSum - leftSum, 2) / (totalNum - j)
 
         /* Keep track of the best split */
         if (totalVariance < bestVariance){
           bestVariance = totalVariance
-          bestPivot = (thinData(j)._1 + thinData(j+1)._1)/2.0
+          bestPivot = (thinData(j)._1 + thinData(j-1)._1)/2.0
           bestIndex = index
         }
       }
