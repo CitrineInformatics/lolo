@@ -38,6 +38,7 @@ class SimpleRegressionTreeTest {
 
     /* The first feature should be the most important */
     val importances = DT.getFeatureImportance()
+    println(importances.toList)
     assert(importances(0) == importances.max)
   }
 

@@ -12,7 +12,7 @@ class SimpleRegressionTreeLearner {
   def train(trainingData: Seq[(Array[Double], Double)]): SimpleRegressionTree = {
     val trainingRoot = new SimpleTrainingNode(trainingData, remainingDepth = 30)
     val importances = trainingRoot.getFeatureImportance()
-    new SimpleRegressionTree(trainingRoot.getNode(), importances)
+    new SimpleRegressionTree(trainingRoot.getNode(), importances.map(_ / importances.sum))
   }
 }
 
@@ -191,38 +191,28 @@ object SimpleTrainingNode {
     /* Try every feature index */
     (0 until data.head._1.size).foreach { index =>
       /* Get the list of feature values */
-      val members = data.map(_._1(index)).distinct.sorted
-      /* Try pivots at the midpoints between consecutive member values */
-      (0 until members.size - 1).foreach { j =>
-        val pivot = (members(j) + members(j + 1))/2.0
+      val thinData = data.map(dat => (dat._1(index), dat._2)).sortBy(_._1)
 
-        /* Use foreach w/var so we can walk through the data once */
-        var leftMean = 0.0
-        var leftSqar = 0.0
-        var leftNum: Int = 0
-        var rightMean = 0.0
-        var rightSqar = 0.0
-        var rightNum: Int = 0
-        (0 until data.size).foreach{ k =>
-          val x = data(k)._1(index)
-          val y = data(k)._2
-          if (x <= pivot) {
-            leftMean = leftMean + y
-            leftSqar = leftSqar + y*y
-            leftNum  = leftNum + 1
-          } else {
-            rightMean = rightMean + y
-            rightSqar = rightSqar + y*y
-            rightNum  = rightNum + 1
-          }
-        }
-        val totalVariance = (leftSqar - leftMean*leftMean / leftNum) + (rightSqar - rightMean*rightMean / rightNum)
-        // println(s"Split in ${index} at ${pivot} for ${totalVariance}")
+      var rightSum = thinData.map(d => d._2).sum
+      var rightSq = thinData.map(d => d._2 * d._2).sum
+      var rightNum = thinData.size
+      var leftSum = 0.0
+      var leftSq = 0.0
+
+      /* Try pivots at the midpoints between consecutive member values */
+      (0 until thinData.size - 1).foreach { j =>
+        leftSum = leftSum + thinData(j)._2
+        rightSum = rightSum - thinData(j)._2
+        leftSq = leftSq + thinData(j)._2 * thinData(j)._2
+        rightSq = rightSq - thinData(j)._2 * thinData(j)._2
+        rightNum = rightNum - 1
+
+        val totalVariance = (leftSq - leftSum * leftSum / (thinData.size - rightNum)) + (rightSq - rightSum * rightSum / rightNum)
 
         /* Keep track of the best split */
         if (totalVariance < bestVariance){
           bestVariance = totalVariance
-          bestPivot = pivot
+          bestPivot = (thinData(j)._1 + thinData(j+1)._1)/2.0
           bestIndex = index
         }
       }
