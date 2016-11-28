@@ -10,7 +10,9 @@ class SimpleRegressionTreeLearner {
     * @return a simple regression tree
     */
   def train(trainingData: Seq[(Array[Double], Double)]): SimpleRegressionTree = {
-    new SimpleRegressionTree(new SimpleTrainingNode(trainingData).getNode())
+    val trainingRoot = new SimpleTrainingNode(trainingData, remainingDepth = 30)
+    val importances = trainingRoot.getFeatureImportance()
+    new SimpleRegressionTree(trainingRoot.getNode(), importances)
   }
 }
 
@@ -18,13 +20,17 @@ class SimpleRegressionTreeLearner {
   * Simple regression tree that wraps a Node's predict method
   * @param root
   */
-class SimpleRegressionTree(root: Node) {
+class SimpleRegressionTree(root: Node, importances: Array[Double]) {
   /**
     * Make a prediction from an input vector
     * @param input vector of doubles
     * @return prediction as a double
     */
   def predict(input: Array[Double]): Double = root.predict(input)
+
+  def getFeatureImportance(): Array[Double] = importances
+
+  def getRoot(): Node = root
 }
 
 /**
@@ -36,13 +42,21 @@ abstract trait TrainingNode {
     * @return lightweight prediction node
     */
   def getNode(): Node
+
+  def getImpurity(): Double
+
+  def getFeatureImportance(): Array[Double]
 }
 
 /**
   * Internal node written simply
   * @param trainingData to train the split on
   */
-class SimpleTrainingNode(trainingData: Seq[(Array[Double], Double)]) extends TrainingNode {
+class SimpleTrainingNode(
+                          trainingData: Seq[(Array[Double], Double)],
+                          var impurity: Double = -1.0,
+                          remainingDepth: Int = Int.MaxValue
+                        ) extends TrainingNode {
 
   /**
     * Wrap some internal state in a lightweight node
@@ -52,17 +66,40 @@ class SimpleTrainingNode(trainingData: Seq[(Array[Double], Double)]) extends Tra
     new SimpleNode(index, pivot, leftChild.getNode(), rightChild.getNode())
   }
 
+  if (impurity < 0.0) {
+    var sum = 0.0
+    var sq = 0.0
+    trainingData.foreach{ case (x, y) =>
+        sum = sum + y
+        sq = sq + y * y
+    }
+    impurity = sq - sum * sum / trainingData.size
+  }
+
+  override def getImpurity(): Double = impurity
+
   lazy val (index: Int, pivot: Double) = SimpleTrainingNode.getBestSplit(trainingData)
   lazy val (leftTrain, rightTrain) = trainingData.partition{ case (x, y) => x(index) <= pivot }
-  lazy val leftChild = if (leftTrain.size > 1) {
-    new SimpleTrainingNode(leftTrain)
+  lazy val leftChild = if (leftTrain.size > 1 && remainingDepth > 0) {
+    new SimpleTrainingNode(leftTrain, remainingDepth = remainingDepth - 1)
   } else {
     new SimpleTrainingLeaf(leftTrain)
   }
-  lazy val rightChild = if (rightTrain.size > 1) {
-    new SimpleTrainingNode(rightTrain)
+  lazy val rightChild = if (rightTrain.size > 1 && remainingDepth > 0) {
+    new SimpleTrainingNode(rightTrain, remainingDepth = remainingDepth - 1)
   } else {
     new SimpleTrainingLeaf(rightTrain)
+  }
+
+  override def getFeatureImportance(): Array[Double] = {
+    val improvement = getImpurity() - leftChild.getImpurity() - rightChild.getImpurity()
+    var ans = leftChild.getFeatureImportance().zip(rightChild.getFeatureImportance()).map(p => p._1 + p._2)
+    ans(index) = ans(index) + improvement
+    ans
+  }
+
+  override def toString(): String = {
+    s"Split feature ${index} at ${pivot}"
   }
 }
 
@@ -70,7 +107,7 @@ class SimpleTrainingNode(trainingData: Seq[(Array[Double], Double)]) extends Tra
   * Average the training data to make a leaf prediction
   * @param trainingData to train on
   */
-class SimpleTrainingLeaf(trainingData: Seq[(Array[Double], Double)]) extends TrainingNode {
+class SimpleTrainingLeaf(trainingData: Seq[(Array[Double], Double)], var impurity: Double = -1.0) extends TrainingNode {
   /**
     * Average the training data
     * @return lightweight prediction node
@@ -78,6 +115,21 @@ class SimpleTrainingLeaf(trainingData: Seq[(Array[Double], Double)]) extends Tra
   def getNode(): Node = {
     new SimpleLeaf(trainingData.map(_._2).sum / trainingData.size)
   }
+
+  if (impurity < 0.0) {
+    var sum = 0.0
+    var sq = 0.0
+    trainingData.foreach{ case (x, y) =>
+        sum = sum + y
+        sq = sq + y * y
+    }
+    impurity = sq - sum * sum / trainingData.size
+  }
+
+  override def getImpurity(): Double = impurity
+
+  override def getFeatureImportance(): Array[Double] = Array.fill(trainingData.head._1.size)(0.0)
+
 }
 
 /**
@@ -107,6 +159,10 @@ class SimpleNode(index: Int, pivot: Double, left: Node, right: Node) extends Nod
       right.predict(input)
     }
   }
+
+  override def toString(): String = {
+    s"If (feature ${index} <= ${pivot})\n" + left.toString + s"Else (feature ${index} > ${pivot}\n" + right.toString
+  }
 }
 
 /**
@@ -115,6 +171,8 @@ class SimpleNode(index: Int, pivot: Double, left: Node, right: Node) extends Nod
   */
 class SimpleLeaf(mean: Double) extends Node {
   override def predict(input: Array[Double]): Double = mean
+
+  override def toString(): String = s"  Predict: ${mean}\n"
 }
 
 /**
@@ -131,7 +189,7 @@ object SimpleTrainingNode {
     var bestVariance = Double.MaxValue
     var bestIndex = -1
     /* Try every feature index */
-    val splits = (0 until data.head._1.size).foreach { index =>
+    (0 until data.head._1.size).foreach { index =>
       /* Get the list of feature values */
       val members = data.map(_._1(index)).distinct.sorted
       /* Try pivots at the midpoints between consecutive member values */
@@ -147,17 +205,19 @@ object SimpleTrainingNode {
         var rightNum: Int = 0
         (0 until data.size).foreach{ k =>
           val x = data(k)._1(index)
+          val y = data(k)._2
           if (x <= pivot) {
-            leftMean = leftMean + x
-            leftSqar = leftSqar + x*x
+            leftMean = leftMean + y
+            leftSqar = leftSqar + y*y
             leftNum  = leftNum + 1
           } else {
-            rightMean = rightMean + x
-            rightSqar = rightSqar + x*x
+            rightMean = rightMean + y
+            rightSqar = rightSqar + y*y
             rightNum  = rightNum + 1
           }
         }
         val totalVariance = (leftSqar - leftMean*leftMean / leftNum) + (rightSqar - rightMean*rightMean / rightNum)
+        // println(s"Split in ${index} at ${pivot} for ${totalVariance}")
 
         /* Keep track of the best split */
         if (totalVariance < bestVariance){
