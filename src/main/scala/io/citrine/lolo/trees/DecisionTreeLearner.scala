@@ -18,6 +18,3 @@ class RegressionTreeModel(gtm: GuessTheMeanModel) {
   }
 }
 
-class TrainingNode(features: Seq[Vector[Any]], labels: Seq[Any]) {
-
-}
