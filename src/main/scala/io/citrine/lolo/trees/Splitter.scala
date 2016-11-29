@@ -96,7 +96,7 @@ object RegressionSplitter {
       /* Keep track of the best split */
       if (totalVariance < bestVariance) {
         bestVariance = totalVariance
-        bestSet = order.slice(0, j).toSet
+        bestSet = order.slice(0, j + 1).toSet
       }
     }
     (new CategoricalSplit(index, bestSet), bestVariance)
