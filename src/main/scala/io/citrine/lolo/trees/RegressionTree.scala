@@ -20,15 +20,18 @@ class RegressionTreeLearner() {
 
     val encodedTraining = trainingData.map(p => (RegressionTree.encodeInput(p._1, encoders), p._2))
     val rootTrainingNode = new RegressionTrainingNode(encodedTraining)
-    new RegressionTree(rootTrainingNode.getNode(), encoders)
+    val importance = rootTrainingNode.getFeatureImportance()
+    new RegressionTree(rootTrainingNode.getNode(), encoders, importance.map(_ / importance.sum))
   }
 
 }
 
-class RegressionTree(root: ModelNode[AnyVal], encoders: Seq[Option[CategoricalEncoder[Any]]]) {
+class RegressionTree(root: ModelNode[AnyVal], encoders: Seq[Option[CategoricalEncoder[Any]]], importance: Array[Double]) {
   def predict(input: Vector[Any]): Double = {
     root.predict(RegressionTree.encodeInput(input, encoders))
   }
+
+  def getFeatureImportance(): Array[Double] = importance
 }
 
 object RegressionTree {
@@ -75,7 +78,12 @@ class RegressionTrainingNode (
     new RegressionModelNode(split, leftChild.getNode(), rightChild.getNode())
   }
 
-  override def getFeatureImportance(): Array[Double] = Array.fill(trainingData.head._1.size)(0.0)
+  override def getFeatureImportance(): Array[Double] = {
+    val improvement = getImpurity() - leftChild.getImpurity() - rightChild.getImpurity()
+    var ans = leftChild.getFeatureImportance().zip(rightChild.getFeatureImportance()).map(p => p._1 + p._2)
+    ans(split.getIndex) = ans(split.getIndex) + improvement
+    ans
+  }
 }
 
 /**

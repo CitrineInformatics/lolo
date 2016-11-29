@@ -3,18 +3,21 @@ package io.citrine.lolo.trees
 
 abstract trait Split {
   def turnLeft(input: Vector[AnyVal]): Boolean
+  def getIndex(): Int
 }
 
 class RealSplit(index: Int, pivot: Double) extends Split {
   override def turnLeft(input: Vector[AnyVal]): Boolean = {
     input(index).asInstanceOf[Double] <= pivot
   }
+  override def getIndex: Int = index
 }
 
 class CategoricalSplit(index: Int, include: Set[Char]) extends Split {
   override def turnLeft(input: Vector[AnyVal]): Boolean = {
     include.contains(input(index).asInstanceOf[Char])
   }
+  override def getIndex: Int = index
 }
 
 
