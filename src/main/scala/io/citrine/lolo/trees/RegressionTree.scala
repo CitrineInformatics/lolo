@@ -7,7 +7,7 @@ import io.citrine.lolo.encoders.CategoricalEncoder
   */
 class RegressionTreeLearner() {
 
-  def train(trainingData: Seq[(Array[Any], Double)]): RegressionTree = {
+  def train(trainingData: Seq[(Vector[Any], Double)]): RegressionTree = {
     val repInput = trainingData.head._1
 
     val encoders: Seq[Option[CategoricalEncoder[Any]]] = repInput.zipWithIndex.map{ case (v,i) =>
@@ -26,13 +26,13 @@ class RegressionTreeLearner() {
 }
 
 class RegressionTree(root: ModelNode[AnyVal], encoders: Seq[Option[CategoricalEncoder[Any]]]) {
-  def predict(input: Array[Any]): Double = {
+  def predict(input: Vector[Any]): Double = {
     root.predict(RegressionTree.encodeInput(input, encoders))
   }
 }
 
 object RegressionTree {
-  def encodeInput(input: Array[Any], encoders: Seq[Option[CategoricalEncoder[Any]]]): Array[AnyVal] = {
+  def encodeInput(input: Vector[Any], encoders: Seq[Option[CategoricalEncoder[Any]]]): Vector[AnyVal] = {
     input.zip(encoders).map{ case (v, e) =>
         e match {
           case Some(x) => x.encode(v)
@@ -43,7 +43,7 @@ object RegressionTree {
 }
 
 class RegressionTrainingNode (
-                             trainingData: Seq[(Array[AnyVal], Double)],
+                             trainingData: Seq[(Vector[AnyVal], Double)],
                              impurityIn: Double = -1.0,
                              remainingDepth: Int = Int.MaxValue
                              )
@@ -83,7 +83,7 @@ class RegressionTrainingNode (
   * @param trainingData to train on
   */
 class RegressionTrainingLeaf(
-                          trainingData: Seq[(Array[AnyVal], Double)],
+                          trainingData: Seq[(Vector[AnyVal], Double)],
                           impurityIn: Double = -1.0
                         ) extends TrainingNode(
   trainingData = trainingData,
@@ -119,7 +119,7 @@ class RegressionModelNode(split: Split, left: ModelNode[AnyVal], right: ModelNod
   * @param input to predict for
   * @return prediction
   */
-  override def predict(input: Array[AnyVal]): Double = {
+  override def predict(input: Vector[AnyVal]): Double = {
     if (split.turnLeft(input)) {
       left.predict(input)
     } else {
@@ -129,5 +129,5 @@ class RegressionModelNode(split: Split, left: ModelNode[AnyVal], right: ModelNod
 }
 
 class RegressionLeaf(mean: Double) extends ModelNode[AnyVal] {
-  override def predict(input: Array[AnyVal]): Double = mean
+  override def predict(input: Vector[AnyVal]): Double = mean
 }
