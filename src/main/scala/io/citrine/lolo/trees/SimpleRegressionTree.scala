@@ -17,10 +17,10 @@ class SimpleRegressionTreeLearner {
 }
 
 /**
-  * Simple regression tree that wraps a Node's predict method
+  * Simple regression tree that wraps a ModelNode's predict method
   * @param root
   */
-class SimpleRegressionTree(root: Node, importances: Array[Double]) {
+class SimpleRegressionTree(root: ModelNode[Double], importances: Array[Double]) {
   /**
     * Make a prediction from an input vector
     * @param input vector of doubles
@@ -30,22 +30,7 @@ class SimpleRegressionTree(root: Node, importances: Array[Double]) {
 
   def getFeatureImportance(): Array[Double] = importances
 
-  def getRoot(): Node = root
-}
-
-/**
-  * Trait to provide getNode interface for internal and leaf training nodes
-  */
-abstract trait TrainingNode {
-  /**
-    * Get the lightweight prediction node for the output tree
-    * @return lightweight prediction node
-    */
-  def getNode(): Node
-
-  def getImpurity(): Double
-
-  def getFeatureImportance(): Array[Double]
+  def getRoot(): ModelNode[Double] = root
 }
 
 /**
@@ -54,29 +39,21 @@ abstract trait TrainingNode {
   */
 class SimpleTrainingNode(
                           trainingData: Seq[(Array[Double], Double)],
-                          var impurity: Double = -1.0,
+                          impurityIn: Double = -1.0,
                           remainingDepth: Int = Int.MaxValue
-                        ) extends TrainingNode {
+                        ) extends TrainingNode(
+  trainingData = trainingData,
+  impurity = impurityIn,
+  remainingDepth = remainingDepth
+) {
 
   /**
     * Wrap some internal state in a lightweight node
     * @return lightweight prediction node
     */
-  override def getNode(): Node = {
-    new SimpleNode(index, pivot, leftChild.getNode(), rightChild.getNode())
+  override def getNode(): ModelNode[Double] = {
+    new SimpleModelNode(index, pivot, leftChild.getNode(), rightChild.getNode())
   }
-
-  if (impurity < 0.0) {
-    var sum = 0.0
-    var sq = 0.0
-    trainingData.foreach{ case (x, y) =>
-        sum = sum + y
-        sq = sq + y * y
-    }
-    impurity = sq - sum * sum / trainingData.size
-  }
-
-  override def getImpurity(): Double = impurity
 
   lazy val (index: Int, pivot: Double) = SimpleTrainingNode.getBestSplit(trainingData)
   lazy val (leftTrain, rightTrain) = trainingData.partition{ case (x, y) => x(index) <= pivot }
@@ -107,12 +84,19 @@ class SimpleTrainingNode(
   * Average the training data to make a leaf prediction
   * @param trainingData to train on
   */
-class SimpleTrainingLeaf(trainingData: Seq[(Array[Double], Double)], var impurity: Double = -1.0) extends TrainingNode {
+class SimpleTrainingLeaf(
+                          trainingData: Seq[(Array[Double], Double)],
+                          impurityIn: Double = -1.0
+                        ) extends TrainingNode(
+  trainingData = trainingData,
+  impurity = impurityIn,
+  remainingDepth = 0
+) {
   /**
     * Average the training data
     * @return lightweight prediction node
     */
-  def getNode(): Node = {
+  def getNode(): ModelNode[Double] = {
     new SimpleLeaf(trainingData.map(_._2).sum / trainingData.size)
   }
 
@@ -129,15 +113,8 @@ class SimpleTrainingLeaf(trainingData: Seq[(Array[Double], Double)], var impurit
   override def getImpurity(): Double = impurity
 
   override def getFeatureImportance(): Array[Double] = Array.fill(trainingData.head._1.size)(0.0)
-
 }
 
-/**
-  * Trait to hold prediction interface
-  */
-abstract trait Node {
-  def predict(input: Array[Double]): Double
-}
 
 /**
   * Internal node
@@ -146,7 +123,7 @@ abstract trait Node {
   * @param left child node
   * @param right child node
   */
-class SimpleNode(index: Int, pivot: Double, left: Node, right: Node) extends Node {
+class SimpleModelNode(index: Int, pivot: Double, left: ModelNode[Double], right: ModelNode[Double]) extends ModelNode[Double] {
   /**
     * Just propagate the prediction call through the appropriate child
     * @param input to predict for
@@ -169,7 +146,7 @@ class SimpleNode(index: Int, pivot: Double, left: Node, right: Node) extends Nod
   * Just holds the mean
   * @param mean prediction of the mode
   */
-class SimpleLeaf(mean: Double) extends Node {
+class SimpleLeaf(mean: Double) extends ModelNode[Double] {
   override def predict(input: Array[Double]): Double = mean
 
   override def toString(): String = s"  Predict: ${mean}\n"
@@ -185,7 +162,7 @@ object SimpleTrainingNode {
     * @return (index, pivot) tuple
     */
   def getBestSplit(data: Seq[(Array[Double], Double)]): (Int, Double) = {
-    var bestPivot = Double.MinValue
+    var bestPivot: Double = data.head._1(0)
     var bestVariance = Double.MaxValue
     var bestIndex = -1
 
