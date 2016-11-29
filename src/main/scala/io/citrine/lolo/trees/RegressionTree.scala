@@ -1,13 +1,17 @@
 package io.citrine.lolo.trees
 
+import io.citrine.lolo.{Learner, Model}
 import io.citrine.lolo.encoders.CategoricalEncoder
 
 /**
   * Created by maxhutch on 11/28/16.
   */
-class RegressionTreeLearner() {
+class RegressionTreeLearner() extends Learner {
 
-  def train(trainingData: Seq[(Vector[Any], Double)]): RegressionTree = {
+  override def train(trainingData: Seq[(Vector[Any], Any)]): RegressionTree = {
+    if (!trainingData.head._2.isInstanceOf[Double]) {
+      throw new IllegalArgumentException("Tried to train regression on non-double labels")
+    }
     val repInput = trainingData.head._1
 
     val encoders: Seq[Option[CategoricalEncoder[Any]]] = repInput.zipWithIndex.map{ case (v,i) =>
@@ -19,16 +23,24 @@ class RegressionTreeLearner() {
     }
 
     val encodedTraining = trainingData.map(p => (RegressionTree.encodeInput(p._1, encoders), p._2))
-    val rootTrainingNode = new RegressionTrainingNode(encodedTraining)
+    val rootTrainingNode = new RegressionTrainingNode(encodedTraining.asInstanceOf[Seq[(Vector[AnyVal], Double)]])
     val importance = rootTrainingNode.getFeatureImportance()
     new RegressionTree(rootTrainingNode.getNode(), encoders, importance.map(_ / importance.sum))
   }
 
 }
 
-class RegressionTree(root: ModelNode[AnyVal], encoders: Seq[Option[CategoricalEncoder[Any]]], importance: Array[Double]) {
+class RegressionTree(
+                      root: ModelNode[AnyVal],
+                      encoders: Seq[Option[CategoricalEncoder[Any]]],
+                      importance: Array[Double]
+                    ) extends Model {
   def predict(input: Vector[Any]): Double = {
     root.predict(RegressionTree.encodeInput(input, encoders))
+  }
+
+  override def transform(inputs: Seq[Vector[Any]]): Seq[Any] = {
+    inputs.map(predict)
   }
 
   def getFeatureImportance(): Array[Double] = importance
