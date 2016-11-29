@@ -7,4 +7,6 @@ abstract class Model {
 
   def transform(inputs: Seq[Vector[Any]]): Seq[Any]
 
+  def getFeatureImportance(): Array[Double]
+
 }

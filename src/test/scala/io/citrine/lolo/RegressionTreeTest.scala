@@ -71,7 +71,7 @@ class RegressionTreeTest {
 
 object RegressionTreeTest {
   def main(argv: Array[String]): Unit = {
-    // new SimpleRegressionTreeTest().testSimpleTree()
+    new RegressionTreeTest().longerTest()
     new RegressionTreeTest().testCategorical()
   }
 }
