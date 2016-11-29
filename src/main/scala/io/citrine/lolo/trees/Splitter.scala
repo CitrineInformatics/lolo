@@ -26,12 +26,12 @@ class CategoricalSplit(index: Int, include: Set[Char]) extends Split {
   */
 object RegressionSplitter {
 
-  def getBestSplit(data: Seq[(Vector[AnyVal], Double)]): Split = {
+  def getBestSplit(data: Seq[(Vector[AnyVal], Double, Double)]): Split = {
     var bestSplit: Split = null
     var bestVariance = Double.MaxValue
 
-    val totalSum = data.map(d => d._2).sum
-    val totalNum = data.size
+    val totalSum = data.map(d => d._2 * d._3).sum
+    val totalWeight = data.map(d => d._3).sum
 
     /* Try every feature index */
     (0 until data.head._1.size).foreach { index =>
@@ -39,8 +39,8 @@ object RegressionSplitter {
       val rep = data.head._1(index)
 
       val (possibleSplit, possibleVariance) = rep match {
-        case x: Double => getBestRealSplit(data, totalSum, index)
-        case x: Char => getBestCategoricalSplit(data, totalSum, index)
+        case x: Double => getBestRealSplit(data, totalSum, totalWeight, index)
+        case x: Char => getBestCategoricalSplit(data, totalSum, totalWeight, index)
         case x: Any => (null, Double.MaxValue)
       }
 
@@ -53,19 +53,20 @@ object RegressionSplitter {
     bestSplit
   }
 
-  def getBestRealSplit(data: Seq[(Vector[AnyVal], Double)], totalSum: Double, index: Int): (RealSplit, Double) = {
-    val totalNum = data.size
+  def getBestRealSplit(data: Seq[(Vector[AnyVal], Double, Double)], totalSum: Double, totalWeight: Double, index: Int): (RealSplit, Double) = {
     var leftSum = 0.0
+    var leftWeight = 0.0
     var bestVariance = Double.MaxValue
     var bestPivot = Double.MinValue
-    val thinData = data.map(dat => (dat._1(index).asInstanceOf[Double], dat._2)).sortBy(_._1)
+    val thinData = data.map(dat => (dat._1(index).asInstanceOf[Double], dat._2, dat._3)).sortBy(_._1)
 
     /* Try pivots at the midpoints between consecutive member values */
     (1 until data.size).foreach { j =>
-      leftSum = leftSum + thinData(j - 1)._2
+      leftSum = leftSum + thinData(j - 1)._2 * thinData(j - 1)._3
+      leftWeight = leftWeight + thinData(j - 1)._3
 
       /* This is just relative, so we can subtract off the sum of the squares, data.map(Math.pow(_._2, 2)) */
-      val totalVariance = - leftSum * leftSum / j - Math.pow(totalSum - leftSum, 2) / (totalNum - j)
+      val totalVariance = - leftSum * leftSum / leftWeight - Math.pow(totalSum - leftSum, 2) / (totalWeight - leftWeight)
 
       /* Keep track of the best split */
       if (totalVariance < bestVariance) {
@@ -76,13 +77,12 @@ object RegressionSplitter {
     (new RealSplit(index, bestPivot), bestVariance)
   }
 
-  def getBestCategoricalSplit(data: Seq[(Vector[AnyVal], Double)], totalSum: Double, index: Int): (CategoricalSplit, Double) = {
-    val totalNum = data.size
+  def getBestCategoricalSplit(data: Seq[(Vector[AnyVal], Double, Double)], totalSum: Double, totalWeight: Double, index: Int): (CategoricalSplit, Double) = {
     var leftSum = 0.0
-    var leftNum = 0
+    var leftWeight = 0.0
     var bestVariance = Double.MaxValue
     var bestSet = Set.empty[Char]
-    val thinData = data.map(dat => (dat._1(index).asInstanceOf[Char], dat._2))
+    val thinData = data.map(dat => (dat._1(index).asInstanceOf[Char], dat._2, dat._3))
     val categoryAverages: Map[Char, Double] = thinData.groupBy(_._1).mapValues(g => g.map(_._2).sum / g.size)
     val order = categoryAverages.toSeq.sortBy(_._2).map(_._1)
 
@@ -90,11 +90,11 @@ object RegressionSplitter {
     /* Try pivots at the midpoints between consecutive member values */
     (0 until order.size - 1).foreach { j =>
       val toAdd = thinData.filter(_._1 == order(j))
-      leftSum = leftSum + toAdd.map(_._2).sum
-      leftNum = leftNum + toAdd.size
+      leftSum = leftSum + toAdd.map(d => d._2 * d._3).sum
+      leftWeight = leftWeight + toAdd.map(d => d._3).sum
 
       /* This is just relative, so we can subtract off the sum of the squares, data.map(Math.pow(_._2, 2)) */
-      val totalVariance = - leftSum * leftSum / leftNum - Math.pow(totalSum - leftSum, 2) / (totalNum - leftNum)
+      val totalVariance = - leftSum * leftSum / leftWeight - Math.pow(totalSum - leftSum, 2) / (totalWeight - leftWeight)
 
       /* Keep track of the best split */
       if (totalVariance < bestVariance) {

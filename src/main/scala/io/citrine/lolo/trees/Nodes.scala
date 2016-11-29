@@ -5,18 +5,20 @@ package io.citrine.lolo.trees
   * Created by maxhutch on 11/29/16.
   */
 abstract class TrainingNode[T <: AnyVal](
-                             trainingData: Seq[(Vector[T], Double)],
+                             trainingData: Seq[(Vector[T], Double, Double)],
                              var impurity: Double = -1.0,
                              remainingDepth: Int = Int.MaxValue
                            ) {
   if (impurity < 0.0) {
     var sum = 0.0
     var sq = 0.0
-    trainingData.foreach { case (x, y) =>
-      sum = sum + y
-      sq = sq + y * y
+    var ws = 0.0
+    trainingData.foreach { case (x, y, w) =>
+      sum = sum + y * w
+      sq = sq + y * y * w
+      ws = ws + w
     }
-    impurity = sq - sum * sum / trainingData.size
+    impurity = sq - sum * sum / ws
   }
 
   /**

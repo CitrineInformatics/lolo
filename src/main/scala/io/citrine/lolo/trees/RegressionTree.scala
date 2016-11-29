@@ -8,7 +8,7 @@ import io.citrine.lolo.encoders.CategoricalEncoder
   */
 class RegressionTreeLearner() extends Learner {
 
-  override def train(trainingData: Seq[(Vector[Any], Any)]): RegressionTree = {
+  override def train(trainingData: Seq[(Vector[Any], Any)], weights: Option[Seq[Double]] = None): RegressionTree = {
     if (!trainingData.head._2.isInstanceOf[Double]) {
       throw new IllegalArgumentException("Tried to train regression on non-double labels")
     }
@@ -23,7 +23,11 @@ class RegressionTreeLearner() extends Learner {
     }
 
     val encodedTraining = trainingData.map(p => (RegressionTree.encodeInput(p._1, encoders), p._2))
-    val rootTrainingNode = new RegressionTrainingNode(encodedTraining.asInstanceOf[Seq[(Vector[AnyVal], Double)]])
+    val finalTraining = encodedTraining.zip(weights.getOrElse(Seq.fill(trainingData.size)(1.0))).map{ case ((f, l), w) =>
+      (f, l.asInstanceOf[Double], w)
+    }.filter(_._3 > 0)
+
+    val rootTrainingNode = new RegressionTrainingNode(finalTraining)
     val importance = rootTrainingNode.getFeatureImportance()
     new RegressionTree(rootTrainingNode.getNode(), encoders, importance.map(_ / importance.sum))
   }
@@ -43,7 +47,7 @@ class RegressionTree(
     inputs.map(predict)
   }
 
-  def getFeatureImportance(): Array[Double] = importance
+  override def getFeatureImportance(): Array[Double] = importance
 }
 
 object RegressionTree {
@@ -58,9 +62,9 @@ object RegressionTree {
 }
 
 class RegressionTrainingNode (
-                             trainingData: Seq[(Vector[AnyVal], Double)],
-                             impurityIn: Double = -1.0,
-                             remainingDepth: Int = Int.MaxValue
+                               trainingData: Seq[(Vector[AnyVal], Double, Double)],
+                               impurityIn: Double = -1.0,
+                               remainingDepth: Int = Int.MaxValue
                              )
   extends TrainingNode[AnyVal] (
     trainingData = trainingData,
@@ -103,7 +107,7 @@ class RegressionTrainingNode (
   * @param trainingData to train on
   */
 class RegressionTrainingLeaf(
-                          trainingData: Seq[(Vector[AnyVal], Double)],
+                          trainingData: Seq[(Vector[AnyVal], Double, Double)],
                           impurityIn: Double = -1.0
                         ) extends TrainingNode(
   trainingData = trainingData,
@@ -116,16 +120,6 @@ class RegressionTrainingLeaf(
     */
   def getNode(): ModelNode[AnyVal] = {
     new RegressionLeaf(trainingData.map(_._2).sum / trainingData.size)
-  }
-
-  if (impurity < 0.0) {
-    var sum = 0.0
-    var sq = 0.0
-    trainingData.foreach{ case (x, y) =>
-        sum = sum + y
-        sq = sq + y * y
-    }
-    impurity = sq - sum * sum / trainingData.size
   }
 
   override def getImpurity(): Double = impurity
