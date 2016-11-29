@@ -39,11 +39,10 @@ class RegressionTreeTest {
         assert(y == DT.predict(x))
     }
 
-    /* The first feature should be the most important
+    /* The first feature should be the most important */
     val importances = DT.getFeatureImportance()
     println(importances.toList)
     assert(importances(0) == importances.max)
-    */
   }
   @Test
   def testCategorical(): Unit = {
@@ -63,11 +62,10 @@ class RegressionTreeTest {
         assert(y == DT.predict(x))
     }
 
-    /* The first feature should be the most important
+    /* The first feature should be the most important */
     val importances = DT.getFeatureImportance()
     println(importances.toList)
     assert(importances(0) == importances.max)
-    */
   }
 }
 
