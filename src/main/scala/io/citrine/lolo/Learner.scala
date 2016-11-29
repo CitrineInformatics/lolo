@@ -5,6 +5,6 @@ package io.citrine.lolo
   */
 abstract class Learner {
 
-  def train(trainingData: Seq[(Vector[Any], Vector[Any])]): Model
+  def train(trainingData: Seq[(Vector[Any], Any)]): Model
 
 }

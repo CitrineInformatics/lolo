@@ -5,6 +5,6 @@ package io.citrine.lolo
   */
 abstract class Model {
 
-  def transform(inputs: Seq[Vector[Any]]): Seq[Vector[Any]]
+  def transform(inputs: Seq[Vector[Any]]): Seq[Any]
 
 }
