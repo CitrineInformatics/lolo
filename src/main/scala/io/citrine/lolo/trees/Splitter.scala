@@ -2,17 +2,17 @@ package io.citrine.lolo.trees
 
 
 abstract trait Split {
-  def turnLeft(input: Array[AnyVal]): Boolean
+  def turnLeft(input: Vector[AnyVal]): Boolean
 }
 
 class RealSplit(index: Int, pivot: Double) extends Split {
-  override def turnLeft(input: Array[AnyVal]): Boolean = {
+  override def turnLeft(input: Vector[AnyVal]): Boolean = {
     input(index).asInstanceOf[Double] <= pivot
   }
 }
 
 class CategoricalSplit(index: Int, include: Set[Char]) extends Split {
-  override def turnLeft(input: Array[AnyVal]): Boolean = {
+  override def turnLeft(input: Vector[AnyVal]): Boolean = {
     include.contains(input(index).asInstanceOf[Char])
   }
 }
@@ -23,7 +23,7 @@ class CategoricalSplit(index: Int, include: Set[Char]) extends Split {
   */
 object RegressionSplitter {
 
-  def getBestSplit(data: Seq[(Array[AnyVal], Double)]): Split = {
+  def getBestSplit(data: Seq[(Vector[AnyVal], Double)]): Split = {
     var bestSplit: Split = null
     var bestVariance = Double.MaxValue
 
@@ -50,7 +50,7 @@ object RegressionSplitter {
     bestSplit
   }
 
-  def getBestRealSplit(data: Seq[(Array[AnyVal], Double)], totalSum: Double, index: Int): (RealSplit, Double) = {
+  def getBestRealSplit(data: Seq[(Vector[AnyVal], Double)], totalSum: Double, index: Int): (RealSplit, Double) = {
     val totalNum = data.size
     var leftSum = 0.0
     var bestVariance = Double.MaxValue
@@ -73,7 +73,7 @@ object RegressionSplitter {
     (new RealSplit(index, bestPivot), bestVariance)
   }
 
-  def getBestCategoricalSplit(data: Seq[(Array[AnyVal], Double)], totalSum: Double, index: Int): (CategoricalSplit, Double) = {
+  def getBestCategoricalSplit(data: Seq[(Vector[AnyVal], Double)], totalSum: Double, index: Int): (CategoricalSplit, Double) = {
     val totalNum = data.size
     var leftSum = 0.0
     var leftNum = 0

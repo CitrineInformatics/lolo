@@ -11,8 +11,8 @@ class SimpleRegressionTreeTest {
 
   @Test
   def testSimpleTree(): Unit = {
-    val csv = TestUtils.readCsvAsDoubles("double_example.csv")
-    val trainingData = csv.map(vec => (vec.init, vec.last))
+    val csv = TestUtils.readCsv("double_example.csv")
+    val trainingData = csv.map(vec => (vec.init.asInstanceOf[Vector[Double]], vec.last.asInstanceOf[Double]))
     val DTLearner = new SimpleRegressionTreeLearner()
     val DT = DTLearner.train(trainingData)
     trainingData.foreach { case (x, y) =>
@@ -22,14 +22,16 @@ class SimpleRegressionTreeTest {
 
   @Test
   def longerTest(): Unit = {
-    val csv = TestUtils.readCsvAsDoubles("large_example.csv")
-    val trainingData = csv.map(vec => (vec.init, vec.last))
+    val csv = TestUtils.readCsv("large_example.csv")
+    val trainingData = csv.map(vec => (vec.init.asInstanceOf[Vector[Double]], vec.last.asInstanceOf[Double]))
     val DTLearner = new SimpleRegressionTreeLearner()
+    val N = 100
     val start = System.nanoTime()
     val DT = DTLearner.train(trainingData)
+    (0 until N).map(i => DTLearner.train(trainingData))
     val duration = (System.nanoTime() - start) / 1.0e9
 
-    println(s"Training large case took ${duration} s")
+    println(s"Training large case took ${duration/N} s")
 
     /* We should be able to memorize the inputs */
     trainingData.foreach { case (x, y) =>

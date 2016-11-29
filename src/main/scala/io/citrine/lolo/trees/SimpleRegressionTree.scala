@@ -9,7 +9,7 @@ class SimpleRegressionTreeLearner {
     * @param trainingData to train on
     * @return a simple regression tree
     */
-  def train(trainingData: Seq[(Array[Double], Double)]): SimpleRegressionTree = {
+  def train(trainingData: Seq[(Vector[Double], Double)]): SimpleRegressionTree = {
     val trainingRoot = new SimpleTrainingNode(trainingData, remainingDepth = 30)
     val importances = trainingRoot.getFeatureImportance()
     new SimpleRegressionTree(trainingRoot.getNode(), importances.map(_ / importances.sum))
@@ -26,7 +26,7 @@ class SimpleRegressionTree(root: ModelNode[Double], importances: Array[Double]) 
     * @param input vector of doubles
     * @return prediction as a double
     */
-  def predict(input: Array[Double]): Double = root.predict(input)
+  def predict(input: Vector[Double]): Double = root.predict(input)
 
   def getFeatureImportance(): Array[Double] = importances
 
@@ -38,7 +38,7 @@ class SimpleRegressionTree(root: ModelNode[Double], importances: Array[Double]) 
   * @param trainingData to train the split on
   */
 class SimpleTrainingNode(
-                          trainingData: Seq[(Array[Double], Double)],
+                          trainingData: Seq[(Vector[Double], Double)],
                           impurityIn: Double = -1.0,
                           remainingDepth: Int = Int.MaxValue
                         ) extends TrainingNode(
@@ -85,7 +85,7 @@ class SimpleTrainingNode(
   * @param trainingData to train on
   */
 class SimpleTrainingLeaf(
-                          trainingData: Seq[(Array[Double], Double)],
+                          trainingData: Seq[(Vector[Double], Double)],
                           impurityIn: Double = -1.0
                         ) extends TrainingNode(
   trainingData = trainingData,
@@ -129,7 +129,7 @@ class SimpleModelNode(index: Int, pivot: Double, left: ModelNode[Double], right:
     * @param input to predict for
     * @return prediction
     */
-  override def predict(input: Array[Double]): Double = {
+  override def predict(input: Vector[Double]): Double = {
     if (input(index) <= pivot) {
       left.predict(input)
     } else {
@@ -147,7 +147,7 @@ class SimpleModelNode(index: Int, pivot: Double, left: ModelNode[Double], right:
   * @param mean prediction of the mode
   */
 class SimpleLeaf(mean: Double) extends ModelNode[Double] {
-  override def predict(input: Array[Double]): Double = mean
+  override def predict(input: Vector[Double]): Double = mean
 
   override def toString(): String = s"  Predict: ${mean}\n"
 }
@@ -161,7 +161,7 @@ object SimpleTrainingNode {
     * @param data to test splits on
     * @return (index, pivot) tuple
     */
-  def getBestSplit(data: Seq[(Array[Double], Double)]): (Int, Double) = {
+  def getBestSplit(data: Seq[(Vector[Double], Double)]): (Int, Double) = {
     var bestPivot: Double = data.head._1(0)
     var bestVariance = Double.MaxValue
     var bestIndex = -1

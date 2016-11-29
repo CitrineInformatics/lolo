@@ -5,7 +5,7 @@ package io.citrine.lolo.trees
   * Created by maxhutch on 11/29/16.
   */
 abstract class TrainingNode[T <: AnyVal](
-                             trainingData: Seq[(Array[T], Double)],
+                             trainingData: Seq[(Vector[T], Double)],
                              var impurity: Double = -1.0,
                              remainingDepth: Int = Int.MaxValue
                            ) {
@@ -34,6 +34,6 @@ abstract class TrainingNode[T <: AnyVal](
   * Trait to hold prediction interface
   */
 abstract trait ModelNode[T <: AnyVal] {
-  def predict(input: Array[T]): Double
+  def predict(input: Vector[T]): Double
 }
 
