@@ -76,7 +76,7 @@ object RegressionSplitter {
          1) there is only one branch and
          2) it is usually false
        */
-      if (totalVariance < bestVariance && thinData(j)._1 != thinData(j-1)._1) {
+      if (totalVariance < bestVariance && thinData(j)._1 > thinData(j-1)._1 + 1.0e-9) {
         bestVariance = totalVariance
         bestPivot = (thinData(j)._1 + thinData(j - 1)._1) / 2.0
       }

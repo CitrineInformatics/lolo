@@ -9,12 +9,23 @@ import scala.collection.parallel.immutable.ParSeq
   * Created by maxhutch on 11/14/16.
   */
 class Bagger(method: Learner, var numBags: Int = -1) extends Learner {
-  override def train(trainingData: Seq[(Vector[Any], Any)], weights: Option[Seq[Double]] = None): BaggedModel = {
+  override def train(trainingDataIn: Seq[(Vector[Any], Any)], weightsIn: Option[Seq[Double]] = None): BaggedModel = {
+
+    val weightsRaw = weightsIn.getOrElse(Seq.fill(trainingDataIn.size)(1.0))
+    // val (trainingData, weights) = trainingDataIn.zip(weightsRaw).groupBy(_._1).mapValues(_.map(_._2).sum).unzip
+    val trainingData = trainingDataIn
+    val weights = weightsRaw
+    // println(weights)
+
     val actualBags = if (numBags > 0) {
       numBags
     } else {
       trainingData.size
     }
+
+    assert(trainingData.forall(trainingData.head._1.size == _._1.size))
+    println(s"Trained a model with ${trainingData.head._1.size} inputs")
+
 
     val dist = new Poisson(1.0)
     val Nib = Vector.tabulate(actualBags){ i =>
@@ -24,7 +35,7 @@ class Bagger(method: Learner, var numBags: Int = -1) extends Learner {
     }
 
     val models = (0 until actualBags).par.map{ i =>
-      method.train(trainingData, Some(Nib(i).map(_.toDouble)))
+      method.train(trainingData.toSeq, Some(Nib(i).zip(weights).map(p => p._1.toDouble * p._2)))
     }
 
     new BaggedModel(models, Nib)
@@ -34,6 +45,8 @@ class Bagger(method: Learner, var numBags: Int = -1) extends Learner {
 class BaggedModel(models: ParSeq[Model], Nib: Vector[Vector[Int]]) extends Model {
 
   override def transform(inputs: Seq[Vector[Any]]): BaggedResult = {
+    assert(inputs.forall(_.size == inputs.head.size))
+    println(s"Applying model on ${inputs.head.size} inputs")
     new BaggedResult(models.map(model => model.transform(inputs)).seq, Nib)
   }
 
@@ -47,9 +60,6 @@ class BaggedModel(models: ParSeq[Model], Nib: Vector[Vector[Int]]) extends Model
 
 class BaggedResult(predictions: Seq[PredictionResult], NibIn: Vector[Vector[Int]]) extends PredictionResult
   with withUncertainty with withScores {
-
-  println(s"Number of trees: ${predictions.size}")
-  println(s"Size of Nib: ${Nib.size} x ${Nib.head.size}")
 
   override def getExpected(): Seq[Any] = expected
 
@@ -100,7 +110,13 @@ class BaggedResult(predictions: Seq[PredictionResult], NibIn: Vector[Vector[Int]
     /* Compute the first order bias correction for the variance estimators */
     val correction = diff.map(Math.pow(_, 2)).sum * Nib.size / (treePredictions.size * treePredictions.size)
     /* Mix the IJ and J estimators with their bias corrections */
-    (varianceIJ + varianceJ - Math.E * correction)/2.0
+    val result = (varianceIJ + varianceJ - Math.E * correction)/2.0
+    if (result < 0) {
+      println("Warning: negative variance; increase the number of trees")
+      0.0
+    } else {
+      result
+    }
   }
 
   def scores(meanPrediction: Double, treePredictions: Seq[Double], Nib: Seq[Vector[Int]]): Vector[Double] = {
