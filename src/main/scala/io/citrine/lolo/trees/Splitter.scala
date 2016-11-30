@@ -1,5 +1,7 @@
 package io.citrine.lolo.trees
 
+import scala.util.Random
+
 
 abstract trait Split {
   def turnLeft(input: Vector[AnyVal]): Boolean
@@ -11,6 +13,7 @@ class RealSplit(index: Int, pivot: Double) extends Split {
     input(index).asInstanceOf[Double] <= pivot
   }
   override def getIndex: Int = index
+  override def toString: String = s"Split index ${index} @ ${pivot}"
 }
 
 class CategoricalSplit(index: Int, include: Set[Char]) extends Split {
@@ -34,7 +37,8 @@ object RegressionSplitter {
     val totalWeight = data.map(d => d._3).sum
 
     /* Try every feature index */
-    (0 until data.head._1.size).foreach { index =>
+    val featureIndex = Seq.tabulate(data.head._1.size)(i => i)
+    Random.shuffle(featureIndex).foreach { index =>
       /* Get the list of feature values */
       val rep = data.head._1(index)
 
@@ -48,7 +52,6 @@ object RegressionSplitter {
         bestVariance = possibleVariance
         bestSplit = possibleSplit
       }
-
     }
     bestSplit
   }
@@ -66,10 +69,14 @@ object RegressionSplitter {
       leftWeight = leftWeight + thinData(j - 1)._3
 
       /* This is just relative, so we can subtract off the sum of the squares, data.map(Math.pow(_._2, 2)) */
-      val totalVariance = - leftSum * leftSum / leftWeight - Math.pow(totalSum - leftSum, 2) / (totalWeight - leftWeight)
+      val totalVariance = -leftSum * leftSum / leftWeight - Math.pow(totalSum - leftSum, 2) / (totalWeight - leftWeight)
 
-      /* Keep track of the best split */
-      if (totalVariance < bestVariance) {
+      /* Keep track of the best split
+         It is really important for performance to keep these checks together so
+         1) there is only one branch and
+         2) it is usually false
+       */
+      if (totalVariance < bestVariance && thinData(j)._1 != thinData(j-1)._1) {
         bestVariance = totalVariance
         bestPivot = (thinData(j)._1 + thinData(j - 1)._1) / 2.0
       }
