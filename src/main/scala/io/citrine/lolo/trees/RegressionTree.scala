@@ -6,7 +6,7 @@ import io.citrine.lolo.encoders.CategoricalEncoder
 /**
   * Created by maxhutch on 11/28/16.
   */
-class RegressionTreeLearner() extends Learner {
+class RegressionTreeLearner(maxDepth: Int = 30) extends Learner {
 
   override def train(trainingData: Seq[(Vector[Any], Any)], weights: Option[Seq[Double]] = None): RegressionTree = {
     if (!trainingData.head._2.isInstanceOf[Double]) {
@@ -27,9 +27,10 @@ class RegressionTreeLearner() extends Learner {
       (f, l.asInstanceOf[Double], w)
     }.filter(_._3 > 0)
 
-    val rootTrainingNode = new RegressionTrainingNode(finalTraining)
+    val rootTrainingNode = new RegressionTrainingNode(finalTraining, remainingDepth = maxDepth)
+    val rootModelNode = rootTrainingNode.getNode()
     val importance = rootTrainingNode.getFeatureImportance()
-    new RegressionTree(rootTrainingNode.getNode(), encoders, importance.map(_ / importance.sum))
+    new RegressionTree(rootModelNode, encoders, importance.map(_ / importance.sum))
   }
 
 }
@@ -82,6 +83,7 @@ class RegressionTrainingNode (
 
   lazy val split: Split = RegressionSplitter.getBestSplit(trainingData)
   lazy val (leftTrain, rightTrain) = trainingData.partition(r => split.turnLeft(r._1))
+  // assert(leftTrain.size > 0 && rightTrain.size > 0, s"Split (${split}) was external for: ${trainingData}")
   lazy val leftChild = if (leftTrain.size > 1 && remainingDepth > 0) {
     new RegressionTrainingNode(leftTrain, remainingDepth = remainingDepth - 1)
   } else {

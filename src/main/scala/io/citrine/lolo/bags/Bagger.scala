@@ -1,7 +1,7 @@
 package io.citrine.lolo.bags
 
 import breeze.stats.distributions.Poisson
-import io.citrine.lolo.{Learner, Model, PredictionResult, withUncertainty}
+import io.citrine.lolo.{Learner, Model, PredictionResult, withScores, withUncertainty}
 
 import scala.collection.parallel.immutable.ParSeq
 
@@ -17,13 +17,13 @@ class Bagger(method: Learner, var numBags: Int = -1) extends Learner {
     }
 
     val dist = new Poisson(1.0)
-    val Nib = Vector.tabulate(actualBags){i =>
-      Vector.tabulate(trainingData.size){ j =>
+    val Nib = Vector.tabulate(actualBags){ i =>
+      Vector.tabulate(trainingData.size){  j =>
         dist.draw()
       }
     }
 
-    val models = (0 until actualBags).par.map{i =>
+    val models = (0 until actualBags).par.map{ i =>
       method.train(trainingData, Some(Nib(i).map(_.toDouble)))
     }
 
@@ -45,11 +45,19 @@ class BaggedModel(models: ParSeq[Model], Nib: Vector[Vector[Int]]) extends Model
   }
 }
 
-class BaggedResult(predictions: Seq[PredictionResult], Nib: Vector[Vector[Int]]) extends PredictionResult with withUncertainty {
+class BaggedResult(predictions: Seq[PredictionResult], NibIn: Vector[Vector[Int]]) extends PredictionResult
+  with withUncertainty with withScores {
+
+  println(s"Number of trees: ${predictions.size}")
+  println(s"Size of Nib: ${Nib.size} x ${Nib.head.size}")
 
   override def getExpected(): Seq[Any] = expected
 
   override def getUncertainty(): Seq[Any] = uncertainty
+
+  override def getScores(): Seq[Seq[Double]] = scores
+
+  lazy val Nib: Vector[Vector[Int]] = NibIn.transpose.map(_.map(_ - 1))
 
   lazy val expectedMatrix: Seq[Seq[Any]] = predictions.map(p => p.getExpected()).transpose
 
@@ -62,9 +70,16 @@ class BaggedResult(predictions: Seq[PredictionResult], Nib: Vector[Vector[Int]])
 
   lazy val uncertainty = rep match {
     case x: Double => expectedMatrix.zip(expected).map { case (treePredictions, meanPrediction) =>
-      variance(meanPrediction.asInstanceOf[Double], treePredictions.asInstanceOf[Seq[Double]], Nib.transpose)
+      variance(meanPrediction.asInstanceOf[Double], treePredictions.asInstanceOf[Seq[Double]], Nib)
     }
     case x: Any => Seq.fill(expected.size)(1.0)
+  }
+
+  lazy val scores: Seq[Vector[Double]] = rep match {
+    case x: Double => expectedMatrix.zip(expected).map { case (treePredictions, meanPrediction) =>
+      scores(meanPrediction.asInstanceOf[Double], treePredictions.asInstanceOf[Seq[Double]], Nib)
+    }
+    case x: Any => Seq.fill(expected.size)(Vector.fill(Nib.size)(0.0))
   }
 
   def variance(meanPrediction: Double, treePredictions: Seq[Double], Nib: Seq[Vector[Int]]): Double = {
@@ -88,4 +103,12 @@ class BaggedResult(predictions: Seq[PredictionResult], Nib: Vector[Vector[Int]])
     (varianceIJ + varianceJ - Math.E * correction)/2.0
   }
 
+  def scores(meanPrediction: Double, treePredictions: Seq[Double], Nib: Seq[Vector[Int]]): Vector[Double] = {
+    val diff = treePredictions.map(_ - meanPrediction)
+
+    /* Compute the IJ score for each row */
+    Nib.map { v =>
+      Math.abs(v.zip(diff).map(p2 => p2._1 * p2._2).sum / treePredictions.size)
+    }.toVector
+  }
 }

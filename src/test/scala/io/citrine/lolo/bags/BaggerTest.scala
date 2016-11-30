@@ -3,6 +3,7 @@ package io.citrine.lolo.bags
 import io.citrine.lolo.TestUtils
 import io.citrine.lolo.trees.RegressionTreeLearner
 import org.junit.Test
+import org.scalatest.Assertions._
 
 /**
   * Created by maxhutch on 11/29/16.
@@ -10,12 +11,15 @@ import org.junit.Test
 @Test
 class BaggerTest {
 
+  /**
+    * Test the fit performance of the regression bagger
+    */
   @Test
   def testRegressionBagger(): Unit = {
     val csv = TestUtils.readCsv("large_example_with_cat.csv")
     val trainingData = csv.map(vec => (vec.init, vec.last.asInstanceOf[Double]))
     val DTLearner = new RegressionTreeLearner()
-    val baggedLearner = new Bagger(DTLearner)
+    val baggedLearner = new Bagger(DTLearner, numBags = trainingData.size / 2)
     val N = 0
     val start = System.nanoTime()
     val RF = baggedLearner.train(trainingData)
@@ -26,16 +30,49 @@ class BaggerTest {
 
     val results = RF.transform(trainingData.map(_._1))
     val means = results.getExpected()
-    val uncertainties = results.getUncertainty()
 
     /* The first feature should be the most important */
     val importances = RF.getFeatureImportance()
     assert(importances(0) == importances.max)
   }
+
+  /**
+    * Test the scores on a smaller example, because computing them all can be expensive.
+    *
+    * In general, we don't even know that the self-score (score on a prediction on oneself) is maximal.  For example,
+    * consider a training point that is sandwiched between two other points, i.e. y in | x     x y x    x |.  However,
+    * this training data is on a 2D grid, so we know the corners of that grid need to have maximal self-scores.  Those
+    * are at indices 0, 7, 56, and 63.
+    */
+  @Test
+  def testScores(): Unit = {
+    val csv = TestUtils.readCsv("double_example.csv")
+    val trainingData = csv.map(vec => (vec.init, vec.last.asInstanceOf[Double]))
+    val DTLearner = new RegressionTreeLearner()
+    val baggedLearner = new Bagger(DTLearner, numBags = trainingData.size * 16) // use lots of trees to reduce noise
+    val RF = baggedLearner.train(trainingData)
+
+    /* Call transform on the training data */
+    val results = RF.transform(trainingData.map(_._1))
+    val scores = results.getScores()
+    val corners = Seq(0, 7, 56, 63)
+    assert(
+      corners.forall(i => scores(i)(i) == scores(i).max),
+      "One of the training corners didn't have the highest score"
+    )
+  }
 }
 
+/**
+  * Companion driver
+  */
 object BaggerTest {
+  /**
+    * Test driver
+    * @param argv args
+    */
   def main(argv: Array[String]): Unit = {
-    new BaggerTest().testRegressionBagger()
+    // new BaggerTest().testRegressionBagger()
+    new BaggerTest().testScores()
   }
 }
