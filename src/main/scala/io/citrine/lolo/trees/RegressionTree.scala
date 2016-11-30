@@ -10,7 +10,7 @@ class RegressionTreeLearner(maxDepth: Int = 30) extends Learner {
 
   override def train(trainingData: Seq[(Vector[Any], Any)], weights: Option[Seq[Double]] = None): RegressionTree = {
     if (!trainingData.head._2.isInstanceOf[Double]) {
-      throw new IllegalArgumentException("Tried to train regression on non-double labels")
+      throw new IllegalArgumentException(s"Tried to train regression on non-double labels, e.g.: ${trainingData.head._2}")
     }
     val repInput = trainingData.head._1
 
@@ -81,16 +81,28 @@ class RegressionTrainingNode (
     remainingDepth = remainingDepth
   ) {
 
-  lazy val split: Split = RegressionSplitter.getBestSplit(trainingData)
+  val split: Split = RegressionSplitter.getBestSplit(trainingData)
+  // assert(split != null, s"Null split for training data: \n${trainingData.map(_.toString() + "\n")}")
+
   lazy val (leftTrain, rightTrain) = trainingData.partition(r => split.turnLeft(r._1))
-  // assert(leftTrain.size > 0 && rightTrain.size > 0, s"Split (${split}) was external for: ${trainingData}")
-  lazy val leftChild = if (leftTrain.size > 1 && remainingDepth > 0) {
-    new RegressionTrainingNode(leftTrain, remainingDepth = remainingDepth - 1)
+  // assert(leftTrain.size > 0 && rightTrain.size > 0, s"Split (${split}) was external for: ${trainingData.map(t => (t._1(split.getIndex()), t._2, t._3))}")
+  lazy val leftChild = if (leftTrain.size > 1 && remainingDepth > 0 && leftTrain.exists(_._2 != leftTrain.head._2)) {
+    val tryNode = new RegressionTrainingNode(leftTrain, remainingDepth = remainingDepth - 1)
+    if (tryNode.split != null) {
+      tryNode
+    } else {
+      new RegressionTrainingLeaf(leftTrain)
+    }
   } else {
     new RegressionTrainingLeaf(leftTrain)
   }
-  lazy val rightChild = if (rightTrain.size > 1 && remainingDepth > 0) {
-    new RegressionTrainingNode(rightTrain, remainingDepth = remainingDepth - 1)
+  lazy val rightChild = if (rightTrain.size > 1 && remainingDepth > 0 && rightTrain.exists(_._2 != rightTrain.head._2)) {
+    val tryNode = new RegressionTrainingNode(rightTrain, remainingDepth = remainingDepth - 1)
+    if (tryNode.split != null){
+      tryNode
+    } else {
+      new RegressionTrainingLeaf(rightTrain)
+    }
   } else {
     new RegressionTrainingLeaf(rightTrain)
   }
