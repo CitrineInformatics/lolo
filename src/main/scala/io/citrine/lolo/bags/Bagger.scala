@@ -1,8 +1,7 @@
 package io.citrine.lolo.bags
 
-import breeze.linalg.{DenseMatrix}
 import breeze.stats.distributions.Poisson
-import io.citrine.lolo.{Learner, Model}
+import io.citrine.lolo.{Learner, Model, PredictionResult, withUncertainty}
 
 import scala.collection.parallel.immutable.ParSeq
 
@@ -18,25 +17,24 @@ class Bagger(method: Learner, var numBags: Int = -1) extends Learner {
     }
 
     val dist = new Poisson(1.0)
-    val Nij = DenseMatrix.tabulate(trainingData.size, actualBags) { case (i,j) =>
-      dist.draw()
-    }
-    val models = (0 until  actualBags).par.map{i =>
-      method.train(trainingData, Some(Nij(::, i).toArray.map(_.toDouble).toSeq))
+    val Nib = Vector.tabulate(actualBags){i =>
+      Vector.tabulate(trainingData.size){ j =>
+        dist.draw()
+      }
     }
 
-    new BaggedModel(models, Nij)
+    val models = (0 until actualBags).par.map{i =>
+      method.train(trainingData, Some(Nib(i).map(_.toDouble)))
+    }
+
+    new BaggedModel(models, Nib)
   }
 }
 
-class BaggedModel(models: ParSeq[Model], Nij: DenseMatrix[Int]) extends Model {
+class BaggedModel(models: ParSeq[Model], Nib: Vector[Vector[Int]]) extends Model {
 
-  override def transform(inputs: Seq[Vector[Any]]): Seq[Any] = {
-    val predictions = models.map(model => model.transform(inputs))
-    predictions.head.head match {
-      case x: Double => predictions.seq.transpose.map(ps => ps.asInstanceOf[Seq[Double]].sum / ps.size)
-      case x: Any => predictions.transpose.map(ps => ps.groupBy(identity).mapValues(_.size).maxBy(_._2)._1).seq
-    }
+  override def transform(inputs: Seq[Vector[Any]]): BaggedResult = {
+    new BaggedResult(models.map(model => model.transform(inputs)).seq, Nib)
   }
 
   override def getFeatureImportance(): Array[Double] = {
@@ -45,4 +43,49 @@ class BaggedModel(models: ParSeq[Model], Nij: DenseMatrix[Int]) extends Model {
     }
     importances.map(_ / models.size)
   }
+}
+
+class BaggedResult(predictions: Seq[PredictionResult], Nib: Vector[Vector[Int]]) extends PredictionResult with withUncertainty {
+
+  override def getExpected(): Seq[Any] = expected
+
+  override def getUncertainty(): Seq[Any] = uncertainty
+
+  lazy val expectedMatrix: Seq[Seq[Any]] = predictions.map(p => p.getExpected()).transpose
+
+  lazy val rep: Any = expectedMatrix.head.head
+
+  lazy val expected = rep match {
+    case x: Double => expectedMatrix.map(ps => ps.asInstanceOf[Seq[Double]].sum / ps.size)
+    case x: Any => expectedMatrix.map(ps => ps.groupBy(identity).mapValues(_.size).maxBy(_._2)._1).seq
+  }
+
+  lazy val uncertainty = rep match {
+    case x: Double => expectedMatrix.zip(expected).map { case (treePredictions, meanPrediction) =>
+      variance(meanPrediction.asInstanceOf[Double], treePredictions.asInstanceOf[Seq[Double]], Nib.transpose)
+    }
+    case x: Any => Seq.fill(expected.size)(1.0)
+  }
+
+  def variance(meanPrediction: Double, treePredictions: Seq[Double], Nib: Seq[Vector[Int]]): Double = {
+    val diff = treePredictions.map(_ - meanPrediction)
+
+    /* Compute the infintesimal jackknife variance estimate */
+    val varianceIJ: Double = Nib.map { v =>
+      val cov = v.zip(diff).map(p2 => p2._1 * p2._2).sum / treePredictions.size
+      cov * cov
+    }.sum
+
+    /* Compute the jackknife-after-bootstrap variance estimate */
+    val varianceJ = (Nib.size - 1.0)/Nib.size * Nib.map{ v =>
+      val predictionsWithoutV: Seq[Double] = v.zip(treePredictions).filter(_._1 == -1.0).map(_._2)
+      Math.pow(predictionsWithoutV.sum / predictionsWithoutV.size - meanPrediction, 2)
+    }.sum
+
+    /* Compute the first order bias correction for the variance estimators */
+    val correction = diff.map(Math.pow(_, 2)).sum * Nib.size / (treePredictions.size * treePredictions.size)
+    /* Mix the IJ and J estimators with their bias corrections */
+    (varianceIJ + varianceJ - Math.E * correction)/2.0
+  }
+
 }

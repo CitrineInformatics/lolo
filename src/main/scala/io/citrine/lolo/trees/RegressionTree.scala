@@ -1,6 +1,6 @@
 package io.citrine.lolo.trees
 
-import io.citrine.lolo.{Learner, Model}
+import io.citrine.lolo.{Learner, Model, PredictionResult}
 import io.citrine.lolo.encoders.CategoricalEncoder
 
 /**
@@ -43,11 +43,19 @@ class RegressionTree(
     root.predict(RegressionTree.encodeInput(input, encoders))
   }
 
-  override def transform(inputs: Seq[Vector[Any]]): Seq[Any] = {
+  def predict(inputs: Seq[Vector[Any]]): Seq[Double] = {
     inputs.map(predict)
   }
 
+  override def transform(inputs: Seq[Vector[Any]]): PredictionResult = {
+    new RegressionTreeResult(inputs.map(predict))
+  }
+
   override def getFeatureImportance(): Array[Double] = importance
+}
+
+class RegressionTreeResult(predictions: Seq[Double]) extends PredictionResult {
+  override def getExpected(): Seq[Any] = predictions
 }
 
 object RegressionTree {
