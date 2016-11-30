@@ -16,7 +16,7 @@ object TestUtils {
         try {
           token.toDouble
         } catch {
-          case _ => token
+          case _: Throwable => token
         }
       }.toVector
       res.append(cols)

@@ -16,7 +16,7 @@ class BaggerTest {
     val trainingData = csv.map(vec => (vec.init, vec.last.asInstanceOf[Double]))
     val DTLearner = new RegressionTreeLearner()
     val baggedLearner = new Bagger(DTLearner)
-    val N = 8
+    val N = 0
     val start = System.nanoTime()
     val RF = baggedLearner.train(trainingData)
     (0 until N).map(i => baggedLearner.train(trainingData))
@@ -24,10 +24,12 @@ class BaggerTest {
 
     println(s"Training large case took ${duration/(N + 1)} s")
 
+    val results = RF.transform(trainingData.map(_._1))
+    val means = results.getExpected()
+    val uncertainties = results.getUncertainty()
 
     /* The first feature should be the most important */
     val importances = RF.getFeatureImportance()
-    println(importances.toList)
     assert(importances(0) == importances.max)
   }
 }
