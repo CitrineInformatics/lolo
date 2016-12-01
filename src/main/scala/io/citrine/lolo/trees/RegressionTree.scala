@@ -6,7 +6,7 @@ import io.citrine.lolo.encoders.CategoricalEncoder
 /**
   * Created by maxhutch on 11/28/16.
   */
-class RegressionTreeLearner(maxDepth: Int = 30) extends Learner {
+class RegressionTreeLearner(numFeatures: Int = -1, maxDepth: Int = 30) extends Learner {
 
   override def train(trainingData: Seq[(Vector[Any], Any)], weights: Option[Seq[Double]] = None): RegressionTree = {
     if (!trainingData.head._2.isInstanceOf[Double]) {
@@ -27,7 +27,13 @@ class RegressionTreeLearner(maxDepth: Int = 30) extends Learner {
       (f, l.asInstanceOf[Double], w)
     }.filter(_._3 > 0)
 
-    val rootTrainingNode = new RegressionTrainingNode(finalTraining, remainingDepth = maxDepth)
+    val numFeaturesActual = if (numFeatures > 0){
+      numFeatures
+    } else {
+      finalTraining.head._1.size
+    }
+
+    val rootTrainingNode = new RegressionTrainingNode(finalTraining, numFeaturesActual, remainingDepth = maxDepth)
     val rootModelNode = rootTrainingNode.getNode()
     val importance = rootTrainingNode.getFeatureImportance()
     new RegressionTree(rootModelNode, encoders, importance.map(_ / importance.sum))
@@ -72,6 +78,7 @@ object RegressionTree {
 
 class RegressionTrainingNode (
                                trainingData: Seq[(Vector[AnyVal], Double, Double)],
+                               numFeatures: Int,
                                impurityIn: Double = -1.0,
                                remainingDepth: Int = Int.MaxValue
                              )
@@ -81,13 +88,13 @@ class RegressionTrainingNode (
     remainingDepth = remainingDepth
   ) {
 
-  val split: Split = RegressionSplitter.getBestSplit(trainingData)
+  val split: Split = RegressionSplitter.getBestSplit(trainingData, numFeatures)
   // assert(split != null, s"Null split for training data: \n${trainingData.map(_.toString() + "\n")}")
 
   lazy val (leftTrain, rightTrain) = trainingData.partition(r => split.turnLeft(r._1))
   // assert(leftTrain.size > 0 && rightTrain.size > 0, s"Split (${split}) was external for: ${trainingData.map(t => (t._1(split.getIndex()), t._2, t._3))}")
   lazy val leftChild = if (leftTrain.size > 1 && remainingDepth > 0 && leftTrain.exists(_._2 != leftTrain.head._2)) {
-    val tryNode = new RegressionTrainingNode(leftTrain, remainingDepth = remainingDepth - 1)
+    val tryNode = new RegressionTrainingNode(leftTrain, numFeatures, remainingDepth = remainingDepth - 1)
     if (tryNode.split != null) {
       tryNode
     } else {
@@ -97,7 +104,7 @@ class RegressionTrainingNode (
     new RegressionTrainingLeaf(leftTrain)
   }
   lazy val rightChild = if (rightTrain.size > 1 && remainingDepth > 0 && rightTrain.exists(_._2 != rightTrain.head._2)) {
-    val tryNode = new RegressionTrainingNode(rightTrain, remainingDepth = remainingDepth - 1)
+    val tryNode = new RegressionTrainingNode(rightTrain, numFeatures, remainingDepth = remainingDepth - 1)
     if (tryNode.split != null){
       tryNode
     } else {
