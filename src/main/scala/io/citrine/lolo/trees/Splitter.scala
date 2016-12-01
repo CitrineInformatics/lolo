@@ -29,7 +29,7 @@ class CategoricalSplit(index: Int, include: Set[Char]) extends Split {
   */
 object RegressionSplitter {
 
-  def getBestSplit(data: Seq[(Vector[AnyVal], Double, Double)]): Split = {
+  def getBestSplit(data: Seq[(Vector[AnyVal], Double, Double)], numFeatures: Int): Split = {
     var bestSplit: Split = null
     var bestVariance = Double.MaxValue
 
@@ -38,7 +38,7 @@ object RegressionSplitter {
 
     /* Try every feature index */
     val featureIndex = Seq.tabulate(data.head._1.size)(i => i)
-    Random.shuffle(featureIndex).foreach { index =>
+    Random.shuffle(featureIndex).take(numFeatures).foreach { index =>
       /* Get the list of feature values */
       val rep = data.head._1(index)
 
@@ -78,7 +78,7 @@ object RegressionSplitter {
        */
       if (totalVariance < bestVariance && thinData(j)._1 > thinData(j-1)._1 + 1.0e-9) {
         bestVariance = totalVariance
-        bestPivot = (thinData(j)._1 + thinData(j - 1)._1) / 2.0
+        bestPivot = thinData(j - 1)._1 // (thinData(j)._1 + thinData(j - 1)._1) / 2.0
       }
     }
     (new RealSplit(index, bestPivot), bestVariance)
