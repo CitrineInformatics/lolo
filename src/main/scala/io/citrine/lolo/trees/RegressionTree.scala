@@ -1,6 +1,7 @@
 package io.citrine.lolo.trees
 
 import io.citrine.lolo.encoders.CategoricalEncoder
+import io.citrine.lolo.trees.splits.{NoSplit, RegressionSplitter, Split}
 import io.citrine.lolo.{Learner, Model, PredictionResult}
 
 /**
@@ -144,7 +145,7 @@ class RegressionTrainingNode(
                               numFeatures: Int,
                               remainingDepth: Int = Int.MaxValue
                             )
-  extends TrainingNode[AnyVal](
+  extends TrainingNode(
     trainingData = trainingData,
     remainingDepth = remainingDepth
   ) {
@@ -181,7 +182,7 @@ class RegressionTrainingNode(
     * @return lightweight prediction node
     */
   override def getNode(): ModelNode[AnyVal, Double] = {
-    new RegressionModelNode(split, leftChild.getNode(), rightChild.getNode())
+    new InternalModelNode(split, leftChild.getNode(), rightChild.getNode())
   }
 
   override def getFeatureImportance(): Array[Double] = {
@@ -213,22 +214,6 @@ class RegressionTrainingLeaf(
   }
 
   override def getFeatureImportance(): Array[Double] = Array.fill(trainingData.head._1.size)(0.0)
-}
-
-class RegressionModelNode(split: Split, left: ModelNode[AnyVal, Double], right: ModelNode[AnyVal, Double]) extends ModelNode[AnyVal, Double] {
-  /**
-    * Just propagate the prediction call through the appropriate child
-    *
-    * @param input to predict for
-    * @return prediction
-    */
-  override def predict(input: Vector[AnyVal]): Double = {
-    if (split.turnLeft(input)) {
-      left.predict(input)
-    } else {
-      right.predict(input)
-    }
-  }
 }
 
 class RegressionLeaf(mean: Double) extends ModelNode[AnyVal, Double] {
