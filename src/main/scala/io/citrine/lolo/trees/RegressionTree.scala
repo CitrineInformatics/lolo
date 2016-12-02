@@ -4,16 +4,28 @@ import io.citrine.lolo.encoders.CategoricalEncoder
 import io.citrine.lolo.{Learner, Model, PredictionResult}
 
 /**
+  * Learner for regression trees
+  *
   * Created by maxhutch on 11/28/16.
+  *
+  * @param numFeatures to randomly select from at each split (default: all)
+  * @param maxDepth to grow the tree to
   */
 class RegressionTreeLearner(numFeatures: Int = -1, maxDepth: Int = 30) extends Learner {
 
+  /**
+    * Train the tree by recursively partitioning (splitting) the training data on a single feature
+    * @param trainingData to train on
+    * @param weights for the training rows, if applicable
+    * @return a RegressionTree
+    */
   override def train(trainingData: Seq[(Vector[Any], Any)], weights: Option[Seq[Double]] = None): RegressionTree = {
     if (!trainingData.head._2.isInstanceOf[Double]) {
       throw new IllegalArgumentException(s"Tried to train regression on non-double labels, e.g.: ${trainingData.head._2}")
     }
     val repInput = trainingData.head._1
 
+    /* Create encoders for any categorical features */
     val encoders: Seq[Option[CategoricalEncoder[Any]]] = repInput.zipWithIndex.map { case (v, i) =>
       if (v.isInstanceOf[Double]) {
         None
@@ -22,50 +34,101 @@ class RegressionTreeLearner(numFeatures: Int = -1, maxDepth: Int = 30) extends L
       }
     }
 
+    /* Encode the training data */
     val encodedTraining = trainingData.map(p => (RegressionTree.encodeInput(p._1, encoders), p._2))
+
+    /* Add the weights to the (features, label) tuples and remove any with zero weight */
     val finalTraining = encodedTraining.zip(weights.getOrElse(Seq.fill(trainingData.size)(1.0))).map { case ((f, l), w) =>
       (f, l.asInstanceOf[Double], w)
     }.filter(_._3 > 0)
 
+    /* If the number of features isn't specified, use all of them */
     val numFeaturesActual = if (numFeatures > 0) {
       numFeatures
     } else {
       finalTraining.head._1.size
     }
 
+    /* The tree is built of training nodes */
     val rootTrainingNode = new RegressionTrainingNode(finalTraining, numFeaturesActual, remainingDepth = maxDepth)
+
+    /* Grab a prediction node.  The partitioning happens here */
     val rootModelNode = rootTrainingNode.getNode()
+
+    /* Grab the feature importances */
     val importance = rootTrainingNode.getFeatureImportance()
+
+    /* Wrap them up in a regression tree */
     new RegressionTree(rootModelNode, encoders, importance.map(_ / importance.sum))
   }
-
 }
 
+/**
+  * Container holding a model node, encoders, and the feature importances
+  * @param root of the tree
+  * @param encoders for categorical variables
+  * @param importance feature importances
+  */
 class RegressionTree(
                       root: ModelNode[AnyVal],
                       encoders: Seq[Option[CategoricalEncoder[Any]]],
                       importance: Array[Double]
                     ) extends Model {
+
+  /**
+    * Make a regression prediction
+    * @param input features
+    * @return predicted response as a double
+    */
   def predict(input: Vector[Any]): Double = {
     root.predict(RegressionTree.encodeInput(input, encoders))
   }
 
+  /**
+    * Make many regression predictions
+    * @param inputs to predict
+    * @return sequence of predictions
+    */
   def predict(inputs: Seq[Vector[Any]]): Seq[Double] = {
     inputs.map(predict)
   }
 
+  /**
+    * Apply the model by calling predict and wrapping the results
+    * @param inputs to apply the model to
+    * @return a predictionresult which includes only the expected outputs
+    */
   override def transform(inputs: Seq[Vector[Any]]): PredictionResult = {
     new RegressionTreeResult(inputs.map(predict))
   }
 
+  /**
+    * Return the pre-computed importances
+    * @return feature importances as an array of doubles
+    */
   override def getFeatureImportance(): Array[Double] = importance
 }
 
+/**
+  * Simple wrapper around a sequence of predictions
+  * @param predictions sequence of predictions
+  */
 class RegressionTreeResult(predictions: Seq[Double]) extends PredictionResult {
+  /**
+    * Get the predictions
+    * @return expected value of each prediction
+    */
   override def getExpected(): Seq[Any] = predictions
 }
 
+/** Companion object with common utilities */
 object RegressionTree {
+  /**
+    * Apply a sequence of encoders to transform categorical variables into chars
+    * @param input to encode
+    * @param encoders sequence of encoders
+    * @return input with categoricals encoded as chars
+    */
   def encodeInput(input: Vector[Any], encoders: Seq[Option[CategoricalEncoder[Any]]]): Vector[AnyVal] = {
     input.zip(encoders).map { case (v, e) =>
       e match {
