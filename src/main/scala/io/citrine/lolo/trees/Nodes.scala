@@ -5,10 +5,10 @@ package io.citrine.lolo.trees
   * Created by maxhutch on 11/29/16.
   */
 abstract class TrainingNode[T <: AnyVal](
-                             trainingData: Seq[(Vector[T], Double, Double)],
-                             var impurity: Double = -1.0,
-                             remainingDepth: Int = Int.MaxValue
-                           ) {
+                                          trainingData: Seq[(Vector[T], Double, Double)],
+                                          var impurity: Double = -1.0,
+                                          remainingDepth: Int = Int.MaxValue
+                                        ) {
   if (impurity < 0.0) {
     var sum = 0.0
     var sq = 0.0
@@ -23,6 +23,7 @@ abstract class TrainingNode[T <: AnyVal](
 
   /**
     * Get the lightweight prediction node for the output tree
+    *
     * @return lightweight prediction node
     */
   def getNode(): ModelNode[T]

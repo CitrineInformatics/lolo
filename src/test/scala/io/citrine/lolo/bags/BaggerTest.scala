@@ -26,7 +26,7 @@ class BaggerTest {
     (0 until N).map(i => baggedLearner.train(trainingData))
     val duration = (System.nanoTime() - start) / 1.0e9
 
-    println(s"Training large case took ${duration/(N + 1)} s")
+    println(s"Training large case took ${duration / (N + 1)} s")
 
     val results = RF.transform(trainingData.map(_._1))
     val means = results.getExpected()
@@ -69,6 +69,7 @@ class BaggerTest {
 object BaggerTest {
   /**
     * Test driver
+    *
     * @param argv args
     */
   def main(argv: Array[String]): Unit = {

@@ -9,7 +9,9 @@ import org.junit.Test
 @Test
 class RegressionTreeTest {
 
-
+  /**
+    * Test a simple tree with only real inputs
+    */
   @Test
   def testSimpleTree(): Unit = {
     val csv = TestUtils.readCsv("double_example.csv")
@@ -17,10 +19,13 @@ class RegressionTreeTest {
     val DTLearner = new RegressionTreeLearner()
     val DT = DTLearner.train(trainingData)
     trainingData.foreach { case (x, y) =>
-        assert(y == DT.predict(x))
+      assert(y == DT.predict(x))
     }
   }
 
+  /**
+    * Test a larger case and time it as a benchmark guideline
+    */
   @Test
   def longerTest(): Unit = {
     val csv = TestUtils.readCsv("large_example.csv")
@@ -32,11 +37,11 @@ class RegressionTreeTest {
     (0 until N).map(i => DTLearner.train(trainingData))
     val duration = (System.nanoTime() - start) / 1.0e9
 
-    println(s"Training large case took ${duration/N} s")
+    println(s"Training large case took ${duration / N} s")
 
     /* We should be able to memorize the inputs */
     trainingData.foreach { case (x, y) =>
-        assert(y == DT.predict(x))
+      assert(y == DT.predict(x))
     }
 
     /* The first feature should be the most important */
@@ -44,6 +49,10 @@ class RegressionTreeTest {
     println(importances.toList)
     assert(importances(0) == importances.max)
   }
+
+  /**
+    * Train with a categorical variable
+    */
   @Test
   def testCategorical(): Unit = {
     val csv = TestUtils.readCsv("large_example_with_cat.csv")
@@ -55,11 +64,11 @@ class RegressionTreeTest {
     (0 until N).map(i => DTLearner.train(trainingData))
     val duration = (System.nanoTime() - start) / 1.0e9
 
-    println(s"Training large case took ${duration/N} s")
+    println(s"Training large case took ${duration / N} s")
 
     /* We should be able to memorize the inputs */
     trainingData.foreach { case (x, y) =>
-        assert(y == DT.predict(x))
+      assert(y == DT.predict(x))
     }
 
     /* The first feature should be the most important */
@@ -68,7 +77,13 @@ class RegressionTreeTest {
   }
 }
 
+/** Companion driver */
 object RegressionTreeTest {
+  /**
+    * Test driver
+    *
+    * @param argv args
+    */
   def main(argv: Array[String]): Unit = {
     new RegressionTreeTest().testSimpleTree()
     new RegressionTreeTest().longerTest()
