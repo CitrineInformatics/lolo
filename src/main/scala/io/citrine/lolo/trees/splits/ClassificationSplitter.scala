@@ -33,6 +33,7 @@ object ClassificationSplitter {
 
     /* Pre-compute these for the variance calculation */
     val totalCategoryWeights = data.map(d => (d._2, d._3)).groupBy(_._1).mapValues(_.map(_._2).sum)
+    val totalSquareSum = totalCategoryWeights.map(v => Math.pow(v._2, 2)).sum
     val totalWeight = totalCategoryWeights.map(_._2).sum
 
     val rep = data.head
@@ -43,7 +44,7 @@ object ClassificationSplitter {
 
       /* Use different spliters for each type */
       val (possibleSplit, possibleImpurity) = rep._1(index) match {
-        case x: Double => getBestRealSplit(data, totalCategoryWeights, totalWeight, index)
+        case x: Double => getBestRealSplit(data, totalCategoryWeights, totalWeight, totalSquareSum, index)
         // case x: Char => getBestCategoricalSplit(data, totalCategoryWeights, totalWeight, index)
         case x: Any => throw new IllegalArgumentException("Trying to split unknown feature type")
       }
@@ -67,25 +68,28 @@ object ClassificationSplitter {
     * @param index       of the feature to split on
     * @return the best split of this feature
     */
-  def getBestRealSplit(data: Seq[(Vector[AnyVal], Char, Double)], totalCategoryWeights: Map[Char, Double], totalWeight: Double, index: Int): (RealSplit, Double) = {
+  def getBestRealSplit(data: Seq[(Vector[AnyVal], Char, Double)], totalCategoryWeights: Map[Char, Double], totalWeight: Double, totalSquareSum: Double, index: Int): (RealSplit, Double) = {
     /* Pull out the feature that's considered here and sort by it */
     val thinData = data.map(dat => (dat._1(index).asInstanceOf[Double], dat._2, dat._3)).sortBy(_._1)
 
     /* Base cases for iteration */
-    val leftCategoryWeights = mutable.Map(totalCategoryWeights.mapValues(v => 0.0).toSeq: _*)
+    val leftCategoryWeights = mutable.Map[Char, Double]()
     var leftWeight = 0.0
     var leftSquareSum = 0.0
-    var rightSquareSum = totalCategoryWeights.map(p => Math.pow(p._2,2)).sum
+    var rightSquareSum = totalSquareSum
 
     var bestPurity = Double.MinValue
     var bestPivot = Double.MinValue
 
     /* Move the data from the right to the left partition one value at a time */
     (0 until data.size - 1).foreach { j =>
-      leftSquareSum += thinData(j)._3 * (thinData(j)._3 + 2 * leftCategoryWeights(thinData(j)._2))
-      rightSquareSum += thinData(j)._3 * (thinData(j)._3 - 2 * (totalCategoryWeights(thinData(j)._2) -  leftCategoryWeights(thinData(j)._2)))
-      leftCategoryWeights(thinData(j)._2) += thinData(j)._3
-      leftWeight = leftWeight + thinData(j)._3
+      val y = thinData(j)._2
+      val w = thinData(j)._3
+      val wl = leftCategoryWeights.getOrElse(y, 0.0)
+      leftSquareSum +=  w * (w + 2 * wl)
+      rightSquareSum += w * (w - 2 * (totalCategoryWeights(y) - wl))
+      leftCategoryWeights(y) = w + wl
+      leftWeight = leftWeight + w
 
       /* This is just relative, so we can subtract off the sum of the squares, data.map(Math.pow(_._2, 2)) */
       val totalPurity = leftSquareSum / leftWeight + rightSquareSum / (totalWeight - leftWeight)
