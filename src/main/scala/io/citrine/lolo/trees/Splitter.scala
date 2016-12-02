@@ -23,6 +23,26 @@ abstract trait Split {
 }
 
 /**
+  * If no split was found
+  */
+object NoSplit extends Split {
+  /**
+    * Take the left branch in the binary split?
+    *
+    * @param input vector of any type
+    * @return true if input takes the left split
+    */
+  override def turnLeft(input: Vector[AnyVal]): Boolean = false
+
+  /**
+    * Get the index of the input vector that is used to pick this split
+    *
+    * @return index of the input vector used by this split
+    */
+  override def getIndex(): Int = -1
+}
+
+/**
   * Split based on a real value in the index position
   *
   * @param index position of the real value to inspect
@@ -105,8 +125,8 @@ object RegressionSplitter {
     * @param numFeatures to consider, randomly
     * @return a split object that optimally divides data
     */
-  def getBestSplit(data: Seq[(Vector[AnyVal], Double, Double)], numFeatures: Int): Split = {
-    var bestSplit: Split = null
+  def getBestSplit(data: Seq[(Vector[AnyVal], Double, Double)], numFeatures: Int): (Split, Double) = {
+    var bestSplit: Split = NoSplit
     var bestVariance = Double.MaxValue
 
     /* Pre-compute these for the variance calculation */
@@ -132,7 +152,8 @@ object RegressionSplitter {
         bestSplit = possibleSplit
       }
     }
-    bestSplit
+    val deltaImpurity = -bestVariance - totalSum * totalSum / totalWeight
+    (bestSplit, deltaImpurity)
   }
 
   /**
