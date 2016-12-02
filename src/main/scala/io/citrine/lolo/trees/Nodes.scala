@@ -1,11 +1,13 @@
 package io.citrine.lolo.trees
 
+import io.citrine.lolo.trees.splits.Split
+
 /**
   * Class to provide getNode interface for internal and leaf training nodes
   * Created by maxhutch on 11/29/16.
   */
-abstract class TrainingNode[T <: AnyVal](
-                                          trainingData: Seq[(Vector[T], Double, Double)],
+abstract class TrainingNode[T <: AnyVal, S](
+                                          trainingData: Seq[(Vector[T], S, Double)],
                                           remainingDepth: Int = Int.MaxValue
                                         ) {
   /**
@@ -13,7 +15,7 @@ abstract class TrainingNode[T <: AnyVal](
     *
     * @return lightweight prediction node
     */
-  def getNode(): ModelNode[T, Double]
+  def getNode(): ModelNode[T, S]
 
   def getFeatureImportance(): Array[Double]
 }
@@ -25,3 +27,27 @@ abstract trait ModelNode[T <: AnyVal, S] {
   def predict(input: Vector[T]): S
 }
 
+/**
+  * Internal node in the decision tree
+  *
+  * @param split to decide which branch to take
+  * @param left branch node
+  * @param right branch node
+  * @tparam T type of the input
+  * @tparam S type of the output
+  */
+class InternalModelNode[T <: AnyVal, S](split: Split, left: ModelNode[T, S], right: ModelNode[T, S]) extends ModelNode[T, S] {
+  /**
+    * Just propagate the prediction call through the appropriate child
+    *
+    * @param input to predict for
+    * @return prediction
+    */
+  override def predict(input: Vector[T]): S = {
+    if (split.turnLeft(input)) {
+      left.predict(input)
+    } else {
+      right.predict(input)
+    }
+  }
+}
