@@ -1,7 +1,7 @@
 package io.citrine.lolo.bags
 
 import io.citrine.lolo.TestUtils
-import io.citrine.lolo.trees.RegressionTreeLearner
+import io.citrine.lolo.trees.{ClassificationTreeLearner, RegressionTreeLearner}
 import org.junit.Test
 import org.scalatest.Assertions._
 
@@ -27,6 +27,30 @@ class BaggerTest {
     val duration = (System.nanoTime() - start) / 1.0e9
 
     println(s"Training large case took ${duration / (N + 1)} s")
+
+    val results = RF.transform(trainingData.map(_._1))
+    val means = results.getExpected()
+
+    /* The first feature should be the most important */
+    val importances = RF.getFeatureImportance()
+    assert(importances(0) == importances.max)
+  }
+  /**
+    * Test the fit performance of the regression bagger
+    */
+  @Test
+  def testClassificationBagger(): Unit = {
+    val csv = TestUtils.readCsv("class_example.csv")
+    val trainingData = csv.map(vec => (vec.init, vec.last))
+    val DTLearner = new ClassificationTreeLearner()
+    val baggedLearner = new Bagger(DTLearner, numBags = trainingData.size / 2)
+    val N = 0
+    val start = System.nanoTime()
+    val RF = baggedLearner.train(trainingData)
+    (0 until N).map(i => baggedLearner.train(trainingData))
+    val duration = (System.nanoTime() - start) / 1.0e9
+
+    println(s"Training classification forest took ${duration / (N + 1)} s")
 
     val results = RF.transform(trainingData.map(_._1))
     val means = results.getExpected()
