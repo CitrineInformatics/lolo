@@ -24,6 +24,8 @@ class RegressionTreeLearner(numFeatures: Int = -1, maxDepth: Int = 30) extends L
     if (!trainingData.head._2.isInstanceOf[Double]) {
       throw new IllegalArgumentException(s"Tried to train regression on non-double labels, e.g.: ${trainingData.head._2}")
     }
+    assert(trainingData.size > 4, s"We need to have at least 4 rows, only ${trainingData.size} given")
+
     val repInput = trainingData.head._1
 
     /* Create encoders for any categorical features */
@@ -51,7 +53,12 @@ class RegressionTreeLearner(numFeatures: Int = -1, maxDepth: Int = 30) extends L
     }
 
     /* The tree is built of training nodes */
-    val rootTrainingNode = new RegressionTrainingNode(finalTraining, numFeaturesActual, remainingDepth = maxDepth)
+    val (split, delta) = RegressionSplitter.getBestSplit(finalTraining, numFeaturesActual)
+    val rootTrainingNode = if (split.isInstanceOf[NoSplit]) {
+      new RegressionTrainingLeaf(finalTraining)
+    } else {
+      new RegressionTrainingNode(finalTraining, split, delta, numFeaturesActual, remainingDepth = maxDepth)
+    }
 
     /* Grab a prediction node.  The partitioning happens here */
     val rootModelNode = rootTrainingNode.getNode()
@@ -142,6 +149,8 @@ object RegressionTree {
 
 class RegressionTrainingNode(
                               trainingData: Seq[(Vector[AnyVal], Double, Double)],
+                              split: Split,
+                              deltaImpurity: Double,
                               numFeatures: Int,
                               remainingDepth: Int = Int.MaxValue
                             )
@@ -150,15 +159,16 @@ class RegressionTrainingNode(
     remainingDepth = remainingDepth
   ) {
 
-  val (split: Split, deltaImpurity: Double) = RegressionSplitter.getBestSplit(trainingData, numFeatures)
-  // assert(split != null, s"Null split for training data: \n${trainingData.map(_.toString() + "\n")}")
+  // val (split: Split, deltaImpurity: Double) = RegressionSplitter.getBestSplit(trainingData, numFeatures)
+  assert(trainingData.size > 1, "If we are going to split, we need at least 2 training rows")
+  assert(!split.isInstanceOf[NoSplit], s"Empty split split for training data: \n${trainingData.map(_.toString() + "\n")}")
 
   lazy val (leftTrain, rightTrain) = trainingData.partition(r => split.turnLeft(r._1))
-  // assert(leftTrain.size > 0 && rightTrain.size > 0, s"Split (${split}) was external for: ${trainingData.map(t => (t._1(split.getIndex()), t._2, t._3))}")
+  assert(leftTrain.size > 0 && rightTrain.size > 0, s"Split ${split} resulted in zero size: ${trainingData.map(_._1(split.getIndex()))}")
   lazy val leftChild = if (leftTrain.size > 1 && remainingDepth > 0 && leftTrain.exists(_._2 != leftTrain.head._2)) {
-    val tryNode = new RegressionTrainingNode(leftTrain, numFeatures, remainingDepth = remainingDepth - 1)
-    if (tryNode.split != NoSplit) {
-      tryNode
+    lazy val (leftSplit, leftDelta) = RegressionSplitter.getBestSplit(leftTrain, numFeatures)
+    if (!leftSplit.isInstanceOf[NoSplit]){
+      new RegressionTrainingNode(leftTrain, leftSplit, leftDelta, numFeatures, remainingDepth - 1)
     } else {
       new RegressionTrainingLeaf(leftTrain)
     }
@@ -166,16 +176,15 @@ class RegressionTrainingNode(
     new RegressionTrainingLeaf(leftTrain)
   }
   lazy val rightChild = if (rightTrain.size > 1 && remainingDepth > 0 && rightTrain.exists(_._2 != rightTrain.head._2)) {
-    val tryNode = new RegressionTrainingNode(rightTrain, numFeatures, remainingDepth = remainingDepth - 1)
-    if (tryNode.split != NoSplit) {
-      tryNode
+    lazy val (rightSplit, rightDelta) = RegressionSplitter.getBestSplit(rightTrain, numFeatures)
+    if (!rightSplit.isInstanceOf[NoSplit]){
+      new RegressionTrainingNode(rightTrain, rightSplit, rightDelta, numFeatures, remainingDepth - 1)
     } else {
       new RegressionTrainingLeaf(rightTrain)
     }
   } else {
     new RegressionTrainingLeaf(rightTrain)
   }
-
   /**
     * Get the lightweight prediction node for the output tree
     *

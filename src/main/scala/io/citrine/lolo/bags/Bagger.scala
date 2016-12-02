@@ -24,6 +24,7 @@ class Bagger(method: Learner, var numBags: Int = -1) extends Learner {
   override def train(trainingData: Seq[(Vector[Any], Any)], weights: Option[Seq[Double]] = None): BaggedModel = {
     /* Make sure the training data is the same size */
     assert(trainingData.forall(trainingData.head._1.size == _._1.size))
+    assert(trainingData.size > 8, s"We need to have at least 8 rows, only ${trainingData.size} given")
 
     /* Use unit weights if none are specified */
     val weightsActual = weights.getOrElse(Seq.fill(trainingData.size)(1.0))
@@ -67,7 +68,7 @@ class BaggedModel(models: ParSeq[Model], Nib: Vector[Vector[Int]]) extends Model
     */
   override def transform(inputs: Seq[Vector[Any]]): BaggedResult = {
     assert(inputs.forall(_.size == inputs.head.size))
-    println(s"Applying model on ${inputs.head.size} inputs")
+    println(s"Applying model on ${inputs.size} inputs of length ${inputs.head.size}")
     new BaggedResult(models.map(model => model.transform(inputs)).seq, Nib)
   }
 

@@ -28,7 +28,7 @@ object ClassificationSplitter {
     * @return a split object that optimally divides data
     */
   def getBestSplit(data: Seq[(Vector[AnyVal], Char, Double)], numFeatures: Int): (Split, Double) = {
-    var bestSplit: Split = NoSplit
+    var bestSplit: Split = new NoSplit()
     var bestImpurity = Double.MaxValue
 
     /* Pre-compute these for the variance calculation */
