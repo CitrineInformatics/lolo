@@ -70,7 +70,7 @@ class RegressionTreeLearner(numFeatures: Int = -1, maxDepth: Int = 30) extends L
   * @param importance feature importances
   */
 class RegressionTree(
-                      root: ModelNode[AnyVal],
+                      root: ModelNode[AnyVal, Double],
                       encoders: Seq[Option[CategoricalEncoder[Any]]],
                       importance: Array[Double]
                     ) extends Model {
@@ -142,23 +142,21 @@ object RegressionTree {
 class RegressionTrainingNode(
                               trainingData: Seq[(Vector[AnyVal], Double, Double)],
                               numFeatures: Int,
-                              impurityIn: Double = -1.0,
                               remainingDepth: Int = Int.MaxValue
                             )
   extends TrainingNode[AnyVal](
     trainingData = trainingData,
-    impurity = impurityIn,
     remainingDepth = remainingDepth
   ) {
 
-  val split: Split = RegressionSplitter.getBestSplit(trainingData, numFeatures)
+  val (split: Split, deltaImpurity: Double) = RegressionSplitter.getBestSplit(trainingData, numFeatures)
   // assert(split != null, s"Null split for training data: \n${trainingData.map(_.toString() + "\n")}")
 
   lazy val (leftTrain, rightTrain) = trainingData.partition(r => split.turnLeft(r._1))
   // assert(leftTrain.size > 0 && rightTrain.size > 0, s"Split (${split}) was external for: ${trainingData.map(t => (t._1(split.getIndex()), t._2, t._3))}")
   lazy val leftChild = if (leftTrain.size > 1 && remainingDepth > 0 && leftTrain.exists(_._2 != leftTrain.head._2)) {
     val tryNode = new RegressionTrainingNode(leftTrain, numFeatures, remainingDepth = remainingDepth - 1)
-    if (tryNode.split != null) {
+    if (tryNode.split != NoSplit) {
       tryNode
     } else {
       new RegressionTrainingLeaf(leftTrain)
@@ -168,7 +166,7 @@ class RegressionTrainingNode(
   }
   lazy val rightChild = if (rightTrain.size > 1 && remainingDepth > 0 && rightTrain.exists(_._2 != rightTrain.head._2)) {
     val tryNode = new RegressionTrainingNode(rightTrain, numFeatures, remainingDepth = remainingDepth - 1)
-    if (tryNode.split != null) {
+    if (tryNode.split != NoSplit) {
       tryNode
     } else {
       new RegressionTrainingLeaf(rightTrain)
@@ -182,12 +180,12 @@ class RegressionTrainingNode(
     *
     * @return lightweight prediction node
     */
-  override def getNode(): ModelNode[AnyVal] = {
+  override def getNode(): ModelNode[AnyVal, Double] = {
     new RegressionModelNode(split, leftChild.getNode(), rightChild.getNode())
   }
 
   override def getFeatureImportance(): Array[Double] = {
-    val improvement = getImpurity() - leftChild.getImpurity() - rightChild.getImpurity()
+    val improvement = deltaImpurity
     var ans = leftChild.getFeatureImportance().zip(rightChild.getFeatureImportance()).map(p => p._1 + p._2)
     ans(split.getIndex) = ans(split.getIndex) + improvement
     ans
@@ -200,11 +198,9 @@ class RegressionTrainingNode(
   * @param trainingData to train on
   */
 class RegressionTrainingLeaf(
-                              trainingData: Seq[(Vector[AnyVal], Double, Double)],
-                              impurityIn: Double = -1.0
+                              trainingData: Seq[(Vector[AnyVal], Double, Double)]
                             ) extends TrainingNode(
   trainingData = trainingData,
-  impurity = impurityIn,
   remainingDepth = 0
 ) {
   /**
@@ -212,16 +208,14 @@ class RegressionTrainingLeaf(
     *
     * @return lightweight prediction node
     */
-  def getNode(): ModelNode[AnyVal] = {
+  def getNode(): ModelNode[AnyVal, Double] = {
     new RegressionLeaf(trainingData.map(_._2).sum / trainingData.size)
   }
-
-  override def getImpurity(): Double = impurity
 
   override def getFeatureImportance(): Array[Double] = Array.fill(trainingData.head._1.size)(0.0)
 }
 
-class RegressionModelNode(split: Split, left: ModelNode[AnyVal], right: ModelNode[AnyVal]) extends ModelNode[AnyVal] {
+class RegressionModelNode(split: Split, left: ModelNode[AnyVal, Double], right: ModelNode[AnyVal, Double]) extends ModelNode[AnyVal, Double] {
   /**
     * Just propagate the prediction call through the appropriate child
     *
@@ -237,6 +231,6 @@ class RegressionModelNode(split: Split, left: ModelNode[AnyVal], right: ModelNod
   }
 }
 
-class RegressionLeaf(mean: Double) extends ModelNode[AnyVal] {
+class RegressionLeaf(mean: Double) extends ModelNode[AnyVal, Double] {
   override def predict(input: Vector[AnyVal]): Double = mean
 }
