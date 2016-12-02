@@ -12,7 +12,7 @@ object TestUtils {
     val stream = getClass.getClassLoader.getResourceAsStream(name)
     val bs = scala.io.Source.fromInputStream(stream)
     for (line <- bs.getLines()) {
-      val cols = line.split(",").map(_.trim).map{token =>
+      val cols = line.split(",").map(_.trim).map { token =>
         try {
           token.toDouble
         } catch {

@@ -8,6 +8,7 @@ import scala.util.Random
 abstract trait Split {
   /**
     * Take the left branch in the binary split?
+    *
     * @param input vector of any type
     * @return true if input takes the left split
     */
@@ -15,6 +16,7 @@ abstract trait Split {
 
   /**
     * Get the index of the input vector that is used to pick this split
+    *
     * @return index of the input vector used by this split
     */
   def getIndex(): Int
@@ -22,6 +24,7 @@ abstract trait Split {
 
 /**
   * Split based on a real value in the index position
+  *
   * @param index position of the real value to inspect
   * @param pivot value at or below which to take the left split
   */
@@ -39,12 +42,14 @@ class RealSplit(index: Int, pivot: Double) extends Split {
 
   /**
     * ${inherit_doc}
+    *
     * @return index of the input vector used by this split
     */
   override def getIndex: Int = index
 
   /**
     * Pretty print
+    *
     * @return debug string
     */
   override def toString: String = s"Split index ${index} @ ${pivot}"
@@ -52,7 +57,8 @@ class RealSplit(index: Int, pivot: Double) extends Split {
 
 /**
   * Split based on inclusion in a set
-  * @param index of the categorical feature
+  *
+  * @param index      of the categorical feature
   * @param includeSet set of values that turn left
   */
 class CategoricalSplit(index: Int, includeSet: Set[Char]) extends Split {
@@ -79,13 +85,13 @@ class CategoricalSplit(index: Int, includeSet: Set[Char]) extends Split {
   * Find the best split for regression problems.
   *
   * The best split is the one that reduces the total weighted variance:
-  *   totalVariance = N_left * \sigma_left^2 + N_right * \sigma_right^2
+  * totalVariance = N_left * \sigma_left^2 + N_right * \sigma_right^2
   * which, in scala-ish, would be:
-  *   totalVariance = leftWeight  * (leftSquareSum /leftWeight  - (leftSum  / leftWeight )^2)
-  *                 + rightWeight * (rightSquareSum/rightWeight - (rightSum / rightWeight)^2)
+  * totalVariance = leftWeight  * (leftSquareSum /leftWeight  - (leftSum  / leftWeight )^2)
+  * + rightWeight * (rightSquareSum/rightWeight - (rightSum / rightWeight)^2)
   * Because we are comparing them, we can subtract off leftSquareSum + rightSquareSum, which yields the following simple
   * expression after some simplification:
-  *   totalVariance = -leftSum * leftSum / leftWeight - Math.pow(totalSum - leftSum, 2) / (totalWeight - leftWeight)
+  * totalVariance = -leftSum * leftSum / leftWeight - Math.pow(totalSum - leftSum, 2) / (totalWeight - leftWeight)
   * which depends only on updates to leftSum and leftWeight (since totalSum and totalWeight are constant).
   *
   * Created by maxhutch on 11/29/16.
@@ -94,7 +100,8 @@ object RegressionSplitter {
 
   /**
     * Get the best split, considering numFeature random features (w/o replacement)
-    * @param data to split
+    *
+    * @param data        to split
     * @param numFeatures to consider, randomly
     * @return a split object that optimally divides data
     */
@@ -131,10 +138,10 @@ object RegressionSplitter {
   /**
     * Find the best split on a continuous variable
     *
-    * @param data to split
-    * @param totalSum Pre-computed data.map(d => data._2 * data._3).sum
+    * @param data        to split
+    * @param totalSum    Pre-computed data.map(d => data._2 * data._3).sum
     * @param totalWeight Pre-computed data.map(d => d._3).sum
-    * @param index of the feature to split on
+    * @param index       of the feature to split on
     * @return the best split of this feature
     */
   def getBestRealSplit(data: Seq[(Vector[AnyVal], Double, Double)], totalSum: Double, totalWeight: Double, index: Int): (RealSplit, Double) = {
@@ -171,11 +178,11 @@ object RegressionSplitter {
 
   /**
     * Get find the best categorical splitter.
-
-    * @param data to split
-    * @param totalSum Pre-computed data.map(d => data._2 * data._3).sum
+    *
+    * @param data        to split
+    * @param totalSum    Pre-computed data.map(d => data._2 * data._3).sum
     * @param totalWeight Pre-computed data.map(d => d._3).sum
-    * @param index of the feature to split on
+    * @param index       of the feature to split on
     * @return the best split of this feature
     */
   def getBestCategoricalSplit(data: Seq[(Vector[AnyVal], Double, Double)], totalSum: Double, totalWeight: Double, index: Int): (CategoricalSplit, Double) = {
@@ -203,7 +210,7 @@ object RegressionSplitter {
       leftWeight = leftWeight + groupedData(orderedNames(j))._2
 
       /* This is just relative, so we can subtract off the sum of the squares, data.map(Math.pow(_._2, 2)) */
-      val totalVariance = - leftSum * leftSum / leftWeight - Math.pow(totalSum - leftSum, 2) / (totalWeight - leftWeight)
+      val totalVariance = -leftSum * leftSum / leftWeight - Math.pow(totalSum - leftSum, 2) / (totalWeight - leftWeight)
 
       /* Keep track of the best split */
       if (totalVariance < bestVariance) {

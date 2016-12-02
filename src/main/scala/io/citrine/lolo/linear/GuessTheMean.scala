@@ -1,7 +1,5 @@
 package io.citrine.lolo.linear
 
-import io.citrine.lolo.{Learner, Model}
-
 /**
   * Created by maxhutch on 11/15/16.
   */

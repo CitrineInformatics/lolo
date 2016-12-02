@@ -8,6 +8,9 @@ import org.junit.Test
 @Test
 class CategoricalEncoderTest {
 
+  /**
+    * Test that encoding preserves equality, unknown goes to zero
+    */
   @Test
   def testStringEncoder(): Unit = {
     val inputs = Seq("foo", "bar", "foobar")
@@ -21,7 +24,13 @@ class CategoricalEncoderTest {
 
 }
 
+/** Companion driver */
 object CategoricalEncoderTest {
+  /**
+    * Test driver
+    *
+    * @param argv args
+    */
   def main(argv: Array[String]): Unit = {
     new CategoricalEncoderTest().testStringEncoder()
   }

@@ -28,13 +28,13 @@ class Bagger(method: Learner, var numBags: Int = -1) extends Learner {
 
 
     val dist = new Poisson(1.0)
-    val Nib = Vector.tabulate(actualBags){ i =>
-      Vector.tabulate(trainingData.size){  j =>
+    val Nib = Vector.tabulate(actualBags) { i =>
+      Vector.tabulate(trainingData.size) { j =>
         dist.draw()
       }
     }
 
-    val models = (0 until actualBags).par.map{ i =>
+    val models = (0 until actualBags).par.map { i =>
       method.train(trainingData.toSeq, Some(Nib(i).zip(weights).map(p => p._1.toDouble * p._2)))
     }
 
@@ -51,7 +51,7 @@ class BaggedModel(models: ParSeq[Model], Nib: Vector[Vector[Int]]) extends Model
   }
 
   override def getFeatureImportance(): Array[Double] = {
-    val importances: Array[Double] = models.map(model => model.getFeatureImportance()).reduce{ (v1, v2) =>
+    val importances: Array[Double] = models.map(model => model.getFeatureImportance()).reduce { (v1, v2) =>
       v1.zip(v2).map(p => p._1 + p._2)
     }
     importances.map(_ / models.size)
@@ -102,7 +102,7 @@ class BaggedResult(predictions: Seq[PredictionResult], NibIn: Vector[Vector[Int]
     }.sum
 
     /* Compute the jackknife-after-bootstrap variance estimate */
-    val varianceJ = (Nib.size - 1.0)/Nib.size * Nib.map{ v =>
+    val varianceJ = (Nib.size - 1.0) / Nib.size * Nib.map { v =>
       val predictionsWithoutV: Seq[Double] = v.zip(treePredictions).filter(_._1 == -1.0).map(_._2)
       Math.pow(predictionsWithoutV.sum / predictionsWithoutV.size - meanPrediction, 2)
     }.sum
@@ -110,7 +110,7 @@ class BaggedResult(predictions: Seq[PredictionResult], NibIn: Vector[Vector[Int]
     /* Compute the first order bias correction for the variance estimators */
     val correction = diff.map(Math.pow(_, 2)).sum * Nib.size / (treePredictions.size * treePredictions.size)
     /* Mix the IJ and J estimators with their bias corrections */
-    val result = (varianceIJ + varianceJ - Math.E * correction)/2.0
+    val result = (varianceIJ + varianceJ - Math.E * correction) / 2.0
     if (result < 0) {
       println("Warning: negative variance; increase the number of trees")
       0.0

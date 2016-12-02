@@ -14,6 +14,7 @@ class CategoricalEncoder[T](encoding: Map[T, Char]) {
 
   /**
     * Just call the encoding.  Use 0 for unknown inputs
+    *
     * @param input to encode
     * @return encoded input as a char
     */
@@ -21,6 +22,7 @@ class CategoricalEncoder[T](encoding: Map[T, Char]) {
 
   /**
     * Just call the decoding.
+    *
     * @param output to decode
     * @return decoded output
     */
@@ -31,6 +33,7 @@ class CategoricalEncoder[T](encoding: Map[T, Char]) {
 object CategoricalEncoder {
   /**
     * Build an encoder from a list of input values
+    *
     * @param values to encode
     * @tparam T type of the encoder
     * @return an encoder for those inputs
