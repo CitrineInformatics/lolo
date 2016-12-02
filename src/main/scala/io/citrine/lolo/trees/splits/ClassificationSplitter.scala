@@ -45,7 +45,7 @@ object ClassificationSplitter {
       /* Use different spliters for each type */
       val (possibleSplit, possibleImpurity) = rep._1(index) match {
         case x: Double => getBestRealSplit(data, totalCategoryWeights, totalWeight, totalSquareSum, index)
-        // case x: Char => getBestCategoricalSplit(data, totalCategoryWeights, totalWeight, index)
+        case x: Char => getBestCategoricalSplit(data, totalCategoryWeights, totalWeight, totalSquareSum, index)
         case x: Any => throw new IllegalArgumentException("Trying to split unknown feature type")
       }
 
@@ -106,6 +106,51 @@ object ClassificationSplitter {
       }
     }
     (new RealSplit(index, bestPivot), totalWeight - bestPurity)
+  }
+
+  def getBestCategoricalSplit(data: Seq[(Vector[AnyVal], Char, Double)], totalCategoryWeights: Map[Char, Double], totalWeight: Double, totalSquareSum: Double, index: Int): (CategoricalSplit, Double) = {
+    val thinData = data.map(dat => (dat._1(index).asInstanceOf[Char], dat._2, dat._3))
+    val groupedData = thinData.groupBy(_._1).mapValues{g =>
+      val dict = g.groupBy(_._2).mapValues(v => v.map(_._3).sum)
+      val impurity = dict.values.map(Math.pow(_, 2)).sum / Math.pow(dict.values.sum, 2)
+      (dict, impurity)
+    }
+    val orderedNames = groupedData.toSeq.sortBy(_._2._2).map(_._1)
+
+    /* Base cases for iteration */
+    val leftCategoryWeights = mutable.Map[Char, Double]()
+    var leftWeight = 0.0
+    var leftSquareSum = 0.0
+    var rightSquareSum = totalSquareSum
+
+    var bestPurity = Double.MinValue
+    var bestSet = Set.empty[Char]
+
+    /* Move the data from the right to the left partition one value at a time */
+    (0 until orderedNames.size - 1).foreach { j =>
+      val dict = groupedData(orderedNames(j))._1
+      dict.foreach { case (y, w) =>
+        val wl = leftCategoryWeights.getOrElse(y, 0.0)
+        leftSquareSum += w * (w + 2 * wl)
+        rightSquareSum += w * (w - 2 * (totalCategoryWeights(y) - wl))
+        leftCategoryWeights(y) = w + wl
+        leftWeight = leftWeight + w
+      }
+
+      /* This is just relative, so we can subtract off the sum of the squares, data.map(Math.pow(_._2, 2)) */
+      val totalPurity = leftSquareSum / leftWeight + rightSquareSum / (totalWeight - leftWeight)
+
+      /* Keep track of the best split, avoiding splits in the middle of constant sets of feature values
+         It is really important for performance to keep these checks together so
+         1) there is only one branch and
+         2) it is usually false
+       */
+      if (totalPurity > bestPurity ) {
+        bestPurity = totalPurity
+        bestSet = orderedNames.slice(0, j + 1).toSet
+      }
+    }
+    (new CategoricalSplit(index, bestSet), totalWeight - bestPurity)
   }
 
 }

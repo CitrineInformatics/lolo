@@ -36,6 +36,27 @@ class ClassificationTreeTest {
     assert(importances(0) == importances.max)
   }
 
+  /**
+    * Test a larger case and time it as a benchmark guideline
+    */
+  @Test
+  def testCategorical(): Unit = {
+    val csv = TestUtils.readCsv("class_example_with_cat.csv")
+    val trainingData = csv.map(vec => (vec.init, vec.last))
+    val DTLearner = new ClassificationTreeLearner()
+    val N = 100
+    val start = System.nanoTime()
+    val DT = DTLearner.train(trainingData)
+    (0 until N).map(i => DTLearner.train(trainingData))
+    val duration = (System.nanoTime() - start) / 1.0e9
+
+    println(s"Training large case took ${duration / N} s")
+
+    /* We should be able to memorize the inputs */
+    trainingData.foreach { case (x, y) =>
+      assert(y == DT.predict(x))
+    }
+  }
 }
 
 /** Companion driver */
@@ -46,6 +67,7 @@ object ClassificationTreeTest {
     * @param argv args
     */
   def main(argv: Array[String]): Unit = {
-    new ClassificationTreeTest().longerTest()
+    // new ClassificationTreeTest().longerTest()
+    new ClassificationTreeTest().testCategorical()
   }
 }
