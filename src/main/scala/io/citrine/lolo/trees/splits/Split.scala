@@ -23,7 +23,7 @@ abstract trait Split {
 /**
   * If no split was found
   */
-object NoSplit extends Split {
+class NoSplit extends Split {
   /**
     * Take the left branch in the binary split?
     *

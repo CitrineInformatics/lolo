@@ -27,7 +27,7 @@ object RegressionSplitter {
     * @return a split object that optimally divides data
     */
   def getBestSplit(data: Seq[(Vector[AnyVal], Double, Double)], numFeatures: Int): (Split, Double) = {
-    var bestSplit: Split = NoSplit
+    var bestSplit: Split = new NoSplit()
     var bestVariance = Double.MaxValue
 
     /* Pre-compute these for the variance calculation */

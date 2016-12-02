@@ -18,6 +18,7 @@ class ClassificationTreeLearner(val numFeatures: Int = -1) extends Learner {
     * @return a classification tree
     */
   override def train(trainingData: Seq[(Vector[Any], Any)], weights: Option[Seq[Double]]): ClassificationTree = {
+    assert(trainingData.size > 4, s"We need to have at least 4 rows, only ${trainingData.size} given")
     val repInput = trainingData.head._1
 
     /* Create encoders for any categorical features */
@@ -49,7 +50,13 @@ class ClassificationTreeLearner(val numFeatures: Int = -1) extends Learner {
     }
 
     /* The tree is built of training nodes */
-    val rootTrainingNode = new ClassificationTrainingNode(finalTraining, numFeaturesActual, remainingDepth = 30)
+    val (split, delta) = ClassificationSplitter.getBestSplit(finalTraining, numFeaturesActual)
+    // assert(!split.isInstanceOf[NoSplit], s"Couldn't make a single split of ${numFeaturesActual} on ${finalTraining.size} rows: ${finalTraining}")
+    val rootTrainingNode = if (split.isInstanceOf[NoSplit]) {
+      new ClassificationTrainingLeaf(finalTraining)
+    } else {
+      new ClassificationTrainingNode(finalTraining, split, delta, numFeaturesActual, remainingDepth = 30)
+    }
 
     /* Grab a prediction node.  The partitioning happens here */
     val rootModelNode = rootTrainingNode.getNode()
@@ -109,19 +116,21 @@ class ClassificationResult(predictions: Seq[Any]) extends PredictionResult {
 
 class ClassificationTrainingNode(
                                   trainingData: Seq[(Vector[AnyVal], Char, Double)],
+                                  split: Split,
+                                  deltaImpurity: Double,
                                   numFeatures: Int,
                                   remainingDepth: Int = Int.MaxValue
                                 ) extends TrainingNode(trainingData, remainingDepth) {
 
-  val (split: Split, deltaImpurity: Double) = ClassificationSplitter.getBestSplit(trainingData, numFeatures)
-  // assert(split != null, s"Null split for training data: \n${trainingData.map(_.toString() + "\n")}")
+  assert(trainingData.size > 1, "If we are going to split, we need at least 2 training rows")
+  assert(!split.isInstanceOf[NoSplit], s"Empty split split for training data: \n${trainingData.map(_.toString() + "\n")}")
 
   lazy val (leftTrain, rightTrain) = trainingData.partition(r => split.turnLeft(r._1))
-  // assert(leftTrain.size > 0 && rightTrain.size > 0, s"Split (${split}) was external for: ${trainingData.map(t => (t._1(split.getIndex()), t._2, t._3))}")
+  assert(leftTrain.size > 0 && rightTrain.size > 0, s"Split ${split} resulted in zero size: ${trainingData.map(_._1(split.getIndex()))}")
   lazy val leftChild = if (leftTrain.size > 1 && remainingDepth > 0 && leftTrain.exists(_._2 != leftTrain.head._2)) {
-    val tryNode = new ClassificationTrainingNode(leftTrain, numFeatures, remainingDepth = remainingDepth - 1)
-    if (tryNode.split != NoSplit) {
-      tryNode
+    lazy val (leftSplit, leftDelta) = ClassificationSplitter.getBestSplit(leftTrain, numFeatures)
+    if (!leftSplit.isInstanceOf[NoSplit]){
+      new ClassificationTrainingNode(leftTrain, leftSplit, leftDelta, numFeatures, remainingDepth - 1)
     } else {
       new ClassificationTrainingLeaf(leftTrain)
     }
@@ -129,9 +138,9 @@ class ClassificationTrainingNode(
     new ClassificationTrainingLeaf(leftTrain)
   }
   lazy val rightChild = if (rightTrain.size > 1 && remainingDepth > 0 && rightTrain.exists(_._2 != rightTrain.head._2)) {
-    val tryNode = new ClassificationTrainingNode(rightTrain, numFeatures, remainingDepth = remainingDepth - 1)
-    if (tryNode.split != NoSplit) {
-      tryNode
+    lazy val (rightSplit, rightDelta) = ClassificationSplitter.getBestSplit(rightTrain, numFeatures)
+    if (!rightSplit.isInstanceOf[NoSplit]){
+      new ClassificationTrainingNode(rightTrain, rightSplit, rightDelta, numFeatures, remainingDepth - 1)
     } else {
       new ClassificationTrainingLeaf(rightTrain)
     }
