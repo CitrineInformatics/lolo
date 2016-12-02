@@ -5,6 +5,12 @@ package io.citrine.lolo
   */
 abstract class Learner {
 
+  /**
+    * Train a model
+    * @param trainingData to train on
+    * @param weights for the training rows, if applicable
+    * @return a model
+    */
   def train(trainingData: Seq[(Vector[Any], Any)], weights: Option[Seq[Double]] = None): Model
 
 }
