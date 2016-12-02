@@ -1,6 +1,6 @@
-package io.citrine.lolo
+package io.citrine.lolo.trees
 
-import io.citrine.lolo.trees.RegressionTreeLearner
+import io.citrine.lolo.TestUtils
 import org.junit.Test
 
 /**
