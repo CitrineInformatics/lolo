@@ -3,7 +3,7 @@ package io.citrine.lolo
 /**
   * Created by maxhutch on 11/14/16.
   */
-abstract class Model {
+abstract class Model extends Serializable {
 
   /**
     * Apply the model to a seq of inputs

@@ -3,7 +3,7 @@ package io.citrine.lolo.trees.splits
 /**
   * Splits are used by decision trees to partition the input space
   */
-abstract trait Split {
+abstract trait Split extends Serializable {
   /**
     * Take the left branch in the binary split?
     *

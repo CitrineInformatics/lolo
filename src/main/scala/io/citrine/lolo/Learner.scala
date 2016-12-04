@@ -3,7 +3,7 @@ package io.citrine.lolo
 /**
   * Created by maxhutch on 11/14/16.
   */
-abstract class Learner {
+abstract class Learner extends Serializable {
 
   /**
     * Train a model
