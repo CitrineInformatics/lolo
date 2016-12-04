@@ -7,7 +7,7 @@ package io.citrine.lolo.encoders
   * @param encoding underlying map to use
   * @tparam T type of the categorical variable
   */
-class CategoricalEncoder[T](encoding: Map[T, Char]) {
+class CategoricalEncoder[T](encoding: Map[T, Char]) extends Serializable {
 
   /** Inverse of the encoding */
   lazy val decoding: Map[Char, T] = encoding.groupBy(_._2).mapValues(_.keys.head)

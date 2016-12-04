@@ -23,7 +23,7 @@ abstract class TrainingNode[T <: AnyVal, S](
 /**
   * Trait to hold prediction interface
   */
-abstract trait ModelNode[T <: AnyVal, S] {
+abstract trait ModelNode[T <: AnyVal, S] extends Serializable {
   def predict(input: Vector[T]): S
 }
 
