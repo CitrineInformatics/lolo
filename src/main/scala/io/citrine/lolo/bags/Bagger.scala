@@ -1,5 +1,6 @@
 package io.citrine.lolo.bags
 
+import breeze.linalg.{DenseMatrix, sum}
 import breeze.stats.distributions.Poisson
 import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult, hasFeatureImportance, hasLoss, hasPredictedVsActual, hasTrainingScores, hasUncertainty}
 
@@ -62,11 +63,30 @@ class BaggedTrainingResult(
   extends TrainingResult with hasPredictedVsActual with hasLoss with hasFeatureImportance {
   lazy val NibT = Nib.transpose
   lazy val model = new BaggedModel(bases.map(_.getModel()), Nib)
+  lazy val rep = trainingData.head._2
   lazy val predictedVsActual = trainingData.zip(NibT).map{ case ((f, l), nb) =>
-    val predicted = bases.zip(nb).filter(_._2 == 0).map(_._1.getModel().transform(Seq(f)).getExpected().head.asInstanceOf[Double]).sum / nb.count(_ == 0)
+    val predicted = rep match {
+      case x: Double => bases.zip(nb).filter(_._2 == 0).map(_._1.getModel().transform(Seq(f)).getExpected().head.asInstanceOf[Double]).sum / nb.count(_ == 0)
+      case x: Any => bases.zip(nb).filter(_._2 == 0).map(_._1.getModel().transform(Seq(f)).getExpected().head).groupBy(identity).maxBy(_._2.size)._1
+    }
     (f, predicted, l)
   }
-  lazy val loss = Math.sqrt(predictedVsActual.map(d => Math.pow(d._2.asInstanceOf[Double] - d._3.asInstanceOf[Double], 2)).sum / predictedVsActual.size)
+
+  lazy val loss = rep match {
+    case x: Double => Math.sqrt (predictedVsActual.map (d => Math.pow (d._2.asInstanceOf[Double] - d._3.asInstanceOf[Double], 2) ).sum / predictedVsActual.size)
+    case x: Any =>
+      val labels = predictedVsActual.map(_._3).distinct
+      val index = labels.zipWithIndex.toMap
+      val numLabels = labels.size
+      val confusionMatrix = DenseMatrix.zeros[Int](numLabels, numLabels)
+      predictedVsActual.foreach(p => confusionMatrix(index(p._2), index(p._3)) += 1)
+      val f1scores = labels.indices.map{ i=>
+        val precision = confusionMatrix(i, i) / sum(confusionMatrix(i, ::)).toDouble
+        val recall = confusionMatrix(i, i) / sum(confusionMatrix(::, i)).toDouble
+        2.0 * precision * recall / (precision + recall) * sum(confusionMatrix(::, i)).toDouble / trainingData.size
+      }
+      f1scores.sum
+  }
 
   /**
     * Average the importances across the ensemble of models
@@ -144,7 +164,7 @@ class BaggedResult(predictions: Seq[PredictionResult], NibIn: Vector[Vector[Int]
   /* Extract the prediction by averaging for regression, taking the most popular response for classification */
   lazy val expected = rep match {
     case x: Double => expectedMatrix.map(ps => ps.asInstanceOf[Seq[Double]].sum / ps.size)
-    case x: Any => expectedMatrix.map(ps => ps.groupBy(identity).mapValues(_.size).maxBy(_._2)._1).seq
+    case x: Any => expectedMatrix.map(ps => ps.groupBy(identity).maxBy(_._2.size)._1).seq
   }
 
   /* Compute the uncertainties one prediction at a time */
