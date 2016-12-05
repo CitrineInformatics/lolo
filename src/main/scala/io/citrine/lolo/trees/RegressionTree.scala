@@ -2,7 +2,7 @@ package io.citrine.lolo.trees
 
 import io.citrine.lolo.encoders.CategoricalEncoder
 import io.citrine.lolo.trees.splits.{NoSplit, RegressionSplitter, Split}
-import io.citrine.lolo.{Learner, Model, PredictionResult}
+import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult, hasFeatureImportance}
 
 /**
   * Learner for regression trees
@@ -20,7 +20,7 @@ class RegressionTreeLearner(numFeatures: Int = -1, maxDepth: Int = 30) extends L
     * @param weights for the training rows, if applicable
     * @return a RegressionTree
     */
-  override def train(trainingData: Seq[(Vector[Any], Any)], weights: Option[Seq[Double]] = None): RegressionTree = {
+  override def train(trainingData: Seq[(Vector[Any], Any)], weights: Option[Seq[Double]] = None): RegressionTreeTrainingResult = {
     if (!trainingData.head._2.isInstanceOf[Double]) {
       throw new IllegalArgumentException(s"Tried to train regression on non-double labels, e.g.: ${trainingData.head._2}")
     }
@@ -60,27 +60,36 @@ class RegressionTreeLearner(numFeatures: Int = -1, maxDepth: Int = 30) extends L
       new RegressionTrainingNode(finalTraining, split, delta, numFeaturesActual, remainingDepth = maxDepth)
     }
 
-    /* Grab a prediction node.  The partitioning happens here */
-    val rootModelNode = rootTrainingNode.getNode()
-
-    /* Grab the feature importances */
-    val importance = rootTrainingNode.getFeatureImportance()
-
     /* Wrap them up in a regression tree */
-    new RegressionTree(rootModelNode, encoders, importance.map(_ / importance.sum))
+    new RegressionTreeTrainingResult(rootTrainingNode, encoders)
   }
+}
+
+class RegressionTreeTrainingResult(
+                                    rootTrainingNode: TrainingNode[AnyVal, Double],
+                                    encoders: Seq[Option[CategoricalEncoder[Any]]]
+                                  ) extends TrainingResult with hasFeatureImportance {
+  lazy val model = new RegressionTree(rootTrainingNode.getNode(), encoders)
+  lazy val importance = rootTrainingNode.getFeatureImportance()
+  lazy val importanceNormalized = importance.map(_ / importance.sum)
+
+  override def getModel(): RegressionTree = model
+
+  /**
+    * Return the pre-computed importances
+    * @return feature importances as an array of doubles
+    */
+  override def getFeatureImportance(): Array[Double] = importanceNormalized
 }
 
 /**
   * Container holding a model node, encoders, and the feature importances
   * @param root of the tree
   * @param encoders for categorical variables
-  * @param importance feature importances
   */
 class RegressionTree(
                       root: ModelNode[AnyVal, Double],
-                      encoders: Seq[Option[CategoricalEncoder[Any]]],
-                      importance: Array[Double]
+                      encoders: Seq[Option[CategoricalEncoder[Any]]]
                     ) extends Model {
 
   /**
@@ -109,12 +118,6 @@ class RegressionTree(
   override def transform(inputs: Seq[Vector[Any]]): PredictionResult = {
     new RegressionTreeResult(inputs.map(predict))
   }
-
-  /**
-    * Return the pre-computed importances
-    * @return feature importances as an array of doubles
-    */
-  override def getFeatureImportance(): Array[Double] = importance
 }
 
 /**
