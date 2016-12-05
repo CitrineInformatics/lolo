@@ -60,25 +60,26 @@ class RegressionTreeLearner(numFeatures: Int = -1, maxDepth: Int = 30) extends L
       new RegressionTrainingNode(finalTraining, split, delta, numFeaturesActual, remainingDepth = maxDepth)
     }
 
-    /* Grab a prediction node.  The partitioning happens here */
-    val rootModelNode = rootTrainingNode.getNode()
-
-    /* Grab the feature importances */
-    val importance = rootTrainingNode.getFeatureImportance()
-
     /* Wrap them up in a regression tree */
-    new RegressionTreeTrainingResult(new RegressionTree(rootModelNode, encoders), importance.map(_ / importance.sum))
+    new RegressionTreeTrainingResult(rootTrainingNode, encoders)
   }
 }
 
-class RegressionTreeTrainingResult(model: RegressionTree, importance: Array[Double]) extends TrainingResult with hasFeatureImportance {
+class RegressionTreeTrainingResult(
+                                    rootTrainingNode: TrainingNode[AnyVal, Double],
+                                    encoders: Seq[Option[CategoricalEncoder[Any]]]
+                                  ) extends TrainingResult with hasFeatureImportance {
+  lazy val model = new RegressionTree(rootTrainingNode.getNode(), encoders)
+  lazy val importance = rootTrainingNode.getFeatureImportance()
+  lazy val importanceNormalized = importance.map(_ / importance.sum)
+
   override def getModel(): RegressionTree = model
 
   /**
     * Return the pre-computed importances
     * @return feature importances as an array of doubles
     */
-  override def getFeatureImportance(): Array[Double] = importance
+  override def getFeatureImportance(): Array[Double] = importanceNormalized
 }
 
 /**
