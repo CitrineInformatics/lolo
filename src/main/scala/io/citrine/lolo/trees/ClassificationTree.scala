@@ -2,7 +2,7 @@ package io.citrine.lolo.trees
 
 import io.citrine.lolo.encoders.CategoricalEncoder
 import io.citrine.lolo.trees.splits.{ClassificationSplitter, NoSplit, Split}
-import io.citrine.lolo.{Learner, Model, PredictionResult}
+import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult, hasFeatureImportance}
 
 /**
   * Created by maxhutch on 12/2/16.
@@ -17,7 +17,7 @@ class ClassificationTreeLearner(val numFeatures: Int = -1) extends Learner {
     * @param weights      for the training rows, if applicable
     * @return a classification tree
     */
-  override def train(trainingData: Seq[(Vector[Any], Any)], weights: Option[Seq[Double]]): ClassificationTree = {
+  override def train(trainingData: Seq[(Vector[Any], Any)], weights: Option[Seq[Double]]): ClassificationTrainingResult = {
     assert(trainingData.size > 4, s"We need to have at least 4 rows, only ${trainingData.size} given")
     val repInput = trainingData.head._1
 
@@ -65,8 +65,22 @@ class ClassificationTreeLearner(val numFeatures: Int = -1) extends Learner {
     val importance = rootTrainingNode.getFeatureImportance()
 
     /* Wrap them up in a regression tree */
-    new ClassificationTree(rootModelNode, inputEncoders, outputEncoder, importance.map(_ / importance.sum))
+    new ClassificationTrainingResult(new ClassificationTree(rootModelNode, inputEncoders, outputEncoder), importance.map(_ / importance.sum))
   }
+}
+
+class ClassificationTrainingResult(
+                                    model: ClassificationTree,
+                                    importance: Array[Double]
+                                  ) extends TrainingResult with hasFeatureImportance {
+  override def getModel(): ClassificationTree = model
+
+  /**
+    * Get a measure of the importance of the model features
+    *
+    * @return feature importances as an array of doubles
+    */
+  override def getFeatureImportance(): Array[Double] = importance
 }
 
 /**
@@ -75,8 +89,7 @@ class ClassificationTreeLearner(val numFeatures: Int = -1) extends Learner {
 class ClassificationTree(
                           rootModelNode: ModelNode[AnyVal, Char],
                           inputEncoders: Seq[Option[CategoricalEncoder[Any]]],
-                          outputEncoder: CategoricalEncoder[Any],
-                          importances: Array[Double]
+                          outputEncoder: CategoricalEncoder[Any]
                         ) extends Model {
 
   def predict(input: Vector[Any]): Any = {
@@ -92,13 +105,6 @@ class ClassificationTree(
   override def transform(inputs: Seq[Vector[Any]]): PredictionResult = {
     new ClassificationResult(inputs.map(predict))
   }
-
-  /**
-    * Get a measure of the importance of the model features
-    *
-    * @return feature importances as an array of doubles
-    */
-  override def getFeatureImportance(): Array[Double] = importances
 }
 
 /**
