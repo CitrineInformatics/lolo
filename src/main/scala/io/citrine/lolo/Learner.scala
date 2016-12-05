@@ -11,6 +11,6 @@ abstract class Learner extends Serializable {
     * @param weights for the training rows, if applicable
     * @return a model
     */
-  def train(trainingData: Seq[(Vector[Any], Any)], weights: Option[Seq[Double]] = None): Model
+  def train(trainingData: Seq[(Vector[Any], Any)], weights: Option[Seq[Double]] = None): TrainingResult
 
 }
