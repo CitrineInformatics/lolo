@@ -22,7 +22,8 @@ class BaggerTest {
     val baggedLearner = new Bagger(DTLearner, numBags = trainingData.size / 2)
     val N = 0
     val start = System.nanoTime()
-    val RF = baggedLearner.train(trainingData)
+    val RFMeta = baggedLearner.train(trainingData)
+    val RF = RFMeta.getModel()
     (0 until N).map(i => baggedLearner.train(trainingData))
     val duration = (System.nanoTime() - start) / 1.0e9
 
@@ -32,7 +33,7 @@ class BaggerTest {
     val means = results.getExpected()
 
     /* The first feature should be the most important */
-    val importances = RF.getFeatureImportance()
+    val importances = RFMeta.getFeatureImportance()
     assert(importances(0) == importances.max)
   }
   /**
@@ -46,7 +47,8 @@ class BaggerTest {
     val baggedLearner = new Bagger(DTLearner, numBags = trainingData.size / 2)
     val N = 0
     val start = System.nanoTime()
-    val RF = baggedLearner.train(trainingData)
+    val RFMeta = baggedLearner.train(trainingData)
+    val RF = RFMeta.getModel()
     (0 until N).map(i => baggedLearner.train(trainingData))
     val duration = (System.nanoTime() - start) / 1.0e9
 
@@ -56,7 +58,7 @@ class BaggerTest {
     val means = results.getExpected()
 
     /* The first feature should be the most important */
-    val importances = RF.getFeatureImportance()
+    val importances = RFMeta.getFeatureImportance()
     assert(importances(0) == importances.max)
   }
 
@@ -74,7 +76,7 @@ class BaggerTest {
     val trainingData = csv.map(vec => (vec.init, vec.last.asInstanceOf[Double]))
     val DTLearner = new RegressionTreeLearner()
     val baggedLearner = new Bagger(DTLearner, numBags = trainingData.size * 16) // use lots of trees to reduce noise
-    val RF = baggedLearner.train(trainingData)
+    val RF = baggedLearner.train(trainingData).getModel()
 
     /* Call transform on the training data */
     val results = RF.transform(trainingData.map(_._1))

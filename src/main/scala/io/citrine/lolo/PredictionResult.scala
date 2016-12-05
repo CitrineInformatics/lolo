@@ -16,7 +16,7 @@ trait PredictionResult {
 /**
   * This result includes uncertainty information
   */
-trait withUncertainty {
+trait hasUncertainty {
   /**
     * Get the uncertainty of the prediction
     *
@@ -29,7 +29,7 @@ trait withUncertainty {
 /**
   * This result includes training row score information
   */
-trait withScores {
+trait hasTrainingScores {
   /**
     * Get the training row scores for each prediction
     * @return training row scores of each prediction
@@ -40,7 +40,7 @@ trait withScores {
 /**
   * This result includes gradient and/or sensitivity information
   */
-trait withGradient {
+trait hasGradient {
   /**
     * Get the gradient or sensitivity of each prediction
     * @return a vector of doubles for each prediction

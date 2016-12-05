@@ -1,7 +1,8 @@
 package io.citrine.lolo.bags
 
+import breeze.linalg.{DenseMatrix, sum}
 import breeze.stats.distributions.Poisson
-import io.citrine.lolo.{Learner, Model, PredictionResult, withScores, withUncertainty}
+import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult, hasFeatureImportance, hasLoss, hasPredictedVsActual, hasTrainingScores, hasUncertainty}
 
 import scala.collection.parallel.immutable.ParSeq
 
@@ -21,7 +22,7 @@ class Bagger(method: Learner, var numBags: Int = -1) extends Learner {
     * @param weights for the training rows, if applicable
     * @return a model
     */
-  override def train(trainingData: Seq[(Vector[Any], Any)], weights: Option[Seq[Double]] = None): BaggedModel = {
+  override def train(trainingData: Seq[(Vector[Any], Any)], weights: Option[Seq[Double]] = None): BaggedTrainingResult = {
     /* Make sure the training data is the same size */
     assert(trainingData.forall(trainingData.head._1.size == _._1.size))
     assert(trainingData.size > 8, s"We need to have at least 8 rows, only ${trainingData.size} given")
@@ -50,8 +51,59 @@ class Bagger(method: Learner, var numBags: Int = -1) extends Learner {
     }
 
     /* Wrap the models in a BaggedModel object */
-    new BaggedModel(models, Nib)
+    new BaggedTrainingResult(models, Nib, trainingData)
   }
+}
+
+class BaggedTrainingResult(
+                            bases: ParSeq[TrainingResult],
+                            Nib: Vector[Vector[Int]],
+                            trainingData: Seq[(Vector[Any], Any)]
+                          )
+  extends TrainingResult with hasPredictedVsActual with hasLoss with hasFeatureImportance {
+  lazy val NibT = Nib.transpose
+  lazy val model = new BaggedModel(bases.map(_.getModel()), Nib)
+  lazy val rep = trainingData.head._2
+  lazy val predictedVsActual = trainingData.zip(NibT).map{ case ((f, l), nb) =>
+    val predicted = rep match {
+      case x: Double => bases.zip(nb).filter(_._2 == 0).map(_._1.getModel().transform(Seq(f)).getExpected().head.asInstanceOf[Double]).sum / nb.count(_ == 0)
+      case x: Any => bases.zip(nb).filter(_._2 == 0).map(_._1.getModel().transform(Seq(f)).getExpected().head).groupBy(identity).maxBy(_._2.size)._1
+    }
+    (f, predicted, l)
+  }
+
+  lazy val loss = rep match {
+    case x: Double => Math.sqrt (predictedVsActual.map (d => Math.pow (d._2.asInstanceOf[Double] - d._3.asInstanceOf[Double], 2) ).sum / predictedVsActual.size)
+    case x: Any =>
+      val labels = predictedVsActual.map(_._3).distinct
+      val index = labels.zipWithIndex.toMap
+      val numLabels = labels.size
+      val confusionMatrix = DenseMatrix.zeros[Int](numLabels, numLabels)
+      predictedVsActual.foreach(p => confusionMatrix(index(p._2), index(p._3)) += 1)
+      val f1scores = labels.indices.map{ i=>
+        val precision = confusionMatrix(i, i) / sum(confusionMatrix(i, ::)).toDouble
+        val recall = confusionMatrix(i, i) / sum(confusionMatrix(::, i)).toDouble
+        2.0 * precision * recall / (precision + recall) * sum(confusionMatrix(::, i)).toDouble / trainingData.size
+      }
+      f1scores.sum
+  }
+
+  /**
+    * Average the importances across the ensemble of models
+    * @return feature importances as an array of doubles
+    */
+  override def getFeatureImportance(): Array[Double] = {
+    val importances: Array[Double] = bases.map(base => base.asInstanceOf[hasFeatureImportance].getFeatureImportance()).reduce { (v1, v2) =>
+      v1.zip(v2).map(p => p._1 + p._2)
+    }
+    importances.map(_ / bases.size)
+  }
+
+  override def getModel(): BaggedModel = model
+
+  override def getPredictedVsActual(): Seq[(Vector[Any], Any, Any)] = predictedVsActual
+
+  override def getLoss(): Double = loss
 }
 
 /**
@@ -71,18 +123,8 @@ class BaggedModel(models: ParSeq[Model], Nib: Vector[Vector[Int]]) extends Model
     println(s"Applying model on ${inputs.size} inputs of length ${inputs.head.size}")
     new BaggedResult(models.map(model => model.transform(inputs)).seq, Nib)
   }
-
-  /**
-    * Average the importances across the ensemble of models
-    * @return feature importances as an array of doubles
-    */
-  override def getFeatureImportance(): Array[Double] = {
-    val importances: Array[Double] = models.map(model => model.getFeatureImportance()).reduce { (v1, v2) =>
-      v1.zip(v2).map(p => p._1 + p._2)
-    }
-    importances.map(_ / models.size)
-  }
 }
+
 
 /**
   * Container with model-wise predictions and logic to compute variances and training row scores
@@ -90,7 +132,7 @@ class BaggedModel(models: ParSeq[Model], Nib: Vector[Vector[Int]]) extends Model
   * @param NibIn the sample matrix as (N_models x N_training)
   */
 class BaggedResult(predictions: Seq[PredictionResult], NibIn: Vector[Vector[Int]]) extends PredictionResult
-  with withUncertainty with withScores {
+  with hasUncertainty with hasTrainingScores {
 
   /**
     * Return the ensemble average or maximum vote
@@ -122,7 +164,7 @@ class BaggedResult(predictions: Seq[PredictionResult], NibIn: Vector[Vector[Int]
   /* Extract the prediction by averaging for regression, taking the most popular response for classification */
   lazy val expected = rep match {
     case x: Double => expectedMatrix.map(ps => ps.asInstanceOf[Seq[Double]].sum / ps.size)
-    case x: Any => expectedMatrix.map(ps => ps.groupBy(identity).mapValues(_.size).maxBy(_._2)._1).seq
+    case x: Any => expectedMatrix.map(ps => ps.groupBy(identity).maxBy(_._2.size)._1).seq
   }
 
   /* Compute the uncertainties one prediction at a time */
