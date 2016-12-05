@@ -58,21 +58,23 @@ class ClassificationTreeLearner(val numFeatures: Int = -1) extends Learner {
       new ClassificationTrainingNode(finalTraining, split, delta, numFeaturesActual, remainingDepth = 30)
     }
 
-    /* Grab a prediction node.  The partitioning happens here */
-    val rootModelNode = rootTrainingNode.getNode()
-
-    /* Grab the feature importances */
-    val importance = rootTrainingNode.getFeatureImportance()
-
     /* Wrap them up in a regression tree */
-    new ClassificationTrainingResult(new ClassificationTree(rootModelNode, inputEncoders, outputEncoder), importance.map(_ / importance.sum))
+    new ClassificationTrainingResult(rootTrainingNode, inputEncoders, outputEncoder)
   }
 }
 
 class ClassificationTrainingResult(
-                                    model: ClassificationTree,
-                                    importance: Array[Double]
+                                    rootTrainingNode: TrainingNode[AnyVal, Char],
+                                    inputEncoders: Seq[Option[CategoricalEncoder[Any]]],
+                                    outputEncoder: CategoricalEncoder[Any]
                                   ) extends TrainingResult with hasFeatureImportance {
+  /* Grab a prediction node.  The partitioning happens here */
+  lazy val model = new ClassificationTree(rootTrainingNode.getNode(), inputEncoders, outputEncoder)
+
+  /* Grab the feature importances */
+  lazy val importance = rootTrainingNode.getFeatureImportance()
+  lazy val importanceNormalized = importance.map(_ / importance.sum)
+
   override def getModel(): ClassificationTree = model
 
   /**
@@ -80,7 +82,7 @@ class ClassificationTrainingResult(
     *
     * @return feature importances as an array of doubles
     */
-  override def getFeatureImportance(): Array[Double] = importance
+  override def getFeatureImportance(): Array[Double] = importanceNormalized
 }
 
 /**
