@@ -19,7 +19,7 @@ class RegressionTreeTest {
     val DTLearner = new RegressionTreeLearner()
     val DT = DTLearner.train(trainingData).getModel()
     trainingData.foreach { case (x, y) =>
-      assert(y == DT.predict(x))
+      assert(Math.abs(y - DT.predict(x)) < 1.0e-9)
     }
   }
 
@@ -35,14 +35,14 @@ class RegressionTreeTest {
     val start = System.nanoTime()
     val DTMeta = DTLearner.train(trainingData)
     val DT = DTMeta.getModel()
-    (0 until N).map(i => DTLearner.train(trainingData))
+    (0 until N).map(i => DTLearner.train(trainingData).getModel())
     val duration = (System.nanoTime() - start) / 1.0e9
 
     println(s"Training large case took ${duration / N} s")
 
     /* We should be able to memorize the inputs */
     trainingData.foreach { case (x, y) =>
-      assert(y == DT.predict(x))
+      assert(Math.abs(y - DT.predict(x)) < 1.0e-9)
     }
 
     /* The first feature should be the most important */
@@ -63,14 +63,14 @@ class RegressionTreeTest {
     val start = System.nanoTime()
     val DTMeta = DTLearner.train(trainingData)
     val DT = DTMeta.getModel()
-    (0 until N).map(i => DTLearner.train(trainingData))
+    (0 until N).map(i => DTLearner.train(trainingData).getModel())
     val duration = (System.nanoTime() - start) / 1.0e9
 
     println(s"Training large case took ${duration / N} s")
 
     /* We should be able to memorize the inputs */
     trainingData.foreach { case (x, y) =>
-      assert(y == DT.predict(x))
+      assert(Math.abs(y - DT.predict(x)) < 1.0e-9)
     }
 
     /* The first feature should be the most important */

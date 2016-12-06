@@ -1,6 +1,7 @@
 package io.citrine.lolo.trees
 
 import io.citrine.lolo.encoders.CategoricalEncoder
+import io.citrine.lolo.linear.{LinearRegressionLearner, LinearRegressionModel}
 import io.citrine.lolo.trees.splits.{NoSplit, RegressionSplitter, Split}
 import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult, hasFeatureImportance}
 
@@ -148,6 +149,8 @@ object RegressionTree {
       }
     }
   }
+
+  val LinearLearner = new LinearRegressionLearner(regParam = 0.0)
 }
 
 class RegressionTrainingNode(
@@ -222,7 +225,8 @@ class RegressionTrainingLeaf(
     * @return lightweight prediction node
     */
   def getNode(): ModelNode[AnyVal, Double] = {
-    new RegressionLeaf(trainingData.map(_._2).sum / trainingData.size)
+    // new RegressionLeaf(trainingData.map(_._2).sum / trainingData.size)
+    new LinearModelLeaf(RegressionTree.LinearLearner.train(trainingData).getModel())
   }
 
   override def getFeatureImportance(): Array[Double] = Array.fill(trainingData.head._1.size)(0.0)
@@ -230,4 +234,8 @@ class RegressionTrainingLeaf(
 
 class RegressionLeaf(mean: Double) extends ModelNode[AnyVal, Double] {
   override def predict(input: Vector[AnyVal]): Double = mean
+}
+
+class LinearModelLeaf(model: LinearRegressionModel) extends ModelNode[AnyVal, Double] {
+  override def predict(input: Vector[AnyVal]): Double = model.transform(Seq(input)).getExpected().head
 }
