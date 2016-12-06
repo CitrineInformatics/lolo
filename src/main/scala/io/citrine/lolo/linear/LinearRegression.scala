@@ -23,11 +23,14 @@ class LinearRegressionLearner(regParam: Double = 0.0, fitIntercept: Boolean = tr
   override def train(trainingData: Seq[(Vector[Any], Any)], weights: Option[Seq[Double]]): LinearRegressionTrainingResult = {
     val n = trainingData.size
 
+    /* Get the indices of the continuous features */
+    val indices = trainingData.head._1.zipWithIndex.filter(_._1.isInstanceOf[Double]).map(_._2)
+
     /* If we are fitting the intercept, add a row of 1s */
     val At = if (fitIntercept) {
-      new DenseMatrix(trainingData.head._1.size + 1, n, trainingData.map(_._1 :+ 1.0).asInstanceOf[Seq[Vector[Double]]].flatten.toArray)
+      new DenseMatrix(indices.size + 1, n, trainingData.map(r => indices.map(r._1(_).asInstanceOf[Double]) :+ 1.0).flatten.toArray)
     } else {
-      new DenseMatrix(trainingData.head._1.size, n, trainingData.map(_._1).asInstanceOf[Seq[Vector[Double]]].flatten.toArray)
+      new DenseMatrix(indices.size, n, trainingData.map(r => indices.map(r._1(_).asInstanceOf[Double])).flatten.toArray)
     }
     val k = At.rows
 
@@ -55,11 +58,17 @@ class LinearRegressionLearner(regParam: Double = 0.0, fitIntercept: Boolean = tr
       pinv(A) * b
     }
 
+    val indicesToModel = if (indices.size < trainingData.head._1.size) {
+      Some(indices)
+    } else {
+      None
+    }
+
     /* If we fit the intercept, take it off the end of the coefficients */
     val model = if (fitIntercept) {
-      new LinearRegressionModel(beta(0 to -2), beta(-1))
+      new LinearRegressionModel(beta(0 to -2), beta(-1), indices = indicesToModel)
     } else {
-      new LinearRegressionModel(beta, 0.0)
+      new LinearRegressionModel(beta, 0.0, indices = indicesToModel)
     }
 
     new LinearRegressionTrainingResult(model)
@@ -78,8 +87,9 @@ class LinearRegressionTrainingResult(model: LinearRegressionModel) extends Train
   * Linear regression model as a coefficient vector and intercept
   * @param beta coefficient vector
   * @param intercept intercept
+  * @param indices optional indices from which to extract real features
   */
-class LinearRegressionModel(beta: DenseVector[Double], intercept: Double) extends Model {
+class LinearRegressionModel(beta: DenseVector[Double], intercept: Double, indices: Option[Vector[Int]] = None) extends Model {
 
   /**
     * Apply the model to a seq of inputs
@@ -88,10 +98,18 @@ class LinearRegressionModel(beta: DenseVector[Double], intercept: Double) extend
     * @return a predictionresult which includes, at least, the expected outputs
     */
   override def transform(inputs: Seq[Vector[Any]]): LinearRegressionResult = {
-    val inputMatrix = new DenseMatrix(inputs.head.size, inputs.size, inputs.flatten.asInstanceOf[Seq[Double]].toArray)
+    val filteredInputs = indices.map(ind => inputs.map(inp => ind.map(inp(_)))).getOrElse(inputs).flatten.asInstanceOf[Seq[Double]]
+    val inputMatrix = new DenseMatrix(filteredInputs.size / inputs.size, inputs.size,
+      filteredInputs.toArray
+    )
     val resultVector = beta.t * inputMatrix + intercept
     val result = resultVector.t.toArray.toSeq
-    new LinearRegressionResult(result, beta.toArray.toVector)
+    val grad = indices.map{inds =>
+      val empty = DenseVector.zeros[Double](inputs.head.size)
+      inds.zipWithIndex.foreach{ case (j, i) => empty(j) = beta(i)}
+      empty
+    }.getOrElse(beta).toArray.toVector
+    new LinearRegressionResult(result, grad)
   }
 }
 
