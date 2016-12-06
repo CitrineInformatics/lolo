@@ -1,6 +1,6 @@
 package io.citrine.lolo.linear
 
-import breeze.linalg.{DenseMatrix, DenseVector}
+import breeze.linalg.{DenseMatrix, DenseVector, norm}
 import org.junit.Test
 
 import scala.util.Random
@@ -10,11 +10,18 @@ import scala.util.Random
   */
 @Test
 class LinearRegressionTest {
-  val n = 5
+  /** Number of training rows */
+  val n = 6
+  /** Number of features in each row */
   val k = 4
+  /** Generate random training data */
   val data = DenseMatrix.rand[Double](n,k)
+  /** And a random model */
   val beta0 = DenseVector.rand[Double](k)
 
+  /**
+    * Test regression without an intercept or weight; this is easiest
+    */
   def testRegressionNoIntercept(): Unit = {
     val result = data * beta0
 
@@ -22,21 +29,20 @@ class LinearRegressionTest {
       (data.t(::, i).toDenseVector.toArray.toVector, result(i))
     }
 
-    val lr = new LinearRegressionLearner(intercept = false)
+    val lr = new LinearRegressionLearner(fitIntercept = false)
     val lrm = lr.train(trainingData)
     val model = lrm.getModel()
     val output = model.transform(trainingData.map(_._1))
     val predicted = output.getExpected()
-
     val beta = output.getGradient().head
-    println(beta, beta0.toArray.toVector)
 
-    predicted.zip(result.toArray).foreach{ case (p, a) =>
-      println(s"Predicted vs Actual: ${p}, ${a}")
-      assert(Math.abs(p - a) < 1.0e-9)
-    }
+    assert(norm(new DenseVector(beta.toArray) - beta0) < 1.0e-9, "Coefficients are inaccurate")
+    assert(norm(new DenseVector(predicted.toArray) - result) < 1.0e-9, "Predictions are inaccurate")
   }
 
+  /**
+    * Add an intercept
+    */
   def testRegression(): Unit = {
     val int0 = Random.nextDouble()
     val result = data * beta0 + int0
@@ -50,16 +56,15 @@ class LinearRegressionTest {
     val model = lrm.getModel()
     val output = model.transform(trainingData.map(_._1))
     val predicted = output.getExpected()
-
     val beta = output.getGradient().head
-    println(beta, beta0.toArray.toVector)
 
-    predicted.zip(result.toArray).foreach{ case (p, a) =>
-      println(s"Predicted vs Actual: ${p}, ${a}")
-      assert(Math.abs(p - a) < 1.0e-9)
-    }
+    assert(norm(new DenseVector(beta.toArray) - beta0) < 1.0e-9, "Coefficients are inaccurate")
+    assert(norm(new DenseVector(predicted.toArray) - result) < 1.0e-9, "Predictions are inaccurate")
   }
 
+  /**
+    * Add an intercept and random weights
+    */
   def testWeightedRegression(): Unit = {
     val int0 = Random.nextDouble()
     val result = data * beta0 + int0
@@ -73,19 +78,19 @@ class LinearRegressionTest {
     val model = lrm.getModel()
     val output = model.transform(trainingData.map(_._1))
     val predicted = output.getExpected()
-
     val beta = output.getGradient().head
-    println(beta, beta0.toArray.toVector)
 
-    predicted.zip(result.toArray).foreach{ case (p, a) =>
-      println(s"Predicted vs Actual: ${p}, ${a}")
-      assert(Math.abs(p - a) < 1.0e-9)
-    }
-
+    assert(norm(new DenseVector(beta.toArray) - beta0) < 1.0e-9, "Coefficients are inaccurate")
+    assert(norm(new DenseVector(predicted.toArray) - result) < 1.0e-9, "Predictions are inaccurate")
   }
 }
 
+/** Companion driver */
 object LinearRegressionTest {
+  /**
+    * Test driver
+    * @param argv args
+    */
   def main(argv: Array[String]): Unit = {
     new LinearRegressionTest().testRegressionNoIntercept()
     new LinearRegressionTest().testRegression()
