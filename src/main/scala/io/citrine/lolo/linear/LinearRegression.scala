@@ -50,7 +50,9 @@ class LinearRegressionLearner(regParam: Double = 0.0, fitIntercept: Boolean = tr
 
     val beta = if (regParam > 0 || n >= k) {
       /* Construct the regularized problem and solve it */
-      val M = At * A + diag(regParam * regParam * DenseVector.ones[Double](k))
+      val regVector = regParam * regParam * DenseVector.ones[Double](k)
+      if (fitIntercept) regVector(-1) = 0.0
+      val M = At * A + diag(regVector)
       val Mi = inv(M)
       /* Backsub to get the coefficients */
       Mi * At * b
