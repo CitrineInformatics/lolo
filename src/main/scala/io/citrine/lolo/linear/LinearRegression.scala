@@ -23,13 +23,21 @@ class LinearRegressionLearner(regParam: Double = 0.0, intercept: Boolean = true)
       new DenseMatrix(trainingData.head._1.size, n, trainingData.map(_._1).asInstanceOf[Seq[Vector[Double]]].flatten.toArray)
     }
     val k = At.rows
-    val A = At.t
+
+    val weightsMatrix = weights.map(w => diag(new DenseVector(w.toArray)))
+
+    val Atw = if (weightsMatrix.isDefined) {
+      At * weightsMatrix.get
+    } else {
+      At
+    }
+
+    val A = Atw.t
 
     val M = At * A + diag(regParam * regParam * DenseVector.ones[Double](k))
     val Mi = inv(M)
     val b = new DenseVector(trainingData.map(_._2.asInstanceOf[Double]).toArray)
-    val beta = Mi * At * b
-
+    val beta = Mi * Atw * b
 
     val model = if (intercept) {
       new LinearRegressionModel(beta.toArray.toVector.init, beta(-1))
