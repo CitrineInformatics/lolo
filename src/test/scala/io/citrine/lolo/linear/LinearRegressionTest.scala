@@ -83,6 +83,35 @@ class LinearRegressionTest {
     assert(norm(new DenseVector(beta.toArray) - beta0) < 1.0e-9, "Coefficients are inaccurate")
     assert(norm(new DenseVector(predicted.toArray) - result) < 1.0e-9, "Predictions are inaccurate")
   }
+
+  /**
+    * Test when there are more features than training rows
+    */
+  def testUnderconstrained(): Unit = {
+    /** Number of training rows */
+    val n = 4
+    /** Number of features in each row */
+    val k = 6
+    /** Generate random training data */
+    val data = DenseMatrix.rand[Double](n,k)
+    /** And a random model */
+    val beta0 = DenseVector.rand[Double](k)
+    val result = data * beta0
+
+    val trainingData = (0 until n).map{ i =>
+      (data.t(::, i).toDenseVector.toArray.toVector, result(i))
+    }
+
+    val lr = new LinearRegressionLearner(fitIntercept = false)
+    val lrm = lr.train(trainingData)
+    val model = lrm.getModel()
+    val output = model.transform(trainingData.map(_._1))
+    val predicted = output.getExpected()
+    val beta = output.getGradient().head
+
+    assert(norm(new DenseVector(predicted.toArray) - result) < 1.0e-9, "Predictions are inaccurate")
+  }
+
 }
 
 /** Companion driver */
@@ -95,5 +124,6 @@ object LinearRegressionTest {
     new LinearRegressionTest().testRegressionNoIntercept()
     new LinearRegressionTest().testRegression()
     new LinearRegressionTest().testWeightedRegression()
+    new LinearRegressionTest().testUnderconstrained()
   }
 }

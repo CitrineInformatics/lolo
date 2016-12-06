@@ -1,6 +1,6 @@
 package io.citrine.lolo.linear
 
-import breeze.linalg.{DenseMatrix, DenseVector, diag, inv}
+import breeze.linalg.{DenseMatrix, DenseVector, diag, inv, pinv}
 import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult, hasGradient}
 
 /**
@@ -39,14 +39,21 @@ class LinearRegressionLearner(regParam: Double = 0.0, fitIntercept: Boolean = tr
       At
     }
     val A = Atw.t
+    val b = if (weightsMatrix.isDefined){
+      weightsMatrix.get * new DenseVector(trainingData.map(_._2.asInstanceOf[Double]).toArray)
+    } else {
+      new DenseVector(trainingData.map(_._2.asInstanceOf[Double]).toArray)
+    }
 
-    /* Construct the regularized problem and solve it */
-    val M = At * A + diag(regParam * regParam * DenseVector.ones[Double](k))
-    val Mi = inv(M)
-
-    /* Backsub to get the coefficients */
-    val b = new DenseVector(trainingData.map(_._2.asInstanceOf[Double]).toArray)
-    val beta = Mi * Atw * b
+    val beta = if (regParam > 0 || n >= k) {
+      /* Construct the regularized problem and solve it */
+      val M = At * A + diag(regParam * regParam * DenseVector.ones[Double](k))
+      val Mi = inv(M)
+      /* Backsub to get the coefficients */
+      Mi * At * b
+    } else {
+      pinv(A) * b
+    }
 
     /* If we fit the intercept, take it off the end of the coefficients */
     val model = if (fitIntercept) {
