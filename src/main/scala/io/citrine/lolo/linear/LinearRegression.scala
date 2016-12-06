@@ -73,6 +73,12 @@ class LinearRegressionLearner(regParam: Double = 0.0, fitIntercept: Boolean = tr
 
     new LinearRegressionTrainingResult(model)
   }
+
+  def train(trainingData: Seq[(Vector[Any], Any, Any)]): LinearRegressionTrainingResult = {
+    val dataNoWeights = trainingData.map(r => (r._1, r._2))
+    val weights = trainingData.map(_._3).asInstanceOf[Seq[Double]]
+    this.train(dataNoWeights, Some(weights))
+  }
 }
 
 /**
