@@ -57,7 +57,7 @@ class RegressionTreeLearner(numFeatures: Int = -1, maxDepth: Int = 30) extends L
     val rootTrainingNode = if (split.isInstanceOf[NoSplit]) {
       new RegressionTrainingLeaf(finalTraining)
     } else {
-      new RegressionTrainingNode(finalTraining, split, delta, numFeaturesActual, remainingDepth = maxDepth)
+      new RegressionTrainingNode(finalTraining, split, delta, numFeaturesActual, remainingDepth = maxDepth - 1)
     }
 
     /* Wrap them up in a regression tree */
