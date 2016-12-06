@@ -6,7 +6,7 @@ import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult, hasGra
 /**
   * Created by maxhutch on 12/6/16.
   */
-class LinearRegressionLearner(regParam: Double = 0.0) extends Learner {
+class LinearRegressionLearner(regParam: Double = 0.0, intercept: Boolean = true) extends Learner {
   /**
     * Train a model
     *
@@ -17,16 +17,25 @@ class LinearRegressionLearner(regParam: Double = 0.0) extends Learner {
   override def train(trainingData: Seq[(Vector[Any], Any)], weights: Option[Seq[Double]]): LinearRegressionTrainingResult = {
 
     val n = trainingData.size
-    val k = trainingData.head._1.size
-    val At = new DenseMatrix(k, n, trainingData.map(_._1).asInstanceOf[Seq[Vector[Double]]].flatten.toArray)
+    val At = if (intercept) {
+      new DenseMatrix(trainingData.head._1.size + 1, n, trainingData.map(_._1 :+ 1.0).asInstanceOf[Seq[Vector[Double]]].flatten.toArray)
+    } else {
+      new DenseMatrix(trainingData.head._1.size, n, trainingData.map(_._1).asInstanceOf[Seq[Vector[Double]]].flatten.toArray)
+    }
+    val k = At.rows
     val A = At.t
 
-    val M = At * A + diag(regParam * DenseVector.ones[Double](k))
+    val M = At * A + diag(regParam * regParam * DenseVector.ones[Double](k))
     val Mi = inv(M)
     val b = new DenseVector(trainingData.map(_._2.asInstanceOf[Double]).toArray)
     val beta = Mi * At * b
 
-    val model = new LinearRegressionModel(beta.toArray.toVector, 0.0)
+
+    val model = if (intercept) {
+      new LinearRegressionModel(beta.toArray.toVector.init, beta(-1))
+    } else {
+      new LinearRegressionModel(beta.toArray.toVector, 0.0)
+    }
     new LinearRegressionTrainingResult(model)
   }
 }
