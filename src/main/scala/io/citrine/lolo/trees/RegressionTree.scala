@@ -1,7 +1,7 @@
 package io.citrine.lolo.trees
 
 import io.citrine.lolo.encoders.CategoricalEncoder
-import io.citrine.lolo.linear.{LinearRegressionLearner, LinearRegressionModel}
+import io.citrine.lolo.linear.{LinearRegressionLearner}
 import io.citrine.lolo.trees.splits.{NoSplit, RegressionSplitter, Split}
 import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult, hasFeatureImportance}
 
@@ -17,6 +17,7 @@ import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult, hasFea
 class RegressionTreeLearner(
                              numFeatures: Int = -1,
                              maxDepth: Int = 30,
+                             minLeafInstances: Int = 1,
                              leafLearner: Option[Learner] = None
                            ) extends Learner {
 
@@ -63,11 +64,17 @@ class RegressionTreeLearner(
     }
 
     /* The tree is built of training nodes */
-    val (split, delta) = RegressionSplitter.getBestSplit(finalTraining, numFeaturesActual)
+    val (split, delta) = RegressionSplitter.getBestSplit(finalTraining, numFeaturesActual, minLeafInstances)
     val rootTrainingNode = if (split.isInstanceOf[NoSplit]) {
       new RegressionTrainingLeaf(finalTraining)
     } else {
-      new RegressionTrainingNode(finalTraining, split, delta, numFeaturesActual, remainingDepth = maxDepth - 1)
+      new RegressionTrainingNode(
+        finalTraining,
+        split,
+        delta,
+        numFeaturesActual,
+        minLeafInstances = minLeafInstances,
+        remainingDepth = maxDepth - 1)
     }
 
     /* Wrap them up in a regression tree */
@@ -79,7 +86,8 @@ class RegressionTreeLearner(
                                 split: Split,
                                 deltaImpurity: Double,
                                 numFeatures: Int,
-                                remainingDepth: Int = Int.MaxValue
+                                minLeafInstances: Int,
+                                remainingDepth: Int
                               )
     extends TrainingNode(
       trainingData = trainingData,
@@ -92,20 +100,22 @@ class RegressionTreeLearner(
 
     lazy val (leftTrain, rightTrain) = trainingData.partition(r => split.turnLeft(r._1))
     assert(leftTrain.size > 0 && rightTrain.size > 0, s"Split ${split} resulted in zero size: ${trainingData.map(_._1(split.getIndex()))}")
-    lazy val leftChild = if (leftTrain.size > 1 && remainingDepth > 0 && leftTrain.exists(_._2 != leftTrain.head._2)) {
-      lazy val (leftSplit, leftDelta) = RegressionSplitter.getBestSplit(leftTrain, numFeatures)
+
+    lazy val leftChild = if (leftTrain.size >= 2 * minLeafInstances && remainingDepth > 0 && leftTrain.exists(_._2 != leftTrain.head._2)) {
+      lazy val (leftSplit, leftDelta) = RegressionSplitter.getBestSplit(leftTrain, numFeatures, minLeafInstances)
       if (!leftSplit.isInstanceOf[NoSplit]) {
-        new RegressionTrainingNode(leftTrain, leftSplit, leftDelta, numFeatures, remainingDepth - 1)
+        new RegressionTrainingNode(leftTrain, leftSplit, leftDelta, numFeatures, minLeafInstances, remainingDepth - 1)
       } else {
         new RegressionTrainingLeaf(leftTrain)
       }
     } else {
       new RegressionTrainingLeaf(leftTrain)
     }
-    lazy val rightChild = if (rightTrain.size > 1 && remainingDepth > 0 && rightTrain.exists(_._2 != rightTrain.head._2)) {
-      lazy val (rightSplit, rightDelta) = RegressionSplitter.getBestSplit(rightTrain, numFeatures)
+
+    lazy val rightChild = if (rightTrain.size >= 2 * minLeafInstances && remainingDepth > 0 && rightTrain.exists(_._2 != rightTrain.head._2)) {
+      lazy val (rightSplit, rightDelta) = RegressionSplitter.getBestSplit(rightTrain, numFeatures, minLeafInstances)
       if (!rightSplit.isInstanceOf[NoSplit]) {
-        new RegressionTrainingNode(rightTrain, rightSplit, rightDelta, numFeatures, remainingDepth - 1)
+        new RegressionTrainingNode(rightTrain, rightSplit, rightDelta, numFeatures, minLeafInstances, remainingDepth - 1)
       } else {
         new RegressionTrainingLeaf(rightTrain)
       }
