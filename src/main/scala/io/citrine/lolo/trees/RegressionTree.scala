@@ -150,7 +150,7 @@ object RegressionTree {
     }
   }
 
-  val LinearLearner = new LinearRegressionLearner(regParam = 0.0)
+  val LinearLearner = new LinearRegressionLearner(regParam = 10.0)
 }
 
 class RegressionTrainingNode(
