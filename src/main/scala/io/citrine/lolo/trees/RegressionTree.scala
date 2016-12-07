@@ -1,7 +1,7 @@
 package io.citrine.lolo.trees
 
 import io.citrine.lolo.encoders.CategoricalEncoder
-import io.citrine.lolo.linear.{LinearRegressionLearner}
+import io.citrine.lolo.linear.{GuessTheMeanLearner, LinearRegressionLearner}
 import io.citrine.lolo.trees.splits.{NoSplit, RegressionSplitter, Split}
 import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult, hasFeatureImportance}
 
@@ -22,7 +22,7 @@ class RegressionTreeLearner(
                            ) extends Learner {
 
   /** Learner to use for training the leaves */
-  val myLeafLearner = leafLearner.getOrElse(new LinearRegressionLearner(regParam = 100.0))
+  val myLeafLearner = leafLearner.getOrElse(new GuessTheMeanLearner())
 
   /**
     * Train the tree by recursively partitioning (splitting) the training data on a single feature
@@ -157,8 +157,11 @@ class RegressionTreeLearner(
       * @return lightweight prediction node
       */
     def getNode(): ModelNode[AnyVal, Double] = {
-      // new RegressionLeaf(trainingData.map(_._2).sum / trainingData.size)
-      new LinearModelLeaf(myLeafLearner.train(trainingData).getModel())
+      if (trainingData.forall(_._2 == trainingData.head._2)){
+        new RegressionLeaf(trainingData.head._2)
+      } else {
+        new LinearModelLeaf(myLeafLearner.train(trainingData).getModel())
+      }
     }
 
     override def getFeatureImportance(): Array[Double] = Array.fill(trainingData.head._1.size)(0.0)
