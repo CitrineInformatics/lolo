@@ -7,6 +7,7 @@ abstract class Model extends Serializable {
 
   /**
     * Apply the model to a seq of inputs
+    *
     * @param inputs to apply the model to
     * @return a predictionresult which includes, at least, the expected outputs
     */

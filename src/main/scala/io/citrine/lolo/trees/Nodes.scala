@@ -6,7 +6,7 @@ import io.citrine.lolo.trees.splits.Split
   * Class to provide getNode interface for internal and leaf training nodes
   * Created by maxhutch on 11/29/16.
   *
-  * @param trainingData that this node sees
+  * @param trainingData   that this node sees
   * @param remainingDepth to stop growing the node
   * @tparam T type of the input vector
   * @tparam S type of the model output
@@ -24,6 +24,7 @@ abstract class TrainingNode[T <: AnyVal, S](
 
   /**
     * Get the feature importance of the subtree below this node
+    *
     * @return feature importance as a vector
     */
   def getFeatureImportance(): Array[Double]
@@ -43,7 +44,7 @@ abstract trait ModelNode[T <: AnyVal, S] extends Serializable {
   * Internal node in the decision tree
   *
   * @param split to decide which branch to take
-  * @param left branch node
+  * @param left  branch node
   * @param right branch node
   * @tparam T type of the input
   * @tparam S type of the output

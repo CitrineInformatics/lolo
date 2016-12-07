@@ -6,6 +6,7 @@ import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult, hasFea
 
 /**
   * Created by maxhutch on 12/2/16.
+  *
   * @param numFeatures subset of features to select splits from
   */
 class ClassificationTreeLearner(val numFeatures: Int = -1) extends Learner {
@@ -137,7 +138,7 @@ class ClassificationTrainingNode(
   assert(leftTrain.size > 0 && rightTrain.size > 0, s"Split ${split} resulted in zero size: ${trainingData.map(_._1(split.getIndex()))}")
   lazy val leftChild = if (leftTrain.size > 1 && remainingDepth > 0 && leftTrain.exists(_._2 != leftTrain.head._2)) {
     lazy val (leftSplit, leftDelta) = ClassificationSplitter.getBestSplit(leftTrain, numFeatures)
-    if (!leftSplit.isInstanceOf[NoSplit]){
+    if (!leftSplit.isInstanceOf[NoSplit]) {
       new ClassificationTrainingNode(leftTrain, leftSplit, leftDelta, numFeatures, remainingDepth - 1)
     } else {
       new ClassificationTrainingLeaf(leftTrain)
@@ -147,7 +148,7 @@ class ClassificationTrainingNode(
   }
   lazy val rightChild = if (rightTrain.size > 1 && remainingDepth > 0 && rightTrain.exists(_._2 != rightTrain.head._2)) {
     lazy val (rightSplit, rightDelta) = ClassificationSplitter.getBestSplit(rightTrain, numFeatures)
-    if (!rightSplit.isInstanceOf[NoSplit]){
+    if (!rightSplit.isInstanceOf[NoSplit]) {
       new ClassificationTrainingNode(rightTrain, rightSplit, rightDelta, numFeatures, remainingDepth - 1)
     } else {
       new ClassificationTrainingLeaf(rightTrain)
@@ -191,6 +192,7 @@ class ClassificationTrainingLeaf(
 
 /**
   * The leaves just predict the most common value
+  *
   * @param mode most common value
   */
 class ClassificationLeaf(mode: Char) extends ModelNode[AnyVal, Char] {

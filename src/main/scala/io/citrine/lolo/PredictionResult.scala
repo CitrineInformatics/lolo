@@ -8,6 +8,7 @@ trait PredictionResult {
 
   /**
     * Get the expected values for this prediction
+    *
     * @return expected value of each prediction
     */
   def getExpected(): Seq[Any]
@@ -32,6 +33,7 @@ trait hasUncertainty {
 trait hasTrainingScores {
   /**
     * Get the training row scores for each prediction
+    *
     * @return training row scores of each prediction
     */
   def getScores(): Seq[Seq[Double]]
@@ -43,6 +45,7 @@ trait hasTrainingScores {
 trait hasGradient {
   /**
     * Get the gradient or sensitivity of each prediction
+    *
     * @return a vector of doubles for each prediction
     */
   def getGradient(): Seq[Vector[Double]]

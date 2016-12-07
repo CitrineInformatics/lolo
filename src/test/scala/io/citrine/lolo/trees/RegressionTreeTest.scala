@@ -1,6 +1,7 @@
 package io.citrine.lolo.trees
 
 import io.citrine.lolo.TestUtils
+import io.citrine.lolo.linear.LinearRegressionLearner
 import org.junit.Test
 
 /**
@@ -19,7 +20,7 @@ class RegressionTreeTest {
     val DTLearner = new RegressionTreeLearner()
     val DT = DTLearner.train(trainingData).getModel()
     trainingData.foreach { case (x, y) =>
-      assert(y == DT.predict(x))
+      assert(Math.abs(y - DT.predict(x)) < 1.0e-9)
     }
   }
 
@@ -35,14 +36,14 @@ class RegressionTreeTest {
     val start = System.nanoTime()
     val DTMeta = DTLearner.train(trainingData)
     val DT = DTMeta.getModel()
-    (0 until N).map(i => DTLearner.train(trainingData))
+    (0 until N).map(i => DTLearner.train(trainingData).getModel())
     val duration = (System.nanoTime() - start) / 1.0e9
 
     println(s"Training large case took ${duration / N} s")
 
     /* We should be able to memorize the inputs */
     trainingData.foreach { case (x, y) =>
-      assert(y == DT.predict(x))
+      assert(Math.abs(y - DT.predict(x)) < 1.0e-9)
     }
 
     /* The first feature should be the most important */
@@ -63,14 +64,38 @@ class RegressionTreeTest {
     val start = System.nanoTime()
     val DTMeta = DTLearner.train(trainingData)
     val DT = DTMeta.getModel()
-    (0 until N).map(i => DTLearner.train(trainingData))
+    (0 until N).map(i => DTLearner.train(trainingData).getModel())
     val duration = (System.nanoTime() - start) / 1.0e9
 
     println(s"Training large case took ${duration / N} s")
 
     /* We should be able to memorize the inputs */
     trainingData.foreach { case (x, y) =>
-      assert(y == DT.predict(x))
+      assert(Math.abs(y - DT.predict(x)) < 1.0e-9)
+    }
+
+    /* The first feature should be the most important */
+    val importances = DTMeta.getFeatureImportance()
+    assert(importances(0) == importances.max)
+  }
+
+  /**
+    * Train with linear leaves.  This case is under-constriained, so we should hit the results exactly
+    */
+  @Test
+  def testLinearLeaves(): Unit = {
+    val csv = TestUtils.readCsv("large_example_with_cat.csv")
+    val trainingData = csv.map(vec => (vec.init, vec.last.asInstanceOf[Double]))
+    val DTLearner = new RegressionTreeLearner(
+      minLeafInstances = 2,
+      leafLearner = Some(new LinearRegressionLearner(regParam = 0.0))
+    )
+    val DTMeta = DTLearner.train(trainingData)
+    val DT = DTMeta.getModel()
+
+    /* We should be able to memorize the inputs */
+    trainingData.foreach { case (x, y) =>
+      assert(Math.abs(y - DT.predict(x)) < 1.0e-9)
     }
 
     /* The first feature should be the most important */
@@ -90,5 +115,6 @@ object RegressionTreeTest {
     new RegressionTreeTest().testSimpleTree()
     new RegressionTreeTest().longerTest()
     new RegressionTreeTest().testCategorical()
+    new RegressionTreeTest().testLinearLeaves()
   }
 }
