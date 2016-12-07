@@ -1,7 +1,6 @@
 package io.citrine.lolo.linear
 
-import breeze.linalg.{DenseMatrix, DenseVector, det, diag, inv, norm, pinv}
-import breeze.numerics.NaN
+import breeze.linalg.{DenseMatrix, DenseVector, diag, inv, norm, pinv}
 import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult, hasGradient}
 
 /**
@@ -9,7 +8,7 @@ import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult, hasGra
   *
   * Created by maxhutch on 12/6/16.
   *
-  * @param regParam for ridge regression.  default = 0
+  * @param regParam     for ridge regression.  default = 0
   * @param fitIntercept whether to fit an intercept or not
   */
 class LinearRegressionLearner(regParam: Double = 0.0, fitIntercept: Boolean = true) extends Learner {
@@ -51,7 +50,7 @@ class LinearRegressionLearner(regParam: Double = 0.0, fitIntercept: Boolean = tr
     val A = Atw.t
     assert(!A.toArray.toSeq.exists(_.isNaN), "There is a NaN in A")
 
-    val b = if (weightsMatrix.isDefined){
+    val b = if (weightsMatrix.isDefined) {
       new DenseVector(trainingData.map(_._2.asInstanceOf[Double]).zip(weights.get).map(p => p._1 * p._2).toArray)
     } else {
       new DenseVector(trainingData.map(_._2.asInstanceOf[Double]).toArray)
@@ -92,6 +91,7 @@ class LinearRegressionLearner(regParam: Double = 0.0, fitIntercept: Boolean = tr
 
 /**
   * Simple container around the model
+  *
   * @param model contained
   */
 class LinearRegressionTrainingResult(model: LinearRegressionModel) extends TrainingResult {
@@ -100,9 +100,10 @@ class LinearRegressionTrainingResult(model: LinearRegressionModel) extends Train
 
 /**
   * Linear regression model as a coefficient vector and intercept
-  * @param beta coefficient vector
+  *
+  * @param beta      coefficient vector
   * @param intercept intercept
-  * @param indices optional indices from which to extract real features
+  * @param indices   optional indices from which to extract real features
   */
 class LinearRegressionModel(beta: DenseVector[Double], intercept: Double, indices: Option[Vector[Int]] = None) extends Model {
 
@@ -120,9 +121,9 @@ class LinearRegressionModel(beta: DenseVector[Double], intercept: Double, indice
     val resultVector = beta.t * inputMatrix + intercept
     val result = resultVector.t.toArray.toSeq
     assert(!result.exists(_.isNaN), s"Result is NaN: ${result} \n${filteredInputs}\n${intercept} ${beta.toArray.toVector}")
-    val grad = indices.map{inds =>
+    val grad = indices.map { inds =>
       val empty = DenseVector.zeros[Double](inputs.head.size)
-      inds.zipWithIndex.foreach{ case (j, i) => empty(j) = beta(i)}
+      inds.zipWithIndex.foreach { case (j, i) => empty(j) = beta(i) }
       empty
     }.getOrElse(beta).toArray.toVector
     new LinearRegressionResult(result, grad)
@@ -131,8 +132,9 @@ class LinearRegressionModel(beta: DenseVector[Double], intercept: Double, indice
 
 /**
   * Simple container around the result and coefficient array
+  *
   * @param values computed from the model
-  * @param grad gradient vector, which are just the linear coefficients
+  * @param grad   gradient vector, which are just the linear coefficients
   */
 class LinearRegressionResult(values: Seq[Double], grad: Vector[Double]) extends PredictionResult with hasGradient {
   /**

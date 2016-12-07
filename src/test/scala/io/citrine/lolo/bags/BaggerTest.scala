@@ -36,6 +36,7 @@ class BaggerTest {
     val importances = RFMeta.getFeatureImportance()
     assert(importances(0) == importances.max)
   }
+
   /**
     * Test the fit performance of the regression bagger
     */

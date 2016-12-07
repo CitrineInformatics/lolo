@@ -1,7 +1,7 @@
 package io.citrine.lolo.trees
 
 import io.citrine.lolo.encoders.CategoricalEncoder
-import io.citrine.lolo.linear.{GuessTheMeanLearner, LinearRegressionLearner}
+import io.citrine.lolo.linear.GuessTheMeanLearner
 import io.citrine.lolo.trees.splits.{NoSplit, RegressionSplitter, Split}
 import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult, hasFeatureImportance}
 
@@ -12,6 +12,7 @@ import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult, hasFea
   *
   * @param numFeatures to randomly select from at each split (default: all)
   * @param maxDepth    to grow the tree to
+  * @param minLeafInstances minimum number of training instances per leaf (unweighted)
   * @param leafLearner learner to train the leaves with
   */
 class RegressionTreeLearner(
@@ -157,7 +158,7 @@ class RegressionTreeLearner(
       * @return lightweight prediction node
       */
     def getNode(): ModelNode[AnyVal, Double] = {
-      if (trainingData.forall(_._2 == trainingData.head._2)){
+      if (trainingData.forall(_._2 == trainingData.head._2)) {
         new RegressionLeaf(trainingData.head._2)
       } else {
         new LinearModelLeaf(myLeafLearner.train(trainingData).getModel())
