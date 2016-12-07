@@ -15,7 +15,7 @@ class LinearRegressionTest {
   /** Number of features in each row */
   val k = 4
   /** Generate random training data */
-  val data = DenseMatrix.rand[Double](n,k)
+  val data = DenseMatrix.rand[Double](n, k)
   /** And a random model */
   val beta0 = DenseVector.rand[Double](k)
 
@@ -26,7 +26,7 @@ class LinearRegressionTest {
   def testRegressionNoIntercept(): Unit = {
     val result = data * beta0
 
-    val trainingData = (0 until n).map{ i =>
+    val trainingData = (0 until n).map { i =>
       (data.t(::, i).toDenseVector.toArray.toVector, result(i))
     }
 
@@ -49,7 +49,7 @@ class LinearRegressionTest {
     val int0 = Random.nextDouble()
     val result = data * beta0 + int0
 
-    val trainingData = (0 until n).map{ i =>
+    val trainingData = (0 until n).map { i =>
       (data.t(::, i).toDenseVector.toArray.toVector, result(i))
     }
 
@@ -72,7 +72,7 @@ class LinearRegressionTest {
     val int0 = Random.nextDouble()
     val result = data * beta0 + int0
 
-    val trainingData = (0 until n).map{ i =>
+    val trainingData = (0 until n).map { i =>
       (data.t(::, i).toDenseVector.toArray.toVector, result(i))
     }
 
@@ -97,12 +97,12 @@ class LinearRegressionTest {
     /** Number of features in each row */
     val k = 6
     /** Generate random training data */
-    val data = DenseMatrix.rand[Double](n,k)
+    val data = DenseMatrix.rand[Double](n, k)
     /** And a random model */
     val beta0 = DenseVector.rand[Double](k)
     val result = data * beta0
 
-    val trainingData = (0 until n).map{ i =>
+    val trainingData = (0 until n).map { i =>
       (data.t(::, i).toDenseVector.toArray.toVector, result(i))
     }
 
@@ -117,15 +117,15 @@ class LinearRegressionTest {
   }
 
   /**
-   * Add an intercept
-   */
+    * Add an intercept
+    */
   @Test
   def testCategoricalValue(): Unit = {
     val int0 = Random.nextDouble()
     val result = data * beta0 + int0
 
-    val trainingData = (0 until n).map{ i =>
-      ("Foo" +: data.t(::, i).toDenseVector.toArray.toVector.asInstanceOf[Vector[Any]] :+ "Bar" , result(i))
+    val trainingData = (0 until n).map { i =>
+      ("Foo" +: data.t(::, i).toDenseVector.toArray.toVector.asInstanceOf[Vector[Any]] :+ "Bar", result(i))
     }
 
     val lr = new LinearRegressionLearner()
@@ -147,6 +147,7 @@ class LinearRegressionTest {
 object LinearRegressionTest {
   /**
     * Test driver
+    *
     * @param argv args
     */
   def main(argv: Array[String]): Unit = {

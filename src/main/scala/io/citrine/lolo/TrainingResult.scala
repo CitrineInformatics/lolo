@@ -9,8 +9,9 @@ abstract trait TrainingResult extends Serializable {
 }
 
 abstract trait hasFeatureImportance {
-    /**
+  /**
     * Get a measure of the importance of the model features
+    *
     * @return feature importances as an array of doubles
     */
   def getFeatureImportance(): Array[Double]
