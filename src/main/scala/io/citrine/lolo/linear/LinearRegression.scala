@@ -8,10 +8,11 @@ import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult, hasGra
   *
   * Created by maxhutch on 12/6/16.
   *
-  * @param regParam     for ridge regression.  default = 0
   * @param fitIntercept whether to fit an intercept or not
   */
-class LinearRegressionLearner(regParam: Double = 0.0, fitIntercept: Boolean = true) extends Learner {
+class LinearRegressionLearner(fitIntercept: Boolean = true) extends Learner {
+
+  var hypers: Map[String, Any] = Map("regParam" -> 0.0)
 
   /**
     * Train a linear model via direct inversion.
@@ -57,9 +58,9 @@ class LinearRegressionLearner(regParam: Double = 0.0, fitIntercept: Boolean = tr
     }
     assert(!norm(b).isNaN, s"There is a NaN in b ${weightsMatrix.get.size} ${b.size}:\n ${trainingData.map(_._2)} \n ${weights.get}")
 
-    val beta = if (regParam > 0 || n >= k) {
+    val beta = if (hypers("regParam").asInstanceOf[Double] > 0 || n >= k) {
       /* Construct the regularized problem and solve it */
-      val regVector = regParam * regParam * DenseVector.ones[Double](k)
+      val regVector = Math.pow(hypers("regParam").asInstanceOf[Double], 2) * DenseVector.ones[Double](k)
       if (fitIntercept) regVector(-1) = 0.0
       val M = At * A + diag(regVector)
       assert(!M.toArray.toSeq.exists(_.isNaN), "There is a NaN in M")
