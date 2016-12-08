@@ -19,7 +19,8 @@ class ClassificationTreeTest {
     val DTLearner = new ClassificationTreeLearner()
     val N = 100
     val start = System.nanoTime()
-    val DT = DTLearner.train(trainingData)
+    val DTMeta = DTLearner.train(trainingData)
+    val DT = DTMeta.getModel()
     (0 until N).map(i => DTLearner.train(trainingData))
     val duration = (System.nanoTime() - start) / 1.0e9
 
@@ -31,7 +32,7 @@ class ClassificationTreeTest {
     }
 
     /* The first feature should be the most important */
-    val importances = DT.getFeatureImportance()
+    val importances = DTMeta.getFeatureImportance()
     println(importances.toList)
     assert(importances(0) == importances.max)
   }
@@ -46,7 +47,7 @@ class ClassificationTreeTest {
     val DTLearner = new ClassificationTreeLearner()
     val N = 100
     val start = System.nanoTime()
-    val DT = DTLearner.train(trainingData)
+    val DT = DTLearner.train(trainingData).getModel()
     (0 until N).map(i => DTLearner.train(trainingData))
     val duration = (System.nanoTime() - start) / 1.0e9
 

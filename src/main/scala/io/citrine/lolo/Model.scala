@@ -7,14 +7,9 @@ abstract class Model extends Serializable {
 
   /**
     * Apply the model to a seq of inputs
+    *
     * @param inputs to apply the model to
     * @return a predictionresult which includes, at least, the expected outputs
     */
   def transform(inputs: Seq[Vector[Any]]): PredictionResult
-
-  /**
-    * Get a measure of the importance of the model features
-    * @return feature importances as an array of doubles
-    */
-  def getFeatureImportance(): Array[Double]
 }
