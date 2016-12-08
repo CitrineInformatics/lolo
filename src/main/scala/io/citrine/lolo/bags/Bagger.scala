@@ -2,7 +2,7 @@ package io.citrine.lolo.bags
 
 import breeze.linalg.{DenseMatrix, sum}
 import breeze.stats.distributions.Poisson
-import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult, hasFeatureImportance, hasLoss, hasPredictedVsActual, hasTrainingScores, hasUncertainty}
+import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult, hasFeatureImportance, hasGradient, hasLoss, hasPredictedVsActual, hasTrainingScores, hasUncertainty}
 
 import scala.collection.parallel.immutable.ParSeq
 
@@ -168,7 +168,7 @@ class BaggedModel(models: ParSeq[Model], Nib: Vector[Vector[Int]], biasModel: Op
   * @param NibIn       the sample matrix as (N_models x N_training)
   */
 class BaggedResult(predictions: Seq[PredictionResult], NibIn: Vector[Vector[Int]], bias: Option[Seq[Double]] = None) extends PredictionResult
-  with hasUncertainty with hasTrainingScores {
+  with hasUncertainty with hasTrainingScores with hasGradient {
 
   /**
     * Return the ensemble average or maximum vote
@@ -275,5 +275,21 @@ class BaggedResult(predictions: Seq[PredictionResult], NibIn: Vector[Vector[Int]
     Nib.map { v =>
       Math.abs(v.zip(diff).map(p2 => p2._1 * p2._2).sum / modelPredictions.size)
     }.toVector
+  }
+
+  /**
+    * Get the gradient or sensitivity of each prediction
+    *
+    * @return a vector of doubles for each prediction
+    */
+  override def getGradient(): Seq[Vector[Double]] = {
+    if (!predictions.head.isInstanceOf[hasGradient]) {
+      throw new UnsupportedOperationException("Requested graident when base learner has none")
+    }
+    val gradientsByPrediction: Seq[Seq[Vector[Double]]] = predictions.asInstanceOf[Seq[hasGradient]].map(_.getGradient())
+    val gradientsByInput: Seq[Seq[Vector[Double]]] = gradientsByPrediction.transpose
+    gradientsByInput.map{r =>
+      r.toVector.transpose.map(_.sum / predictions.size)
+    }
   }
 }
