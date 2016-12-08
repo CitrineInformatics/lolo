@@ -86,10 +86,8 @@ class RegressionTreeTest {
   def testLinearLeaves(): Unit = {
     val csv = TestUtils.readCsv("large_example_with_cat.csv")
     val trainingData = csv.map(vec => (vec.init, vec.last.asInstanceOf[Double]))
-    val DTLearner = new RegressionTreeLearner(
-      minLeafInstances = 2,
-      leafLearner = Some(new LinearRegressionLearner(regParam = 0.0))
-    )
+    val linearLearner = new LinearRegressionLearner().setHyper("regParam", 0.0)
+    val DTLearner = new RegressionTreeLearner(leafLearner = Some(linearLearner)).setHyper("minLeafInstances", 2)
     val DTMeta = DTLearner.train(trainingData)
     val DT = DTMeta.getModel()
 
