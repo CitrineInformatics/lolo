@@ -55,17 +55,17 @@ object ClassificationSplitter {
         bestSplit = possibleSplit
       }
     }
-    val deltaImpurity = - bestImpurity
+    val deltaImpurity = -bestImpurity
     (bestSplit, deltaImpurity)
   }
 
   /**
     * Find the best split on a continuous variable
     *
-    * @param data        to split
-    * @param totalCategoryWeights    Pre-computed data.map(d => data._2 * data._3).sum
-    * @param totalWeight Pre-computed data.map(d => d._3).sum
-    * @param index       of the feature to split on
+    * @param data                 to split
+    * @param totalCategoryWeights Pre-computed data.map(d => data._2 * data._3).sum
+    * @param totalWeight          Pre-computed data.map(d => d._3).sum
+    * @param index                of the feature to split on
     * @return the best split of this feature
     */
   def getBestRealSplit(data: Seq[(Vector[AnyVal], Char, Double)], totalCategoryWeights: Map[Char, Double], totalWeight: Double, totalSquareSum: Double, index: Int): (RealSplit, Double) = {
@@ -86,7 +86,7 @@ object ClassificationSplitter {
       val y = thinData(j)._2
       val w = thinData(j)._3
       val wl = leftCategoryWeights.getOrElse(y, 0.0)
-      leftSquareSum +=  w * (w + 2 * wl)
+      leftSquareSum += w * (w + 2 * wl)
       rightSquareSum += w * (w - 2 * (totalCategoryWeights(y) - wl))
       leftCategoryWeights(y) = w + wl
       leftWeight = leftWeight + w
@@ -110,7 +110,7 @@ object ClassificationSplitter {
 
   def getBestCategoricalSplit(data: Seq[(Vector[AnyVal], Char, Double)], totalCategoryWeights: Map[Char, Double], totalWeight: Double, totalSquareSum: Double, index: Int): (CategoricalSplit, Double) = {
     val thinData = data.map(dat => (dat._1(index).asInstanceOf[Char], dat._2, dat._3))
-    val groupedData = thinData.groupBy(_._1).mapValues{g =>
+    val groupedData = thinData.groupBy(_._1).mapValues { g =>
       val dict = g.groupBy(_._2).mapValues(v => v.map(_._3).sum)
       val impurity = dict.values.map(Math.pow(_, 2)).sum / Math.pow(dict.values.sum, 2)
       (dict, impurity)
@@ -145,7 +145,7 @@ object ClassificationSplitter {
          1) there is only one branch and
          2) it is usually false
        */
-      if (totalPurity > bestPurity ) {
+      if (totalPurity > bestPurity) {
         bestPurity = totalPurity
         bestSet = orderedNames.slice(0, j + 1).toSet
       }
