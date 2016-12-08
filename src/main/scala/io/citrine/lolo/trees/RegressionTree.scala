@@ -12,15 +12,22 @@ import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult, hasFea
   *
   * @param numFeatures to randomly select from at each split (default: all)
   * @param maxDepth    to grow the tree to
-  * @param minLeafInstances minimum number of training instances per leaf (unweighted)
   * @param leafLearner learner to train the leaves with
   */
 class RegressionTreeLearner(
                              numFeatures: Int = -1,
                              maxDepth: Int = 30,
-                             minLeafInstances: Int = 1,
                              leafLearner: Option[Learner] = None
                            ) extends Learner {
+
+  override def setHypers(moreHypers: Map[String, Any]): this.type = {
+    hypers = hypers ++ moreHypers
+    myLeafLearner.setHypers(moreHypers)
+    this
+  }
+
+  /** Hyperparameters */
+  var hypers: Map[String, Any] = Map("minLeafInstances" -> 1)
 
   /** Learner to use for training the leaves */
   val myLeafLearner = leafLearner.getOrElse(new GuessTheMeanLearner())
@@ -65,7 +72,7 @@ class RegressionTreeLearner(
     }
 
     /* The tree is built of training nodes */
-    val (split, delta) = RegressionSplitter.getBestSplit(finalTraining, numFeaturesActual, minLeafInstances)
+    val (split, delta) = RegressionSplitter.getBestSplit(finalTraining, numFeaturesActual, hypers("minLeafInstances").asInstanceOf[Int])
     val rootTrainingNode = if (split.isInstanceOf[NoSplit]) {
       new RegressionTrainingLeaf(finalTraining)
     } else {
@@ -74,7 +81,7 @@ class RegressionTreeLearner(
         split,
         delta,
         numFeaturesActual,
-        minLeafInstances = minLeafInstances,
+        minLeafInstances = hypers("minLeafInstances").asInstanceOf[Int],
         remainingDepth = maxDepth - 1)
     }
 

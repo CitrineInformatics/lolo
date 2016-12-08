@@ -20,6 +20,12 @@ class Bagger(
               biasLearner: Option[Learner] = None
             ) extends Learner {
 
+  override def setHypers(moreHypers: Map[String, Any]): Bagger.this.type = {
+    method.setHypers(moreHypers)
+    super.setHypers(moreHypers)
+  }
+  override var hypers: Map[String, Any] = Map()
+
   /**
     * Draw with replacement from the training data for each model
     *

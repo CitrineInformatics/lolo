@@ -5,6 +5,16 @@ package io.citrine.lolo
   */
 abstract class Learner extends Serializable {
 
+  def setHypers(moreHypers: Map[String, Any]): this.type = {
+    hypers = hypers ++ moreHypers
+    this
+  }
+  var hypers: Map[String, Any]
+
+  def setHyper(name: String, value: Any): this.type = {
+    setHypers(Map(name -> value))
+  }
+
   /**
     * Train a model
     *

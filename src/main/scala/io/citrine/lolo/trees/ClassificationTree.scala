@@ -11,6 +11,8 @@ import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult, hasFea
   */
 class ClassificationTreeLearner(val numFeatures: Int = -1) extends Learner {
 
+  override var hypers: Map[String, Any] = Map()
+
   /**
     * Train classification tree
     *
