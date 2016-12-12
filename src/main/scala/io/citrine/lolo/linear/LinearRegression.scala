@@ -1,7 +1,8 @@
 package io.citrine.lolo.linear
 
 import breeze.linalg.{DenseMatrix, DenseVector, diag, inv, norm, pinv}
-import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult, hasGradient}
+import io.citrine.lolo.results.{PredictionResult, TrainingResult, hasGradient}
+import io.citrine.lolo.{Learner, Model}
 
 /**
   * Linear and ridge regression learner
@@ -137,7 +138,7 @@ class LinearRegressionModel(beta: DenseVector[Double], intercept: Double, indice
   * @param values computed from the model
   * @param grad   gradient vector, which are just the linear coefficients
   */
-class LinearRegressionResult(values: Seq[Double], grad: Vector[Double]) extends PredictionResult with hasGradient {
+class LinearRegressionResult(values: Seq[Double], grad: Vector[Double]) extends PredictionResult[Double] with hasGradient {
   /**
     * Get the expected values for this prediction
     *
