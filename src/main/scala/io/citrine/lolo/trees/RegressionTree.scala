@@ -2,8 +2,9 @@ package io.citrine.lolo.trees
 
 import io.citrine.lolo.encoders.CategoricalEncoder
 import io.citrine.lolo.linear.GuessTheMeanLearner
+import io.citrine.lolo.results.{PredictionResult, TrainingResult, hasFeatureImportance}
 import io.citrine.lolo.trees.splits.{NoSplit, RegressionSplitter, Split}
-import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult, hasFeatureImportance}
+import io.citrine.lolo.{Learner, Model}
 
 /**
   * Learner for regression trees
@@ -240,7 +241,7 @@ class RegressionTree(
     * @param inputs to apply the model to
     * @return a predictionresult which includes only the expected outputs
     */
-  override def transform(inputs: Seq[Vector[Any]]): PredictionResult = {
+  override def transform(inputs: Seq[Vector[Any]]): PredictionResult[Double] = {
     new RegressionTreeResult(inputs.map(predict))
   }
 }
@@ -250,13 +251,13 @@ class RegressionTree(
   *
   * @param predictions sequence of predictions
   */
-class RegressionTreeResult(predictions: Seq[Double]) extends PredictionResult {
+class RegressionTreeResult(predictions: Seq[Double]) extends PredictionResult[Double] {
   /**
     * Get the predictions
     *
     * @return expected value of each prediction
     */
-  override def getExpected(): Seq[Any] = predictions
+  override def getExpected(): Seq[Double] = predictions
 }
 
 /** Companion object with common utilities */

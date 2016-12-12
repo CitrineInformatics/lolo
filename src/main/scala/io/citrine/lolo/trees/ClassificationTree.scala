@@ -1,8 +1,9 @@
 package io.citrine.lolo.trees
 
 import io.citrine.lolo.encoders.CategoricalEncoder
+import io.citrine.lolo.results.{PredictionResult, TrainingResult, hasFeatureImportance}
 import io.citrine.lolo.trees.splits.{ClassificationSplitter, NoSplit, Split}
-import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult, hasFeatureImportance}
+import io.citrine.lolo.{Learner, Model}
 
 /**
   * Created by maxhutch on 12/2/16.
@@ -107,7 +108,7 @@ class ClassificationTree(
     * @param inputs to apply the model to
     * @return a predictionresult which includes, at least, the expected outputs
     */
-  override def transform(inputs: Seq[Vector[Any]]): PredictionResult = {
+  override def transform(inputs: Seq[Vector[Any]]): PredictionResult[Any] = {
     new ClassificationResult(inputs.map(predict))
   }
 }
@@ -115,7 +116,7 @@ class ClassificationTree(
 /**
   * Classification result
   */
-class ClassificationResult(predictions: Seq[Any]) extends PredictionResult {
+class ClassificationResult(predictions: Seq[Any]) extends PredictionResult[Any] {
 
   /**
     * Get the expected values for this prediction
