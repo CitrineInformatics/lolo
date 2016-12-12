@@ -7,7 +7,7 @@ import io.citrine.lolo.Model
   */
 abstract trait TrainingResult extends Serializable {
 
-  def getModel(): Model
+  def getModel(): Model[PredictionResult[Any]]
 }
 
 abstract trait hasFeatureImportance {

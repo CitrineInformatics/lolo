@@ -26,10 +26,10 @@ class GuessTheMeanLearner extends Learner {
 }
 
 class GuessTheMeanTrainingResult(model: GuessTheMeanModel) extends TrainingResult {
-  override def getModel(): Model = model
+  override def getModel(): Model[GuessTheMeanResult] = model
 }
 
-class GuessTheMeanModel(mean: Any) extends Model {
+class GuessTheMeanModel(mean: Any) extends Model[GuessTheMeanResult] {
 
   def transform(inputs: Seq[Vector[Any]]): GuessTheMeanResult = {
     new GuessTheMeanResult(Seq.fill(inputs.size)(mean))

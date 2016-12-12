@@ -107,7 +107,11 @@ class LinearRegressionTrainingResult(model: LinearRegressionModel) extends Train
   * @param intercept intercept
   * @param indices   optional indices from which to extract real features
   */
-class LinearRegressionModel(beta: DenseVector[Double], intercept: Double, indices: Option[Vector[Int]] = None) extends Model {
+class LinearRegressionModel(
+                             beta: DenseVector[Double],
+                             intercept: Double,
+                             indices: Option[Vector[Int]] = None
+                           ) extends Model[LinearRegressionResult] {
 
   /**
     * Apply the model to a seq of inputs
