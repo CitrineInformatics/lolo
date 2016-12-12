@@ -20,7 +20,7 @@ class RegressionTreeTest {
     val DTLearner = new RegressionTreeLearner()
     val DT = DTLearner.train(trainingData).getModel()
     trainingData.foreach { case (x, y) =>
-      assert(Math.abs(y - DT.predict(x)) < 1.0e-9)
+      assert(Math.abs(y - DT.transform(Seq(x)).getExpected().head) < 1.0e-9)
     }
   }
 
@@ -43,7 +43,7 @@ class RegressionTreeTest {
 
     /* We should be able to memorize the inputs */
     trainingData.foreach { case (x, y) =>
-      assert(Math.abs(y - DT.predict(x)) < 1.0e-9)
+      assert(Math.abs(y - DT.transform(Seq(x)).getExpected().head) < 1.0e-9)
     }
 
     /* The first feature should be the most important */
@@ -71,7 +71,7 @@ class RegressionTreeTest {
 
     /* We should be able to memorize the inputs */
     trainingData.foreach { case (x, y) =>
-      assert(Math.abs(y - DT.predict(x)) < 1.0e-9)
+      assert(Math.abs(y - DT.transform(Seq(x)).getExpected().head) < 1.0e-9)
     }
 
     /* The first feature should be the most important */
@@ -93,7 +93,7 @@ class RegressionTreeTest {
 
     /* We should be able to memorize the inputs */
     trainingData.foreach { case (x, y) =>
-      assert(Math.abs(y - DT.predict(x)) < 1.0e-9)
+      assert(Math.abs(y - DT.transform(Seq(x)).getExpected().head) < 1.0e-9)
     }
 
     /* The first feature should be the most important */

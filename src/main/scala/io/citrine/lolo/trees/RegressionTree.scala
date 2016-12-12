@@ -137,8 +137,8 @@ class RegressionTreeLearner(
       *
       * @return lightweight prediction node
       */
-    override def getNode(): ModelNode[AnyVal, Double] = {
-      new InternalModelNode(split, leftChild.getNode(), rightChild.getNode())
+    override def getNode(): Model[PredictionResult[Double]] = {
+      new InternalModelNode[PredictionResult[Double]](split, leftChild.getNode(), rightChild.getNode())
     }
 
     override def getFeatureImportance(): Array[Double] = {
@@ -165,23 +165,11 @@ class RegressionTreeLearner(
       *
       * @return lightweight prediction node
       */
-    def getNode(): ModelNode[AnyVal, Double] = {
-      if (trainingData.forall(_._2 == trainingData.head._2)) {
-        new RegressionLeaf(trainingData.head._2)
-      } else {
-        new LinearModelLeaf(myLeafLearner.train(trainingData).getModel().asInstanceOf[Model[PredictionResult[Double]]])
-      }
+    def getNode(): Model[PredictionResult[Double]] = {
+        myLeafLearner.train(trainingData).getModel().asInstanceOf[Model[PredictionResult[Double]]]
     }
 
     override def getFeatureImportance(): Array[Double] = Array.fill(trainingData.head._1.size)(0.0)
-  }
-
-  class RegressionLeaf(mean: Double) extends ModelNode[AnyVal, Double] {
-    override def predict(input: Vector[AnyVal]): Double = mean
-  }
-
-  class LinearModelLeaf(model: Model[PredictionResult[Double]]) extends ModelNode[AnyVal, Double] {
-    override def predict(input: Vector[AnyVal]): Double = model.transform(Seq(input)).getExpected().head
   }
 
 }
@@ -211,30 +199,9 @@ class RegressionTreeTrainingResult(
   * @param encoders for categorical variables
   */
 class RegressionTree(
-                      root: ModelNode[AnyVal, Double],
+                      root: Model[PredictionResult[Double]],
                       encoders: Seq[Option[CategoricalEncoder[Any]]]
                     ) extends Model[RegressionTreeResult] {
-
-  /**
-    * Make a regression prediction
-    *
-    * @param input features
-    * @return predicted response as a double
-    */
-  def predict(input: Vector[Any]): Double = {
-    root.predict(RegressionTree.encodeInput(input, encoders))
-  }
-
-  /**
-    * Make many regression predictions
-    *
-    * @param inputs to predict
-    * @return sequence of predictions
-    */
-  def predict(inputs: Seq[Vector[Any]]): Seq[Double] = {
-    inputs.map(predict)
-  }
-
   /**
     * Apply the model by calling predict and wrapping the results
     *
@@ -242,7 +209,9 @@ class RegressionTree(
     * @return a predictionresult which includes only the expected outputs
     */
   override def transform(inputs: Seq[Vector[Any]]): RegressionTreeResult = {
-    new RegressionTreeResult(inputs.map(predict))
+    new RegressionTreeResult(
+      inputs.map(inp => root.transform(Seq(RegressionTree.encodeInput(inp, encoders))).getExpected().head)
+    )
   }
 }
 

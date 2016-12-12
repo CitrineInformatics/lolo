@@ -1,7 +1,7 @@
 package io.citrine.lolo.trees
 
 import io.citrine.lolo.encoders.CategoricalEncoder
-import io.citrine.lolo.results.{PredictionResult, TrainingResult, hasFeatureImportance}
+import io.citrine.lolo.results.{MultiResult, PredictionResult, TrainingResult, hasFeatureImportance}
 import io.citrine.lolo.trees.splits.{ClassificationSplitter, NoSplit, Split}
 import io.citrine.lolo.{Learner, Model}
 
@@ -93,14 +93,10 @@ class ClassificationTrainingResult(
   * Classification tree
   */
 class ClassificationTree(
-                          rootModelNode: ModelNode[AnyVal, Char],
+                          rootModelNode: Model[PredictionResult[Char]],
                           inputEncoders: Seq[Option[CategoricalEncoder[Any]]],
                           outputEncoder: CategoricalEncoder[Any]
                         ) extends Model[ClassificationResult] {
-
-  def predict(input: Vector[Any]): Any = {
-    outputEncoder.decode(rootModelNode.predict(RegressionTree.encodeInput(input, inputEncoders)))
-  }
 
   /**
     * Apply the model to a seq of inputs
@@ -109,7 +105,9 @@ class ClassificationTree(
     * @return a predictionresult which includes, at least, the expected outputs
     */
   override def transform(inputs: Seq[Vector[Any]]): ClassificationResult = {
-    new ClassificationResult(inputs.map(predict))
+    new ClassificationResult(
+      inputs.map(inp => outputEncoder.decode(rootModelNode.transform(Seq(RegressionTree.encodeInput(inp, inputEncoders))).getExpected().head))
+    )
   }
 }
 
@@ -165,7 +163,7 @@ class ClassificationTrainingNode(
     *
     * @return lightweight prediction node
     */
-  override def getNode(): ModelNode[AnyVal, Char] = new InternalModelNode(
+  override def getNode(): Model[PredictionResult[Char]] = new InternalModelNode(
     split, leftChild.getNode(), rightChild.getNode()
   )
 
@@ -188,7 +186,7 @@ class ClassificationTrainingLeaf(
     *
     * @return lightweight prediction node
     */
-  override def getNode(): ModelNode[AnyVal, Char] = new ClassificationLeaf(mode)
+  override def getNode(): Model[PredictionResult[Char]] = new ClassificationLeaf(mode)
 
   override def getFeatureImportance(): Array[Double] = Array.fill(trainingData.head._1.size)(0.0)
 }
@@ -198,6 +196,6 @@ class ClassificationTrainingLeaf(
   *
   * @param mode most common value
   */
-class ClassificationLeaf(mode: Char) extends ModelNode[AnyVal, Char] {
-  override def predict(input: Vector[AnyVal]): Char = mode
+class ClassificationLeaf(mode: Char) extends Model[PredictionResult[Char]] {
+  override def transform(inputs: Seq[Vector[Any]]): PredictionResult[Char] = MultiResult(Seq.fill(inputs.size)(mode))
 }
