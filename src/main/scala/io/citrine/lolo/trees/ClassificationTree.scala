@@ -96,7 +96,7 @@ class ClassificationTree(
                           rootModelNode: ModelNode[AnyVal, Char],
                           inputEncoders: Seq[Option[CategoricalEncoder[Any]]],
                           outputEncoder: CategoricalEncoder[Any]
-                        ) extends Model {
+                        ) extends Model[ClassificationResult] {
 
   def predict(input: Vector[Any]): Any = {
     outputEncoder.decode(rootModelNode.predict(RegressionTree.encodeInput(input, inputEncoders)))
@@ -108,7 +108,7 @@ class ClassificationTree(
     * @param inputs to apply the model to
     * @return a predictionresult which includes, at least, the expected outputs
     */
-  override def transform(inputs: Seq[Vector[Any]]): PredictionResult[Any] = {
+  override def transform(inputs: Seq[Vector[Any]]): ClassificationResult = {
     new ClassificationResult(inputs.map(predict))
   }
 }

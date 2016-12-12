@@ -169,7 +169,7 @@ class RegressionTreeLearner(
       if (trainingData.forall(_._2 == trainingData.head._2)) {
         new RegressionLeaf(trainingData.head._2)
       } else {
-        new LinearModelLeaf(myLeafLearner.train(trainingData).getModel())
+        new LinearModelLeaf(myLeafLearner.train(trainingData).getModel().asInstanceOf[Model[PredictionResult[Double]]])
       }
     }
 
@@ -180,8 +180,8 @@ class RegressionTreeLearner(
     override def predict(input: Vector[AnyVal]): Double = mean
   }
 
-  class LinearModelLeaf(model: Model) extends ModelNode[AnyVal, Double] {
-    override def predict(input: Vector[AnyVal]): Double = model.transform(Seq(input)).getExpected().head.asInstanceOf[Double]
+  class LinearModelLeaf(model: Model[PredictionResult[Double]]) extends ModelNode[AnyVal, Double] {
+    override def predict(input: Vector[AnyVal]): Double = model.transform(Seq(input)).getExpected().head
   }
 
 }
@@ -213,7 +213,7 @@ class RegressionTreeTrainingResult(
 class RegressionTree(
                       root: ModelNode[AnyVal, Double],
                       encoders: Seq[Option[CategoricalEncoder[Any]]]
-                    ) extends Model {
+                    ) extends Model[RegressionTreeResult] {
 
   /**
     * Make a regression prediction
@@ -241,7 +241,7 @@ class RegressionTree(
     * @param inputs to apply the model to
     * @return a predictionresult which includes only the expected outputs
     */
-  override def transform(inputs: Seq[Vector[Any]]): PredictionResult[Double] = {
+  override def transform(inputs: Seq[Vector[Any]]): RegressionTreeResult = {
     new RegressionTreeResult(inputs.map(predict))
   }
 }
