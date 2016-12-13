@@ -2,7 +2,7 @@ package io.citrine.lolo.trees
 
 import io.citrine.lolo.encoders.CategoricalEncoder
 import io.citrine.lolo.linear.GuessTheMeanLearner
-import io.citrine.lolo.results.{PredictionResult, TrainingResult, hasFeatureImportance}
+import io.citrine.lolo.results.{PredictionResult, TrainingResult, hasFeatureImportance, hasGradient}
 import io.citrine.lolo.trees.splits.{NoSplit, RegressionSplitter, Split}
 import io.citrine.lolo.{Learner, Model}
 
@@ -210,7 +210,7 @@ class RegressionTree(
     */
   override def transform(inputs: Seq[Vector[Any]]): RegressionTreeResult = {
     new RegressionTreeResult(
-      inputs.map(inp => root.transform(Seq(RegressionTree.encodeInput(inp, encoders))).getExpected().head)
+      inputs.map(inp => root.transform(Seq(RegressionTree.encodeInput(inp, encoders))))
     )
   }
 }
@@ -220,13 +220,25 @@ class RegressionTree(
   *
   * @param predictions sequence of predictions
   */
-class RegressionTreeResult(predictions: Seq[Double]) extends PredictionResult[Double] {
+class RegressionTreeResult(predictions: Seq[PredictionResult[Double]]) extends PredictionResult[Double] with hasGradient {
   /**
     * Get the predictions
     *
     * @return expected value of each prediction
     */
-  override def getExpected(): Seq[Double] = predictions
+  override def getExpected(): Seq[Double] = predictions.map(_.getExpected().head)
+
+  /**
+    * Get the gradient or sensitivity of each prediction
+    *
+    * @return a vector of doubles for each prediction
+    */
+  override def getGradient(): Seq[Vector[Double]] = {
+    if (!predictions.head.isInstanceOf[hasGradient]) {
+      throw new UnsupportedOperationException("Requested graident when base learner has none")
+    }
+    predictions.map(_.asInstanceOf[hasGradient].getGradient().head)
+  }
 }
 
 /** Companion object with common utilities */
