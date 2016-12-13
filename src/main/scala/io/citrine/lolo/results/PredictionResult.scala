@@ -1,17 +1,28 @@
-package io.citrine.lolo
+package io.citrine.lolo.results
 
 /**
   * Container for prediction results; must include expected values
   * Created by maxhutch on 11/29/16.
   */
-trait PredictionResult {
+trait PredictionResult[+T] {
 
   /**
     * Get the expected values for this prediction
     *
     * @return expected value of each prediction
     */
-  def getExpected(): Seq[Any]
+  def getExpected(): Seq[T]
+}
+
+case class MultiResult[T](values: Seq[T]) extends PredictionResult[T] {
+  /**
+    * Get the expected values for this prediction
+    *
+    * @return expected value of each prediction
+    */
+  override def getExpected(): Seq[T] = values
+
+  def append(other: this.type): MultiResult[T] = MultiResult(values ++ other.values)
 }
 
 /**

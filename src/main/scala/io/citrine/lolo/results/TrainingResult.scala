@@ -1,11 +1,13 @@
-package io.citrine.lolo
+package io.citrine.lolo.results
+
+import io.citrine.lolo.Model
 
 /**
   * Created by maxhutch on 12/4/16.
   */
 abstract trait TrainingResult extends Serializable {
 
-  def getModel(): Model
+  def getModel(): Model[PredictionResult[Any]]
 }
 
 abstract trait hasFeatureImportance {

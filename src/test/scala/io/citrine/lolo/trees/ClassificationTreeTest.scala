@@ -28,7 +28,7 @@ class ClassificationTreeTest {
 
     /* We should be able to memorize the inputs */
     trainingData.foreach { case (x, y) =>
-      assert(y == DT.predict(x))
+      assert(y == DT.transform(Seq(x)).getExpected().head)
     }
 
     /* The first feature should be the most important */
@@ -55,7 +55,7 @@ class ClassificationTreeTest {
 
     /* We should be able to memorize the inputs */
     trainingData.foreach { case (x, y) =>
-      assert(y == DT.predict(x))
+      assert(y == DT.transform(Seq(x)).getExpected().head)
     }
   }
 }
@@ -68,7 +68,7 @@ object ClassificationTreeTest {
     * @param argv args
     */
   def main(argv: Array[String]): Unit = {
-    // new ClassificationTreeTest().longerTest()
-    new ClassificationTreeTest().testCategorical()
+    new ClassificationTreeTest().longerTest()
+    // new ClassificationTreeTest().testCategorical()
   }
 }
