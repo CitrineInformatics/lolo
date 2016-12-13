@@ -240,29 +240,24 @@ class BaggedResult(predictions: Seq[PredictionResult[Any]], NibIn: Vector[Vector
   def variance(meanPrediction: Double, modelPredictions: Seq[Double], Nib: Seq[Vector[Int]]): Double = {
     val diff = modelPredictions.map(_ - meanPrediction)
 
-    /* Compute the infintesimal jackknife variance estimate */
-    val varianceIJ: Double = Nib.map { v =>
-      val cov = v.zip(diff).map(p2 => p2._1 * p2._2).sum / modelPredictions.size
-      cov * cov
-    }.sum
-
-    /* Compute the jackknife-after-bootstrap variance estimate */
-    val varianceJ = (Nib.size - 1.0) / Nib.size * Nib.map { v =>
-      val predictionsWithoutV: Seq[Double] = v.zip(modelPredictions).filter(_._1 == -1.0).map(_._2)
-      Math.pow(predictionsWithoutV.sum / predictionsWithoutV.size - meanPrediction, 2)
-    }.sum
-
     /* Compute the first order bias correction for the variance estimators */
-    val correction = diff.map(Math.pow(_, 2)).sum * Nib.size / (modelPredictions.size * modelPredictions.size)
+    val correction = diff.map(Math.pow(_, 2)).sum / (modelPredictions.size * modelPredictions.size)
 
-    /* Mix the IJ and J estimators with their bias corrections */
-    val result = (varianceIJ + varianceJ - Math.E * correction) / 2.0
-    if (result < 0) {
-      // println("Warning: negative variance; increase the number of trees")
-      0.0
-    } else {
-      result
+    val varianceJandIJ: Seq[Double] = Nib.map { v =>
+      /* Compute the infintesimal jackknife variance estimate */
+      val IJ = Math.pow(v.zip(diff).map(p2 => p2._1 * p2._2).sum, 2) / (modelPredictions.size * modelPredictions.size)
+
+      /* Compute the jackknife-after-bootstrap variance estimate */
+      val predictionsWithoutV: Seq[Double] = v.zip(modelPredictions).filter(_._1 == -1.0).map(_._2)
+      val J = (Nib.size - 1.0) / Nib.size * Math.pow(predictionsWithoutV.sum / predictionsWithoutV.size - meanPrediction, 2)
+
+      /* Mix the IJ and J estimators with their bias corrections */
+      (IJ + J - Math.E * correction) / 2.0
     }
+
+    /* Impose a floor in case any of the variances are negative */
+    val floor = Math.min(0, - varianceJandIJ.min)
+    varianceJandIJ.map(Math.max(floor, _)).sum
   }
 
   /**
