@@ -2,7 +2,8 @@ package io.citrine.lolo.bags
 
 import breeze.linalg.{DenseMatrix, sum}
 import breeze.stats.distributions.Poisson
-import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult, hasFeatureImportance, hasGradient, hasLoss, hasPredictedVsActual, hasTrainingScores, hasUncertainty}
+import io.citrine.lolo.results.{PredictionResult, TrainingResult, hasFeatureImportance, hasGradient, hasLoss, hasPredictedVsActual, hasTrainingScores, hasUncertainty}
+import io.citrine.lolo.{Learner, Model}
 
 import scala.collection.parallel.immutable.ParSeq
 
@@ -85,7 +86,7 @@ class BaggedTrainingResult(
                             bases: ParSeq[TrainingResult],
                             Nib: Vector[Vector[Int]],
                             trainingData: Seq[(Vector[Any], Any)],
-                            biasModel: Option[Model] = None
+                            biasModel: Option[Model[PredictionResult[Any]]] = None
                           )
   extends TrainingResult with hasPredictedVsActual with hasLoss with hasFeatureImportance {
   lazy val NibT = Nib.transpose
@@ -140,7 +141,11 @@ class BaggedTrainingResult(
   * @param models in this bagged model
   * @param Nib    training sample counts
   */
-class BaggedModel(models: ParSeq[Model], Nib: Vector[Vector[Int]], biasModel: Option[Model] = None) extends Model {
+class BaggedModel(
+                   models: ParSeq[Model[PredictionResult[Any]]],
+                   Nib: Vector[Vector[Int]],
+                   biasModel: Option[Model[PredictionResult[Any]]] = None
+                 ) extends Model[BaggedResult] {
 
   /**
     * Apply each model to the outputs and wrap them up
@@ -167,7 +172,7 @@ class BaggedModel(models: ParSeq[Model], Nib: Vector[Vector[Int]], biasModel: Op
   * @param predictions for each constituent model
   * @param NibIn       the sample matrix as (N_models x N_training)
   */
-class BaggedResult(predictions: Seq[PredictionResult], NibIn: Vector[Vector[Int]], bias: Option[Seq[Double]] = None) extends PredictionResult
+class BaggedResult(predictions: Seq[PredictionResult[Any]], NibIn: Vector[Vector[Int]], bias: Option[Seq[Double]] = None) extends PredictionResult[Any]
   with hasUncertainty with hasTrainingScores with hasGradient {
 
   /**

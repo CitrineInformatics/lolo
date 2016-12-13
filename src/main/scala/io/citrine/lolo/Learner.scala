@@ -1,5 +1,7 @@
 package io.citrine.lolo
 
+import io.citrine.lolo.results.TrainingResult
+
 /**
   * Created by maxhutch on 11/14/16.
   */

@@ -1,6 +1,7 @@
 package io.citrine.lolo.hypers
 
-import io.citrine.lolo.{Learner, TrainingResult, hasLoss}
+import io.citrine.lolo.Learner
+import io.citrine.lolo.results.{TrainingResult, hasLoss}
 
 /**
   * Brute force search over the grid of hypers

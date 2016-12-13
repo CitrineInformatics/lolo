@@ -1,6 +1,7 @@
 package io.citrine.lolo.linear
 
-import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
+import io.citrine.lolo.results.{PredictionResult, TrainingResult}
+import io.citrine.lolo.{Learner, Model}
 
 /**
   * Created by maxhutch on 11/15/16.
@@ -25,17 +26,17 @@ class GuessTheMeanLearner extends Learner {
 }
 
 class GuessTheMeanTrainingResult(model: GuessTheMeanModel) extends TrainingResult {
-  override def getModel(): Model = model
+  override def getModel(): Model[GuessTheMeanResult] = model
 }
 
-class GuessTheMeanModel(mean: Any) extends Model {
+class GuessTheMeanModel(mean: Any) extends Model[GuessTheMeanResult] {
 
   def transform(inputs: Seq[Vector[Any]]): GuessTheMeanResult = {
     new GuessTheMeanResult(Seq.fill(inputs.size)(mean))
   }
 }
 
-class GuessTheMeanResult(result: Seq[Any]) extends PredictionResult {
+class GuessTheMeanResult(result: Seq[Any]) extends PredictionResult[Any] {
   /**
     * Get the expected values for this prediction
     *
