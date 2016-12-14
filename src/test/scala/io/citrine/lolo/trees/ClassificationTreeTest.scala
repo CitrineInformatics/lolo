@@ -1,5 +1,7 @@
 package io.citrine.lolo.trees
 
+import java.io.{File, FileOutputStream, ObjectOutputStream}
+
 import io.citrine.lolo.TestUtils
 import org.junit.Test
 
@@ -28,13 +30,16 @@ class ClassificationTreeTest {
 
     /* We should be able to memorize the inputs */
     trainingData.foreach { case (x, y) =>
-      assert(y == DT.predict(x))
+      assert(y == DT.transform(Seq(x)).getExpected().head)
     }
 
     /* The first feature should be the most important */
     val importances = DTMeta.getFeatureImportance()
     println(importances.toList)
     assert(importances(0) == importances.max)
+    val tmpFile: File = File.createTempFile("tmp", ".csv")
+    val oos = new ObjectOutputStream(new FileOutputStream(tmpFile))
+    oos.writeObject(DT)
   }
 
   /**
@@ -55,7 +60,7 @@ class ClassificationTreeTest {
 
     /* We should be able to memorize the inputs */
     trainingData.foreach { case (x, y) =>
-      assert(y == DT.predict(x))
+      assert(y == DT.transform(Seq(x)).getExpected().head)
     }
   }
 }
@@ -68,7 +73,7 @@ object ClassificationTreeTest {
     * @param argv args
     */
   def main(argv: Array[String]): Unit = {
-    // new ClassificationTreeTest().longerTest()
-    new ClassificationTreeTest().testCategorical()
+    new ClassificationTreeTest().longerTest()
+    // new ClassificationTreeTest().testCategorical()
   }
 }
