@@ -1,5 +1,7 @@
 package io.citrine.lolo.trees
 
+import java.io.{File, FileOutputStream, ObjectOutputStream}
+
 import io.citrine.lolo.TestUtils
 import org.junit.Test
 
@@ -35,6 +37,9 @@ class ClassificationTreeTest {
     val importances = DTMeta.getFeatureImportance()
     println(importances.toList)
     assert(importances(0) == importances.max)
+    val tmpFile: File = File.createTempFile("tmp", ".csv")
+    val oos = new ObjectOutputStream(new FileOutputStream(tmpFile))
+    oos.writeObject(DT)
   }
 
   /**
