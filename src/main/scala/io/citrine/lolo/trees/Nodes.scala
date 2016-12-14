@@ -1,5 +1,7 @@
 package io.citrine.lolo.trees
 
+import io.citrine.lolo.Model
+import io.citrine.lolo.results.PredictionResult
 import io.citrine.lolo.trees.splits.Split
 
 /**
@@ -20,7 +22,7 @@ abstract class TrainingNode[T <: AnyVal, S](
     *
     * @return lightweight prediction node
     */
-  def getNode(): ModelNode[T, S]
+  def getNode(): Model[PredictionResult[S]]
 
   /**
     * Get the feature importance of the subtree below this node
@@ -31,40 +33,29 @@ abstract class TrainingNode[T <: AnyVal, S](
 }
 
 /**
-  * Trait to hold prediction interface
-  *
-  * @tparam T type of the input vector
-  * @tparam S type of the model output
-  */
-abstract trait ModelNode[T <: AnyVal, S] extends Serializable {
-  def predict(input: Vector[T]): S
-}
-
-/**
   * Internal node in the decision tree
   *
   * @param split to decide which branch to take
   * @param left  branch node
   * @param right branch node
-  * @tparam T type of the input
-  * @tparam S type of the output
+  * @tparam T type of the output
   */
-class InternalModelNode[T <: AnyVal, S](
+class InternalModelNode[T <: PredictionResult[Any]](
                                          split: Split,
-                                         left: ModelNode[T, S],
-                                         right: ModelNode[T, S]
-                                       ) extends ModelNode[T, S] {
+                                         left: Model[T],
+                                         right: Model[T]
+                                       ) extends Model[T] {
   /**
     * Just propagate the prediction call through the appropriate child
     *
     * @param input to predict for
     * @return prediction
     */
-  override def predict(input: Vector[T]): S = {
-    if (split.turnLeft(input)) {
-      left.predict(input)
+  override def transform(input: Seq[Vector[Any]]): T = {
+    if (split.turnLeft(input.head.asInstanceOf[Vector[AnyVal]])) {
+      left.transform(input)
     } else {
-      right.predict(input)
+      right.transform(input)
     }
   }
 }

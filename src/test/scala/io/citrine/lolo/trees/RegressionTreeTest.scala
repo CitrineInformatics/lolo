@@ -1,5 +1,7 @@
 package io.citrine.lolo.trees
 
+import java.io.{File, FileOutputStream, ObjectOutputStream}
+
 import io.citrine.lolo.TestUtils
 import io.citrine.lolo.linear.LinearRegressionLearner
 import org.junit.Test
@@ -20,7 +22,7 @@ class RegressionTreeTest {
     val DTLearner = new RegressionTreeLearner()
     val DT = DTLearner.train(trainingData).getModel()
     trainingData.foreach { case (x, y) =>
-      assert(Math.abs(y - DT.predict(x)) < 1.0e-9)
+      assert(Math.abs(y - DT.transform(Seq(x)).getExpected().head) < 1.0e-9)
     }
   }
 
@@ -43,13 +45,16 @@ class RegressionTreeTest {
 
     /* We should be able to memorize the inputs */
     trainingData.foreach { case (x, y) =>
-      assert(Math.abs(y - DT.predict(x)) < 1.0e-9)
+      assert(Math.abs(y - DT.transform(Seq(x)).getExpected().head) < 1.0e-9)
     }
 
     /* The first feature should be the most important */
     val importances = DTMeta.getFeatureImportance()
     println(importances.toList)
     assert(importances(0) == importances.max)
+    val tmpFile: File = File.createTempFile("tmp", ".csv")
+    val oos = new ObjectOutputStream(new FileOutputStream(tmpFile))
+    oos.writeObject(DT)
   }
 
   /**
@@ -71,12 +76,15 @@ class RegressionTreeTest {
 
     /* We should be able to memorize the inputs */
     trainingData.foreach { case (x, y) =>
-      assert(Math.abs(y - DT.predict(x)) < 1.0e-9)
+      assert(Math.abs(y - DT.transform(Seq(x)).getExpected().head) < 1.0e-9)
     }
 
     /* The first feature should be the most important */
     val importances = DTMeta.getFeatureImportance()
     assert(importances(0) == importances.max)
+        val tmpFile: File = File.createTempFile("tmp", ".csv")
+    val oos = new ObjectOutputStream(new FileOutputStream(tmpFile))
+    oos.writeObject(DT)
   }
 
   /**
@@ -93,12 +101,16 @@ class RegressionTreeTest {
 
     /* We should be able to memorize the inputs */
     trainingData.foreach { case (x, y) =>
-      assert(Math.abs(y - DT.predict(x)) < 1.0e-9)
+      assert(Math.abs(y - DT.transform(Seq(x)).getExpected().head) < 1.0e-9)
     }
 
     /* The first feature should be the most important */
     val importances = DTMeta.getFeatureImportance()
     assert(importances(0) == importances.max)
+
+    val tmpFile: File = File.createTempFile("tmp", ".csv")
+    val oos = new ObjectOutputStream(new FileOutputStream(tmpFile))
+    oos.writeObject(DT)
   }
 }
 

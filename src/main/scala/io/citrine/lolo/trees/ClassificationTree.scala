@@ -1,8 +1,9 @@
 package io.citrine.lolo.trees
 
 import io.citrine.lolo.encoders.CategoricalEncoder
+import io.citrine.lolo.results.{MultiResult, PredictionResult, TrainingResult, hasFeatureImportance}
 import io.citrine.lolo.trees.splits.{ClassificationSplitter, NoSplit, Split}
-import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult, hasFeatureImportance}
+import io.citrine.lolo.{Learner, Model}
 
 /**
   * Created by maxhutch on 12/2/16.
@@ -43,7 +44,7 @@ class ClassificationTreeLearner(val numFeatures: Int = -1) extends Learner {
     /* Add the weights to the (features, label) tuples and remove any with zero weight */
     val finalTraining = encodedTraining.zip(weights.getOrElse(Seq.fill(trainingData.size)(1.0))).map { case ((f, l), w) =>
       (f, l, w)
-    }.filter(_._3 > 0)
+    }.filter(_._3 > 0).toVector
 
     /* If the number of features isn't specified, use all of them */
     val numFeaturesActual = if (numFeatures > 0) {
@@ -92,14 +93,10 @@ class ClassificationTrainingResult(
   * Classification tree
   */
 class ClassificationTree(
-                          rootModelNode: ModelNode[AnyVal, Char],
+                          rootModelNode: Model[PredictionResult[Char]],
                           inputEncoders: Seq[Option[CategoricalEncoder[Any]]],
                           outputEncoder: CategoricalEncoder[Any]
-                        ) extends Model {
-
-  def predict(input: Vector[Any]): Any = {
-    outputEncoder.decode(rootModelNode.predict(RegressionTree.encodeInput(input, inputEncoders)))
-  }
+                        ) extends Model[ClassificationResult] {
 
   /**
     * Apply the model to a seq of inputs
@@ -107,15 +104,17 @@ class ClassificationTree(
     * @param inputs to apply the model to
     * @return a predictionresult which includes, at least, the expected outputs
     */
-  override def transform(inputs: Seq[Vector[Any]]): PredictionResult = {
-    new ClassificationResult(inputs.map(predict))
+  override def transform(inputs: Seq[Vector[Any]]): ClassificationResult = {
+    new ClassificationResult(
+      inputs.map(inp => outputEncoder.decode(rootModelNode.transform(Seq(RegressionTree.encodeInput(inp, inputEncoders))).getExpected().head))
+    )
   }
 }
 
 /**
   * Classification result
   */
-class ClassificationResult(predictions: Seq[Any]) extends PredictionResult {
+class ClassificationResult(predictions: Seq[Any]) extends PredictionResult[Any] {
 
   /**
     * Get the expected values for this prediction
@@ -164,7 +163,7 @@ class ClassificationTrainingNode(
     *
     * @return lightweight prediction node
     */
-  override def getNode(): ModelNode[AnyVal, Char] = new InternalModelNode(
+  override def getNode(): Model[PredictionResult[Char]] = new InternalModelNode(
     split, leftChild.getNode(), rightChild.getNode()
   )
 
@@ -187,7 +186,7 @@ class ClassificationTrainingLeaf(
     *
     * @return lightweight prediction node
     */
-  override def getNode(): ModelNode[AnyVal, Char] = new ClassificationLeaf(mode)
+  override def getNode(): Model[PredictionResult[Char]] = new ClassificationLeaf(mode)
 
   override def getFeatureImportance(): Array[Double] = Array.fill(trainingData.head._1.size)(0.0)
 }
@@ -197,6 +196,6 @@ class ClassificationTrainingLeaf(
   *
   * @param mode most common value
   */
-class ClassificationLeaf(mode: Char) extends ModelNode[AnyVal, Char] {
-  override def predict(input: Vector[AnyVal]): Char = mode
+class ClassificationLeaf(mode: Char) extends Model[PredictionResult[Char]] {
+  override def transform(inputs: Seq[Vector[Any]]): PredictionResult[Char] = MultiResult(Seq.fill(inputs.size)(mode))
 }
