@@ -1,5 +1,7 @@
 package io.citrine.lolo.trees
 
+import java.io.{File, FileOutputStream, ObjectOutputStream}
+
 import io.citrine.lolo.TestUtils
 import io.citrine.lolo.linear.LinearRegressionLearner
 import org.junit.Test
@@ -50,6 +52,9 @@ class RegressionTreeTest {
     val importances = DTMeta.getFeatureImportance()
     println(importances.toList)
     assert(importances(0) == importances.max)
+    val tmpFile: File = File.createTempFile("tmp", ".csv")
+    val oos = new ObjectOutputStream(new FileOutputStream(tmpFile))
+    oos.writeObject(DT)
   }
 
   /**
@@ -77,6 +82,9 @@ class RegressionTreeTest {
     /* The first feature should be the most important */
     val importances = DTMeta.getFeatureImportance()
     assert(importances(0) == importances.max)
+        val tmpFile: File = File.createTempFile("tmp", ".csv")
+    val oos = new ObjectOutputStream(new FileOutputStream(tmpFile))
+    oos.writeObject(DT)
   }
 
   /**
@@ -99,6 +107,10 @@ class RegressionTreeTest {
     /* The first feature should be the most important */
     val importances = DTMeta.getFeatureImportance()
     assert(importances(0) == importances.max)
+
+    val tmpFile: File = File.createTempFile("tmp", ".csv")
+    val oos = new ObjectOutputStream(new FileOutputStream(tmpFile))
+    oos.writeObject(DT)
   }
 }
 
