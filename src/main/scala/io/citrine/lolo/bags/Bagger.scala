@@ -1,6 +1,6 @@
 package io.citrine.lolo.bags
 
-import breeze.linalg.{DenseMatrix, sum}
+import breeze.linalg.{DenseMatrix, DenseVector, norm, sum}
 import breeze.stats.distributions.Poisson
 import io.citrine.lolo.results.{PredictionResult, TrainingResult, hasFeatureImportance, hasGradient, hasLoss, hasPredictedVsActual, hasTrainingScores, hasUncertainty}
 import io.citrine.lolo.{Learner, Model}
@@ -25,6 +25,7 @@ class Bagger(
     method.setHypers(moreHypers)
     super.setHypers(moreHypers)
   }
+
   override var hypers: Map[String, Any] = Map()
 
   /**
@@ -214,8 +215,22 @@ class BaggedResult(predictions: Seq[PredictionResult[Any]], NibIn: Vector[Vector
   /* Compute the uncertainties one prediction at a time */
   lazy val uncertainty = rep match {
     case x: Double =>
+      val NibJ: Seq[Vector[Double]] = Nib.map { v =>
+        val itot = 1.0 / v.size
+        val icount = 1.0 / v.count(_ == -1.0)
+        v.map(n => if (n == -1) icount - itot else -itot)
+      }
+      val NibJMat = new DenseMatrix[Double](Nib.head.size, Nib.size, NibJ.flatten.toArray)
+
+      val NibIJ: Seq[Vector[Double]] = Nib.map { v =>
+        val itot = 1.0 / v.size
+        val vtot = v.sum.toDouble / (v.size * v.size)
+        v.map(n => (n * itot - vtot))
+      }
+      val NibIJMat = new DenseMatrix[Double](Nib.head.size, Nib.size, NibIJ.flatten.toArray)
+
       val sigma2: Seq[Double] = expectedMatrix.zip(expected).map { case (treePredictions, meanPrediction) =>
-        variance(meanPrediction.asInstanceOf[Double], treePredictions.asInstanceOf[Seq[Double]], Nib)
+        variance(meanPrediction.asInstanceOf[Double], treePredictions.asInstanceOf[Seq[Double]], NibJMat, NibIJMat)
       }
       sigma2.zip(bias.getOrElse(Seq.fill(expected.size)(0.0))).map(p => Math.sqrt(p._2 * p._2 + p._1))
     case x: Any => Seq.fill(expected.size)(1.0)
@@ -234,29 +249,27 @@ class BaggedResult(predictions: Seq[PredictionResult[Any]], NibIn: Vector[Vector
     *
     * @param meanPrediction   over the models
     * @param modelPredictions prediction of each model
-    * @param Nib              sampling matrix
+    * @param NibJ              sampling matrix
+    * @param NibIJ              sampling matrix
     * @return the estimated variance
     */
-  def variance(meanPrediction: Double, modelPredictions: Seq[Double], Nib: Seq[Vector[Int]]): Double = {
-    val diff = modelPredictions.map(_ - meanPrediction)
+  def variance(meanPrediction: Double, modelPredictions: Seq[Double], NibJ: DenseMatrix[Double], NibIJ: DenseMatrix[Double]): Double = {
+    val predVec = new DenseVector[Double](modelPredictions.toArray)
 
     /* Compute the first order bias correction for the variance estimators */
-    val correction = diff.map(Math.pow(_, 2)).sum / (modelPredictions.size * modelPredictions.size)
+    val correction = Math.pow(norm(predVec - meanPrediction), 2) / (modelPredictions.size * modelPredictions.size)
 
-    val varianceJandIJ: Seq[Double] = Nib.map { v =>
-      /* Compute the infintesimal jackknife variance estimate */
-      val IJ = Math.pow(v.zip(diff).map(p2 => p2._1 * p2._2).sum, 2) / (modelPredictions.size * modelPredictions.size)
+    // val correction = diff.map(Math.pow(_, 2)).sum / (modelPredictions.size * modelPredictions.size)
 
-      /* Compute the jackknife-after-bootstrap variance estimate */
-      val predictionsWithoutV: Seq[Double] = v.zip(modelPredictions).filter(_._1 == -1.0).map(_._2)
-      val J = (Nib.size - 1.0) / Nib.size * Math.pow(predictionsWithoutV.sum / predictionsWithoutV.size - meanPrediction, 2)
+    val Js: Seq[Double] = (NibJ.t * predVec).toArray.toVector
+    val IJs: Seq[Double] = (NibIJ.t * predVec).toArray.toVector
 
-      /* Mix the IJ and J estimators with their bias corrections */
-      (IJ + J - Math.E * correction) / 2.0
+    val varianceJandIJ: Seq[Double] = Js.zip(IJs).map { case (x, y) =>
+      0.5 * (x * x * (Nib.size - 1.0) / Nib.size + y * y - Math.E * correction)
     }
 
     /* Impose a floor in case any of the variances are negative */
-    val floor = Math.min(0, - varianceJandIJ.min)
+    val floor = Math.min(0, -varianceJandIJ.min)
     varianceJandIJ.map(Math.max(floor, _)).sum
   }
 
@@ -288,7 +301,7 @@ class BaggedResult(predictions: Seq[PredictionResult[Any]], NibIn: Vector[Vector
     }
     val gradientsByPrediction: Seq[Seq[Vector[Double]]] = predictions.asInstanceOf[Seq[hasGradient]].map(_.getGradient())
     val gradientsByInput: Seq[Seq[Vector[Double]]] = gradientsByPrediction.transpose
-    gradientsByInput.map{r =>
+    gradientsByInput.map { r =>
       r.toVector.transpose.map(_.sum / predictions.size)
     }
   }
