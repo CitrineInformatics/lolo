@@ -44,7 +44,7 @@ class ClassificationTreeLearner(val numFeatures: Int = -1) extends Learner {
     /* Add the weights to the (features, label) tuples and remove any with zero weight */
     val finalTraining = encodedTraining.zip(weights.getOrElse(Seq.fill(trainingData.size)(1.0))).map { case ((f, l), w) =>
       (f, l, w)
-    }.filter(_._3 > 0)
+    }.filter(_._3 > 0).toVector
 
     /* If the number of features isn't specified, use all of them */
     val numFeaturesActual = if (numFeatures > 0) {

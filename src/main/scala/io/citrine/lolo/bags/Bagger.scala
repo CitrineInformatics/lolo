@@ -59,7 +59,7 @@ class Bagger(
 
     /* Learn the actual models */
     val models = (0 until actualBags).par.map { i =>
-      method.train(trainingData, Some(Nib(i).zip(weightsActual).map(p => p._1.toDouble * p._2)))
+      method.train(trainingData.toVector, Some(Nib(i).zip(weightsActual).map(p => p._1.toDouble * p._2)))
     }
 
     /* Wrap the models in a BaggedModel object */
