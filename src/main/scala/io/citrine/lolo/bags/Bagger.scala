@@ -321,7 +321,7 @@ class BaggedResult(
   override def getGradient(): Seq[Vector[Double]] = {
     /* If the underlying model has no gradient, return 0 */
     if (!predictions.head.isInstanceOf[hasGradient]) {
-      Seq.fill(expected.size)(Vector.fill(repInput.size))
+      Seq.fill(expected.size)(Vector.fill(repInput.size)(0.0))
     }
     val gradientsByPrediction: Seq[Seq[Vector[Double]]] = predictions.asInstanceOf[Seq[hasGradient]].map(_.getGradient())
     val gradientsByInput: Seq[Seq[Vector[Double]]] = gradientsByPrediction.transpose
