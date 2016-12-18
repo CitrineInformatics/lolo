@@ -163,7 +163,7 @@ class BaggedModel(
     } else {
       None
     }
-    new BaggedResult(models.map(model => model.transform(inputs)).seq, Nib, bias)
+    new BaggedResult(models.map(model => model.transform(inputs)).seq, Nib, bias, inputs.head)
   }
 }
 
@@ -173,8 +173,15 @@ class BaggedModel(
   *
   * @param predictions for each constituent model
   * @param NibIn       the sample matrix as (N_models x N_training)
+  * @param bias        model to use for estimating bias
+  * @param repInput    representative input
   */
-class BaggedResult(predictions: Seq[PredictionResult[Any]], NibIn: Vector[Vector[Int]], bias: Option[Seq[Double]] = None) extends PredictionResult[Any]
+class BaggedResult(
+                    predictions: Seq[PredictionResult[Any]],
+                    NibIn: Vector[Vector[Int]],
+                    bias: Option[Seq[Double]] = None,
+                    repInput: Vector[Any]
+                  ) extends PredictionResult[Any]
   with hasUncertainty with hasTrainingScores with hasGradient {
 
   /**
@@ -312,8 +319,9 @@ class BaggedResult(predictions: Seq[PredictionResult[Any]], NibIn: Vector[Vector
     * @return a vector of doubles for each prediction
     */
   override def getGradient(): Seq[Vector[Double]] = {
+    /* If the underlying model has no gradient, return 0 */
     if (!predictions.head.isInstanceOf[hasGradient]) {
-      throw new UnsupportedOperationException("Requested graident when base learner has none")
+      Seq.fill(expected.size)(Vector.fill(repInput.size)(0.0))
     }
     val gradientsByPrediction: Seq[Seq[Vector[Double]]] = predictions.asInstanceOf[Seq[hasGradient]].map(_.getGradient())
     val gradientsByInput: Seq[Seq[Vector[Double]]] = gradientsByPrediction.transpose
