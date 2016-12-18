@@ -104,6 +104,7 @@ class BaggerTest {
     val start = System.nanoTime()
     (0 until nIter).foreach {i =>
       val real = baggedLearner.train(data).getModel()
+      val res = real.transform(data.map(_._1)).getUncertainty()
     }
     val duration = (System.nanoTime() - start) / 1.0e9 / nIter
     println(s"${duration}, ${n}, ${k}, ${b}")
