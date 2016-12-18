@@ -174,13 +174,13 @@ class BaggedModel(
   * @param predictions for each constituent model
   * @param NibIn       the sample matrix as (N_models x N_training)
   * @param bias        model to use for estimating bias
-  * @param rep         representative input
+  * @param repInput    representative input
   */
 class BaggedResult(
                     predictions: Seq[PredictionResult[Any]],
                     NibIn: Vector[Vector[Int]],
                     bias: Option[Seq[Double]] = None,
-                    rep: Vector[Any]
+                    repInput: Vector[Any]
                   ) extends PredictionResult[Any]
   with hasUncertainty with hasTrainingScores with hasGradient {
 
@@ -321,7 +321,7 @@ class BaggedResult(
   override def getGradient(): Seq[Vector[Double]] = {
     /* If the underlying model has no gradient, return 0 */
     if (!predictions.head.isInstanceOf[hasGradient]) {
-      Seq.fill(expected.size)(Vector.fill(rep.size))
+      Seq.fill(expected.size)(Vector.fill(repInput.size))
     }
     val gradientsByPrediction: Seq[Seq[Vector[Double]]] = predictions.asInstanceOf[Seq[hasGradient]].map(_.getGradient())
     val gradientsByInput: Seq[Seq[Vector[Double]]] = gradientsByPrediction.transpose
