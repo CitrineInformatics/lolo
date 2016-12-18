@@ -1,6 +1,7 @@
 package io.citrine.lolo.bags
 
-import breeze.linalg.{DenseMatrix, sum}
+import breeze.linalg.{DenseMatrix, DenseVector, min, norm, sum}
+import breeze.numerics.abs
 import breeze.stats.distributions.Poisson
 import io.citrine.lolo.results.{PredictionResult, TrainingResult, hasFeatureImportance, hasGradient, hasLoss, hasPredictedVsActual, hasTrainingScores, hasUncertainty}
 import io.citrine.lolo.{Learner, Model}
@@ -25,6 +26,7 @@ class Bagger(
     method.setHypers(moreHypers)
     super.setHypers(moreHypers)
   }
+
   override var hypers: Map[String, Any] = Map()
 
   /**
@@ -211,12 +213,28 @@ class BaggedResult(predictions: Seq[PredictionResult[Any]], NibIn: Vector[Vector
     case x: Any => expectedMatrix.map(ps => ps.groupBy(identity).maxBy(_._2.size)._1).seq
   }
 
+  /* This matrix is used to compute the jackknife variance */
+  lazy val NibJMat = new DenseMatrix[Double](Nib.head.size, Nib.size,
+    Nib.flatMap { v =>
+      val itot = 1.0 / v.size
+      val icount = 1.0 / v.count(_ == -1.0)
+      v.map(n => if (n == -1) icount - itot else -itot)
+    }.toArray
+  )
+
+  /* This matrix is used to compute the IJ variance */
+  lazy val NibIJMat = new DenseMatrix[Double](Nib.head.size, Nib.size,
+    Nib.flatMap { v =>
+      val itot = 1.0 / v.size
+      val vtot = v.sum.toDouble / (v.size * v.size)
+      v.map(n => (n * itot - vtot))
+    }.toArray
+  )
+
   /* Compute the uncertainties one prediction at a time */
   lazy val uncertainty = rep match {
     case x: Double =>
-      val sigma2: Seq[Double] = expectedMatrix.zip(expected).map { case (treePredictions, meanPrediction) =>
-        variance(meanPrediction.asInstanceOf[Double], treePredictions.asInstanceOf[Seq[Double]], Nib)
-      }
+      val sigma2: Seq[Double] = variance(expected.asInstanceOf[Seq[Double]].toVector, expectedMatrix.asInstanceOf[Seq[Seq[Double]]], NibJMat, NibIJMat)
       sigma2.zip(bias.getOrElse(Seq.fill(expected.size)(0.0))).map(p => Math.sqrt(p._2 * p._2 + p._1))
     case x: Any => Seq.fill(expected.size)(1.0)
   }
@@ -234,34 +252,40 @@ class BaggedResult(predictions: Seq[PredictionResult[Any]], NibIn: Vector[Vector
     *
     * @param meanPrediction   over the models
     * @param modelPredictions prediction of each model
-    * @param Nib              sampling matrix
+    * @param NibJ             sampling matrix for the jackknife-after-bootstrap estimate
+    * @param NibIJ            sampling matrix for the infinitesimal jackknife estimate
     * @return the estimated variance
     */
-  def variance(meanPrediction: Double, modelPredictions: Seq[Double], Nib: Seq[Vector[Int]]): Double = {
-    val diff = modelPredictions.map(_ - meanPrediction)
+  def variance(
+                meanPrediction: Vector[Double],
+                modelPredictions: Seq[Seq[Double]],
+                NibJ: DenseMatrix[Double],
+                NibIJ: DenseMatrix[Double]
+              ): Seq[Double] = {
+    /* Stick the predictions in a breeze matrix */
+    val predMat = new DenseMatrix[Double](modelPredictions.head.size, modelPredictions.size, modelPredictions.flatten.toArray)
 
-    /* Compute the infintesimal jackknife variance estimate */
-    val varianceIJ: Double = Nib.map { v =>
-      val cov = v.zip(diff).map(p2 => p2._1 * p2._2).sum / modelPredictions.size
-      cov * cov
-    }.sum
+    /* These operations are pulled out of the loop and extra-verbose for performance */
+    val JMat = NibJ.t * predMat
+    val JMat2 = JMat :* JMat * ((Nib.size - 1.0) / Nib.size)
+    val IJMat = NibIJ.t * predMat
+    val IJMat2 = IJMat :* IJMat
+    val arg = IJMat2 + JMat2
 
-    /* Compute the jackknife-after-bootstrap variance estimate */
-    val varianceJ = (Nib.size - 1.0) / Nib.size * Nib.map { v =>
-      val predictionsWithoutV: Seq[Double] = v.zip(modelPredictions).filter(_._1 == -1.0).map(_._2)
-      Math.pow(predictionsWithoutV.sum / predictionsWithoutV.size - meanPrediction, 2)
-    }.sum
+    /* Avoid division in the loop */
+    val inverseSize = 1.0 / modelPredictions.head.size
 
-    /* Compute the first order bias correction for the variance estimators */
-    val correction = diff.map(Math.pow(_, 2)).sum * Nib.size / (modelPredictions.size * modelPredictions.size)
+    (0 until modelPredictions.size).map{ i =>
+      /* Compute the first order bias correction for the variance estimators */
+      val correction = Math.pow(inverseSize * norm(predMat(::, i) - meanPrediction(i)), 2)
 
-    /* Mix the IJ and J estimators with their bias corrections */
-    val result = (varianceIJ + varianceJ - Math.E * correction) / 2.0
-    if (result < 0) {
-      // println("Warning: negative variance; increase the number of trees")
-      0.0
-    } else {
-      result
+      /* The correction is prediction dependent, so we need to operate on vectors */
+      val variancePerRow: DenseVector[Double] = 0.5 * ( arg(::, i) - Math.E * correction)
+
+      /* Impose a floor in case any of the variances are negative (hacked to work in breeze) */
+      val floor: Double = Math.min(0, -min(variancePerRow))
+      val rezero: DenseVector[Double] = variancePerRow - floor
+      0.5 * sum(rezero + abs(rezero)) + floor
     }
   }
 
@@ -293,7 +317,7 @@ class BaggedResult(predictions: Seq[PredictionResult[Any]], NibIn: Vector[Vector
     }
     val gradientsByPrediction: Seq[Seq[Vector[Double]]] = predictions.asInstanceOf[Seq[hasGradient]].map(_.getGradient())
     val gradientsByInput: Seq[Seq[Vector[Double]]] = gradientsByPrediction.transpose
-    gradientsByInput.map{r =>
+    gradientsByInput.map { r =>
       r.toVector.transpose.map(_.sum / predictions.size)
     }
   }
