@@ -93,7 +93,7 @@ class ClassificationTrainingResult(
   * Classification tree
   */
 class ClassificationTree(
-                          rootModelNode: Model[PredictionResult[Char]],
+                          rootModelNode: ModelNode[PredictionResult[Char]],
                           inputEncoders: Seq[Option[CategoricalEncoder[Any]]],
                           outputEncoder: CategoricalEncoder[Any]
                         ) extends Model[ClassificationResult] {
@@ -106,7 +106,7 @@ class ClassificationTree(
     */
   override def transform(inputs: Seq[Vector[Any]]): ClassificationResult = {
     new ClassificationResult(
-      inputs.map(inp => outputEncoder.decode(rootModelNode.transform(Seq(RegressionTree.encodeInput(inp, inputEncoders))).getExpected().head))
+      inputs.map(inp => outputEncoder.decode(rootModelNode.transform(RegressionTree.encodeInput(inp, inputEncoders))._1.getExpected().head))
     )
   }
 }
@@ -163,7 +163,7 @@ class ClassificationTrainingNode(
     *
     * @return lightweight prediction node
     */
-  override def getNode(): Model[PredictionResult[Char]] = new InternalModelNode(
+  override def getNode(): ModelNode[PredictionResult[Char]] = new InternalModelNode(
     split, leftChild.getNode(), rightChild.getNode()
   )
 
@@ -186,7 +186,7 @@ class ClassificationTrainingLeaf(
     *
     * @return lightweight prediction node
     */
-  override def getNode(): Model[PredictionResult[Char]] = new ClassificationLeaf(mode)
+  override def getNode(): ModelNode[PredictionResult[Char]] = new ClassificationLeaf(mode)
 
   override def getFeatureImportance(): Array[Double] = Array.fill(trainingData.head._1.size)(0.0)
 }
@@ -196,6 +196,6 @@ class ClassificationTrainingLeaf(
   *
   * @param mode most common value
   */
-class ClassificationLeaf(mode: Char) extends Model[PredictionResult[Char]] {
-  override def transform(inputs: Seq[Vector[Any]]): PredictionResult[Char] = MultiResult(Seq.fill(inputs.size)(mode))
+class ClassificationLeaf(mode: Char) extends ModelNode[PredictionResult[Char]] {
+  override def transform(input: Vector[AnyVal]): (PredictionResult[Char], Any) = (MultiResult(Seq(mode)), 0)
 }
