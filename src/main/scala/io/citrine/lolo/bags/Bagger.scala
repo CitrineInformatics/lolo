@@ -3,7 +3,7 @@ package io.citrine.lolo.bags
 import breeze.linalg.{DenseMatrix, DenseVector, min, norm, sum}
 import breeze.numerics.abs
 import breeze.stats.distributions.Poisson
-import io.citrine.lolo.results.{PredictionResult, TrainingResult, hasFeatureImportance, hasGradient, hasLoss, hasPredictedVsActual, hasTrainingScores, hasUncertainty}
+import io.citrine.lolo.results.{PredictionResult, TrainingResult, hasFeatureImportance, hasLoss, hasPredictedVsActual}
 import io.citrine.lolo.{Learner, Model}
 
 import scala.collection.parallel.immutable.ParSeq
@@ -19,6 +19,7 @@ import scala.collection.parallel.immutable.ParSeq
 class Bagger(
               method: Learner,
               var numBags: Int = -1,
+              val useJackknife: Boolean = true,
               biasLearner: Option[Learner] = None
             ) extends Learner {
 
@@ -64,14 +65,18 @@ class Bagger(
       method.train(trainingData.toVector, Some(Nib(i).zip(weightsActual).map(p => p._1.toDouble * p._2)))
     }
 
+    val importances: Array[Double] = models.map(base => base.asInstanceOf[hasFeatureImportance].getFeatureImportance()).reduce { (v1, v2) =>
+      v1.zip(v2).map(p => p._1 + p._2)
+    }.map(_ / models.size)
+
     /* Wrap the models in a BaggedModel object */
     if (biasLearner.isEmpty) {
-      new BaggedTrainingResult(models, Nib, trainingData)
+      new BaggedTrainingResult(models.map(_.getModel()), importances, Nib, trainingData, useJackknife)
     } else {
-      val baggedModel = new BaggedModel(models.map(_.getModel()), Nib)
+      val baggedModel = new BaggedModel(models.map(_.getModel()), Nib, useJackknife)
       val baggedRes = baggedModel.transform(trainingData.map(_._1))
       val biasTraining = trainingData.zip(
-        baggedRes.getExpected().zip(baggedRes.getUncertainty())
+        baggedRes.getExpected().zip(baggedRes.getUncertainty().get)
       ).map { case ((f, a), (p, u)) =>
         // Math.E is only statistically correct.  It should be actualBags / Nib.transpose(i).count(_ == 0)
         // Or, better yet, filter the bags that don't include the training example
@@ -79,25 +84,27 @@ class Bagger(
         (f, bias)
       }
       val biasModel = biasLearner.get.train(biasTraining).getModel()
-      new BaggedTrainingResult(models, Nib, trainingData, Some(biasModel))
+      new BaggedTrainingResult(models.map(_.getModel()), importances, Nib, trainingData, useJackknife, Some(biasModel))
     }
   }
 }
 
 class BaggedTrainingResult(
-                            bases: ParSeq[TrainingResult],
+                            models: ParSeq[Model[PredictionResult[Any]]],
+                            featureImportance: Array[Double],
                             Nib: Vector[Vector[Int]],
                             trainingData: Seq[(Vector[Any], Any)],
+                            useJackknife: Boolean,
                             biasModel: Option[Model[PredictionResult[Any]]] = None
                           )
   extends TrainingResult with hasPredictedVsActual with hasLoss with hasFeatureImportance {
   lazy val NibT = Nib.transpose
-  lazy val model = new BaggedModel(bases.map(_.getModel()), Nib, biasModel)
+  lazy val model = new BaggedModel(models, Nib, useJackknife, biasModel)
   lazy val rep = trainingData.head._2
   lazy val predictedVsActual = trainingData.zip(NibT).map { case ((f, l), nb) =>
     val predicted = rep match {
-      case x: Double => bases.zip(nb).filter(_._2 == 0).map(_._1.getModel().transform(Seq(f)).getExpected().head.asInstanceOf[Double]).sum / nb.count(_ == 0)
-      case x: Any => bases.zip(nb).filter(_._2 == 0).map(_._1.getModel().transform(Seq(f)).getExpected().head).groupBy(identity).maxBy(_._2.size)._1
+      case x: Double => models.zip(nb).filter(_._2 == 0).map(_._1.transform(Seq(f)).getExpected().head.asInstanceOf[Double]).sum / nb.count(_ == 0)
+      case x: Any => models.zip(nb).filter(_._2 == 0).map(_._1.transform(Seq(f)).getExpected().head).groupBy(identity).maxBy(_._2.size)._1
     }
     (f, predicted, l)
   }
@@ -123,12 +130,7 @@ class BaggedTrainingResult(
     *
     * @return feature importances as an array of doubles
     */
-  override def getFeatureImportance(): Array[Double] = {
-    val importances: Array[Double] = bases.map(base => base.asInstanceOf[hasFeatureImportance].getFeatureImportance()).reduce { (v1, v2) =>
-      v1.zip(v2).map(p => p._1 + p._2)
-    }
-    importances.map(_ / bases.size)
-  }
+  override def getFeatureImportance(): Array[Double] = featureImportance
 
   override def getModel(): BaggedModel = model
 
@@ -146,6 +148,7 @@ class BaggedTrainingResult(
 class BaggedModel(
                    models: ParSeq[Model[PredictionResult[Any]]],
                    Nib: Vector[Vector[Int]],
+                   useJackknife: Boolean,
                    biasModel: Option[Model[PredictionResult[Any]]] = None
                  ) extends Model[BaggedResult] {
 
@@ -163,7 +166,7 @@ class BaggedModel(
     } else {
       None
     }
-    new BaggedResult(models.map(model => model.transform(inputs)).seq, Nib, bias, inputs.head)
+    new BaggedResult(models.map(model => model.transform(inputs)).seq, Nib, useJackknife, bias, inputs.head)
   }
 }
 
@@ -179,10 +182,10 @@ class BaggedModel(
 class BaggedResult(
                     predictions: Seq[PredictionResult[Any]],
                     NibIn: Vector[Vector[Int]],
+                    useJackknife: Boolean,
                     bias: Option[Seq[Double]] = None,
                     repInput: Vector[Any]
-                  ) extends PredictionResult[Any]
-  with hasUncertainty with hasTrainingScores with hasGradient {
+                  ) extends PredictionResult[Any] {
 
   /**
     * Return the ensemble average or maximum vote
@@ -196,14 +199,14 @@ class BaggedResult(
     *
     * @return uncertainty of each prediction
     */
-  override def getUncertainty(): Seq[Any] = uncertainty
+  override def getUncertainty(): Option[Seq[Any]] = Some(uncertainty)
 
   /**
     * Return IJ scores
     *
     * @return training row scores of each prediction
     */
-  override def getScores(): Seq[Seq[Double]] = scores
+  override def getScores(): Option[Seq[Seq[Double]]] = Some(scores)
 
   /* Subtract off 1 to make correlations easier; transpose to be prediction-wise */
   lazy val Nib: Vector[Vector[Int]] = NibIn.transpose.map(_.map(_ - 1))
@@ -241,7 +244,11 @@ class BaggedResult(
   /* Compute the uncertainties one prediction at a time */
   lazy val uncertainty = rep match {
     case x: Double =>
-      val sigma2: Seq[Double] = variance(expected.asInstanceOf[Seq[Double]].toVector, expectedMatrix.asInstanceOf[Seq[Seq[Double]]], NibJMat, NibIJMat)
+      val sigma2: Seq[Double] = if (useJackknife) {
+        variance(expected.asInstanceOf[Seq[Double]].toVector, expectedMatrix.asInstanceOf[Seq[Seq[Double]]], NibJMat, NibIJMat)
+      } else {
+        Seq.fill(expected.size)(0.0)
+      }
       sigma2.zip(bias.getOrElse(Seq.fill(expected.size)(0.0))).map(p => Math.sqrt(p._2 * p._2 + p._1))
     case x: Any => Seq.fill(expected.size)(1.0)
   }
@@ -318,15 +325,15 @@ class BaggedResult(
     *
     * @return a vector of doubles for each prediction
     */
-  override def getGradient(): Seq[Vector[Double]] = {
+  override def getGradient(): Option[Seq[Vector[Double]]] = {
     /* If the underlying model has no gradient, return 0 */
-    if (!predictions.head.isInstanceOf[hasGradient]) {
-      Seq.fill(expected.size)(Vector.fill(repInput.size)(0.0))
+    if (!predictions.head.getGradient().isDefined) {
+      return None
     }
-    val gradientsByPrediction: Seq[Seq[Vector[Double]]] = predictions.asInstanceOf[Seq[hasGradient]].map(_.getGradient())
+    val gradientsByPrediction: Seq[Seq[Vector[Double]]] = predictions.map(_.getGradient().get)
     val gradientsByInput: Seq[Seq[Vector[Double]]] = gradientsByPrediction.transpose
-    gradientsByInput.map { r =>
+    Some(gradientsByInput.map { r =>
       r.toVector.transpose.map(_.sum / predictions.size)
-    }
+    })
   }
 }

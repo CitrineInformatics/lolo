@@ -1,7 +1,7 @@
 package io.citrine.lolo.linear
 
 import breeze.linalg.{DenseMatrix, DenseVector, diag, inv, norm, pinv, sum, trace}
-import io.citrine.lolo.results.{PredictionResult, TrainingResult, hasGradient}
+import io.citrine.lolo.results.{PredictionResult, TrainingResult}
 import io.citrine.lolo.{Learner, Model}
 
 /**
@@ -143,7 +143,7 @@ class LinearRegressionModel(
   * @param values computed from the model
   * @param grad   gradient vector, which are just the linear coefficients
   */
-class LinearRegressionResult(values: Seq[Double], grad: Vector[Double]) extends PredictionResult[Double] with hasGradient {
+class LinearRegressionResult(values: Seq[Double], grad: Vector[Double]) extends PredictionResult[Double] {
   /**
     * Get the expected values for this prediction
     *
@@ -156,5 +156,5 @@ class LinearRegressionResult(values: Seq[Double], grad: Vector[Double]) extends 
     *
     * @return a vector of doubles for each prediction
     */
-  override def getGradient(): Seq[Vector[Double]] = Seq.fill(values.size)(grad)
+  override def getGradient(): Option[Seq[Vector[Double]]] = Some(Seq.fill(values.size)(grad))
 }

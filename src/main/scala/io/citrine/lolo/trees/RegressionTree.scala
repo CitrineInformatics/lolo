@@ -2,7 +2,7 @@ package io.citrine.lolo.trees
 
 import io.citrine.lolo.encoders.CategoricalEncoder
 import io.citrine.lolo.linear.GuessTheMeanLearner
-import io.citrine.lolo.results.{PredictionResult, TrainingResult, hasFeatureImportance, hasGradient}
+import io.citrine.lolo.results.{PredictionResult, TrainingResult, hasFeatureImportance}
 import io.citrine.lolo.trees.splits.{NoSplit, RegressionSplitter, Split}
 import io.citrine.lolo.{Learner, Model}
 
@@ -221,7 +221,7 @@ class RegressionTree(
   *
   * @param predictions sequence of predictions
   */
-class RegressionTreeResult(predictions: Seq[PredictionResult[Double]], repInput: Seq[Any]) extends PredictionResult[Double] with hasGradient {
+class RegressionTreeResult(predictions: Seq[PredictionResult[Double]], repInput: Seq[Any]) extends PredictionResult[Double] {
   /**
     * Get the predictions
     *
@@ -234,11 +234,11 @@ class RegressionTreeResult(predictions: Seq[PredictionResult[Double]], repInput:
     *
     * @return a vector of doubles for each prediction
     */
-  override def getGradient(): Seq[Vector[Double]] = {
-    if (!predictions.head.isInstanceOf[hasGradient]) {
-      return Seq.fill(predictions.size)(Vector.fill(repInput.size)(0.0))
+  override def getGradient(): Option[Seq[Vector[Double]]] = {
+    if (!predictions.head.getGradient().isDefined) {
+      return None
     }
-    predictions.map(_.asInstanceOf[hasGradient].getGradient().head)
+    Some(predictions.map(_.getGradient().get.head))
   }
 }
 
