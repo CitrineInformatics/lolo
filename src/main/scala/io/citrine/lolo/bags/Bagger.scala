@@ -65,9 +65,13 @@ class Bagger(
       method.train(trainingData.toVector, Some(Nib(i).zip(weightsActual).map(p => p._1.toDouble * p._2)))
     }
 
+    val importances: Array[Double] = models.map(base => base.asInstanceOf[hasFeatureImportance].getFeatureImportance()).reduce { (v1, v2) =>
+      v1.zip(v2).map(p => p._1 + p._2)
+    }.map(_ / models.size)
+
     /* Wrap the models in a BaggedModel object */
     if (biasLearner.isEmpty) {
-      new BaggedTrainingResult(models, Nib, trainingData, useJackknife)
+      new BaggedTrainingResult(models.map(_.getModel()), importances, Nib, trainingData, useJackknife)
     } else {
       val baggedModel = new BaggedModel(models.map(_.getModel()), Nib, useJackknife)
       val baggedRes = baggedModel.transform(trainingData.map(_._1))
@@ -80,13 +84,14 @@ class Bagger(
         (f, bias)
       }
       val biasModel = biasLearner.get.train(biasTraining).getModel()
-      new BaggedTrainingResult(models, Nib, trainingData, useJackknife, Some(biasModel))
+      new BaggedTrainingResult(models.map(_.getModel()), importances, Nib, trainingData, useJackknife, Some(biasModel))
     }
   }
 }
 
 class BaggedTrainingResult(
-                            bases: ParSeq[TrainingResult],
+                            models: ParSeq[Model[PredictionResult[Any]]],
+                            featureImportance: Array[Double],
                             Nib: Vector[Vector[Int]],
                             trainingData: Seq[(Vector[Any], Any)],
                             useJackknife: Boolean,
@@ -94,12 +99,12 @@ class BaggedTrainingResult(
                           )
   extends TrainingResult with hasPredictedVsActual with hasLoss with hasFeatureImportance {
   lazy val NibT = Nib.transpose
-  lazy val model = new BaggedModel(bases.map(_.getModel()), Nib, useJackknife, biasModel)
+  lazy val model = new BaggedModel(models, Nib, useJackknife, biasModel)
   lazy val rep = trainingData.head._2
   lazy val predictedVsActual = trainingData.zip(NibT).map { case ((f, l), nb) =>
     val predicted = rep match {
-      case x: Double => bases.zip(nb).filter(_._2 == 0).map(_._1.getModel().transform(Seq(f)).getExpected().head.asInstanceOf[Double]).sum / nb.count(_ == 0)
-      case x: Any => bases.zip(nb).filter(_._2 == 0).map(_._1.getModel().transform(Seq(f)).getExpected().head).groupBy(identity).maxBy(_._2.size)._1
+      case x: Double => models.zip(nb).filter(_._2 == 0).map(_._1.transform(Seq(f)).getExpected().head.asInstanceOf[Double]).sum / nb.count(_ == 0)
+      case x: Any => models.zip(nb).filter(_._2 == 0).map(_._1.transform(Seq(f)).getExpected().head).groupBy(identity).maxBy(_._2.size)._1
     }
     (f, predicted, l)
   }
@@ -125,12 +130,7 @@ class BaggedTrainingResult(
     *
     * @return feature importances as an array of doubles
     */
-  override def getFeatureImportance(): Array[Double] = {
-    val importances: Array[Double] = bases.map(base => base.asInstanceOf[hasFeatureImportance].getFeatureImportance()).reduce { (v1, v2) =>
-      v1.zip(v2).map(p => p._1 + p._2)
-    }
-    importances.map(_ / bases.size)
-  }
+  override def getFeatureImportance(): Array[Double] = featureImportance
 
   override def getModel(): BaggedModel = model
 
