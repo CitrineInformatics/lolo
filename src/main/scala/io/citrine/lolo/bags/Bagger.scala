@@ -3,7 +3,7 @@ package io.citrine.lolo.bags
 import breeze.linalg.{DenseMatrix, DenseVector, min, norm, sum}
 import breeze.numerics.abs
 import breeze.stats.distributions.Poisson
-import io.citrine.lolo.results.{PredictionResult, TrainingResult, hasFeatureImportance, hasGradient, hasLoss, hasPredictedVsActual, hasTrainingScores, hasUncertainty}
+import io.citrine.lolo.results.{PredictionResult, TrainingResult, hasFeatureImportance, hasLoss, hasPredictedVsActual}
 import io.citrine.lolo.{Learner, Model}
 
 import scala.collection.parallel.immutable.ParSeq
@@ -181,8 +181,7 @@ class BaggedResult(
                     NibIn: Vector[Vector[Int]],
                     bias: Option[Seq[Double]] = None,
                     repInput: Vector[Any]
-                  ) extends PredictionResult[Any]
-  with hasUncertainty with hasTrainingScores with hasGradient {
+                  ) extends PredictionResult[Any] {
 
   /**
     * Return the ensemble average or maximum vote
@@ -196,14 +195,14 @@ class BaggedResult(
     *
     * @return uncertainty of each prediction
     */
-  override def getUncertainty(): Seq[Any] = uncertainty
+  override def getUncertainty(): Option[Seq[Any]] = Some(uncertainty)
 
   /**
     * Return IJ scores
     *
     * @return training row scores of each prediction
     */
-  override def getScores(): Seq[Seq[Double]] = scores
+  override def getScores(): Option[Seq[Seq[Double]]] = Some(scores)
 
   /* Subtract off 1 to make correlations easier; transpose to be prediction-wise */
   lazy val Nib: Vector[Vector[Int]] = NibIn.transpose.map(_.map(_ - 1))
@@ -318,15 +317,15 @@ class BaggedResult(
     *
     * @return a vector of doubles for each prediction
     */
-  override def getGradient(): Seq[Vector[Double]] = {
+  override def getGradient(): Option[Seq[Vector[Double]]] = {
     /* If the underlying model has no gradient, return 0 */
-    if (!predictions.head.isInstanceOf[hasGradient]) {
-      Seq.fill(expected.size)(Vector.fill(repInput.size)(0.0))
+    if (!predictions.head.getGradient().isDefined) {
+      return None
     }
-    val gradientsByPrediction: Seq[Seq[Vector[Double]]] = predictions.asInstanceOf[Seq[hasGradient]].map(_.getGradient())
+    val gradientsByPrediction: Seq[Seq[Vector[Double]]] = predictions.map(_.getGradient().get)
     val gradientsByInput: Seq[Seq[Vector[Double]]] = gradientsByPrediction.transpose
-    gradientsByInput.map { r =>
+    Some(gradientsByInput.map { r =>
       r.toVector.transpose.map(_.sum / predictions.size)
-    }
+    })
   }
 }
