@@ -32,6 +32,8 @@ class BaggerTest {
     val results = RF.transform(trainingData.map(_._1))
     val means = results.getExpected()
 
+    assert(results.getGradient().isEmpty, "Returned a graident when there shouldn't be one")
+
     /* The first feature should be the most important */
     val importances = RFMeta.getFeatureImportance()
     assert(importances(0) == importances.max)
@@ -57,6 +59,7 @@ class BaggerTest {
 
     val results = RF.transform(trainingData.map(_._1))
     val means = results.getExpected()
+    assert(results.getGradient().isEmpty, "Returned a graident when there shouldn't be one")
 
     /* The first feature should be the most important */
     val importances = RFMeta.getFeatureImportance()
