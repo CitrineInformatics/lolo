@@ -19,6 +19,7 @@ import scala.collection.parallel.immutable.ParSeq
 class Bagger(
               method: Learner,
               var numBags: Int = -1,
+              val useJackknife: Boolean = true,
               biasLearner: Option[Learner] = None
             ) extends Learner {
 
@@ -66,12 +67,12 @@ class Bagger(
 
     /* Wrap the models in a BaggedModel object */
     if (biasLearner.isEmpty) {
-      new BaggedTrainingResult(models, Nib, trainingData)
+      new BaggedTrainingResult(models, Nib, trainingData, useJackknife)
     } else {
-      val baggedModel = new BaggedModel(models.map(_.getModel()), Nib)
+      val baggedModel = new BaggedModel(models.map(_.getModel()), Nib, useJackknife)
       val baggedRes = baggedModel.transform(trainingData.map(_._1))
       val biasTraining = trainingData.zip(
-        baggedRes.getExpected().zip(baggedRes.getUncertainty())
+        baggedRes.getExpected().zip(baggedRes.getUncertainty().get)
       ).map { case ((f, a), (p, u)) =>
         // Math.E is only statistically correct.  It should be actualBags / Nib.transpose(i).count(_ == 0)
         // Or, better yet, filter the bags that don't include the training example
@@ -79,7 +80,7 @@ class Bagger(
         (f, bias)
       }
       val biasModel = biasLearner.get.train(biasTraining).getModel()
-      new BaggedTrainingResult(models, Nib, trainingData, Some(biasModel))
+      new BaggedTrainingResult(models, Nib, trainingData, useJackknife, Some(biasModel))
     }
   }
 }
@@ -88,11 +89,12 @@ class BaggedTrainingResult(
                             bases: ParSeq[TrainingResult],
                             Nib: Vector[Vector[Int]],
                             trainingData: Seq[(Vector[Any], Any)],
+                            useJackknife: Boolean,
                             biasModel: Option[Model[PredictionResult[Any]]] = None
                           )
   extends TrainingResult with hasPredictedVsActual with hasLoss with hasFeatureImportance {
   lazy val NibT = Nib.transpose
-  lazy val model = new BaggedModel(bases.map(_.getModel()), Nib, biasModel)
+  lazy val model = new BaggedModel(bases.map(_.getModel()), Nib, useJackknife, biasModel)
   lazy val rep = trainingData.head._2
   lazy val predictedVsActual = trainingData.zip(NibT).map { case ((f, l), nb) =>
     val predicted = rep match {
@@ -146,6 +148,7 @@ class BaggedTrainingResult(
 class BaggedModel(
                    models: ParSeq[Model[PredictionResult[Any]]],
                    Nib: Vector[Vector[Int]],
+                   useJackknife: Boolean,
                    biasModel: Option[Model[PredictionResult[Any]]] = None
                  ) extends Model[BaggedResult] {
 
@@ -163,7 +166,7 @@ class BaggedModel(
     } else {
       None
     }
-    new BaggedResult(models.map(model => model.transform(inputs)).seq, Nib, bias, inputs.head)
+    new BaggedResult(models.map(model => model.transform(inputs)).seq, Nib, useJackknife, bias, inputs.head)
   }
 }
 
@@ -179,6 +182,7 @@ class BaggedModel(
 class BaggedResult(
                     predictions: Seq[PredictionResult[Any]],
                     NibIn: Vector[Vector[Int]],
+                    useJackknife: Boolean,
                     bias: Option[Seq[Double]] = None,
                     repInput: Vector[Any]
                   ) extends PredictionResult[Any] {
@@ -240,7 +244,11 @@ class BaggedResult(
   /* Compute the uncertainties one prediction at a time */
   lazy val uncertainty = rep match {
     case x: Double =>
-      val sigma2: Seq[Double] = variance(expected.asInstanceOf[Seq[Double]].toVector, expectedMatrix.asInstanceOf[Seq[Seq[Double]]], NibJMat, NibIJMat)
+      val sigma2: Seq[Double] = if (useJackknife) {
+        variance(expected.asInstanceOf[Seq[Double]].toVector, expectedMatrix.asInstanceOf[Seq[Seq[Double]]], NibJMat, NibIJMat)
+      } else {
+        Seq.fill(expected.size)(0.0)
+      }
       sigma2.zip(bias.getOrElse(Seq.fill(expected.size)(0.0))).map(p => Math.sqrt(p._2 * p._2 + p._1))
     case x: Any => Seq.fill(expected.size)(1.0)
   }
