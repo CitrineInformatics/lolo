@@ -210,7 +210,8 @@ class RegressionTree(
     */
   override def transform(inputs: Seq[Vector[Any]]): RegressionTreeResult = {
     new RegressionTreeResult(
-      inputs.map(inp => root.transform(Seq(RegressionTree.encodeInput(inp, encoders))))
+      inputs.map(inp => root.transform(Seq(RegressionTree.encodeInput(inp, encoders)))),
+      inputs.head
     )
   }
 }
@@ -220,7 +221,7 @@ class RegressionTree(
   *
   * @param predictions sequence of predictions
   */
-class RegressionTreeResult(predictions: Seq[PredictionResult[Double]]) extends PredictionResult[Double] with hasGradient {
+class RegressionTreeResult(predictions: Seq[PredictionResult[Double]], repInput: Seq[Any]) extends PredictionResult[Double] with hasGradient {
   /**
     * Get the predictions
     *
@@ -235,7 +236,7 @@ class RegressionTreeResult(predictions: Seq[PredictionResult[Double]]) extends P
     */
   override def getGradient(): Seq[Vector[Double]] = {
     if (!predictions.head.isInstanceOf[hasGradient]) {
-      throw new UnsupportedOperationException("Requested graident when base learner has none")
+      Seq.fill(predictions.size)(Vector.fill(repInput.size)(0.0))
     }
     predictions.map(_.asInstanceOf[hasGradient].getGradient().head)
   }
