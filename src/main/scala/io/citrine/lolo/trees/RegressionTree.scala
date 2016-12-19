@@ -236,7 +236,7 @@ class RegressionTreeResult(predictions: Seq[PredictionResult[Double]], repInput:
     */
   override def getGradient(): Seq[Vector[Double]] = {
     if (!predictions.head.isInstanceOf[hasGradient]) {
-      Seq.fill(predictions.size)(Vector.fill(repInput.size)(0.0))
+      return Seq.fill(predictions.size)(Vector.fill(repInput.size)(0.0))
     }
     predictions.map(_.asInstanceOf[hasGradient].getGradient().head)
   }
