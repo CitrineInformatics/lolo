@@ -29,9 +29,11 @@ class ClassificationTreeTest {
     println(s"Training large case took ${duration / N} s")
 
     /* We should be able to memorize the inputs */
-    trainingData.foreach { case (x, y) =>
-      assert(y == DT.transform(Seq(x)).getExpected().head)
+    val output = DT.transform(trainingData.map(_._1))
+    trainingData.zip(output.getExpected()).foreach { case ((x, a), p) =>
+      assert(a == p)
     }
+    assert(output.getGradient().isEmpty)
 
     /* The first feature should be the most important */
     val importances = DTMeta.getFeatureImportance()
@@ -59,9 +61,11 @@ class ClassificationTreeTest {
     println(s"Training large case took ${duration / N} s")
 
     /* We should be able to memorize the inputs */
-    trainingData.foreach { case (x, y) =>
-      assert(y == DT.transform(Seq(x)).getExpected().head)
+    val output = DT.transform(trainingData.map(_._1))
+    trainingData.zip(output.getExpected()).foreach { case ((x, a), p) =>
+      assert(a == p)
     }
+    assert(output.getGradient().isEmpty)
   }
 }
 
