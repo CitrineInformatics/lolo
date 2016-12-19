@@ -31,6 +31,8 @@ class BaggerTest {
 
     val results = RF.transform(trainingData.map(_._1))
     val means = results.getExpected()
+    val sigma: Seq[Double] = results.getUncertainty().get.asInstanceOf[Seq[Double]]
+    assert(sigma.forall(_ >= 0.0))
 
     assert(results.getGradient().isEmpty, "Returned a graident when there shouldn't be one")
 
@@ -103,7 +105,7 @@ object BaggerTest {
     * @param argv args
     */
   def main(argv: Array[String]): Unit = {
-    // new BaggerTest().testRegressionBagger()
-    new BaggerTest().testScores()
+    new BaggerTest().testRegressionBagger()
+    // new BaggerTest().testScores()
   }
 }

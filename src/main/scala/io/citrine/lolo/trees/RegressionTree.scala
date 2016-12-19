@@ -111,7 +111,7 @@ class RegressionTreeLearner(
     assert(leftTrain.size > 0 && rightTrain.size > 0, s"Split ${split} resulted in zero size: ${trainingData.map(_._1(split.getIndex()))}")
 
     lazy val leftChild = if (leftTrain.size >= 2 * minLeafInstances && remainingDepth > 0 && leftTrain.exists(_._2 != leftTrain.head._2)) {
-      lazy val (leftSplit, leftDelta) = RegressionSplitter.getBestSplit(leftTrain, numFeatures, minLeafInstances)
+      val (leftSplit, leftDelta) = RegressionSplitter.getBestSplit(leftTrain, numFeatures, minLeafInstances)
       if (!leftSplit.isInstanceOf[NoSplit]) {
         new RegressionTrainingNode(leftTrain, leftSplit, leftDelta, numFeatures, minLeafInstances, remainingDepth - 1)
       } else {
@@ -122,7 +122,7 @@ class RegressionTreeLearner(
     }
 
     lazy val rightChild = if (rightTrain.size >= 2 * minLeafInstances && remainingDepth > 0 && rightTrain.exists(_._2 != rightTrain.head._2)) {
-      lazy val (rightSplit, rightDelta) = RegressionSplitter.getBestSplit(rightTrain, numFeatures, minLeafInstances)
+      val (rightSplit, rightDelta) = RegressionSplitter.getBestSplit(rightTrain, numFeatures, minLeafInstances)
       if (!rightSplit.isInstanceOf[NoSplit]) {
         new RegressionTrainingNode(rightTrain, rightSplit, rightDelta, numFeatures, minLeafInstances, remainingDepth - 1)
       } else {
@@ -137,7 +137,7 @@ class RegressionTreeLearner(
       *
       * @return lightweight prediction node
       */
-    override def getNode(): Model[PredictionResult[Double]] = {
+    override def getNode(): ModelNode[PredictionResult[Double]] = {
       new InternalModelNode[PredictionResult[Double]](split, leftChild.getNode(), rightChild.getNode())
     }
 
@@ -165,11 +165,17 @@ class RegressionTreeLearner(
       *
       * @return lightweight prediction node
       */
-    def getNode(): Model[PredictionResult[Double]] = {
-        myLeafLearner.train(trainingData).getModel().asInstanceOf[Model[PredictionResult[Double]]]
+    def getNode(): ModelNode[PredictionResult[Double]] = {
+        new RegressionLeaf(myLeafLearner.train(trainingData).getModel().asInstanceOf[Model[PredictionResult[Double]]])
     }
 
     override def getFeatureImportance(): Array[Double] = Array.fill(trainingData.head._1.size)(0.0)
+  }
+
+  class RegressionLeaf(model: Model[PredictionResult[Double]]) extends ModelNode[PredictionResult[Double]] {
+    override def transform(input: Vector[AnyVal]): (PredictionResult[Double], Any) = {
+      (model.transform(Seq(input)), 0)
+    }
   }
 
 }
@@ -199,7 +205,7 @@ class RegressionTreeTrainingResult(
   * @param encoders for categorical variables
   */
 class RegressionTree(
-                      root: Model[PredictionResult[Double]],
+                      root: ModelNode[PredictionResult[Double]],
                       encoders: Seq[Option[CategoricalEncoder[Any]]]
                     ) extends Model[RegressionTreeResult] {
   /**
@@ -210,7 +216,7 @@ class RegressionTree(
     */
   override def transform(inputs: Seq[Vector[Any]]): RegressionTreeResult = {
     new RegressionTreeResult(
-      inputs.map(inp => root.transform(Seq(RegressionTree.encodeInput(inp, encoders)))),
+      inputs.map(inp => root.transform(RegressionTree.encodeInput(inp, encoders))._1),
       inputs.head
     )
   }
