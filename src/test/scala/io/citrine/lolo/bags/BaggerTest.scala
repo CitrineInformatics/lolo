@@ -81,7 +81,7 @@ class BaggerTest {
 
     /* Call transform on the training data */
     val results = RF.transform(trainingData.map(_._1))
-    val scores = results.getScores()
+    val scores = results.getScores().get
     val corners = Seq(0, 7, 56, 63)
     assert(
       corners.forall(i => scores(i)(i) == scores(i).max),
