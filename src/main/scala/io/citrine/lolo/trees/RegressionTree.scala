@@ -75,7 +75,7 @@ class RegressionTreeLearner(
     /* The tree is built of training nodes */
     val (split, delta) = RegressionSplitter.getBestSplit(finalTraining, numFeaturesActual, hypers("minLeafInstances").asInstanceOf[Int])
     val rootTrainingNode = if (split.isInstanceOf[NoSplit]) {
-      new RegressionTrainingLeaf(finalTraining)
+      new RegressionTrainingLeaf(finalTraining, 0)
     } else {
       new RegressionTrainingNode(
         finalTraining,
@@ -115,10 +115,10 @@ class RegressionTreeLearner(
       if (!leftSplit.isInstanceOf[NoSplit]) {
         new RegressionTrainingNode(leftTrain, leftSplit, leftDelta, numFeatures, minLeafInstances, remainingDepth - 1)
       } else {
-        new RegressionTrainingLeaf(leftTrain)
+        new RegressionTrainingLeaf(leftTrain, maxDepth - remainingDepth)
       }
     } else {
-      new RegressionTrainingLeaf(leftTrain)
+      new RegressionTrainingLeaf(leftTrain, maxDepth - remainingDepth)
     }
 
     lazy val rightChild = if (rightTrain.size >= 2 * minLeafInstances && remainingDepth > 0 && rightTrain.exists(_._2 != rightTrain.head._2)) {
@@ -126,10 +126,10 @@ class RegressionTreeLearner(
       if (!rightSplit.isInstanceOf[NoSplit]) {
         new RegressionTrainingNode(rightTrain, rightSplit, rightDelta, numFeatures, minLeafInstances, remainingDepth - 1)
       } else {
-        new RegressionTrainingLeaf(rightTrain)
+        new RegressionTrainingLeaf(rightTrain, maxDepth - remainingDepth)
       }
     } else {
-      new RegressionTrainingLeaf(rightTrain)
+      new RegressionTrainingLeaf(rightTrain, maxDepth - remainingDepth)
     }
 
     /**
@@ -155,7 +155,8 @@ class RegressionTreeLearner(
     * @param trainingData to train on
     */
   class RegressionTrainingLeaf(
-                                trainingData: Seq[(Vector[AnyVal], Double, Double)]
+                                trainingData: Seq[(Vector[AnyVal], Double, Double)],
+                                depth: Int
                               ) extends TrainingNode(
     trainingData = trainingData,
     remainingDepth = 0
@@ -166,15 +167,15 @@ class RegressionTreeLearner(
       * @return lightweight prediction node
       */
     def getNode(): ModelNode[PredictionResult[Double]] = {
-        new RegressionLeaf(myLeafLearner.train(trainingData).getModel().asInstanceOf[Model[PredictionResult[Double]]])
+        new RegressionLeaf(myLeafLearner.train(trainingData).getModel().asInstanceOf[Model[PredictionResult[Double]]], depth)
     }
 
     override def getFeatureImportance(): Array[Double] = Array.fill(trainingData.head._1.size)(0.0)
   }
 
-  class RegressionLeaf(model: Model[PredictionResult[Double]]) extends ModelNode[PredictionResult[Double]] {
+  class RegressionLeaf(model: Model[PredictionResult[Double]], depth: Int) extends ModelNode[PredictionResult[Double]] {
     override def transform(input: Vector[AnyVal]): (PredictionResult[Double], Any) = {
-      (model.transform(Seq(input)), 0)
+      (model.transform(Seq(input)), depth)
     }
   }
 
@@ -216,8 +217,7 @@ class RegressionTree(
     */
   override def transform(inputs: Seq[Vector[Any]]): RegressionTreeResult = {
     new RegressionTreeResult(
-      inputs.map(inp => root.transform(RegressionTree.encodeInput(inp, encoders))._1),
-      inputs.head
+      inputs.map(inp => root.transform(RegressionTree.encodeInput(inp, encoders)))
     )
   }
 }
@@ -227,13 +227,13 @@ class RegressionTree(
   *
   * @param predictions sequence of predictions
   */
-class RegressionTreeResult(predictions: Seq[PredictionResult[Double]], repInput: Seq[Any]) extends PredictionResult[Double] {
+class RegressionTreeResult(predictions: Seq[(PredictionResult[Double], Any)]) extends PredictionResult[Double] {
   /**
     * Get the predictions
     *
     * @return expected value of each prediction
     */
-  override def getExpected(): Seq[Double] = predictions.map(_.getExpected().head)
+  override def getExpected(): Seq[Double] = predictions.map(_._1.getExpected().head)
 
   /**
     * Get the gradient or sensitivity of each prediction
@@ -241,10 +241,14 @@ class RegressionTreeResult(predictions: Seq[PredictionResult[Double]], repInput:
     * @return a vector of doubles for each prediction
     */
   override def getGradient(): Option[Seq[Vector[Double]]] = {
-    if (!predictions.head.getGradient().isDefined) {
+    if (!predictions.head._1.getGradient().isDefined) {
       return None
     }
-    Some(predictions.map(_.getGradient().get.head))
+    Some(predictions.map(_._1.getGradient().get.head))
+  }
+
+  def getDepth(): Seq[Int] = {
+    predictions.map(_._2.asInstanceOf[Int])
   }
 }
 
