@@ -5,6 +5,7 @@ import io.citrine.lolo.results.PredictionResult
 /**
   * Created by maxhutch on 11/14/16.
   */
+@SerialVersionUID(1000L)
 abstract class Model[+T <: PredictionResult[Any]] extends Serializable {
 
   /**
