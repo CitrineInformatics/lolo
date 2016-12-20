@@ -116,6 +116,7 @@ class LinearRegressionTrainingResult(model: LinearRegressionModel, hypers: Map[S
   * @param intercept intercept
   * @param indices   optional indices from which to extract real features
   */
+@SerialVersionUID(1000L)
 class LinearRegressionModel(
                              beta: DenseVector[Double],
                              intercept: Double,

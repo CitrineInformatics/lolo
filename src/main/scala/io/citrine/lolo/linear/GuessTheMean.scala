@@ -36,6 +36,7 @@ class GuessTheMeanTrainingResult(model: GuessTheMeanModel) extends TrainingResul
   override def getModel(): Model[GuessTheMeanResult] = model
 }
 
+@SerialVersionUID(1000L)
 class GuessTheMeanModel(mean: Any) extends Model[GuessTheMeanResult] {
 
   def transform(inputs: Seq[Vector[Any]]): GuessTheMeanResult = {

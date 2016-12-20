@@ -100,6 +100,7 @@ class ClassificationTrainingResult(
 /**
   * Classification tree
   */
+@SerialVersionUID(999L)
 class ClassificationTree(
                           rootModelNode: ModelNode[PredictionResult[Char]],
                           inputEncoders: Seq[Option[CategoricalEncoder[Any]]],
