@@ -87,7 +87,7 @@ class RegressionTreeLearner(
     }
 
     /* Wrap them up in a regression tree */
-    new RegressionTreeTrainingResult(rootTrainingNode, encoders)
+    new RegressionTreeTrainingResult(rootTrainingNode, encoders, hypers)
   }
 
   class RegressionTrainingNode(
@@ -176,13 +176,16 @@ class RegressionTreeLearner(
 
 class RegressionTreeTrainingResult(
                                     rootTrainingNode: TrainingNode[AnyVal, Double],
-                                    encoders: Seq[Option[CategoricalEncoder[Any]]]
+                                    encoders: Seq[Option[CategoricalEncoder[Any]]],
+                                    hypers: Map[String, Any]
                                   ) extends TrainingResult with hasFeatureImportance {
   lazy val model = new RegressionTree(rootTrainingNode.getNode(), encoders)
   lazy val importance = rootTrainingNode.getFeatureImportance()
   lazy val importanceNormalized = importance.map(_ / importance.sum)
 
   override def getModel(): RegressionTree = model
+
+  override def getHypers(): Map[String, Any] = hypers
 
   /**
     * Return the pre-computed importances
