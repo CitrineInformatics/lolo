@@ -34,6 +34,7 @@ class ClassificationTreeTest {
       assert(a == p)
     }
     assert(output.getGradient().isEmpty)
+    assert(output.getDepth().forall(d => d > 4 && d < 17))
 
     /* The first feature should be the most important */
     val importances = DTMeta.getFeatureImportance()
@@ -66,6 +67,7 @@ class ClassificationTreeTest {
       assert(a == p)
     }
     assert(output.getGradient().isEmpty)
+    assert(output.getDepth().forall(d => d > 4 && d < 16))
   }
 }
 
@@ -78,6 +80,6 @@ object ClassificationTreeTest {
     */
   def main(argv: Array[String]): Unit = {
     new ClassificationTreeTest().longerTest()
-    // new ClassificationTreeTest().testCategorical()
+    new ClassificationTreeTest().testCategorical()
   }
 }

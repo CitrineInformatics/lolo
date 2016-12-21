@@ -28,6 +28,7 @@ class RegressionTreeTest {
       assert(Math.abs(a - p) < 1.0e-9)
     }
     assert(output.getGradient().isEmpty)
+    assert(output.getDepth().forall(d => d > 3 && d < 9))
   }
 
   /**
@@ -53,8 +54,7 @@ class RegressionTreeTest {
       assert(Math.abs(a - p) < 1.0e-9)
     }
     assert(output.getGradient().isEmpty)
-    assert(output.getDepth().forall(_ > 0))
-    println(output.getDepth())
+    assert(output.getDepth().forall(d => d > 5 && d < 18))
 
     /* The first feature should be the most important */
     val importances = DTMeta.getFeatureImportance()
@@ -89,6 +89,7 @@ class RegressionTreeTest {
       assert(Math.abs(a - p) < 1.0e-9)
     }
     assert(output.getGradient().isEmpty)
+    assert(output.getDepth().forall(d => d > 5 && d < 20))
 
     /* The first feature should be the most important */
     val importances = DTMeta.getFeatureImportance()
@@ -116,6 +117,7 @@ class RegressionTreeTest {
       assert(Math.abs(a - p) < 1.0e-9)
     }
     assert(output.getGradient().isDefined)
+    assert(output.getDepth().forall(d => d > 4 && d < 18))
 
     /* The first feature should be the most important */
     val importances = DTMeta.getFeatureImportance()
@@ -136,8 +138,8 @@ object RegressionTreeTest {
     */
   def main(argv: Array[String]): Unit = {
     // new RegressionTreeTest().testSimpleTree()
-    new RegressionTreeTest().longerTest()
-    // new RegressionTreeTest().testCategorical()
-    // new RegressionTreeTest().testLinearLeaves()
+    // new RegressionTreeTest().longerTest()
+    new RegressionTreeTest().testCategorical()
+    new RegressionTreeTest().testLinearLeaves()
   }
 }
