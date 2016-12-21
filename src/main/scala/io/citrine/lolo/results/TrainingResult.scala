@@ -5,6 +5,7 @@ import io.citrine.lolo.Model
 /**
   * Created by maxhutch on 12/4/16.
   */
+@SerialVersionUID(999L)
 abstract trait TrainingResult extends Serializable {
 
   /**

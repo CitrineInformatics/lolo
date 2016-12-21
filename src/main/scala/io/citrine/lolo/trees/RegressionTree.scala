@@ -181,6 +181,7 @@ class RegressionTreeLearner(
 
 }
 
+@SerialVersionUID(999L)
 class RegressionTreeTrainingResult(
                                     rootTrainingNode: TrainingNode[AnyVal, Double],
                                     encoders: Seq[Option[CategoricalEncoder[Any]]],
@@ -208,6 +209,7 @@ class RegressionTreeTrainingResult(
   * @param root     of the tree
   * @param encoders for categorical variables
   */
+@SerialVersionUID(999L)
 class RegressionTree(
                       root: ModelNode[PredictionResult[Double]],
                       encoders: Seq[Option[CategoricalEncoder[Any]]]
