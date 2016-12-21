@@ -174,8 +174,8 @@ class RegressionTreeLearner(
   }
 
   class RegressionLeaf(model: Model[PredictionResult[Double]], depth: Int) extends ModelNode[PredictionResult[Double]] {
-    override def transform(input: Vector[AnyVal]): (PredictionResult[Double], Any) = {
-      (model.transform(Seq(input)), depth)
+    override def transform(input: Vector[AnyVal]): (PredictionResult[Double], TreeMeta) = {
+      (model.transform(Seq(input)), TreeMeta(depth))
     }
   }
 
@@ -230,7 +230,7 @@ class RegressionTree(
   *
   * @param predictions sequence of predictions
   */
-class RegressionTreeResult(predictions: Seq[(PredictionResult[Double], Any)]) extends PredictionResult[Double] {
+class RegressionTreeResult(predictions: Seq[(PredictionResult[Double], TreeMeta)]) extends PredictionResult[Double] {
   /**
     * Get the predictions
     *
@@ -251,7 +251,7 @@ class RegressionTreeResult(predictions: Seq[(PredictionResult[Double], Any)]) ex
   }
 
   def getDepth(): Seq[Int] = {
-    predictions.map(_._2.asInstanceOf[Int])
+    predictions.map(_._2.depth)
   }
 }
 

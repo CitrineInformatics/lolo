@@ -114,7 +114,8 @@ class ClassificationTree(
     */
   override def transform(inputs: Seq[Vector[Any]]): ClassificationResult = {
     new ClassificationResult(
-      inputs.map(inp => outputEncoder.decode(rootModelNode.transform(RegressionTree.encodeInput(inp, inputEncoders))._1.getExpected().head))
+      inputs.map(inp => rootModelNode.transform(RegressionTree.encodeInput(inp, inputEncoders))),
+      outputEncoder
     )
   }
 }
@@ -122,14 +123,21 @@ class ClassificationTree(
 /**
   * Classification result
   */
-class ClassificationResult(predictions: Seq[Any]) extends PredictionResult[Any] {
+class ClassificationResult(
+                            predictions: Seq[(PredictionResult[Char], TreeMeta)],
+                            outputEncoder: CategoricalEncoder[Any]
+                          ) extends PredictionResult[Any] {
 
   /**
     * Get the expected values for this prediction
     *
     * @return expected value of each prediction
     */
-  override def getExpected(): Seq[Any] = predictions
+  override def getExpected(): Seq[Any] = predictions.map(p => outputEncoder.decode(p._1.getExpected().head))
+
+  def getDepth(): Seq[Int] = {
+    predictions.map(_._2.depth)
+  }
 }
 
 class ClassificationTrainingNode(
@@ -205,5 +213,5 @@ class ClassificationTrainingLeaf(
   * @param mode most common value
   */
 class ClassificationLeaf(mode: Char) extends ModelNode[PredictionResult[Char]] {
-  override def transform(input: Vector[AnyVal]): (PredictionResult[Char], Any) = (MultiResult(Seq(mode)), 0)
+  override def transform(input: Vector[AnyVal]): (PredictionResult[Char], TreeMeta) = (MultiResult(Seq(mode)), TreeMeta(0))
 }
