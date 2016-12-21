@@ -12,7 +12,7 @@ import io.citrine.lolo.{Learner, Model}
   */
 class ClassificationTreeLearner(val numFeatures: Int = -1) extends Learner {
 
-  override var hypers: Map[String, Any] = Map()
+  override var hypers: Map[String, Any] = Map("maxDepth" -> 30)
 
   /**
     * Train classification tree
@@ -24,6 +24,7 @@ class ClassificationTreeLearner(val numFeatures: Int = -1) extends Learner {
   override def train(trainingData: Seq[(Vector[Any], Any)], weights: Option[Seq[Double]]): ClassificationTrainingResult = {
     assert(trainingData.size > 4, s"We need to have at least 4 rows, only ${trainingData.size} given")
     val repInput = trainingData.head._1
+    val maxDepth = hypers("maxDepth").asInstanceOf[Int]
 
     /* Create encoders for any categorical features */
     val inputEncoders: Seq[Option[CategoricalEncoder[Any]]] = repInput.zipWithIndex.map { case (v, i) =>
@@ -55,11 +56,10 @@ class ClassificationTreeLearner(val numFeatures: Int = -1) extends Learner {
 
     /* The tree is built of training nodes */
     val (split, delta) = ClassificationSplitter.getBestSplit(finalTraining, numFeaturesActual)
-    // assert(!split.isInstanceOf[NoSplit], s"Couldn't make a single split of ${numFeaturesActual} on ${finalTraining.size} rows: ${finalTraining}")
     val rootTrainingNode = if (split.isInstanceOf[NoSplit]) {
-      new ClassificationTrainingLeaf(finalTraining)
+      new ClassificationTrainingLeaf(finalTraining, 0)
     } else {
-      new ClassificationTrainingNode(finalTraining, split, delta, numFeaturesActual, remainingDepth = 30)
+      new ClassificationTrainingNode(finalTraining, split, delta, numFeaturesActual, remainingDepth = maxDepth - 1, maxDepth)
     }
 
     /* Wrap them up in a regression tree */
@@ -101,7 +101,7 @@ class ClassificationTrainingResult(
   * Classification tree
   */
 class ClassificationTree(
-                          rootModelNode: Model[PredictionResult[Char]],
+                          rootModelNode: ModelNode[PredictionResult[Char]],
                           inputEncoders: Seq[Option[CategoricalEncoder[Any]]],
                           outputEncoder: CategoricalEncoder[Any]
                         ) extends Model[ClassificationResult] {
@@ -114,7 +114,8 @@ class ClassificationTree(
     */
   override def transform(inputs: Seq[Vector[Any]]): ClassificationResult = {
     new ClassificationResult(
-      inputs.map(inp => outputEncoder.decode(rootModelNode.transform(Seq(RegressionTree.encodeInput(inp, inputEncoders))).getExpected().head))
+      inputs.map(inp => rootModelNode.transform(RegressionTree.encodeInput(inp, inputEncoders))),
+      outputEncoder
     )
   }
 }
@@ -122,14 +123,21 @@ class ClassificationTree(
 /**
   * Classification result
   */
-class ClassificationResult(predictions: Seq[Any]) extends PredictionResult[Any] {
+class ClassificationResult(
+                            predictions: Seq[(PredictionResult[Char], TreeMeta)],
+                            outputEncoder: CategoricalEncoder[Any]
+                          ) extends PredictionResult[Any] {
 
   /**
     * Get the expected values for this prediction
     *
     * @return expected value of each prediction
     */
-  override def getExpected(): Seq[Any] = predictions
+  override def getExpected(): Seq[Any] = predictions.map(p => outputEncoder.decode(p._1.getExpected().head))
+
+  def getDepth(): Seq[Int] = {
+    predictions.map(_._2.depth)
+  }
 }
 
 class ClassificationTrainingNode(
@@ -137,7 +145,8 @@ class ClassificationTrainingNode(
                                   split: Split,
                                   deltaImpurity: Double,
                                   numFeatures: Int,
-                                  remainingDepth: Int = Int.MaxValue
+                                  remainingDepth: Int,
+                                  maxDepth: Int
                                 ) extends TrainingNode(trainingData, remainingDepth) {
 
   assert(trainingData.size > 1, "If we are going to split, we need at least 2 training rows")
@@ -148,22 +157,22 @@ class ClassificationTrainingNode(
   lazy val leftChild = if (leftTrain.size > 1 && remainingDepth > 0 && leftTrain.exists(_._2 != leftTrain.head._2)) {
     lazy val (leftSplit, leftDelta) = ClassificationSplitter.getBestSplit(leftTrain, numFeatures)
     if (!leftSplit.isInstanceOf[NoSplit]) {
-      new ClassificationTrainingNode(leftTrain, leftSplit, leftDelta, numFeatures, remainingDepth - 1)
+      new ClassificationTrainingNode(leftTrain, leftSplit, leftDelta, numFeatures, remainingDepth - 1, maxDepth)
     } else {
-      new ClassificationTrainingLeaf(leftTrain)
+      new ClassificationTrainingLeaf(leftTrain, maxDepth - remainingDepth)
     }
   } else {
-    new ClassificationTrainingLeaf(leftTrain)
+    new ClassificationTrainingLeaf(leftTrain, maxDepth - remainingDepth)
   }
   lazy val rightChild = if (rightTrain.size > 1 && remainingDepth > 0 && rightTrain.exists(_._2 != rightTrain.head._2)) {
     lazy val (rightSplit, rightDelta) = ClassificationSplitter.getBestSplit(rightTrain, numFeatures)
     if (!rightSplit.isInstanceOf[NoSplit]) {
-      new ClassificationTrainingNode(rightTrain, rightSplit, rightDelta, numFeatures, remainingDepth - 1)
+      new ClassificationTrainingNode(rightTrain, rightSplit, rightDelta, numFeatures, remainingDepth - 1, maxDepth)
     } else {
-      new ClassificationTrainingLeaf(rightTrain)
+      new ClassificationTrainingLeaf(rightTrain, maxDepth - remainingDepth)
     }
   } else {
-    new ClassificationTrainingLeaf(rightTrain)
+    new ClassificationTrainingLeaf(rightTrain, maxDepth - remainingDepth)
   }
 
   /**
@@ -171,7 +180,7 @@ class ClassificationTrainingNode(
     *
     * @return lightweight prediction node
     */
-  override def getNode(): Model[PredictionResult[Char]] = new InternalModelNode(
+  override def getNode(): ModelNode[PredictionResult[Char]] = new InternalModelNode(
     split, leftChild.getNode(), rightChild.getNode()
   )
 
@@ -184,7 +193,8 @@ class ClassificationTrainingNode(
 }
 
 class ClassificationTrainingLeaf(
-                                  trainingData: Seq[(Vector[AnyVal], Char, Double)]
+                                  trainingData: Seq[(Vector[AnyVal], Char, Double)],
+                                  depth: Int
                                 ) extends TrainingNode(trainingData, 0) {
 
   lazy val mode: Char = trainingData.map(_._2).groupBy(identity).mapValues(_.size).maxBy(_._2)._1
@@ -194,7 +204,7 @@ class ClassificationTrainingLeaf(
     *
     * @return lightweight prediction node
     */
-  override def getNode(): Model[PredictionResult[Char]] = new ClassificationLeaf(mode)
+  override def getNode(): ModelNode[PredictionResult[Char]] = new ClassificationLeaf(mode, depth)
 
   override def getFeatureImportance(): Array[Double] = Array.fill(trainingData.head._1.size)(0.0)
 }
@@ -204,6 +214,6 @@ class ClassificationTrainingLeaf(
   *
   * @param mode most common value
   */
-class ClassificationLeaf(mode: Char) extends Model[PredictionResult[Char]] {
-  override def transform(inputs: Seq[Vector[Any]]): PredictionResult[Char] = MultiResult(Seq.fill(inputs.size)(mode))
+class ClassificationLeaf(mode: Char, depth: Int) extends ModelNode[PredictionResult[Char]] {
+  override def transform(input: Vector[AnyVal]): (PredictionResult[Char], TreeMeta) = (MultiResult(Seq(mode)), TreeMeta(depth))
 }
