@@ -98,6 +98,7 @@ class LinearRegressionLearner(fitIntercept: Boolean = true) extends Learner {
   *
   * @param model contained
   */
+@SerialVersionUID(999L)
 class LinearRegressionTrainingResult(model: LinearRegressionModel, hypers: Map[String, Any]) extends TrainingResult {
   /**
     * Get the hyperparameters used to train this model
