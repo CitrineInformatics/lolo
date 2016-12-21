@@ -63,14 +63,15 @@ class ClassificationTreeLearner(val numFeatures: Int = -1) extends Learner {
     }
 
     /* Wrap them up in a regression tree */
-    new ClassificationTrainingResult(rootTrainingNode, inputEncoders, outputEncoder)
+    new ClassificationTrainingResult(rootTrainingNode, inputEncoders, outputEncoder, hypers)
   }
 }
 
 class ClassificationTrainingResult(
                                     rootTrainingNode: TrainingNode[AnyVal, Char],
                                     inputEncoders: Seq[Option[CategoricalEncoder[Any]]],
-                                    outputEncoder: CategoricalEncoder[Any]
+                                    outputEncoder: CategoricalEncoder[Any],
+                                    hypers: Map[String, Any]
                                   ) extends TrainingResult with hasFeatureImportance {
   /* Grab a prediction node.  The partitioning happens here */
   lazy val model = new ClassificationTree(rootTrainingNode.getNode(), inputEncoders, outputEncoder)
@@ -78,6 +79,13 @@ class ClassificationTrainingResult(
   /* Grab the feature importances */
   lazy val importance = rootTrainingNode.getFeatureImportance()
   lazy val importanceNormalized = importance.map(_ / importance.sum)
+
+  /**
+    * Get the hyperparameters used to train this model
+    *
+    * @return hypers set for model
+    */
+  override def getHypers(): Map[String, Any] = hypers
 
   override def getModel(): ClassificationTree = model
 
