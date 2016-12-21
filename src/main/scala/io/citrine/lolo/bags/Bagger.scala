@@ -16,7 +16,6 @@ import scala.collection.parallel.immutable.ParSeq
   * @param method  learner to train each model in the ensemble
   * @param numBags number of models in the ensemble
   */
-@SerialVersionUID(999L)
 class Bagger(
               method: Learner,
               var numBags: Int = -1,
@@ -90,6 +89,7 @@ class Bagger(
   }
 }
 
+@SerialVersionUID(999L)
 class BaggedTrainingResult(
                             models: ParSeq[Model[PredictionResult[Any]]],
                             hypers: Map[String, Any],
