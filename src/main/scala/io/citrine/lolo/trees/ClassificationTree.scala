@@ -67,6 +67,7 @@ class ClassificationTreeLearner(val numFeatures: Int = -1) extends Learner {
   }
 }
 
+@SerialVersionUID(999L)
 class ClassificationTrainingResult(
                                     rootTrainingNode: TrainingNode[AnyVal, Char],
                                     inputEncoders: Seq[Option[CategoricalEncoder[Any]]],

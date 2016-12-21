@@ -181,6 +181,7 @@ class RegressionTreeLearner(
 
 }
 
+@SerialVersionUID(999L)
 class RegressionTreeTrainingResult(
                                     rootTrainingNode: TrainingNode[AnyVal, Double],
                                     encoders: Seq[Option[CategoricalEncoder[Any]]],

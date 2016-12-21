@@ -25,6 +25,7 @@ class GuessTheMeanLearner extends Learner {
   }
 }
 
+@SerialVersionUID(999L)
 class GuessTheMeanTrainingResult(model: GuessTheMeanModel) extends TrainingResult {
   /**
     * Get the hyperparameters used to train this model
