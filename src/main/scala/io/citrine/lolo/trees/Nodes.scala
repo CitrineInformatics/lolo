@@ -1,6 +1,5 @@
 package io.citrine.lolo.trees
 
-import io.citrine.lolo.Model
 import io.citrine.lolo.results.PredictionResult
 import io.citrine.lolo.trees.splits.Split
 
@@ -33,7 +32,7 @@ abstract class TrainingNode[T <: AnyVal, S](
 }
 
 trait ModelNode[T <: PredictionResult[Any]] extends Serializable {
-  def transform(input: Vector[AnyVal]): (T, Any)
+  def transform(input: Vector[AnyVal]): (T, TreeMeta)
 }
 
 /**
@@ -55,7 +54,7 @@ class InternalModelNode[T <: PredictionResult[Any]](
     * @param input to predict for
     * @return prediction
     */
-  override def transform(input: Vector[AnyVal]): (T, Any) = {
+  override def transform(input: Vector[AnyVal]): (T, TreeMeta) = {
     if (split.turnLeft(input)) {
       left.transform(input)
     } else {
