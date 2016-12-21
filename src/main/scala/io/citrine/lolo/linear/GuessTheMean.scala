@@ -25,6 +25,7 @@ class GuessTheMeanLearner extends Learner {
   }
 }
 
+@SerialVersionUID(999L)
 class GuessTheMeanTrainingResult(model: GuessTheMeanModel) extends TrainingResult {
   /**
     * Get the hyperparameters used to train this model
@@ -36,6 +37,7 @@ class GuessTheMeanTrainingResult(model: GuessTheMeanModel) extends TrainingResul
   override def getModel(): Model[GuessTheMeanResult] = model
 }
 
+@SerialVersionUID(1000L)
 class GuessTheMeanModel(mean: Any) extends Model[GuessTheMeanResult] {
 
   def transform(inputs: Seq[Vector[Any]]): GuessTheMeanResult = {

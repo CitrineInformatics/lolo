@@ -89,6 +89,7 @@ class Bagger(
   }
 }
 
+@SerialVersionUID(999L)
 class BaggedTrainingResult(
                             models: ParSeq[Model[PredictionResult[Any]]],
                             hypers: Map[String, Any],
@@ -155,6 +156,7 @@ class BaggedTrainingResult(
   * @param models in this bagged model
   * @param Nib    training sample counts
   */
+@SerialVersionUID(1000L)
 class BaggedModel(
                    models: ParSeq[Model[PredictionResult[Any]]],
                    Nib: Vector[Vector[Int]],

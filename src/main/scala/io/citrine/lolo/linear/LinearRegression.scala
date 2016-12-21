@@ -98,6 +98,7 @@ class LinearRegressionLearner(fitIntercept: Boolean = true) extends Learner {
   *
   * @param model contained
   */
+@SerialVersionUID(999L)
 class LinearRegressionTrainingResult(model: LinearRegressionModel, hypers: Map[String, Any]) extends TrainingResult {
   /**
     * Get the hyperparameters used to train this model
@@ -116,6 +117,7 @@ class LinearRegressionTrainingResult(model: LinearRegressionModel, hypers: Map[S
   * @param intercept intercept
   * @param indices   optional indices from which to extract real features
   */
+@SerialVersionUID(1000L)
 class LinearRegressionModel(
                              beta: DenseVector[Double],
                              intercept: Double,
