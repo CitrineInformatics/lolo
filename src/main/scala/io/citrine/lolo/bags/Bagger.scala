@@ -71,7 +71,7 @@ class Bagger(
 
     /* Wrap the models in a BaggedModel object */
     if (biasLearner.isEmpty) {
-      new BaggedTrainingResult(models.map(_.getModel()), importances, Nib, trainingData, useJackknife)
+      new BaggedTrainingResult(models.map(_.getModel()), hypers, importances, Nib, trainingData, useJackknife)
     } else {
       val baggedModel = new BaggedModel(models.map(_.getModel()), Nib, useJackknife)
       val baggedRes = baggedModel.transform(trainingData.map(_._1))
@@ -84,13 +84,15 @@ class Bagger(
         (f, bias)
       }
       val biasModel = biasLearner.get.train(biasTraining).getModel()
-      new BaggedTrainingResult(models.map(_.getModel()), importances, Nib, trainingData, useJackknife, Some(biasModel))
+      new BaggedTrainingResult(models.map(_.getModel()), hypers, importances, Nib, trainingData, useJackknife, Some(biasModel))
     }
   }
 }
 
+@SerialVersionUID(999L)
 class BaggedTrainingResult(
                             models: ParSeq[Model[PredictionResult[Any]]],
+                            hypers: Map[String, Any],
                             featureImportance: Array[Double],
                             Nib: Vector[Vector[Int]],
                             trainingData: Seq[(Vector[Any], Any)],
@@ -118,11 +120,13 @@ class BaggedTrainingResult(
       val confusionMatrix = DenseMatrix.zeros[Int](numLabels, numLabels)
       predictedVsActual.foreach(p => confusionMatrix(index(p._2), index(p._3)) += 1)
       val f1scores = labels.indices.map { i =>
-        val precision = confusionMatrix(i, i) / sum(confusionMatrix(i, ::)).toDouble
-        val recall = confusionMatrix(i, i) / sum(confusionMatrix(::, i)).toDouble
-        2.0 * precision * recall / (precision + recall) * sum(confusionMatrix(::, i)).toDouble / trainingData.size
+        val actualPositive: Double = sum(confusionMatrix(::, i))
+        val predictedPositive: Double = sum(confusionMatrix(i, ::))
+        val precision = if (predictedPositive > 0) confusionMatrix(i, i) / predictedPositive else 1.0
+        val recall = if (actualPositive > 0) confusionMatrix(i, i) / actualPositive else 1.0
+        2.0 * precision * recall / (precision + recall) * actualPositive
       }
-      f1scores.sum
+      f1scores.sum / trainingData.size
   }
 
   /**
@@ -137,6 +141,13 @@ class BaggedTrainingResult(
   override def getPredictedVsActual(): Seq[(Vector[Any], Any, Any)] = predictedVsActual
 
   override def getLoss(): Double = loss
+
+  /**
+    * Get the hyperparameters used to train this model
+    *
+    * @return hypers set for model
+    */
+  override def getHypers(): Map[String, Any] = hypers
 }
 
 /**
@@ -145,6 +156,7 @@ class BaggedTrainingResult(
   * @param models in this bagged model
   * @param Nib    training sample counts
   */
+@SerialVersionUID(1000L)
 class BaggedModel(
                    models: ParSeq[Model[PredictionResult[Any]]],
                    Nib: Vector[Vector[Int]],

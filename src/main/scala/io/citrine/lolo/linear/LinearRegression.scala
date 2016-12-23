@@ -89,7 +89,7 @@ class LinearRegressionLearner(fitIntercept: Boolean = true) extends Learner {
       new LinearRegressionModel(beta, 0.0, indices = indicesToModel)
     }
 
-    new LinearRegressionTrainingResult(model)
+    new LinearRegressionTrainingResult(model, hypers)
   }
 }
 
@@ -98,7 +98,15 @@ class LinearRegressionLearner(fitIntercept: Boolean = true) extends Learner {
   *
   * @param model contained
   */
-class LinearRegressionTrainingResult(model: LinearRegressionModel) extends TrainingResult {
+@SerialVersionUID(999L)
+class LinearRegressionTrainingResult(model: LinearRegressionModel, hypers: Map[String, Any]) extends TrainingResult {
+  /**
+    * Get the hyperparameters used to train this model
+    *
+    * @return hypers set for model
+    */
+  override def getHypers(): Map[String, Any] = hypers
+
   override def getModel(): LinearRegressionModel = model
 }
 
@@ -109,6 +117,7 @@ class LinearRegressionTrainingResult(model: LinearRegressionModel) extends Train
   * @param intercept intercept
   * @param indices   optional indices from which to extract real features
   */
+@SerialVersionUID(1000L)
 class LinearRegressionModel(
                              beta: DenseVector[Double],
                              intercept: Double,

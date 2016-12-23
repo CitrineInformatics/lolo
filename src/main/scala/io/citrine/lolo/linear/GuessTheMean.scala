@@ -25,10 +25,19 @@ class GuessTheMeanLearner extends Learner {
   }
 }
 
+@SerialVersionUID(999L)
 class GuessTheMeanTrainingResult(model: GuessTheMeanModel) extends TrainingResult {
+  /**
+    * Get the hyperparameters used to train this model
+    *
+    * @return hypers set for model
+    */
+  override def getHypers(): Map[String, Any] = Map.empty[String, Any]
+
   override def getModel(): Model[GuessTheMeanResult] = model
 }
 
+@SerialVersionUID(1000L)
 class GuessTheMeanModel(mean: Any) extends Model[GuessTheMeanResult] {
 
   def transform(inputs: Seq[Vector[Any]]): GuessTheMeanResult = {
