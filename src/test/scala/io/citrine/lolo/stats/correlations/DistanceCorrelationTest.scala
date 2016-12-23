@@ -12,7 +12,7 @@ class DistanceCorrelationTest {
 
   val N: Int = 256
 
-  def dist(x: Double, y: Double) = Math.abs(x - y)
+  def dist(x: Double, y: Double): Double = Math.abs(x - y)
 
   @Test
   def testIndependent(): Unit = {
