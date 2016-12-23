@@ -267,9 +267,8 @@ class BaggedResult(
 
   /* Compute the scores one prediction at a time */
   lazy val scores: Seq[Vector[Double]] = rep match {
-    case x: Double => expectedMatrix.zip(expected).map { case (treePredictions, meanPrediction) =>
-      scores(meanPrediction.asInstanceOf[Double], treePredictions.asInstanceOf[Seq[Double]], Nib)
-    }
+    case x: Double =>
+      scores(expected.asInstanceOf[Seq[Double]].toVector, expectedMatrix.asInstanceOf[Seq[Seq[Double]]], NibJMat, NibIJMat).map(_.map(Math.sqrt))
     case x: Any => Seq.fill(expected.size)(Vector.fill(Nib.size)(0.0))
   }
 
@@ -288,7 +287,25 @@ class BaggedResult(
                 NibJ: DenseMatrix[Double],
                 NibIJ: DenseMatrix[Double]
               ): Seq[Double] = {
-    /* Stick the predictions in a breeze matrix */
+    scores(meanPrediction, modelPredictions, NibJ, NibIJ).map(_.sum)
+  }
+
+  /**
+    * Compute the IJ training row scores for a prediction
+    *
+    * @param meanPrediction   over the models
+    * @param modelPredictions prediction of each model
+    * @param NibJ             sampling matrix for the jackknife-after-bootstrap estimate
+    * @param NibIJ            sampling matrix for the infinitesimal jackknife estimate
+    * @return the score of each training row as a vector of doubles
+    */
+  def scores(
+                meanPrediction: Vector[Double],
+                modelPredictions: Seq[Seq[Double]],
+                NibJ: DenseMatrix[Double],
+                NibIJ: DenseMatrix[Double]
+              ): Seq[Vector[Double]] = {
+        /* Stick the predictions in a breeze matrix */
     val predMat = new DenseMatrix[Double](modelPredictions.head.size, modelPredictions.size, modelPredictions.flatten.toArray)
 
     /* These operations are pulled out of the loop and extra-verbose for performance */
@@ -311,25 +328,8 @@ class BaggedResult(
       /* Impose a floor in case any of the variances are negative (hacked to work in breeze) */
       val floor: Double = Math.min(0, -min(variancePerRow))
       val rezero: DenseVector[Double] = variancePerRow - floor
-      0.5 * sum(rezero + abs(rezero)) + floor
-    }
-  }
-
-  /**
-    * Compute the IJ training row scores for a prediction
-    *
-    * @param meanPrediction   across the models
-    * @param modelPredictions predictions of each model
-    * @param Nib              sample matrix
-    * @return the score of each training row as a vector of doubles
-    */
-  def scores(meanPrediction: Double, modelPredictions: Seq[Double], Nib: Seq[Vector[Int]]): Vector[Double] = {
-    val diff = modelPredictions.map(_ - meanPrediction)
-
-    /* Compute the IJ score for each row */
-    Nib.map { v =>
-      Math.abs(v.zip(diff).map(p2 => p2._1 * p2._2).sum / modelPredictions.size)
-    }.toVector
+      0.5 * (rezero + abs(rezero)) + floor
+    }.map(_.toScalaVector())
   }
 
   /**
