@@ -196,15 +196,15 @@ class RegressionTreeTrainingResult(
   override def getHypers(): Map[String, Any] = hypers
 
   /**
-    * Return the pre-computed importances
+    * Return the pre-computed influences
     *
-    * @return feature importances as an array of doubles
+    * @return feature influences as an array of doubles
     */
   override def getFeatureImportance(): Array[Double] = importanceNormalized
 }
 
 /**
-  * Container holding a model node, encoders, and the feature importances
+  * Container holding a model node, encoders, and the feature influences
   *
   * @param root     of the tree
   * @param encoders for categorical variables

@@ -25,7 +25,7 @@ abstract trait hasFeatureImportance {
   /**
     * Get a measure of the importance of the model features
     *
-    * @return feature importances as an array of doubles
+    * @return feature influences as an array of doubles
     */
   def getFeatureImportance(): Array[Double]
 }
@@ -45,4 +45,3 @@ abstract trait hasPredictedVsActual {
     */
   def getPredictedVsActual(): Seq[(Vector[Any], Any, Any)]
 }
-
