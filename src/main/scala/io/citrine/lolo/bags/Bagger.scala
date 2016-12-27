@@ -382,13 +382,13 @@ class BaggedResult(
       val correction = 0.0 // inverseSize * norm(predMat(::, i) - meanPrediction(i))
 
       /* The correction is prediction dependent, so we need to operate on vectors */
-      val importancePerRow: DenseVector[Double] = 0.5 * ( arg(::, i) - Math.E * correction)
+      val influencePerRow: DenseVector[Double] = Math.signum(actualPrediction(i) - meanPrediction(i)) * 0.5 * ( arg(::, i) - Math.E * correction)
 
       /* Impose a floor in case any of the variances are negative (hacked to work in breeze) */
       // val floor: Double = Math.min(0, -min(variancePerRow))
       // val rezero: DenseVector[Double] = variancePerRow - floor
       // 0.5 * (rezero + abs(rezero)) + floor
-      importancePerRow
+      influencePerRow
     }.map(_.toScalaVector())
   }
 
