@@ -129,10 +129,6 @@ class BaggedTrainingResult(
       f1scores.sum / trainingData.size
   }
 
-  lazy val improvement = rep match {
-    case x: Double =>
-  }
-
   /**
     * Average the influences across the ensemble of models
     *
