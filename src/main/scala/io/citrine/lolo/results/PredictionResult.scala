@@ -28,6 +28,11 @@ trait PredictionResult[+T] {
     */
   def getImportanceScores(): Option[Seq[Seq[Double]]] = None
 
+  /**
+    * Get the improvement (positive) or damage (negative) due to each training row on a prediction
+    * @param actuals to assess the improvement or damage against
+    * @return Sequence (over predictions) of sequence (over training rows) of influence
+    */
   def getInfluenceScores(actuals: Seq[Any]): Option[Seq[Seq[Double]]] = None
 
   /**
