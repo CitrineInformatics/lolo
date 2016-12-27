@@ -129,10 +129,14 @@ class BaggedTrainingResult(
       f1scores.sum / trainingData.size
   }
 
+  lazy val improvement = rep match {
+    case x: Double =>
+  }
+
   /**
-    * Average the importances across the ensemble of models
+    * Average the influences across the ensemble of models
     *
-    * @return feature importances as an array of doubles
+    * @return feature influences as an array of doubles
     */
   override def getFeatureImportance(): Array[Double] = featureImportance
 
@@ -218,7 +222,21 @@ class BaggedResult(
     *
     * @return training row scores of each prediction
     */
-  override def getScores(): Option[Seq[Seq[Double]]] = Some(scores)
+  override def getInfluenceScores(actuals: Seq[Any]): Option[Seq[Seq[Double]]] = {
+    rep match {
+      case x: Double =>
+        Some(influences(
+          expected.asInstanceOf[Seq[Double]].toVector,
+          actuals.toVector.asInstanceOf[Vector[Double]],
+          expectedMatrix.asInstanceOf[Seq[Seq[Double]]],
+          NibJMat,
+          NibIJMat
+        ))
+      case x: Any => None
+    }
+  }
+
+  override def getImportanceScores(): Option[Seq[Seq[Double]]] = Some(scores)
 
   /* Subtract off 1 to make correlations easier; transpose to be prediction-wise */
   lazy val Nib: Vector[Vector[Int]] = NibIn.transpose.map(_.map(_ - 1))
@@ -329,6 +347,48 @@ class BaggedResult(
       val floor: Double = Math.min(0, -min(variancePerRow))
       val rezero: DenseVector[Double] = variancePerRow - floor
       0.5 * (rezero + abs(rezero)) + floor
+    }.map(_.toScalaVector())
+  }
+
+    /**
+    * Compute the IJ training row scores for a prediction
+    *
+    * @param meanPrediction   over the models
+    * @param modelPredictions prediction of each model
+    * @param NibJ             sampling matrix for the jackknife-after-bootstrap estimate
+    * @param NibIJ            sampling matrix for the infinitesimal jackknife estimate
+    * @return the score of each training row as a vector of doubles
+    */
+  def influences(
+                meanPrediction: Vector[Double],
+                actualPrediction: Vector[Double],
+                modelPredictions: Seq[Seq[Double]],
+                NibJ: DenseMatrix[Double],
+                NibIJ: DenseMatrix[Double]
+              ): Seq[Vector[Double]] = {
+        /* Stick the predictions in a breeze matrix */
+    val predMat = new DenseMatrix[Double](modelPredictions.head.size, modelPredictions.size, modelPredictions.flatten.toArray)
+
+    /* These operations are pulled out of the loop and extra-verbose for performance */
+    val JMat = NibJ.t * predMat
+    val IJMat = NibIJ.t * predMat
+    val arg = IJMat + JMat
+
+    /* Avoid division in the loop */
+    val inverseSize = 1.0 / modelPredictions.head.size
+
+    (0 until modelPredictions.size).map{ i =>
+      /* Compute the first order bias correction for the variance estimators */
+      val correction = 0.0 // inverseSize * norm(predMat(::, i) - meanPrediction(i))
+
+      /* The correction is prediction dependent, so we need to operate on vectors */
+      val importancePerRow: DenseVector[Double] = 0.5 * ( arg(::, i) - Math.E * correction)
+
+      /* Impose a floor in case any of the variances are negative (hacked to work in breeze) */
+      // val floor: Double = Math.min(0, -min(variancePerRow))
+      // val rezero: DenseVector[Double] = variancePerRow - floor
+      // 0.5 * (rezero + abs(rezero)) + floor
+      importancePerRow
     }.map(_.toScalaVector())
   }
 

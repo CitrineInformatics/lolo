@@ -77,7 +77,7 @@ class ClassificationTrainingResult(
   /* Grab a prediction node.  The partitioning happens here */
   lazy val model = new ClassificationTree(rootTrainingNode.getNode(), inputEncoders, outputEncoder)
 
-  /* Grab the feature importances */
+  /* Grab the feature influences */
   lazy val importance = rootTrainingNode.getFeatureImportance()
   lazy val importanceNormalized = importance.map(_ / importance.sum)
 
@@ -93,7 +93,7 @@ class ClassificationTrainingResult(
   /**
     * Get a measure of the importance of the model features
     *
-    * @return feature importances as an array of doubles
+    * @return feature influences as an array of doubles
     */
   override def getFeatureImportance(): Array[Double] = importanceNormalized
 }

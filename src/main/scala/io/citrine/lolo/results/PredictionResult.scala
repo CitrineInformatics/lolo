@@ -26,7 +26,9 @@ trait PredictionResult[+T] {
     *
     * @return training row scores of each prediction
     */
-  def getScores(): Option[Seq[Seq[Double]]] = None
+  def getImportanceScores(): Option[Seq[Seq[Double]]] = None
+
+  def getInfluenceScores(actuals: Seq[Any]): Option[Seq[Seq[Double]]] = None
 
   /**
     * Get the gradient or sensitivity of each prediction
