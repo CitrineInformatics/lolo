@@ -7,7 +7,7 @@ import breeze.linalg.{DenseMatrix, sum}
   */
 object ClassificationMetrics {
 
-  def f1scores(predictedVsActual: Seq[(Vector[Any], Any, Any)]) = {
+  def f1scores(predictedVsActual: Seq[(Vector[Any], Any, Any)]): Double = {
       val labels = predictedVsActual.map(_._3).distinct
       val index = labels.zipWithIndex.toMap
       val numLabels = labels.size
