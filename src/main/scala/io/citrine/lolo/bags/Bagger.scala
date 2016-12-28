@@ -3,6 +3,7 @@ package io.citrine.lolo.bags
 import breeze.linalg.{DenseMatrix, DenseVector, min, norm, sum}
 import breeze.numerics.abs
 import breeze.stats.distributions.Poisson
+import io.citrine.lolo.metrics.ClassificationMetrics
 import io.citrine.lolo.results.{PredictionResult, TrainingResult, hasFeatureImportance, hasLoss, hasPredictedVsActual}
 import io.citrine.lolo.{Learner, Model}
 
@@ -113,20 +114,7 @@ class BaggedTrainingResult(
 
   lazy val loss = rep match {
     case x: Double => Math.sqrt(predictedVsActual.map(d => Math.pow(d._2.asInstanceOf[Double] - d._3.asInstanceOf[Double], 2)).sum / predictedVsActual.size)
-    case x: Any =>
-      val labels = predictedVsActual.map(_._3).distinct
-      val index = labels.zipWithIndex.toMap
-      val numLabels = labels.size
-      val confusionMatrix = DenseMatrix.zeros[Int](numLabels, numLabels)
-      predictedVsActual.foreach(p => confusionMatrix(index(p._2), index(p._3)) += 1)
-      val f1scores = labels.indices.map { i =>
-        val actualPositive: Double = sum(confusionMatrix(::, i))
-        val predictedPositive: Double = sum(confusionMatrix(i, ::))
-        val precision = if (predictedPositive > 0) confusionMatrix(i, i) / predictedPositive else 1.0
-        val recall = if (actualPositive > 0) confusionMatrix(i, i) / actualPositive else 1.0
-        2.0 * precision * recall / (precision + recall) * actualPositive
-      }
-      f1scores.sum / trainingData.size
+    case x: Any => ClassificationMetrics.f1scores(predictedVsActual)
   }
 
   /**
