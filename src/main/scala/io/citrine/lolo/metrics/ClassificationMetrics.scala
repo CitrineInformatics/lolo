@@ -7,6 +7,12 @@ import breeze.linalg.{DenseMatrix, sum}
   */
 object ClassificationMetrics {
 
+  /**
+    * Compute the weighted average f1 score across the labels
+    *
+    * @param predictedVsActual to evaluate
+    * @return the weighted average f1 score
+    */
   def f1scores(predictedVsActual: Seq[(Vector[Any], Any, Any)]): Double = {
       val labels = predictedVsActual.map(_._3).distinct
       val index = labels.zipWithIndex.toMap

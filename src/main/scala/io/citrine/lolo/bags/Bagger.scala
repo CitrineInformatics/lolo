@@ -114,7 +114,9 @@ class BaggedTrainingResult(
 
   lazy val loss = rep match {
     case x: Double => Math.sqrt(predictedVsActual.map(d => Math.pow(d._2.asInstanceOf[Double] - d._3.asInstanceOf[Double], 2)).sum / predictedVsActual.size)
-    case x: Any => ClassificationMetrics.f1scores(predictedVsActual)
+    case x: Any =>
+      val f1 = ClassificationMetrics.f1scores(predictedVsActual)
+      if (f1 > 0.0) 1.0 / f1 - 1.0 else Double.MaxValue
   }
 
   /**
