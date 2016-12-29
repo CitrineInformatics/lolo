@@ -26,7 +26,7 @@ class BaggerTest {
     val start = System.nanoTime()
     (0 until N).foreach { i =>
       val RF = baggedLearner.train(trainingData).getModel()
-      val uncertainty = RF.transform(trainingData.map(_._1)).getUncertainty().asInstanceOf[Seq[Double]]
+      val uncertainty = RF.transform(trainingData.map(_._1)).getUncertainty().get.asInstanceOf[Seq[Double]]
       val maxUn = uncertainty.max
       assert(maxUn > 1.1)
       assert(maxUn < 1.3)
@@ -100,36 +100,6 @@ class BaggerTest {
     )
   }
 
-  def timedTest(trainingData: Seq[(Vector[Any], Double)], n: Int, k: Int, b: Int): Double = {
-    val data = trainingData.map(p => (p._1.take(k), p._2)).take(n)
-    val DTLearner = new RegressionTreeLearner(numFeatures = k / 4)
-    val baggedLearner = new Bagger(DTLearner, numBags = b)
-    val warmup = baggedLearner.train(data).getModel()
-    val nIter = 1
-    val start = System.nanoTime()
-    (0 until nIter).foreach {i =>
-      val real = baggedLearner.train(data).getModel()
-      val res = real.transform(data.map(_._1)).getUncertainty()
-    }
-    val duration = (System.nanoTime() - start) / 1.0e9 / nIter
-    println(s"${duration}, ${n}, ${k}, ${b}")
-    duration
-  }
-
-  def benchmark(): Unit = {
-    val csv = TestUtils.readCsv("generated_nocat.csv")
-    val trainingData = csv.map(vec => (vec.init, vec.last.asInstanceOf[Double])).toVector
-    val Ns = Seq(8192, 16384, 32768)
-    val Ks = Seq(8, 16, 32)
-    val Bs = Seq(128, 256, 512)
-    println("Duration, N, K, B")
-    val bScale = Bs.map(b => timedTest(trainingData, Ns.head, Ks.head, b))
-    val kScale = Ks.map(k => timedTest(trainingData, Ns.head, k, Bs.head))
-    val nScale = Ns.map(n => timedTest(trainingData, n, Ks.head, Bs.head))
-    println((1 until bScale.size).map(i => bScale(i)/bScale(i-1)))
-    println((1 until kScale.size).map(i => kScale(i)/kScale(i-1)))
-    println((1 until nScale.size).map(i => nScale(i)/nScale(i-1)))
-  }
 }
 
 /**
