@@ -1,6 +1,5 @@
 package io.citrine.lolo.trees
 
-import io.citrine.lolo.Model
 import io.citrine.lolo.results.PredictionResult
 import io.citrine.lolo.trees.splits.Split
 
@@ -22,7 +21,7 @@ abstract class TrainingNode[T <: AnyVal, S](
     *
     * @return lightweight prediction node
     */
-  def getNode(): Model[PredictionResult[S]]
+  def getNode(): ModelNode[PredictionResult[S]]
 
   /**
     * Get the feature importance of the subtree below this node
@@ -30,6 +29,10 @@ abstract class TrainingNode[T <: AnyVal, S](
     * @return feature importance as a vector
     */
   def getFeatureImportance(): Array[Double]
+}
+
+trait ModelNode[T <: PredictionResult[Any]] extends Serializable {
+  def transform(input: Vector[AnyVal]): (T, TreeMeta)
 }
 
 /**
@@ -40,19 +43,20 @@ abstract class TrainingNode[T <: AnyVal, S](
   * @param right branch node
   * @tparam T type of the output
   */
+@SerialVersionUID(999L)
 class InternalModelNode[T <: PredictionResult[Any]](
                                          split: Split,
-                                         left: Model[T],
-                                         right: Model[T]
-                                       ) extends Model[T] {
+                                         left: ModelNode[T],
+                                         right: ModelNode[T]
+                                       ) extends ModelNode[T] {
   /**
     * Just propagate the prediction call through the appropriate child
     *
     * @param input to predict for
     * @return prediction
     */
-  override def transform(input: Seq[Vector[Any]]): T = {
-    if (split.turnLeft(input.head.asInstanceOf[Vector[AnyVal]])) {
+  override def transform(input: Vector[AnyVal]): (T, TreeMeta) = {
+    if (split.turnLeft(input)) {
       left.transform(input)
     } else {
       right.transform(input)
