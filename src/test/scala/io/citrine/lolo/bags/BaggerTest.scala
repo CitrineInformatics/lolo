@@ -37,6 +37,10 @@ class BaggerTest {
 
     val results = RF.transform(trainingData.map(_._1))
     val means = results.getExpected()
+    val sigma: Seq[Double] = results.getUncertainty().get.asInstanceOf[Seq[Double]]
+    assert(sigma.forall(_ >= 0.0))
+
+    assert(results.getGradient().isEmpty, "Returned a graident when there shouldn't be one")
 
     /* The first feature should be the most important */
     val importances = RFMeta.getFeatureImportance()
@@ -63,6 +67,7 @@ class BaggerTest {
 
     val results = RF.transform(trainingData.map(_._1))
     val means = results.getExpected()
+    assert(results.getGradient().isEmpty, "Returned a graident when there shouldn't be one")
 
     /* The first feature should be the most important */
     val importances = RFMeta.getFeatureImportance()
@@ -87,7 +92,7 @@ class BaggerTest {
 
     /* Call transform on the training data */
     val results = RF.transform(trainingData.map(_._1))
-    val scores = results.getScores()
+    val scores = results.getScores().get
     val corners = Seq(0, 7, 56, 63)
     assert(
       corners.forall(i => scores(i)(i) == scores(i).max),
@@ -137,8 +142,8 @@ object BaggerTest {
     * @param argv args
     */
   def main(argv: Array[String]): Unit = {
-    new BaggerTest().benchmark()
     new BaggerTest().testRegressionBagger()
     // new BaggerTest().testScores()
+    // new BaggerTest().benchmark()
   }
 }

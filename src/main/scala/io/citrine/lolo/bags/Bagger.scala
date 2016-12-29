@@ -3,7 +3,8 @@ package io.citrine.lolo.bags
 import breeze.linalg.{DenseMatrix, DenseVector, min, norm, sum}
 import breeze.numerics.abs
 import breeze.stats.distributions.Poisson
-import io.citrine.lolo.results.{PredictionResult, TrainingResult, hasFeatureImportance, hasGradient, hasLoss, hasPredictedVsActual, hasTrainingScores, hasUncertainty}
+import io.citrine.lolo.metrics.ClassificationMetrics
+import io.citrine.lolo.results.{PredictionResult, TrainingResult, hasFeatureImportance, hasLoss, hasPredictedVsActual}
 import io.citrine.lolo.{Learner, Model}
 
 import scala.collection.parallel.immutable.ParSeq
@@ -19,6 +20,7 @@ import scala.collection.parallel.immutable.ParSeq
 class Bagger(
               method: Learner,
               var numBags: Int = -1,
+              val useJackknife: Boolean = true,
               biasLearner: Option[Learner] = None
             ) extends Learner {
 
@@ -64,14 +66,18 @@ class Bagger(
       method.train(trainingData.toVector, Some(Nib(i).zip(weightsActual).map(p => p._1.toDouble * p._2)))
     }
 
+    val importances: Array[Double] = models.map(base => base.asInstanceOf[hasFeatureImportance].getFeatureImportance()).reduce { (v1, v2) =>
+      v1.zip(v2).map(p => p._1 + p._2)
+    }.map(_ / models.size)
+
     /* Wrap the models in a BaggedModel object */
     if (biasLearner.isEmpty) {
-      new BaggedTrainingResult(models, Nib, trainingData)
+      new BaggedTrainingResult(models.map(_.getModel()), hypers, importances, Nib, trainingData, useJackknife)
     } else {
-      val baggedModel = new BaggedModel(models.map(_.getModel()), Nib)
+      val baggedModel = new BaggedModel(models.map(_.getModel()), Nib, useJackknife)
       val baggedRes = baggedModel.transform(trainingData.map(_._1))
       val biasTraining = trainingData.zip(
-        baggedRes.getExpected().zip(baggedRes.getUncertainty())
+        baggedRes.getExpected().zip(baggedRes.getUncertainty().get)
       ).map { case ((f, a), (p, u)) =>
         // Math.E is only statistically correct.  It should be actualBags / Nib.transpose(i).count(_ == 0)
         // Or, better yet, filter the bags that don't include the training example
@@ -79,25 +85,29 @@ class Bagger(
         (f, bias)
       }
       val biasModel = biasLearner.get.train(biasTraining).getModel()
-      new BaggedTrainingResult(models, Nib, trainingData, Some(biasModel))
+      new BaggedTrainingResult(models.map(_.getModel()), hypers, importances, Nib, trainingData, useJackknife, Some(biasModel))
     }
   }
 }
 
+@SerialVersionUID(999L)
 class BaggedTrainingResult(
-                            bases: ParSeq[TrainingResult],
+                            models: ParSeq[Model[PredictionResult[Any]]],
+                            hypers: Map[String, Any],
+                            featureImportance: Array[Double],
                             Nib: Vector[Vector[Int]],
                             trainingData: Seq[(Vector[Any], Any)],
+                            useJackknife: Boolean,
                             biasModel: Option[Model[PredictionResult[Any]]] = None
                           )
   extends TrainingResult with hasPredictedVsActual with hasLoss with hasFeatureImportance {
   lazy val NibT = Nib.transpose
-  lazy val model = new BaggedModel(bases.map(_.getModel()), Nib, biasModel)
+  lazy val model = new BaggedModel(models, Nib, useJackknife, biasModel)
   lazy val rep = trainingData.head._2
   lazy val predictedVsActual = trainingData.zip(NibT).map { case ((f, l), nb) =>
     val predicted = rep match {
-      case x: Double => bases.zip(nb).filter(_._2 == 0).map(_._1.getModel().transform(Seq(f)).getExpected().head.asInstanceOf[Double]).sum / nb.count(_ == 0)
-      case x: Any => bases.zip(nb).filter(_._2 == 0).map(_._1.getModel().transform(Seq(f)).getExpected().head).groupBy(identity).maxBy(_._2.size)._1
+      case x: Double => models.zip(nb).filter(_._2 == 0).map(_._1.transform(Seq(f)).getExpected().head.asInstanceOf[Double]).sum / nb.count(_ == 0)
+      case x: Any => models.zip(nb).filter(_._2 == 0).map(_._1.transform(Seq(f)).getExpected().head).groupBy(identity).maxBy(_._2.size)._1
     }
     (f, predicted, l)
   }
@@ -105,17 +115,8 @@ class BaggedTrainingResult(
   lazy val loss = rep match {
     case x: Double => Math.sqrt(predictedVsActual.map(d => Math.pow(d._2.asInstanceOf[Double] - d._3.asInstanceOf[Double], 2)).sum / predictedVsActual.size)
     case x: Any =>
-      val labels = predictedVsActual.map(_._3).distinct
-      val index = labels.zipWithIndex.toMap
-      val numLabels = labels.size
-      val confusionMatrix = DenseMatrix.zeros[Int](numLabels, numLabels)
-      predictedVsActual.foreach(p => confusionMatrix(index(p._2), index(p._3)) += 1)
-      val f1scores = labels.indices.map { i =>
-        val precision = confusionMatrix(i, i) / sum(confusionMatrix(i, ::)).toDouble
-        val recall = confusionMatrix(i, i) / sum(confusionMatrix(::, i)).toDouble
-        2.0 * precision * recall / (precision + recall) * sum(confusionMatrix(::, i)).toDouble / trainingData.size
-      }
-      f1scores.sum
+      val f1 = ClassificationMetrics.f1scores(predictedVsActual)
+      if (f1 > 0.0) 1.0 / f1 - 1.0 else Double.MaxValue
   }
 
   /**
@@ -123,18 +124,20 @@ class BaggedTrainingResult(
     *
     * @return feature importances as an array of doubles
     */
-  override def getFeatureImportance(): Array[Double] = {
-    val importances: Array[Double] = bases.map(base => base.asInstanceOf[hasFeatureImportance].getFeatureImportance()).reduce { (v1, v2) =>
-      v1.zip(v2).map(p => p._1 + p._2)
-    }
-    importances.map(_ / bases.size)
-  }
+  override def getFeatureImportance(): Array[Double] = featureImportance
 
   override def getModel(): BaggedModel = model
 
   override def getPredictedVsActual(): Seq[(Vector[Any], Any, Any)] = predictedVsActual
 
   override def getLoss(): Double = loss
+
+  /**
+    * Get the hyperparameters used to train this model
+    *
+    * @return hypers set for model
+    */
+  override def getHypers(): Map[String, Any] = hypers
 }
 
 /**
@@ -143,9 +146,11 @@ class BaggedTrainingResult(
   * @param models in this bagged model
   * @param Nib    training sample counts
   */
+@SerialVersionUID(1000L)
 class BaggedModel(
                    models: ParSeq[Model[PredictionResult[Any]]],
                    Nib: Vector[Vector[Int]],
+                   useJackknife: Boolean,
                    biasModel: Option[Model[PredictionResult[Any]]] = None
                  ) extends Model[BaggedResult] {
 
@@ -163,7 +168,7 @@ class BaggedModel(
     } else {
       None
     }
-    new BaggedResult(models.map(model => model.transform(inputs)).seq, Nib, bias)
+    new BaggedResult(models.map(model => model.transform(inputs)).seq, Nib, useJackknife, bias, inputs.head)
   }
 }
 
@@ -173,9 +178,16 @@ class BaggedModel(
   *
   * @param predictions for each constituent model
   * @param NibIn       the sample matrix as (N_models x N_training)
+  * @param bias        model to use for estimating bias
+  * @param repInput    representative input
   */
-class BaggedResult(predictions: Seq[PredictionResult[Any]], NibIn: Vector[Vector[Int]], bias: Option[Seq[Double]] = None) extends PredictionResult[Any]
-  with hasUncertainty with hasTrainingScores with hasGradient {
+class BaggedResult(
+                    predictions: Seq[PredictionResult[Any]],
+                    NibIn: Vector[Vector[Int]],
+                    useJackknife: Boolean,
+                    bias: Option[Seq[Double]] = None,
+                    repInput: Vector[Any]
+                  ) extends PredictionResult[Any] {
 
   /**
     * Return the ensemble average or maximum vote
@@ -189,14 +201,14 @@ class BaggedResult(predictions: Seq[PredictionResult[Any]], NibIn: Vector[Vector
     *
     * @return uncertainty of each prediction
     */
-  override def getUncertainty(): Seq[Any] = uncertainty
+  override def getUncertainty(): Option[Seq[Any]] = Some(uncertainty)
 
   /**
     * Return IJ scores
     *
     * @return training row scores of each prediction
     */
-  override def getScores(): Seq[Seq[Double]] = scores
+  override def getScores(): Option[Seq[Seq[Double]]] = Some(scores)
 
   /* Subtract off 1 to make correlations easier; transpose to be prediction-wise */
   lazy val Nib: Vector[Vector[Int]] = NibIn.transpose.map(_.map(_ - 1))
@@ -234,16 +246,19 @@ class BaggedResult(predictions: Seq[PredictionResult[Any]], NibIn: Vector[Vector
   /* Compute the uncertainties one prediction at a time */
   lazy val uncertainty = rep match {
     case x: Double =>
-      val sigma2: Seq[Double] = variance(expected.asInstanceOf[Seq[Double]].toVector, expectedMatrix.asInstanceOf[Seq[Seq[Double]]], NibJMat, NibIJMat)
+      val sigma2: Seq[Double] = if (useJackknife) {
+        variance(expected.asInstanceOf[Seq[Double]].toVector, expectedMatrix.asInstanceOf[Seq[Seq[Double]]], NibJMat, NibIJMat)
+      } else {
+        Seq.fill(expected.size)(0.0)
+      }
       sigma2.zip(bias.getOrElse(Seq.fill(expected.size)(0.0))).map(p => Math.sqrt(p._2 * p._2 + p._1))
     case x: Any => Seq.fill(expected.size)(1.0)
   }
 
   /* Compute the scores one prediction at a time */
   lazy val scores: Seq[Vector[Double]] = rep match {
-    case x: Double => expectedMatrix.zip(expected).map { case (treePredictions, meanPrediction) =>
-      scores(meanPrediction.asInstanceOf[Double], treePredictions.asInstanceOf[Seq[Double]], Nib)
-    }
+    case x: Double =>
+      scores(expected.asInstanceOf[Seq[Double]].toVector, expectedMatrix.asInstanceOf[Seq[Seq[Double]]], NibJMat, NibIJMat).map(_.map(Math.sqrt))
     case x: Any => Seq.fill(expected.size)(Vector.fill(Nib.size)(0.0))
   }
 
@@ -262,7 +277,25 @@ class BaggedResult(predictions: Seq[PredictionResult[Any]], NibIn: Vector[Vector
                 NibJ: DenseMatrix[Double],
                 NibIJ: DenseMatrix[Double]
               ): Seq[Double] = {
-    /* Stick the predictions in a breeze matrix */
+    scores(meanPrediction, modelPredictions, NibJ, NibIJ).map(_.sum)
+  }
+
+  /**
+    * Compute the IJ training row scores for a prediction
+    *
+    * @param meanPrediction   over the models
+    * @param modelPredictions prediction of each model
+    * @param NibJ             sampling matrix for the jackknife-after-bootstrap estimate
+    * @param NibIJ            sampling matrix for the infinitesimal jackknife estimate
+    * @return the score of each training row as a vector of doubles
+    */
+  def scores(
+                meanPrediction: Vector[Double],
+                modelPredictions: Seq[Seq[Double]],
+                NibJ: DenseMatrix[Double],
+                NibIJ: DenseMatrix[Double]
+              ): Seq[Vector[Double]] = {
+        /* Stick the predictions in a breeze matrix */
     val predMat = new DenseMatrix[Double](modelPredictions.head.size, modelPredictions.size, modelPredictions.flatten.toArray)
 
     /* These operations are pulled out of the loop and extra-verbose for performance */
@@ -285,25 +318,8 @@ class BaggedResult(predictions: Seq[PredictionResult[Any]], NibIn: Vector[Vector
       /* Impose a floor in case any of the variances are negative (hacked to work in breeze) */
       val floor: Double = Math.min(0, -min(variancePerRow))
       val rezero: DenseVector[Double] = variancePerRow - floor
-      0.5 * sum(rezero + abs(rezero)) + floor
-    }
-  }
-
-  /**
-    * Compute the IJ training row scores for a prediction
-    *
-    * @param meanPrediction   across the models
-    * @param modelPredictions predictions of each model
-    * @param Nib              sample matrix
-    * @return the score of each training row as a vector of doubles
-    */
-  def scores(meanPrediction: Double, modelPredictions: Seq[Double], Nib: Seq[Vector[Int]]): Vector[Double] = {
-    val diff = modelPredictions.map(_ - meanPrediction)
-
-    /* Compute the IJ score for each row */
-    Nib.map { v =>
-      Math.abs(v.zip(diff).map(p2 => p2._1 * p2._2).sum / modelPredictions.size)
-    }.toVector
+      0.5 * (rezero + abs(rezero)) + floor
+    }.map(_.toScalaVector())
   }
 
   /**
@@ -311,14 +327,15 @@ class BaggedResult(predictions: Seq[PredictionResult[Any]], NibIn: Vector[Vector
     *
     * @return a vector of doubles for each prediction
     */
-  override def getGradient(): Seq[Vector[Double]] = {
-    if (!predictions.head.isInstanceOf[hasGradient]) {
-      throw new UnsupportedOperationException("Requested graident when base learner has none")
+  override def getGradient(): Option[Seq[Vector[Double]]] = {
+    /* If the underlying model has no gradient, return 0 */
+    if (!predictions.head.getGradient().isDefined) {
+      return None
     }
-    val gradientsByPrediction: Seq[Seq[Vector[Double]]] = predictions.asInstanceOf[Seq[hasGradient]].map(_.getGradient())
+    val gradientsByPrediction: Seq[Seq[Vector[Double]]] = predictions.map(_.getGradient().get)
     val gradientsByInput: Seq[Seq[Vector[Double]]] = gradientsByPrediction.transpose
-    gradientsByInput.map { r =>
+    Some(gradientsByInput.map { r =>
       r.toVector.transpose.map(_.sum / predictions.size)
-    }
+    })
   }
 }

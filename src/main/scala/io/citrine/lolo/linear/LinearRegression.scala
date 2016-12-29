@@ -1,7 +1,7 @@
 package io.citrine.lolo.linear
 
-import breeze.linalg.{DenseMatrix, DenseVector, diag, inv, norm, pinv}
-import io.citrine.lolo.results.{PredictionResult, TrainingResult, hasGradient}
+import breeze.linalg.{DenseMatrix, DenseVector, diag, inv, norm, pinv, sum, trace}
+import io.citrine.lolo.results.{PredictionResult, TrainingResult}
 import io.citrine.lolo.{Learner, Model}
 
 /**
@@ -40,7 +40,6 @@ class LinearRegressionLearner(fitIntercept: Boolean = true) extends Learner {
       new DenseMatrix(indices.size, n, trainingData.map(r => indices.map(r._1(_).asInstanceOf[Double])).flatten.toArray)
     }
     val k = At.rows
-    assert(!At.toArray.toSeq.exists(_.isNaN), "There is a NaN in At")
 
     /* If the weights are specified, multiply At by them */
     val weightsMatrix = weights.map(w => diag(new DenseVector(w.toArray)))
@@ -50,29 +49,32 @@ class LinearRegressionLearner(fitIntercept: Boolean = true) extends Learner {
       At
     }
     val A = Atw.t
-    assert(!A.toArray.toSeq.exists(_.isNaN), "There is a NaN in A")
 
     val b = if (weightsMatrix.isDefined) {
       new DenseVector(trainingData.map(_._2.asInstanceOf[Double]).zip(weights.get).map(p => p._1 * p._2).toArray)
     } else {
       new DenseVector(trainingData.map(_._2.asInstanceOf[Double]).toArray)
     }
-    assert(!norm(b).isNaN, s"There is a NaN in b ${weightsMatrix.get.size} ${b.size}:\n ${trainingData.map(_._2)} \n ${weights.get}")
 
     val beta = if (hypers("regParam").asInstanceOf[Double] > 0 || n >= k) {
       /* Construct the regularized problem and solve it */
       val regVector = Math.pow(hypers("regParam").asInstanceOf[Double], 2) * DenseVector.ones[Double](k)
       if (fitIntercept) regVector(-1) = 0.0
       val M = At * A + diag(regVector)
-      assert(!M.toArray.toSeq.exists(_.isNaN), "There is a NaN in M")
-      val Mi = inv(M)
-      assert(!Mi.toArray.toSeq.exists(_.isNaN), "There is a NaN in Mi")
-      /* Backsub to get the coefficients */
-      Mi * At * b
+      try {
+        val Mi = inv(M)
+        /* Backsub to get the coefficients */
+        Mi * At * b
+      } catch {
+        case x: Throwable =>
+          val mean = if (weightsMatrix.isDefined) sum(b)/weights.get.sum else sum(b) / b.length
+          val res = DenseVector.zeros[Double](k)
+          res(-1) = mean
+          res
+      }
     } else {
       pinv(A) * b
     }
-    assert(!norm(beta).isNaN, "There is a NaN in beta")
 
     val indicesToModel = if (indices.size < trainingData.head._1.size) {
       Some(indices)
@@ -87,7 +89,7 @@ class LinearRegressionLearner(fitIntercept: Boolean = true) extends Learner {
       new LinearRegressionModel(beta, 0.0, indices = indicesToModel)
     }
 
-    new LinearRegressionTrainingResult(model)
+    new LinearRegressionTrainingResult(model, hypers)
   }
 }
 
@@ -96,7 +98,15 @@ class LinearRegressionLearner(fitIntercept: Boolean = true) extends Learner {
   *
   * @param model contained
   */
-class LinearRegressionTrainingResult(model: LinearRegressionModel) extends TrainingResult {
+@SerialVersionUID(999L)
+class LinearRegressionTrainingResult(model: LinearRegressionModel, hypers: Map[String, Any]) extends TrainingResult {
+  /**
+    * Get the hyperparameters used to train this model
+    *
+    * @return hypers set for model
+    */
+  override def getHypers(): Map[String, Any] = hypers
+
   override def getModel(): LinearRegressionModel = model
 }
 
@@ -107,6 +117,7 @@ class LinearRegressionTrainingResult(model: LinearRegressionModel) extends Train
   * @param intercept intercept
   * @param indices   optional indices from which to extract real features
   */
+@SerialVersionUID(1000L)
 class LinearRegressionModel(
                              beta: DenseVector[Double],
                              intercept: Double,
@@ -126,7 +137,6 @@ class LinearRegressionModel(
     )
     val resultVector = beta.t * inputMatrix + intercept
     val result = resultVector.t.toArray.toSeq
-    assert(!result.exists(_.isNaN), s"Result is NaN: ${result} \n${filteredInputs}\n${intercept} ${beta.toArray.toVector}")
     val grad = indices.map { inds =>
       val empty = DenseVector.zeros[Double](inputs.head.size)
       inds.zipWithIndex.foreach { case (j, i) => empty(j) = beta(i) }
@@ -142,7 +152,7 @@ class LinearRegressionModel(
   * @param values computed from the model
   * @param grad   gradient vector, which are just the linear coefficients
   */
-class LinearRegressionResult(values: Seq[Double], grad: Vector[Double]) extends PredictionResult[Double] with hasGradient {
+class LinearRegressionResult(values: Seq[Double], grad: Vector[Double]) extends PredictionResult[Double] {
   /**
     * Get the expected values for this prediction
     *
@@ -155,5 +165,5 @@ class LinearRegressionResult(values: Seq[Double], grad: Vector[Double]) extends 
     *
     * @return a vector of doubles for each prediction
     */
-  override def getGradient(): Seq[Vector[Double]] = Seq.fill(values.size)(grad)
+  override def getGradient(): Option[Seq[Vector[Double]]] = Some(Seq.fill(values.size)(grad))
 }

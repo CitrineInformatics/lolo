@@ -21,9 +21,14 @@ class RegressionTreeTest {
     val trainingData = csv.map(vec => (vec.init, vec.last.asInstanceOf[Double]))
     val DTLearner = new RegressionTreeLearner()
     val DT = DTLearner.train(trainingData).getModel()
-    trainingData.foreach { case (x, y) =>
-      assert(Math.abs(y - DT.transform(Seq(x)).getExpected().head) < 1.0e-9)
+
+    /* We should be able to memorize the inputs */
+    val output = DT.transform(trainingData.map(_._1))
+    trainingData.zip(output.getExpected()).foreach { case ((x, a), p) =>
+      assert(Math.abs(a - p) < 1.0e-9)
     }
+    assert(output.getGradient().isEmpty)
+    assert(output.getDepth().forall(d => d > 3 && d < 9))
   }
 
   /**
@@ -44,14 +49,18 @@ class RegressionTreeTest {
     println(s"Training large case took ${duration / N} s")
 
     /* We should be able to memorize the inputs */
-    trainingData.foreach { case (x, y) =>
-      assert(Math.abs(y - DT.transform(Seq(x)).getExpected().head) < 1.0e-9)
+    val output = DT.transform(trainingData.map(_._1))
+    trainingData.zip(output.getExpected()).foreach { case ((x, a), p) =>
+      assert(Math.abs(a - p) < 1.0e-9)
     }
+    assert(output.getGradient().isEmpty)
+    assert(output.getDepth().forall(d => d > 5 && d < 18))
 
     /* The first feature should be the most important */
     val importances = DTMeta.getFeatureImportance()
     println(importances.toList)
     assert(importances(0) == importances.max)
+
     val tmpFile: File = File.createTempFile("tmp", ".csv")
     val oos = new ObjectOutputStream(new FileOutputStream(tmpFile))
     oos.writeObject(DT)
@@ -75,9 +84,12 @@ class RegressionTreeTest {
     println(s"Training large case took ${duration / N} s")
 
     /* We should be able to memorize the inputs */
-    trainingData.foreach { case (x, y) =>
-      assert(Math.abs(y - DT.transform(Seq(x)).getExpected().head) < 1.0e-9)
+    val output = DT.transform(trainingData.map(_._1))
+    trainingData.zip(output.getExpected()).foreach { case ((x, a), p) =>
+      assert(Math.abs(a - p) < 1.0e-9)
     }
+    assert(output.getGradient().isEmpty)
+    assert(output.getDepth().forall(d => d > 5 && d < 20))
 
     /* The first feature should be the most important */
     val importances = DTMeta.getFeatureImportance()
@@ -100,9 +112,12 @@ class RegressionTreeTest {
     val DT = DTMeta.getModel()
 
     /* We should be able to memorize the inputs */
-    trainingData.foreach { case (x, y) =>
-      assert(Math.abs(y - DT.transform(Seq(x)).getExpected().head) < 1.0e-9)
+    val output = DT.transform(trainingData.map(_._1))
+    trainingData.zip(output.getExpected()).foreach { case ((x, a), p) =>
+      assert(Math.abs(a - p) < 1.0e-9)
     }
+    assert(output.getGradient().isDefined)
+    assert(output.getDepth().forall(d => d > 4 && d < 18))
 
     /* The first feature should be the most important */
     val importances = DTMeta.getFeatureImportance()
@@ -122,8 +137,8 @@ object RegressionTreeTest {
     * @param argv args
     */
   def main(argv: Array[String]): Unit = {
-    new RegressionTreeTest().testSimpleTree()
-    new RegressionTreeTest().longerTest()
+    // new RegressionTreeTest().testSimpleTree()
+    // new RegressionTreeTest().longerTest()
     new RegressionTreeTest().testCategorical()
     new RegressionTreeTest().testLinearLeaves()
   }

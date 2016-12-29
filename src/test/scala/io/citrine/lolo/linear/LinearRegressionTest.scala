@@ -35,7 +35,7 @@ class LinearRegressionTest {
     val model = lrm.getModel()
     val output = model.transform(trainingData.map(_._1))
     val predicted = output.getExpected()
-    val beta = output.getGradient().head
+    val beta = output.getGradient().get.head
 
     assert(norm(new DenseVector(beta.toArray) - beta0) < 1.0e-9, "Coefficients are inaccurate")
     assert(norm(new DenseVector(predicted.toArray) - result) < 1.0e-9, "Predictions are inaccurate")
@@ -58,7 +58,7 @@ class LinearRegressionTest {
     val model = lrm.getModel()
     val output = model.transform(trainingData.map(_._1))
     val predicted = output.getExpected()
-    val beta = output.getGradient().head
+    val beta = output.getGradient().get.head
 
     assert(norm(new DenseVector(beta.toArray) - beta0) < 1.0e-9, "Coefficients are inaccurate")
     assert(norm(new DenseVector(predicted.toArray) - result) < 1.0e-9, "Predictions are inaccurate")
@@ -81,7 +81,7 @@ class LinearRegressionTest {
     val model = lrm.getModel()
     val output = model.transform(trainingData.map(_._1))
     val predicted = output.getExpected()
-    val beta = output.getGradient().head
+    val beta = output.getGradient().get.head
 
     assert(norm(new DenseVector(beta.toArray) - beta0) < 1.0e-9, "Coefficients are inaccurate")
     assert(norm(new DenseVector(predicted.toArray) - result) < 1.0e-9, "Predictions are inaccurate")
@@ -133,7 +133,7 @@ class LinearRegressionTest {
     val model = lrm.getModel()
     val output = model.transform(trainingData.map(_._1))
     val predicted = output.getExpected()
-    val beta = output.getGradient().head
+    val beta = output.getGradient().get.head
 
     assert(norm(new DenseVector(beta.toArray)(1 to -2) - beta0) < 1.0e-9, "Coefficients are inaccurate")
     assert(beta.head == 0.0, "Non-zero graident given to leading categorical feature")
