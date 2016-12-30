@@ -19,8 +19,8 @@ class BaggerTest {
     val csv = TestUtils.readCsv("large_example_with_cat.csv")
     val trainingData = csv.map(vec => (vec.init, vec.last.asInstanceOf[Double]))
     val DTLearner = new RegressionTreeLearner()
-    val baggedLearner = new Bagger(DTLearner, numBags = trainingData.size / 2)
-    val N = 16
+    val baggedLearner = new Bagger(DTLearner, numBags = trainingData.size)
+    val N = 8
     val RFMeta = baggedLearner.train(trainingData)
     val RF = RFMeta.getModel()
     val start = System.nanoTime()
@@ -28,8 +28,8 @@ class BaggerTest {
       val RF = baggedLearner.train(trainingData).getModel()
       val uncertainty = RF.transform(trainingData.map(_._1)).getUncertainty().get.asInstanceOf[Seq[Double]]
       val maxUn = uncertainty.max
-      assert(maxUn > 1.1)
-      assert(maxUn < 1.3)
+      assert(maxUn > 1.0)
+      assert(maxUn < 1.1)
     }
     val duration = (System.nanoTime() - start) / 1.0e9
 
