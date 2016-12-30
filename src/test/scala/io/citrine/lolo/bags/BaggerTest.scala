@@ -19,15 +19,21 @@ class BaggerTest {
     val csv = TestUtils.readCsv("large_example_with_cat.csv")
     val trainingData = csv.map(vec => (vec.init, vec.last.asInstanceOf[Double]))
     val DTLearner = new RegressionTreeLearner()
-    val baggedLearner = new Bagger(DTLearner, numBags = trainingData.size / 2)
-    val N = 0
-    val start = System.nanoTime()
+    val baggedLearner = new Bagger(DTLearner, numBags = trainingData.size)
+    val N = 8
     val RFMeta = baggedLearner.train(trainingData)
     val RF = RFMeta.getModel()
-    (0 until N).map(i => baggedLearner.train(trainingData))
+    val start = System.nanoTime()
+    (0 until N).foreach { i =>
+      val RF = baggedLearner.train(trainingData).getModel()
+      val uncertainty = RF.transform(trainingData.map(_._1)).getUncertainty().get.asInstanceOf[Seq[Double]]
+      val maxUn = uncertainty.max
+      assert(maxUn > 1.0)
+      assert(maxUn < 1.1)
+    }
     val duration = (System.nanoTime() - start) / 1.0e9
 
-    println(s"Training large case took ${duration / (N + 1)} s")
+    println(s"Training large case took ${duration / (N)} s")
 
     val results = RF.transform(trainingData.map(_._1))
     val means = results.getExpected()
@@ -93,6 +99,7 @@ class BaggerTest {
       "One of the training corners didn't have the highest score"
     )
   }
+
 }
 
 /**
@@ -107,5 +114,6 @@ object BaggerTest {
   def main(argv: Array[String]): Unit = {
     new BaggerTest().testRegressionBagger()
     // new BaggerTest().testScores()
+    // new BaggerTest().benchmark()
   }
 }
