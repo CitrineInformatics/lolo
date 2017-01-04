@@ -71,8 +71,11 @@ class BaggerTest {
 
     val uncertainty = results.getUncertainty()
     assert(uncertainty.isDefined)
-    assert(trainingData.map(_._2).zip(uncertainty.get).forall{ case (a, probs) => probs.asInstanceOf[Map[Any, Double]](a) > 0.6})
-    assert(trainingData.map(_._2).zip(uncertainty.get).forall{ case (a, probs) => probs.asInstanceOf[Map[Any, Double]](a) < 1.0})
+    assert(trainingData.map(_._2).zip(uncertainty.get).forall{ case (a, probs) =>
+      val classProbabilities = probs.asInstanceOf[Map[Any, Double]]
+      val maxProb = classProbabilities(a)
+      maxProb > 0.6 && maxProb < 1.0 && Math.abs(classProbabilities.values.sum - 1.0) < 1.0e-6
+    })
 
     assert(results.getGradient().isEmpty, "Returned a gradient when there shouldn't be one")
 
