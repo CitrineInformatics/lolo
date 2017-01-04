@@ -29,7 +29,7 @@ class BaggerTest {
       val uncertainty = RF.transform(trainingData.map(_._1)).getUncertainty().get.asInstanceOf[Seq[Double]]
       val maxUn = uncertainty.max
       assert(maxUn > 1.0)
-      assert(maxUn < 1.1)
+      assert(maxUn < 1.2)
     }
     val duration = (System.nanoTime() - start) / 1.0e9
 
@@ -62,12 +62,22 @@ class BaggerTest {
     val RF = RFMeta.getModel()
     (0 until N).map(i => baggedLearner.train(trainingData))
     val duration = (System.nanoTime() - start) / 1.0e9
-
     println(s"Training classification forest took ${duration / (N + 1)} s")
 
+    /* Inspect the results */
     val results = RF.transform(trainingData.map(_._1))
-    val means = results.getExpected()
-    assert(results.getGradient().isEmpty, "Returned a graident when there shouldn't be one")
+    val means       = results.getExpected()
+    assert(trainingData.map(_._2).zip(means).forall{ case (a, p) => a == p})
+
+    val uncertainty = results.getUncertainty()
+    assert(uncertainty.isDefined)
+    assert(trainingData.map(_._2).zip(uncertainty.get).forall{ case (a, probs) =>
+      val classProbabilities = probs.asInstanceOf[Map[Any, Double]]
+      val maxProb = classProbabilities(a)
+      maxProb > 0.5 && maxProb < 1.0 && Math.abs(classProbabilities.values.sum - 1.0) < 1.0e-6
+    })
+
+    assert(results.getGradient().isEmpty, "Returned a gradient when there shouldn't be one")
 
     /* The first feature should be the most important */
     val importances = RFMeta.getFeatureImportance()
@@ -112,8 +122,7 @@ object BaggerTest {
     * @param argv args
     */
   def main(argv: Array[String]): Unit = {
-    new BaggerTest().testRegressionBagger()
-    // new BaggerTest().testScores()
-    // new BaggerTest().benchmark()
+    new BaggerTest()
+      .testClassificationBagger()
   }
 }
