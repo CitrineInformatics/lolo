@@ -266,7 +266,8 @@ class BaggedResult(
         Seq.fill(expected.size)(0.0)
       }
       sigma2.zip(bias.getOrElse(Seq.fill(expected.size)(0.0))).map(p => Math.sqrt(p._2 * p._2 + p._1))
-    case x: Any => Seq.fill(expected.size)(1.0)
+    case x: Any =>
+      expectedMatrix.map(ps => ps.groupBy(identity).mapValues(_.size.toDouble / ps.size))
   }
 
   /* Compute the scores one prediction at a time */
