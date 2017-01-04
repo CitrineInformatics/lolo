@@ -29,7 +29,7 @@ class BaggerTest {
       val uncertainty = RF.transform(trainingData.map(_._1)).getUncertainty().get.asInstanceOf[Seq[Double]]
       val maxUn = uncertainty.max
       assert(maxUn > 1.0)
-      assert(maxUn < 1.1)
+      assert(maxUn < 1.2)
     }
     val duration = (System.nanoTime() - start) / 1.0e9
 
@@ -74,7 +74,7 @@ class BaggerTest {
     assert(trainingData.map(_._2).zip(uncertainty.get).forall{ case (a, probs) =>
       val classProbabilities = probs.asInstanceOf[Map[Any, Double]]
       val maxProb = classProbabilities(a)
-      maxProb > 0.6 && maxProb < 1.0 && Math.abs(classProbabilities.values.sum - 1.0) < 1.0e-6
+      maxProb > 0.5 && maxProb < 1.0 && Math.abs(classProbabilities.values.sum - 1.0) < 1.0e-6
     })
 
     assert(results.getGradient().isEmpty, "Returned a gradient when there shouldn't be one")
