@@ -28,8 +28,8 @@ class BaggerTest {
       val RF = baggedLearner.train(trainingData).getModel()
       val uncertainty = RF.transform(trainingData.map(_._1)).getUncertainty().get.asInstanceOf[Seq[Double]]
       val maxUn = uncertainty.max
-      assert(maxUn > 1.0)
-      assert(maxUn < 1.2)
+      assert(maxUn > 0.9)
+      assert(maxUn < 1.05)
     }
     val duration = (System.nanoTime() - start) / 1.0e9
 
@@ -123,6 +123,6 @@ object BaggerTest {
     */
   def main(argv: Array[String]): Unit = {
     new BaggerTest()
-      .testClassificationBagger()
+      .testRegressionBagger()
   }
 }
