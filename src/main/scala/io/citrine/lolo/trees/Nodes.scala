@@ -1,6 +1,6 @@
 package io.citrine.lolo.trees
 
-import io.citrine.lolo.results.PredictionResult
+import io.citrine.lolo.PredictionResult
 import io.citrine.lolo.trees.splits.Split
 
 /**

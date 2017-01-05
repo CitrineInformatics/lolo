@@ -1,6 +1,4 @@
-package io.citrine.lolo.results
-
-import io.citrine.lolo.Model
+package io.citrine.lolo
 
 /**
   * Created by maxhutch on 12/4/16.
