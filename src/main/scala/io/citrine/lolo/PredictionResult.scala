@@ -1,4 +1,4 @@
-package io.citrine.lolo.results
+package io.citrine.lolo
 
 /**
   * Container for prediction results; must include expected values

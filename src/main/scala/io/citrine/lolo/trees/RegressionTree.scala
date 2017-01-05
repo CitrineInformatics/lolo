@@ -2,9 +2,9 @@ package io.citrine.lolo.trees
 
 import io.citrine.lolo.encoders.CategoricalEncoder
 import io.citrine.lolo.linear.GuessTheMeanLearner
-import io.citrine.lolo.results.{PredictionResult, TrainingResult, hasFeatureImportance}
+import io.citrine.lolo.results.hasFeatureImportance
 import io.citrine.lolo.trees.splits.{NoSplit, RegressionSplitter, Split}
-import io.citrine.lolo.{Learner, Model}
+import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult, hasFeatureImportance}
 
 /**
   * Learner for regression trees

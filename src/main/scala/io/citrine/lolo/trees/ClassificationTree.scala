@@ -1,9 +1,9 @@
 package io.citrine.lolo.trees
 
 import io.citrine.lolo.encoders.CategoricalEncoder
-import io.citrine.lolo.results.{MultiResult, PredictionResult, TrainingResult, hasFeatureImportance}
+import io.citrine.lolo.results.{MultiResult, hasFeatureImportance}
 import io.citrine.lolo.trees.splits.{ClassificationSplitter, NoSplit, Split}
-import io.citrine.lolo.{Learner, Model}
+import io.citrine.lolo.{Learner, Model, MultiResult, PredictionResult, TrainingResult, hasFeatureImportance}
 
 /**
   * Created by maxhutch on 12/2/16.
