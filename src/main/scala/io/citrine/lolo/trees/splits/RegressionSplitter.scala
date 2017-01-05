@@ -120,6 +120,12 @@ object RegressionSplitter {
     /* Group the data by categorical feature and compute the weighted sum and sum of the weights for each */
     val groupedData = thinData.groupBy(_._1).mapValues(g => (g.map(v => v._2 * v._3).sum, g.map(_._3).sum, g.size))
 
+    /* Make sure there is more than one member for most of the classes */
+    val nonTrivial: Double = groupedData.filter(_._2._3 > 1).map(_._2._2).sum
+    if (nonTrivial / totalWeight < 0.5) {
+      return (new CategoricalSplit(index, Set.empty[Char]), Double.MaxValue)
+    }
+
     /* Compute the average label for each categorical value */
     val categoryAverages: Map[Char, Double] = groupedData.mapValues(p => p._1 / p._2)
 
