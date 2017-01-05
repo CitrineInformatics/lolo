@@ -17,29 +17,23 @@ abstract trait TrainingResult extends Serializable {
     * @return hypers set for model
     */
   def getHypers(): Map[String, Any]
-}
 
-abstract trait hasFeatureImportance {
   /**
     * Get a measure of the importance of the model features
     *
     * @return feature influences as an array of doubles
     */
-  def getFeatureImportance(): Array[Double]
-}
+  def getFeatureImportance(): Option[Vector[Double]] = None
 
-abstract trait hasLoss {
   /**
     * Get a measure of the loss of the model, e.g. RMS OOB error
     * @return
     */
-  def getLoss(): Double
-}
+  def getLoss(): Option[Double] = None
 
-abstract trait hasPredictedVsActual {
   /**
     * Get the predicted vs actual values, e.g. from OOB
     * @return seq of (feature vector, predicted value, and actual value)
     */
-  def getPredictedVsActual(): Seq[(Vector[Any], Any, Any)]
+  def getPredictedVsActual(): Option[Seq[(Vector[Any], Any, Any)]] = None
 }

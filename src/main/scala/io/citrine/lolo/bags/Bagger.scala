@@ -1,11 +1,10 @@
 package io.citrine.lolo.bags
 
-import breeze.linalg.{DenseMatrix, DenseVector, min, norm, sum}
+import breeze.linalg.{DenseMatrix, DenseVector, min, norm}
 import breeze.numerics.abs
 import breeze.stats.distributions.Poisson
 import io.citrine.lolo.stats.metrics.ClassificationMetrics
-import io.citrine.lolo.results.{hasFeatureImportance, hasLoss, hasPredictedVsActual}
-import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult, hasFeatureImportance, hasLoss, hasPredictedVsActual}
+import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
 
 import scala.collection.parallel.immutable.ParSeq
 
@@ -66,9 +65,14 @@ class Bagger(
       method.train(trainingData.toVector, Some(Nib(i).zip(weightsActual).map(p => p._1.toDouble * p._2)))
     }
 
-    val importances: Array[Double] = models.map(base => base.asInstanceOf[hasFeatureImportance].getFeatureImportance()).reduce { (v1, v2) =>
-      v1.zip(v2).map(p => p._1 + p._2)
-    }.map(_ / models.size)
+    /* Extract the feature importances so the base meta-data can be garbage collected */
+    val importances: Option[Vector[Double]] = models.head.getFeatureImportance() match {
+      case Some(x) =>
+        Some(models.map(base => base.getFeatureImportance().get).reduce { (v1, v2) =>
+          v1.zip(v2).map(p => p._1 + p._2)
+        }.map(_ / models.size))
+      case None => None
+    }
 
     /* Wrap the models in a BaggedModel object */
     if (biasLearner.isEmpty) {
@@ -94,13 +98,13 @@ class Bagger(
 class BaggedTrainingResult(
                             models: ParSeq[Model[PredictionResult[Any]]],
                             hypers: Map[String, Any],
-                            featureImportance: Array[Double],
+                            featureImportance: Option[Vector[Double]],
                             Nib: Vector[Vector[Int]],
                             trainingData: Seq[(Vector[Any], Any)],
                             useJackknife: Boolean,
                             biasModel: Option[Model[PredictionResult[Any]]] = None
                           )
-  extends TrainingResult with hasPredictedVsActual with hasLoss with hasFeatureImportance {
+  extends TrainingResult {
   lazy val NibT = Nib.transpose
   lazy val model = new BaggedModel(models, Nib, useJackknife, biasModel)
   lazy val rep = trainingData.head._2
@@ -124,13 +128,13 @@ class BaggedTrainingResult(
     *
     * @return feature influences as an array of doubles
     */
-  override def getFeatureImportance(): Array[Double] = featureImportance
+  override def getFeatureImportance(): Option[Vector[Double]] = featureImportance
 
   override def getModel(): BaggedModel = model
 
-  override def getPredictedVsActual(): Seq[(Vector[Any], Any, Any)] = predictedVsActual
+  override def getPredictedVsActual(): Option[Seq[(Vector[Any], Any, Any)]] = Some(predictedVsActual)
 
-  override def getLoss(): Double = loss
+  override def getLoss(): Option[Double] = Some(loss)
 
   /**
     * Get the hyperparameters used to train this model
@@ -305,12 +309,12 @@ class BaggedResult(
     * @return the score of each training row as a vector of doubles
     */
   def scores(
-                meanPrediction: Vector[Double],
-                modelPredictions: Seq[Seq[Double]],
-                NibJ: DenseMatrix[Double],
-                NibIJ: DenseMatrix[Double]
-              ): Seq[Vector[Double]] = {
-        /* Stick the predictions in a breeze matrix */
+              meanPrediction: Vector[Double],
+              modelPredictions: Seq[Seq[Double]],
+              NibJ: DenseMatrix[Double],
+              NibIJ: DenseMatrix[Double]
+            ): Seq[Vector[Double]] = {
+    /* Stick the predictions in a breeze matrix */
     val predMat = new DenseMatrix[Double](modelPredictions.head.size, modelPredictions.size, modelPredictions.flatten.toArray)
 
     /* These operations are pulled out of the loop and extra-verbose for performance */
@@ -323,12 +327,12 @@ class BaggedResult(
     /* Avoid division in the loop */
     val inverseSize = 1.0 / modelPredictions.head.size
 
-    (0 until modelPredictions.size).map{ i =>
+    (0 until modelPredictions.size).map { i =>
       /* Compute the first order bias correction for the variance estimators */
       val correction = Math.pow(inverseSize * norm(predMat(::, i) - meanPrediction(i)), 2)
 
       /* The correction is prediction dependent, so we need to operate on vectors */
-      val variancePerRow: DenseVector[Double] = 0.5 * ( arg(::, i) - Math.E * correction)
+      val variancePerRow: DenseVector[Double] = 0.5 * (arg(::, i) - Math.E * correction)
 
       /* Impose a floor in case any of the variances are negative (hacked to work in breeze) */
       val floor: Double = Math.min(0, -min(variancePerRow))
@@ -337,7 +341,7 @@ class BaggedResult(
     }.map(_.toScalaVector())
   }
 
-    /**
+  /**
     * Compute the IJ training row scores for a prediction
     *
     * @param meanPrediction   over the models
@@ -347,13 +351,13 @@ class BaggedResult(
     * @return the score of each training row as a vector of doubles
     */
   def influences(
-                meanPrediction: Vector[Double],
-                actualPrediction: Vector[Double],
-                modelPredictions: Seq[Seq[Double]],
-                NibJ: DenseMatrix[Double],
-                NibIJ: DenseMatrix[Double]
-              ): Seq[Vector[Double]] = {
-        /* Stick the predictions in a breeze matrix */
+                  meanPrediction: Vector[Double],
+                  actualPrediction: Vector[Double],
+                  modelPredictions: Seq[Seq[Double]],
+                  NibJ: DenseMatrix[Double],
+                  NibIJ: DenseMatrix[Double]
+                ): Seq[Vector[Double]] = {
+    /* Stick the predictions in a breeze matrix */
     val predMat = new DenseMatrix[Double](modelPredictions.head.size, modelPredictions.size, modelPredictions.flatten.toArray)
 
     /* These operations are pulled out of the loop and extra-verbose for performance */
@@ -364,12 +368,12 @@ class BaggedResult(
     /* Avoid division in the loop */
     val inverseSize = 1.0 / modelPredictions.head.size
 
-    (0 until modelPredictions.size).map{ i =>
+    (0 until modelPredictions.size).map { i =>
       /* Compute the first order bias correction for the variance estimators */
       val correction = 0.0 // inverseSize * norm(predMat(::, i) - meanPrediction(i))
 
       /* The correction is prediction dependent, so we need to operate on vectors */
-      val influencePerRow: DenseVector[Double] = Math.signum(actualPrediction(i) - meanPrediction(i)) * 0.5 * ( arg(::, i) - Math.E * correction)
+      val influencePerRow: DenseVector[Double] = Math.signum(actualPrediction(i) - meanPrediction(i)) * 0.5 * (arg(::, i) - Math.E * correction)
 
       /* Impose a floor in case any of the variances are negative (hacked to work in breeze) */
       // val floor: Double = Math.min(0, -min(variancePerRow))
