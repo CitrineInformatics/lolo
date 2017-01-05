@@ -3,7 +3,7 @@ package io.citrine.lolo.bags
 import breeze.linalg.{DenseMatrix, DenseVector, min, norm, sum}
 import breeze.numerics.abs
 import breeze.stats.distributions.Poisson
-import io.citrine.lolo.metrics.ClassificationMetrics
+import io.citrine.lolo.stats.metrics.ClassificationMetrics
 import io.citrine.lolo.results.{PredictionResult, TrainingResult, hasFeatureImportance, hasLoss, hasPredictedVsActual}
 import io.citrine.lolo.{Learner, Model}
 
