@@ -1,7 +1,6 @@
 package io.citrine.lolo.hypers
 
-import io.citrine.lolo.{Learner, TrainingResult, hasLoss}
-import io.citrine.lolo.results.hasLoss
+import io.citrine.lolo.Learner
 
 /**
   * Brute force search over the grid of hypers
@@ -38,11 +37,11 @@ class GridHyperOptimizer(base: Learner) extends HyperOptimizer(base) {
 
       /* Set up a learner with these parameters and compute the loss */
       val testLearner = base.setHypers(testHypers)
-      val res = testLearner.train(trainingData).asInstanceOf[TrainingResult with hasLoss]
+      val res = testLearner.train(trainingData)
       /* Save if it is an improvement */
-      if (res.getLoss() < loss) {
+      if (res.getLoss().get < loss) {
         best = testHypers
-        loss = res.getLoss()
+        loss = res.getLoss().get
         println(s"Improved the loss to ${loss} with ${best}")
       }
     }

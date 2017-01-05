@@ -3,7 +3,7 @@ package io.citrine.lolo
 /**
   * Created by maxhutch on 11/14/16.
   */
-abstract class Learner extends Serializable {
+trait Learner extends Serializable {
 
   def setHypers(moreHypers: Map[String, Any]): this.type = {
     hypers = hypers ++ moreHypers

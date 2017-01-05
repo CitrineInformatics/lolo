@@ -57,8 +57,7 @@ class RegressionTreeTest {
     assert(output.getDepth().forall(d => d > 5 && d < 18))
 
     /* The first feature should be the most important */
-    val importances = DTMeta.getFeatureImportance()
-    println(importances.toList)
+    val importances = DTMeta.getFeatureImportance().get
     assert(importances(0) == importances.max)
 
     val tmpFile: File = File.createTempFile("tmp", ".csv")
@@ -92,7 +91,7 @@ class RegressionTreeTest {
     assert(output.getDepth().forall(d => d > 5 && d < 20))
 
     /* The first feature should be the most important */
-    val importances = DTMeta.getFeatureImportance()
+    val importances = DTMeta.getFeatureImportance().get
     assert(importances(0) == importances.max)
         val tmpFile: File = File.createTempFile("tmp", ".csv")
     val oos = new ObjectOutputStream(new FileOutputStream(tmpFile))
@@ -120,7 +119,7 @@ class RegressionTreeTest {
     assert(output.getDepth().forall(d => d > 4 && d < 18))
 
     /* The first feature should be the most important */
-    val importances = DTMeta.getFeatureImportance()
+    val importances = DTMeta.getFeatureImportance().get
     assert(importances(0) == importances.max)
 
     val tmpFile: File = File.createTempFile("tmp", ".csv")
