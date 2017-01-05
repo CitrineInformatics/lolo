@@ -3,6 +3,7 @@ package io.citrine.lolo.trees
 import java.io.{File, FileOutputStream, ObjectOutputStream}
 
 import io.citrine.lolo.TestUtils
+import io.citrine.lolo.stats.functions.Friedman
 import org.junit.Test
 
 /**
@@ -16,8 +17,10 @@ class ClassificationTreeTest {
     */
   @Test
   def longerTest(): Unit = {
-    val csv = TestUtils.readCsv("class_example.csv")
-    val trainingData = csv.map(vec => (vec.init, vec.last))
+    val trainingData = TestUtils.binTrainingData(
+      TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman),
+      responseBins = Some(16)
+    )
     val DTLearner = new ClassificationTreeLearner()
     val N = 100
     val start = System.nanoTime()
@@ -31,14 +34,16 @@ class ClassificationTreeTest {
     /* We should be able to memorize the inputs */
     val output = DT.transform(trainingData.map(_._1))
     trainingData.zip(output.getExpected()).foreach { case ((x, a), p) =>
-      assert(a == p)
+      assert(a == p, s"${a} != ${p} for ${x}")
     }
     assert(output.getGradient().isEmpty)
     assert(output.getDepth().forall(d => d > 4 && d < 17))
 
     /* The first feature should be the most important */
     val importances = DTMeta.getFeatureImportance().get
-    assert(importances(0) == importances.max)
+    assert(importances.slice(0, 5).min > importances.slice(5, importances.size).max)
+
+    /* Test serialization */
     val tmpFile: File = File.createTempFile("tmp", ".csv")
     val oos = new ObjectOutputStream(new FileOutputStream(tmpFile))
     oos.writeObject(DT)
@@ -49,8 +54,10 @@ class ClassificationTreeTest {
     */
   @Test
   def testCategorical(): Unit = {
-    val csv = TestUtils.readCsv("class_example_with_cat.csv")
-    val trainingData = csv.map(vec => (vec.init, vec.last))
+    val trainingData = TestUtils.binTrainingData(
+      TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman),
+      inputBins = Seq((0, 8)), responseBins = Some(16)
+    )
     val DTLearner = new ClassificationTreeLearner()
     val N = 100
     val start = System.nanoTime()
@@ -66,7 +73,7 @@ class ClassificationTreeTest {
       assert(a == p)
     }
     assert(output.getGradient().isEmpty)
-    assert(output.getDepth().forall(d => d > 4 && d < 16))
+    output.getDepth().foreach(d => assert(d > 3 && d < 18, s"Depth is ${d}"))
   }
 }
 
