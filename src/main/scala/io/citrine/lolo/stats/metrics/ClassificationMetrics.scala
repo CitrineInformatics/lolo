@@ -1,4 +1,4 @@
-package io.citrine.lolo.metrics
+package io.citrine.lolo.stats.metrics
 
 import breeze.linalg.{DenseMatrix, sum}
 
