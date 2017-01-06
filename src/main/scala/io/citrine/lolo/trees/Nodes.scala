@@ -1,7 +1,9 @@
 package io.citrine.lolo.trees
 
-import io.citrine.lolo.results.PredictionResult
+import io.citrine.lolo.PredictionResult
 import io.citrine.lolo.trees.splits.Split
+
+import scala.collection.mutable
 
 /**
   * Class to provide getNode interface for internal and leaf training nodes
@@ -28,7 +30,7 @@ abstract class TrainingNode[T <: AnyVal, S](
     *
     * @return feature importance as a vector
     */
-  def getFeatureImportance(): Array[Double]
+  def getFeatureImportance(): mutable.ArraySeq[Double]
 }
 
 trait ModelNode[T <: PredictionResult[Any]] extends Serializable {
@@ -45,10 +47,10 @@ trait ModelNode[T <: PredictionResult[Any]] extends Serializable {
   */
 @SerialVersionUID(999L)
 class InternalModelNode[T <: PredictionResult[Any]](
-                                         split: Split,
-                                         left: ModelNode[T],
-                                         right: ModelNode[T]
-                                       ) extends ModelNode[T] {
+                                                     split: Split,
+                                                     left: ModelNode[T],
+                                                     right: ModelNode[T]
+                                                   ) extends ModelNode[T] {
   /**
     * Just propagate the prediction call through the appropriate child
     *

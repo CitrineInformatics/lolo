@@ -43,7 +43,7 @@ class BaggerTest {
     assert(results.getGradient().isEmpty, "Returned a graident when there shouldn't be one")
 
     /* The first feature should be the most important */
-    val importances = RFMeta.getFeatureImportance()
+    val importances = RFMeta.getFeatureImportance().get
     assert(importances(0) == importances.max)
   }
 
@@ -80,7 +80,7 @@ class BaggerTest {
     assert(results.getGradient().isEmpty, "Returned a gradient when there shouldn't be one")
 
     /* The first feature should be the most important */
-    val importances = RFMeta.getFeatureImportance()
+    val importances = RFMeta.getFeatureImportance().get
     assert(importances(0) == importances.max)
   }
 

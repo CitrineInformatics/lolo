@@ -1,4 +1,4 @@
-package io.citrine.lolo.metrics
+package io.citrine.lolo.stats.metrics
 
 import org.junit.Test
 
