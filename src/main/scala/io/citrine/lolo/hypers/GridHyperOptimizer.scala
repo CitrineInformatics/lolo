@@ -38,10 +38,15 @@ class GridHyperOptimizer(base: Learner) extends HyperOptimizer(base) {
       /* Set up a learner with these parameters and compute the loss */
       val testLearner = base.setHypers(testHypers)
       val res = testLearner.train(trainingData)
+      if (res.getLoss().isEmpty) {
+        throw new IllegalArgumentException("Trying to optimize hyper-paramters for a learner without getLoss")
+      }
+      val thisLoss = res.getLoss().get
+
       /* Save if it is an improvement */
-      if (res.getLoss().get < loss) {
+      if (thisLoss < loss) {
         best = testHypers
-        loss = res.getLoss().get
+        loss = thisLoss
         println(s"Improved the loss to ${loss} with ${best}")
       }
     }
