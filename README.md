@@ -15,12 +15,13 @@ Lolo supports:
  * linear and ridge regression
  * regression _leaf models_, e.g. ridge regression trained on the leaf data
  * bias-corrected jackknife-after-bootstrap and infintessimal jackknife variance estimates
- * feature importance
+ * bias models trained on out-of-bag residuals
+ * discrete influence scores, which characterize the response of a prediction each training instance
+ * model based feature importance
+ * distance correlation
  * hyperparameter optimization via grid or random search
  * out-of-bag error estimates
- * bias models trained on out-of-bag residuals
- * parallel training via Scala parallel collections
- * [experimental] jackknife-based training row scores
+ * parallel training via scala parallel collections
 
 # Usage
 Lolo is not yet on maven central, so it needs to be installed manually:
@@ -38,11 +39,25 @@ Lolo can then be used by adding the following dependency block in your pom file:
 </dependency>
 ```
 
+# Performance
+Lolo prioritizes functionallity over performance, but it is still quite fast.  In its _random forest_ use case, the complexity scales as:
+
+| Time complexity | Training rows | Features | Trees |
+|-------|--------|-------|-------|
+| `train` | O(n log n) | O(n) | O(n) |
+| `getLoss` | O(n log n) | O(n) | O(n) |
+| `getExpected` | O(log n) | O(1) | O(n) |
+| `getUncertainty` | O(n) | O(1) | O(n) |
+
+On an [Ivy Bridge](http://ark.intel.com/products/77780/Intel-Core-i7-4930K-Processor-12M-Cache-up-to-3_90-GHz) test platform, the (1024 row, 1024 tree, 8 feature) [performance test](src/test/scala/io/citrine/lolo/PerformanceTest.scala) took 1.4 sec to train and 2.3 ms per prediction with uncertainty.
+
+
 # Contributing
 We welcome bug reports, feature reqests, and pull requests.  Pull requests should be made following the [gitflow workflow](https://www.atlassian.com/git/tutorials/comparing-workflows/feature-branch-workflow).  As contributions expand, we'll put more information here.
 
 # Authors
  * [Max Hutchinson](https://github.com/maxhutch/)
+ * [Sean Paradiso](https://github.com/sparadiso)
  
 # Related projects
  * [randomForestCI](https://github.com/swager/randomForestCI) is an R-based implementation of jackknife variance estimates by S. Wager
