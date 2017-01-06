@@ -30,7 +30,7 @@ class RegressionTreeTest {
       assert(Math.abs(a - p) < 1.0e-9)
     }
     assert(output.getGradient().isEmpty)
-    assert(output.getDepth().forall(d => d > 3 && d < 9))
+    output.getDepth().foreach(d => assert(d > 3 && d < 9, s"Depth is ${d}"))
   }
 
   /**
@@ -120,7 +120,7 @@ class RegressionTreeTest {
       assert(Math.abs(a - p) < 1.0e-9)
     }
     assert(output.getGradient().isDefined)
-    assert(output.getDepth().forall(d => d > 4 && d < 18))
+    output.getDepth().foreach(d => assert(d > 4 && d < 18, s"Depth is ${d}"))
 
     /* The first feature should be the most important */
     val importances = DTMeta.getFeatureImportance().get

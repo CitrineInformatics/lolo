@@ -21,7 +21,7 @@ class ClassificationTreeTest {
   @Test
   def longerTest(): Unit = {
     Random.setSeed(0L)
-    assert(Random.nextPrintableChar() == '1')
+    assert(Random.nextLong() == -4962768465676381896L)
     val trainingData = TestUtils.binTrainingData(
       TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman),
       responseBins = Some(16)
@@ -42,7 +42,7 @@ class ClassificationTreeTest {
       assert(a == p, s"${a} != ${p} for ${x}")
     }
     assert(output.getGradient().isEmpty)
-    assert(output.getDepth().forall(d => d > 4 && d < 17))
+    output.getDepth().foreach(d => assert(d > 4 && d < 17, s"Depth is ${d}"))
 
     /* The first feature should be the most important */
     val importances = DTMeta.getFeatureImportance().get
