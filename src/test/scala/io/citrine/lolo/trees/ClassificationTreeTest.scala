@@ -4,7 +4,10 @@ import java.io.{File, FileOutputStream, ObjectOutputStream}
 
 import io.citrine.lolo.TestUtils
 import io.citrine.lolo.stats.functions.Friedman
+import org.scalatest.Assertions._
 import org.junit.Test
+
+import scala.util.Random
 
 /**
   * Created by maxhutch on 12/2/16.
@@ -17,6 +20,8 @@ class ClassificationTreeTest {
     */
   @Test
   def longerTest(): Unit = {
+    Random.setSeed(0L)
+    assert(Random.nextPrintableChar() == '1')
     val trainingData = TestUtils.binTrainingData(
       TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman),
       responseBins = Some(16)
