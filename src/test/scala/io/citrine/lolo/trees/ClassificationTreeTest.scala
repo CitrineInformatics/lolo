@@ -20,8 +20,8 @@ class ClassificationTreeTest {
     */
   @Test
   def longerTest(): Unit = {
-    Random.setSeed(0L)
-    assert(Random.nextLong() == -4962768465676381896L)
+    val rnd = new Random(seed = 0L)
+    assert(rnd.nextLong() == -4962768465676381896L)
     val trainingData = TestUtils.binTrainingData(
       TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman),
       responseBins = Some(16)

@@ -35,10 +35,10 @@ object TestUtils {
                             noise: Double = 0.0,
                             seed: Long = 0L
                           ): Vector[(Vector[Double], Double)] = {
-    Random.setSeed(seed)
+    val rnd = new Random(seed)
     Vector.fill(rows){
-      val input = Vector.fill(cols)(Random.nextDouble())
-      (input, function(input) + noise * Random.nextGaussian())
+      val input = Vector.fill(cols)(rnd.nextDouble())
+      (input, function(input) + noise * rnd.nextGaussian())
     }
   }
 
