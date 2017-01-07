@@ -1,8 +1,7 @@
 package io.citrine.lolo.linear
 
 import breeze.linalg.{DenseMatrix, DenseVector, diag, inv, norm, pinv, sum, trace}
-import io.citrine.lolo.results.{PredictionResult, TrainingResult}
-import io.citrine.lolo.{Learner, Model}
+import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
 
 /**
   * Linear and ridge regression learner

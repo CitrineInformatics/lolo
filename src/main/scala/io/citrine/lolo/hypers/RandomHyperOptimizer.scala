@@ -1,7 +1,6 @@
 package io.citrine.lolo.hypers
 
-import io.citrine.lolo.results.{TrainingResult, hasLoss}
-import io.citrine.lolo.{Learner}
+import io.citrine.lolo.Learner
 
 import scala.util.Random
 
@@ -35,11 +34,15 @@ class RandomHyperOptimizer(base: Learner) extends HyperOptimizer(base) {
         n -> Random.shuffle(v).head
       }
       val testLearner = base.setHypers(testHypers)
-      val res = testLearner.train(trainingData).asInstanceOf[TrainingResult with hasLoss]
+      val res = testLearner.train(trainingData)
+      if (res.getLoss().isEmpty) {
+        throw new IllegalArgumentException("Trying to optimize hyper-paramters for a learner without getLoss")
+      }
+      val thisLoss = res.getLoss().get
       /* Keep track of the best */
-      if (res.getLoss() < loss) {
+      if (thisLoss < loss) {
         best = testHypers
-        loss = res.getLoss()
+        loss = thisLoss
         println(s"Improved the loss to ${loss} with ${best}")
       }
     }

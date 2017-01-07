@@ -4,6 +4,8 @@ import java.io.{File, FileOutputStream, ObjectOutputStream}
 
 import io.citrine.lolo.TestUtils
 import io.citrine.lolo.linear.LinearRegressionLearner
+import io.citrine.lolo.stats.functions.Friedman
+import org.scalatest.Assertions._
 import org.junit.Test
 
 /**
@@ -28,7 +30,7 @@ class RegressionTreeTest {
       assert(Math.abs(a - p) < 1.0e-9)
     }
     assert(output.getGradient().isEmpty)
-    assert(output.getDepth().forall(d => d > 3 && d < 9))
+    output.getDepth().foreach(d => assert(d > 3 && d < 9, s"Depth is ${d}"))
   }
 
   /**
@@ -36,8 +38,7 @@ class RegressionTreeTest {
     */
   @Test
   def longerTest(): Unit = {
-    val csv = TestUtils.readCsv("large_example.csv")
-    val trainingData = csv.map(vec => (vec.init, vec.last.asInstanceOf[Double]))
+    val trainingData =TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman)
     val DTLearner = new RegressionTreeLearner()
     val N = 100
     val start = System.nanoTime()
@@ -54,12 +55,11 @@ class RegressionTreeTest {
       assert(Math.abs(a - p) < 1.0e-9)
     }
     assert(output.getGradient().isEmpty)
-    assert(output.getDepth().forall(d => d > 5 && d < 18))
+    output.getDepth().foreach(d => assert(d > 4 && d < 20, s"Depth is ${d}"))
 
     /* The first feature should be the most important */
-    val importances = DTMeta.getFeatureImportance()
-    println(importances.toList)
-    assert(importances(0) == importances.max)
+    val importances = DTMeta.getFeatureImportance().get
+    assert(importances(1) == importances.max)
 
     val tmpFile: File = File.createTempFile("tmp", ".csv")
     val oos = new ObjectOutputStream(new FileOutputStream(tmpFile))
@@ -71,8 +71,11 @@ class RegressionTreeTest {
     */
   @Test
   def testCategorical(): Unit = {
-    val csv = TestUtils.readCsv("large_example_with_cat.csv")
-    val trainingData = csv.map(vec => (vec.init, vec.last.asInstanceOf[Double]))
+    val trainingData = TestUtils.binTrainingData(
+      TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman),
+      inputBins = Seq((0, 8))
+    ).asInstanceOf[Seq[(Vector[Any], Double)]]
+
     val DTLearner = new RegressionTreeLearner()
     val N = 100
     val start = System.nanoTime()
@@ -89,12 +92,12 @@ class RegressionTreeTest {
       assert(Math.abs(a - p) < 1.0e-9)
     }
     assert(output.getGradient().isEmpty)
-    assert(output.getDepth().forall(d => d > 5 && d < 20))
+    output.getDepth().foreach(d => assert(d > 4 && d < 21, s"Depth is ${d}"))
 
     /* The first feature should be the most important */
-    val importances = DTMeta.getFeatureImportance()
-    assert(importances(0) == importances.max)
-        val tmpFile: File = File.createTempFile("tmp", ".csv")
+    val importances = DTMeta.getFeatureImportance().get
+    assert(importances(1) == importances.max)
+    val tmpFile: File = File.createTempFile("tmp", ".csv")
     val oos = new ObjectOutputStream(new FileOutputStream(tmpFile))
     oos.writeObject(DT)
   }
@@ -104,8 +107,8 @@ class RegressionTreeTest {
     */
   @Test
   def testLinearLeaves(): Unit = {
-    val csv = TestUtils.readCsv("large_example_with_cat.csv")
-    val trainingData = csv.map(vec => (vec.init, vec.last.asInstanceOf[Double]))
+    val trainingData = TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman)
+
     val linearLearner = new LinearRegressionLearner().setHyper("regParam", 0.0)
     val DTLearner = new RegressionTreeLearner(leafLearner = Some(linearLearner)).setHyper("minLeafInstances", 2)
     val DTMeta = DTLearner.train(trainingData)
@@ -117,11 +120,11 @@ class RegressionTreeTest {
       assert(Math.abs(a - p) < 1.0e-9)
     }
     assert(output.getGradient().isDefined)
-    assert(output.getDepth().forall(d => d > 4 && d < 18))
+    output.getDepth().foreach(d => assert(d > 4 && d < 18, s"Depth is ${d}"))
 
     /* The first feature should be the most important */
-    val importances = DTMeta.getFeatureImportance()
-    assert(importances(0) == importances.max)
+    val importances = DTMeta.getFeatureImportance().get
+    assert(importances(1) == importances.max)
 
     val tmpFile: File = File.createTempFile("tmp", ".csv")
     val oos = new ObjectOutputStream(new FileOutputStream(tmpFile))
@@ -137,8 +140,8 @@ object RegressionTreeTest {
     * @param argv args
     */
   def main(argv: Array[String]): Unit = {
-    // new RegressionTreeTest().testSimpleTree()
-    // new RegressionTreeTest().longerTest()
+    new RegressionTreeTest().testSimpleTree()
+    new RegressionTreeTest().longerTest()
     new RegressionTreeTest().testCategorical()
     new RegressionTreeTest().testLinearLeaves()
   }

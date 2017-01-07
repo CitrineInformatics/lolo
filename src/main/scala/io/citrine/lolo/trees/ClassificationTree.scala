@@ -1,9 +1,10 @@
 package io.citrine.lolo.trees
 
 import io.citrine.lolo.encoders.CategoricalEncoder
-import io.citrine.lolo.results.{MultiResult, PredictionResult, TrainingResult, hasFeatureImportance}
 import io.citrine.lolo.trees.splits.{ClassificationSplitter, NoSplit, Split}
-import io.citrine.lolo.{Learner, Model}
+import io.citrine.lolo.{Learner, Model, MultiResult, PredictionResult, TrainingResult}
+
+import scala.collection.mutable
 
 /**
   * Created by maxhutch on 12/2/16.
@@ -73,11 +74,11 @@ class ClassificationTrainingResult(
                                     inputEncoders: Seq[Option[CategoricalEncoder[Any]]],
                                     outputEncoder: CategoricalEncoder[Any],
                                     hypers: Map[String, Any]
-                                  ) extends TrainingResult with hasFeatureImportance {
+                                  ) extends TrainingResult {
   /* Grab a prediction node.  The partitioning happens here */
   lazy val model = new ClassificationTree(rootTrainingNode.getNode(), inputEncoders, outputEncoder)
 
-  /* Grab the feature importances */
+  /* Grab the feature influences */
   lazy val importance = rootTrainingNode.getFeatureImportance()
   lazy val importanceNormalized = importance.map(_ / importance.sum)
 
@@ -93,9 +94,9 @@ class ClassificationTrainingResult(
   /**
     * Get a measure of the importance of the model features
     *
-    * @return feature importances as an array of doubles
+    * @return feature influences as an array of doubles
     */
-  override def getFeatureImportance(): Array[Double] = importanceNormalized
+  override def getFeatureImportance(): Option[Vector[Double]] = Some(importanceNormalized.toVector)
 }
 
 /**
@@ -186,7 +187,7 @@ class ClassificationTrainingNode(
     split, leftChild.getNode(), rightChild.getNode()
   )
 
-  override def getFeatureImportance(): Array[Double] = {
+  override def getFeatureImportance(): mutable.ArraySeq[Double] = {
     val improvement = deltaImpurity
     var ans = leftChild.getFeatureImportance().zip(rightChild.getFeatureImportance()).map(p => p._1 + p._2)
     ans(split.getIndex) = ans(split.getIndex) + improvement
@@ -208,7 +209,7 @@ class ClassificationTrainingLeaf(
     */
   override def getNode(): ModelNode[PredictionResult[Char]] = new ClassificationLeaf(mode, depth)
 
-  override def getFeatureImportance(): Array[Double] = Array.fill(trainingData.head._1.size)(0.0)
+  override def getFeatureImportance(): mutable.ArraySeq[Double] = mutable.ArraySeq.fill(trainingData.head._1.size)(0.0)
 }
 
 /**

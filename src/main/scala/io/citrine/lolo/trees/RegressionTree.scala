@@ -2,9 +2,10 @@ package io.citrine.lolo.trees
 
 import io.citrine.lolo.encoders.CategoricalEncoder
 import io.citrine.lolo.linear.GuessTheMeanLearner
-import io.citrine.lolo.results.{PredictionResult, TrainingResult, hasFeatureImportance}
 import io.citrine.lolo.trees.splits.{NoSplit, RegressionSplitter, Split}
-import io.citrine.lolo.{Learner, Model}
+import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
+
+import scala.collection.mutable
 
 /**
   * Learner for regression trees
@@ -141,7 +142,7 @@ class RegressionTreeLearner(
       new InternalModelNode[PredictionResult[Double]](split, leftChild.getNode(), rightChild.getNode())
     }
 
-    override def getFeatureImportance(): Array[Double] = {
+    override def getFeatureImportance(): mutable.ArraySeq[Double] = {
       val improvement = deltaImpurity
       var ans = leftChild.getFeatureImportance().zip(rightChild.getFeatureImportance()).map(p => p._1 + p._2)
       ans(split.getIndex) = ans(split.getIndex) + improvement
@@ -167,10 +168,10 @@ class RegressionTreeLearner(
       * @return lightweight prediction node
       */
     def getNode(): ModelNode[PredictionResult[Double]] = {
-        new RegressionLeaf(myLeafLearner.train(trainingData).getModel().asInstanceOf[Model[PredictionResult[Double]]], depth)
+      new RegressionLeaf(myLeafLearner.train(trainingData).getModel().asInstanceOf[Model[PredictionResult[Double]]], depth)
     }
 
-    override def getFeatureImportance(): Array[Double] = Array.fill(trainingData.head._1.size)(0.0)
+    override def getFeatureImportance(): mutable.ArraySeq[Double] = mutable.ArraySeq.fill(trainingData.head._1.size)(0.0)
   }
 
   class RegressionLeaf(model: Model[PredictionResult[Double]], depth: Int) extends ModelNode[PredictionResult[Double]] {
@@ -186,7 +187,7 @@ class RegressionTreeTrainingResult(
                                     rootTrainingNode: TrainingNode[AnyVal, Double],
                                     encoders: Seq[Option[CategoricalEncoder[Any]]],
                                     hypers: Map[String, Any]
-                                  ) extends TrainingResult with hasFeatureImportance {
+                                  ) extends TrainingResult {
   lazy val model = new RegressionTree(rootTrainingNode.getNode(), encoders)
   lazy val importance = rootTrainingNode.getFeatureImportance()
   lazy val importanceNormalized = importance.map(_ / importance.sum)
@@ -196,15 +197,15 @@ class RegressionTreeTrainingResult(
   override def getHypers(): Map[String, Any] = hypers
 
   /**
-    * Return the pre-computed importances
+    * Return the pre-computed influences
     *
-    * @return feature importances as an array of doubles
+    * @return feature influences as an array of doubles
     */
-  override def getFeatureImportance(): Array[Double] = importanceNormalized
+  override def getFeatureImportance(): Option[Vector[Double]] = Some(importanceNormalized.toVector)
 }
 
 /**
-  * Container holding a model node, encoders, and the feature importances
+  * Container holding a model node, encoders, and the feature influences
   *
   * @param root     of the tree
   * @param encoders for categorical variables
