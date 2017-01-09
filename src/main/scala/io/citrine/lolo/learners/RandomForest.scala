@@ -5,15 +5,30 @@ import io.citrine.lolo.trees.{ClassificationTreeLearner, RegressionTreeLearner}
 import io.citrine.lolo.{Learner, TrainingResult}
 
 /**
+  * Standard random forest as a wrapper around bagged decision trees
   * Created by maxhutch on 1/9/17.
+  *
+  * @param numTrees       number of trees to use (-1 => number of training instances)
+  * @param useJackknife   whether to use jackknife based variance estimates
+  * @param biasLearner    learner to model bias (absolute residual)
+  * @param leafLearner    learner to use at the leaves of the trees
+  * @param subsetStrategy for random feature selection at each split
+  *                       (auto => 1/3 for regression, sqrt for classification)
   */
-class RandomForest extends Learner {
+class RandomForest(
+                    numTrees: Int = -1,
+                    useJackknife: Boolean = true,
+                    biasLearner: Option[Learner] = None,
+                    leafLearner: Option[Learner] = None,
+                    subsetStrategy: Any = "auto"
+                  ) extends Learner {
+
   override var hypers: Map[String, Any] = Map(
-    "numTrees" -> -1,
-    "useJackknife" -> true,
-    "biasLearner" -> None,
-    "leafLearner" -> None,
-    "subsetStrategy" -> "auto"
+    "numTrees" -> numTrees,
+    "useJackknife" -> useJackknife,
+    "biasLearner" -> biasLearner,
+    "leafLearner" -> leafLearner,
+    "subsetStrategy" -> subsetStrategy
   )
 
   /**
