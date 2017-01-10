@@ -38,6 +38,14 @@ Lolo can then be used by adding the following dependency block in your pom file:
     <version>0.1.0</version>
 </dependency>
 ```
+Lolo provides higher level wrappers for common learner combinations.
+For example, you can use Random Forest with:
+```
+import io.citrine.lolo.learners.RandomForest
+val trainingData: Seq[(Vector[Any], Any)] = features.zip(labels)
+val model = new RandomForest().train(trainingData).getModel()
+val predictions: Seq[Any] = model.transform(testInputs).getExpected()
+```
 
 # Performance
 Lolo prioritizes functionallity over performance, but it is still quite fast.  In its _random forest_ use case, the complexity scales as:
