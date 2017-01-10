@@ -48,9 +48,8 @@ class RandomForestTest {
       TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman),
       inputBins = Seq((0, 8)), responseBins = Some(8)
     )
-    println(trainingData.head)
     val RFMeta = new RandomForest()
-      .setHyper("numTrees", trainingData.size / 2)
+      .setHyper("numTrees", trainingData.size * 2)
       .train(trainingData)
     val RF = RFMeta.getModel()
 
@@ -66,11 +65,6 @@ class RandomForestTest {
       val maxProb = classProbabilities(a)
       maxProb > 0.5 && maxProb < 1.0 && Math.abs(classProbabilities.values.sum - 1.0) < 1.0e-6
     })
-    assert(results.getGradient().isEmpty, "Returned a gradient when there shouldn't be one")
-
-    /* The first feature should be the most important */
-    val importances = RFMeta.getFeatureImportance().get
-    assert(importances.slice(0, 5).min > importances.slice(5, importances.size).max)
   }
 
 }
