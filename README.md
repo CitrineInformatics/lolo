@@ -24,18 +24,12 @@ Lolo supports:
  * parallel training via scala parallel collections
 
 # Usage
-Lolo is not yet on maven central, so it needs to be installed manually:
-```
-git clone https://github.com/CitrineInformatics/lolo.git
-cd lolo
-mvn install
-```
-Lolo can then be used by adding the following dependency block in your pom file:
+Lolo is on the central repository, and can be used by simply adding the following dependency block in your pom file:
 ```
 <dependency>
     <groupId>io.citrine</groupId>
     <artifactId>lolo</artifactId>
-    <version>0.1.0</version>
+    <version>0.2.0-SNAPSHOT</version>
 </dependency>
 ```
 Lolo provides higher level wrappers for common learner combinations.
