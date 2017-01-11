@@ -14,7 +14,7 @@ Lolo supports:
  * bagged learners to produce ensemble models, e.g. random forests
  * linear and ridge regression
  * regression _leaf models_, e.g. ridge regression trained on the leaf data
- * bias-corrected jackknife-after-bootstrap and infintessimal jackknife variance estimates
+ * bias-corrected jackknife-after-bootstrap and infinitesimal jackknife variance estimates
  * bias models trained on out-of-bag residuals
  * discrete influence scores, which characterize the response of a prediction each training instance
  * model based feature importance
@@ -42,7 +42,7 @@ val predictions: Seq[Any] = model.transform(testInputs).getExpected()
 ```
 
 # Performance
-Lolo prioritizes functionallity over performance, but it is still quite fast.  In its _random forest_ use case, the complexity scales as:
+Lolo prioritizes functionality over performance, but it is still quite fast.  In its _random forest_ use case, the complexity scales as:
 
 | Time complexity | Training rows | Features | Trees |
 |-------|--------|-------|-------|
@@ -55,7 +55,7 @@ On an [Ivy Bridge](http://ark.intel.com/products/77780/Intel-Core-i7-4930K-Proce
 
 
 # Contributing
-We welcome bug reports, feature reqests, and pull requests.  Pull requests should be made following the [gitflow workflow](https://www.atlassian.com/git/tutorials/comparing-workflows/feature-branch-workflow).  As contributions expand, we'll put more information here.
+We welcome bug reports, feature requests, and pull requests.  Pull requests should be made following the [gitflow workflow](https://www.atlassian.com/git/tutorials/comparing-workflows/feature-branch-workflow).  As contributions expand, we'll put more information here.
 
 # Authors
  * [Max Hutchinson](https://github.com/maxhutch/)
