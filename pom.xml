@@ -6,8 +6,34 @@
 
     <groupId>io.citrine</groupId>
     <artifactId>lolo</artifactId>
-    <version>0.1.0</version>
+    <version>0.2.0</version>
     <packaging>jar</packaging>
+
+    <name>${project.groupId}:${project.artifactId}</name>
+    <description>A random forest-centered machine learning library in Scala.</description>
+    <url>https://github.com/CitrineInformatics/lolo</url>
+
+    <licenses>
+        <license>
+            <name>The Apache License, Version 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <name>Max Hutchinson</name>
+            <email>maxhutch@citrine.io</email>
+            <organization>Citrine Informatics</organization>
+            <organizationUrl>https://www.citrine.io</organizationUrl>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>scm:git:git://github.com/CitrineInformatics/lolo.git</connection>
+        <developerConnection>scm:git:ssh://github.com:CitrineInformatics/lolo.git</developerConnection>
+        <url>http://github.com/CitrineInformatics/lolo/tree/master</url>
+    </scm>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -93,6 +119,57 @@
                 </configuration>
             </plugin>
             <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <version>2.2.1</version>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <goals>
+                            <goal>jar-no-fork</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>2.9.1</version>
+                <executions>
+                    <execution>
+                        <id>attach-javadocs</id>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-gpg-plugin</artifactId>
+                <version>1.5</version>
+                <executions>
+                    <execution>
+                        <id>sign-artifacts</id>
+                        <phase>deploy</phase>
+                        <goals>
+                            <goal>sign</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+            <groupId>org.sonatype.plugins</groupId>
+            <artifactId>nexus-staging-maven-plugin</artifactId>
+            <version>1.6.7</version>
+            <extensions>true</extensions>
+            <configuration>
+                <serverId>ossrh</serverId>
+                <nexusUrl>https://oss.sonatype.org/</nexusUrl>
+                <autoReleaseAfterClose>true</autoReleaseAfterClose>
+            </configuration>
+            </plugin>
+            <plugin>
                 <!-- see http://davidb.github.com/scala-maven-plugin -->
                 <groupId>net.alchim31.maven</groupId>
                 <artifactId>scala-maven-plugin</artifactId>
@@ -110,6 +187,12 @@
                                 <arg>${project.build.directory}/.scala_dependencies</arg>
                             </args>
                         </configuration>
+                    </execution>
+                    <execution>
+                        <id>attach-javadocs</id>
+                        <goals>
+                            <goal>doc-jar</goal>
+                        </goals>
                     </execution>
                 </executions>
             </plugin>
@@ -164,43 +247,20 @@
                 </executions>
             </plugin>
         </plugins>
-        <extensions>
-            <extension>
-                <groupId>org.kuali.maven.wagons</groupId>
-                <artifactId>maven-s3-wagon</artifactId>
-                <version>1.2.1</version>
-            </extension>
-        </extensions>
     </build>
 
     <distributionManagement>
-        <site>
-            <id>s3.site</id>
-            <url>s3://citrine-maven/site</url>
-        </site>
-        <repository>
-            <id>s3.release</id>
-            <url>s3://citrine-maven/release</url>
-        </repository>
         <snapshotRepository>
-            <id>s3.snapshot</id>
-            <url>s3://citrine-maven/snapshot</url>
+            <id>ossrh</id>
+            <url>https://oss.sonatype.org/content/repositories/snapshots</url>
         </snapshotRepository>
+        <repository>
+            <id>ossrh</id>
+            <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+        </repository>
     </distributionManagement>
 
     <repositories>
-        <repository>
-            <id>s3.site</id>
-            <url>s3://citrine-maven/site</url>
-        </repository>
-        <repository>
-            <id>s3.release</id>
-            <url>s3://citrine-maven/release</url>
-        </repository>
-        <repository>
-            <id>s3.snapshot</id>
-            <url>s3://citrine-maven/snapshot</url>
-        </repository>
         <repository>
             <id>scala</id>
             <name>Scala Tools</name>

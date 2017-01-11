@@ -14,7 +14,7 @@ Lolo supports:
  * bagged learners to produce ensemble models, e.g. random forests
  * linear and ridge regression
  * regression _leaf models_, e.g. ridge regression trained on the leaf data
- * bias-corrected jackknife-after-bootstrap and infintessimal jackknife variance estimates
+ * bias-corrected jackknife-after-bootstrap and infinitesimal jackknife variance estimates
  * bias models trained on out-of-bag residuals
  * discrete influence scores, which characterize the response of a prediction each training instance
  * model based feature importance
@@ -24,23 +24,25 @@ Lolo supports:
  * parallel training via scala parallel collections
 
 # Usage
-Lolo is not yet on maven central, so it needs to be installed manually:
-```
-git clone https://github.com/CitrineInformatics/lolo.git
-cd lolo
-mvn install
-```
-Lolo can then be used by adding the following dependency block in your pom file:
+Lolo is on the central repository, and can be used by simply adding the following dependency block in your pom file:
 ```
 <dependency>
     <groupId>io.citrine</groupId>
     <artifactId>lolo</artifactId>
-    <version>0.1.0</version>
+    <version>0.2.0</version>
 </dependency>
+```
+Lolo provides higher level wrappers for common learner combinations.
+For example, you can use Random Forest with:
+```
+import io.citrine.lolo.learners.RandomForest
+val trainingData: Seq[(Vector[Any], Any)] = features.zip(labels)
+val model = new RandomForest().train(trainingData).getModel()
+val predictions: Seq[Any] = model.transform(testInputs).getExpected()
 ```
 
 # Performance
-Lolo prioritizes functionallity over performance, but it is still quite fast.  In its _random forest_ use case, the complexity scales as:
+Lolo prioritizes functionality over performance, but it is still quite fast.  In its _random forest_ use case, the complexity scales as:
 
 | Time complexity | Training rows | Features | Trees |
 |-------|--------|-------|-------|
@@ -53,7 +55,7 @@ On an [Ivy Bridge](http://ark.intel.com/products/77780/Intel-Core-i7-4930K-Proce
 
 
 # Contributing
-We welcome bug reports, feature reqests, and pull requests.  Pull requests should be made following the [gitflow workflow](https://www.atlassian.com/git/tutorials/comparing-workflows/feature-branch-workflow).  As contributions expand, we'll put more information here.
+We welcome bug reports, feature requests, and pull requests.  Pull requests should be made following the [gitflow workflow](https://www.atlassian.com/git/tutorials/comparing-workflows/feature-branch-workflow).  As contributions expand, we'll put more information here.
 
 # Authors
  * [Max Hutchinson](https://github.com/maxhutch/)
