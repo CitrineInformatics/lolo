@@ -2,12 +2,10 @@ package io.citrine.lolo.trees.classification
 
 import io.citrine.lolo.encoders.CategoricalEncoder
 import io.citrine.lolo.linear.GuessTheMeanLearner
-import io.citrine.lolo.trees.regression.RegressionTree
 import io.citrine.lolo.trees.splits.{ClassificationSplitter, NoSplit, Split}
-import io.citrine.lolo.trees.{InternalModelNode, ModelNode, TrainingNode, TreeMeta}
+import io.citrine.lolo.trees.{InternalModelNode, ModelNode, TrainingLeaf, TrainingNode, TreeMeta}
 import io.citrine.lolo.{Learner, Model, MultiResult, PredictionResult, TrainingResult}
 
-import scala.collection.mutable
 
 /**
   * Created by maxhutch on 12/2/16.
@@ -72,7 +70,7 @@ class ClassificationTreeLearner(
     /* The tree is built of training nodes */
     val (split, delta) = ClassificationSplitter.getBestSplit(finalTraining, numFeaturesActual)
     val rootTrainingNode = if (split.isInstanceOf[NoSplit]) {
-      new ClassificationTrainingLeaf(finalTraining, myLeafLearner, 0)
+      new TrainingLeaf(finalTraining, myLeafLearner, 0)
     } else {
       new ClassificationTrainingNode(finalTraining, myLeafLearner, split, delta, numFeaturesActual, remainingDepth = maxDepth - 1, maxDepth)
     }

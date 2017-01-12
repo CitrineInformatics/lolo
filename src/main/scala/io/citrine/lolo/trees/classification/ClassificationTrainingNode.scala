@@ -1,7 +1,7 @@
 package io.citrine.lolo.trees.classification
 
 import io.citrine.lolo.{Learner, PredictionResult}
-import io.citrine.lolo.trees.{InternalModelNode, ModelNode, TrainingNode}
+import io.citrine.lolo.trees.{InternalModelNode, ModelNode, TrainingLeaf, TrainingNode}
 import io.citrine.lolo.trees.splits.{ClassificationSplitter, NoSplit, Split}
 
 /**
@@ -27,20 +27,20 @@ class ClassificationTrainingNode(
     if (!leftSplit.isInstanceOf[NoSplit]) {
       new ClassificationTrainingNode(leftTrain, leafLearner, leftSplit, leftDelta, numFeatures, remainingDepth - 1, maxDepth)
     } else {
-      new ClassificationTrainingLeaf(leftTrain, leafLearner, maxDepth - remainingDepth)
+      new TrainingLeaf(leftTrain, leafLearner, maxDepth - remainingDepth)
     }
   } else {
-    new ClassificationTrainingLeaf(leftTrain, leafLearner, maxDepth - remainingDepth)
+    new TrainingLeaf(leftTrain, leafLearner, maxDepth - remainingDepth)
   }
   lazy val rightChild = if (rightTrain.size > 1 && remainingDepth > 0 && rightTrain.exists(_._2 != rightTrain.head._2)) {
     lazy val (rightSplit, rightDelta) = ClassificationSplitter.getBestSplit(rightTrain, numFeatures)
     if (!rightSplit.isInstanceOf[NoSplit]) {
       new ClassificationTrainingNode(rightTrain, leafLearner, rightSplit, rightDelta, numFeatures, remainingDepth - 1, maxDepth)
     } else {
-      new ClassificationTrainingLeaf(rightTrain, leafLearner, maxDepth - remainingDepth)
+      new TrainingLeaf(rightTrain, leafLearner, maxDepth - remainingDepth)
     }
   } else {
-    new ClassificationTrainingLeaf(rightTrain, leafLearner, maxDepth - remainingDepth)
+    new TrainingLeaf(rightTrain, leafLearner, maxDepth - remainingDepth)
   }
 
   /**
