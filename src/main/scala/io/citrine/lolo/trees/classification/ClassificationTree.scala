@@ -42,7 +42,7 @@ class ClassificationTreeLearner(val numFeatures: Int = -1) extends Learner {
 
     /* Encode the training data */
     val encodedTraining = trainingData.map(p =>
-      (RegressionTree.encodeInput(p._1, inputEncoders), outputEncoder.encode(p._2))
+      (CategoricalEncoder.encodeInput(p._1, inputEncoders), outputEncoder.encode(p._2))
     )
 
     /* Add the weights to the (features, label) tuples and remove any with zero weight */
@@ -119,7 +119,7 @@ class ClassificationTree(
     */
   override def transform(inputs: Seq[Vector[Any]]): ClassificationResult = {
     new ClassificationResult(
-      inputs.map(inp => rootModelNode.transform(RegressionTree.encodeInput(inp, inputEncoders))),
+      inputs.map(inp => rootModelNode.transform(CategoricalEncoder.encodeInput(inp, inputEncoders))),
       outputEncoder
     )
   }

@@ -41,4 +41,20 @@ object CategoricalEncoder {
   def buildEncoder[T](values: Seq[T]): CategoricalEncoder[T] = {
     new CategoricalEncoder[T](values.distinct.zipWithIndex.map(p => (p._1, (p._2 + 1).toChar)).toMap)
   }
+
+  /**
+    * Apply a sequence of encoders to transform categorical variables into chars
+    *
+    * @param input    to encode
+    * @param encoders sequence of encoders
+    * @return input with categoricals encoded as chars
+    */
+  def encodeInput(input: Vector[Any], encoders: Seq[Option[CategoricalEncoder[Any]]]): Vector[AnyVal] = {
+    input.zip(encoders).map { case (v, e) =>
+      e match {
+        case Some(x) => x.encode(v)
+        case None => v.asInstanceOf[AnyVal]
+      }
+    }
+  }
 }
