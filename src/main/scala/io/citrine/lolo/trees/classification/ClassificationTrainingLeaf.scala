@@ -2,7 +2,7 @@ package io.citrine.lolo.trees.classification
 
 import io.citrine.lolo.{Model, PredictionResult}
 import io.citrine.lolo.linear.GuessTheMeanLearner
-import io.citrine.lolo.trees.{ModelNode, TrainingNode}
+import io.citrine.lolo.trees.{ModelLeaf, ModelNode, TrainingNode}
 
 import scala.collection.mutable
 
@@ -14,15 +14,13 @@ class ClassificationTrainingLeaf(
                                   depth: Int
                                 ) extends TrainingNode(trainingData, 0) {
 
-  lazy val mode: Char = trainingData.map(_._2).groupBy(identity).mapValues(_.size).maxBy(_._2)._1
-
   /**
     * Get the lightweight prediction node for the output tree
     *
     * @return lightweight prediction node
     */
   override def getNode(): ModelNode[PredictionResult[Char]] = {
-    new ClassificationLeaf(
+    new ModelLeaf(
       new GuessTheMeanLearner()
         .train(trainingData)
         .getModel()

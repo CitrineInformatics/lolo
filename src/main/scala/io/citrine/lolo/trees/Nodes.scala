@@ -1,6 +1,6 @@
 package io.citrine.lolo.trees
 
-import io.citrine.lolo.PredictionResult
+import io.citrine.lolo.{Model, PredictionResult}
 import io.citrine.lolo.trees.splits.Split
 
 import scala.collection.mutable
@@ -63,5 +63,11 @@ class InternalModelNode[T <: PredictionResult[Any]](
     } else {
       right.transform(input)
     }
+  }
+}
+
+class ModelLeaf[T](model: Model[PredictionResult[T]], depth: Int) extends ModelNode[PredictionResult[T]] {
+  override def transform(input: Vector[AnyVal]): (PredictionResult[T], TreeMeta) = {
+    (model.transform(Seq(input)), TreeMeta(depth))
   }
 }

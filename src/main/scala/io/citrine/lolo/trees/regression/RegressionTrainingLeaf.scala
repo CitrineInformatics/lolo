@@ -1,6 +1,6 @@
 package io.citrine.lolo.trees.regression
 
-import io.citrine.lolo.trees.{ModelNode, TrainingNode}
+import io.citrine.lolo.trees.{ModelLeaf, ModelNode, TrainingNode}
 import io.citrine.lolo.{Learner, Model, PredictionResult}
 
 import scala.collection.mutable
@@ -24,7 +24,7 @@ class RegressionTrainingLeaf(
     * @return lightweight prediction node
     */
   def getNode(): ModelNode[PredictionResult[Double]] = {
-    new RegressionLeaf(leafLearner.train(trainingData).getModel().asInstanceOf[Model[PredictionResult[Double]]], depth)
+    new ModelLeaf(leafLearner.train(trainingData).getModel().asInstanceOf[Model[PredictionResult[Double]]], depth)
   }
 
   override def getFeatureImportance(): mutable.ArraySeq[Double] = mutable.ArraySeq.fill(trainingData.head._1.size)(0.0)
