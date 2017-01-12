@@ -1,6 +1,7 @@
 package io.citrine.lolo.trees.classification
 
-import io.citrine.lolo.PredictionResult
+import io.citrine.lolo.{Model, PredictionResult}
+import io.citrine.lolo.linear.GuessTheMeanLearner
 import io.citrine.lolo.trees.{ModelNode, TrainingNode}
 
 import scala.collection.mutable
@@ -20,7 +21,15 @@ class ClassificationTrainingLeaf(
     *
     * @return lightweight prediction node
     */
-  override def getNode(): ModelNode[PredictionResult[Char]] = new ClassificationLeaf(mode, depth)
+  override def getNode(): ModelNode[PredictionResult[Char]] = {
+    new ClassificationLeaf(
+      new GuessTheMeanLearner()
+        .train(trainingData)
+        .getModel()
+        .asInstanceOf[Model[PredictionResult[Char]]],
+      depth
+    )
+  }
 
   override def getFeatureImportance(): scala.collection.mutable.ArraySeq[Double] = mutable.ArraySeq.fill(trainingData.head._1.size)(0.0)
 }
