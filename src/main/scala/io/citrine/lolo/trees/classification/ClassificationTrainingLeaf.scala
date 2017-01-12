@@ -1,7 +1,6 @@
 package io.citrine.lolo.trees.classification
 
-import io.citrine.lolo.{Model, PredictionResult}
-import io.citrine.lolo.linear.GuessTheMeanLearner
+import io.citrine.lolo.{Learner, Model, PredictionResult}
 import io.citrine.lolo.trees.{ModelLeaf, ModelNode, TrainingNode}
 
 import scala.collection.mutable
@@ -11,6 +10,7 @@ import scala.collection.mutable
   */
 class ClassificationTrainingLeaf(
                                   trainingData: Seq[(Vector[AnyVal], Char, Double)],
+                                  leafLearner: Learner,
                                   depth: Int
                                 ) extends TrainingNode(trainingData, 0) {
 
@@ -21,8 +21,7 @@ class ClassificationTrainingLeaf(
     */
   override def getNode(): ModelNode[PredictionResult[Char]] = {
     new ModelLeaf(
-      new GuessTheMeanLearner()
-        .train(trainingData)
+      leafLearner.train(trainingData)
         .getModel()
         .asInstanceOf[Model[PredictionResult[Char]]],
       depth

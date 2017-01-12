@@ -1,6 +1,7 @@
 package io.citrine.lolo.trees.classification
 
 import io.citrine.lolo.encoders.CategoricalEncoder
+import io.citrine.lolo.linear.GuessTheMeanLearner
 import io.citrine.lolo.trees.regression.RegressionTree
 import io.citrine.lolo.trees.splits.{ClassificationSplitter, NoSplit, Split}
 import io.citrine.lolo.trees.{InternalModelNode, ModelNode, TrainingNode, TreeMeta}
@@ -13,9 +14,20 @@ import scala.collection.mutable
   *
   * @param numFeatures subset of features to select splits from
   */
-class ClassificationTreeLearner(val numFeatures: Int = -1) extends Learner {
+class ClassificationTreeLearner(
+                                 val numFeatures: Int = -1,
+                                 leafLearner: Option[Learner] = None
+                               ) extends Learner {
+
+  val myLeafLearner: Learner = leafLearner.getOrElse(new GuessTheMeanLearner)
 
   override var hypers: Map[String, Any] = Map("maxDepth" -> 30)
+
+    override def setHypers(moreHypers: Map[String, Any]): this.type = {
+    hypers = hypers ++ moreHypers
+    myLeafLearner.setHypers(moreHypers)
+    this
+  }
 
   /**
     * Train classification tree
@@ -60,9 +72,9 @@ class ClassificationTreeLearner(val numFeatures: Int = -1) extends Learner {
     /* The tree is built of training nodes */
     val (split, delta) = ClassificationSplitter.getBestSplit(finalTraining, numFeaturesActual)
     val rootTrainingNode = if (split.isInstanceOf[NoSplit]) {
-      new ClassificationTrainingLeaf(finalTraining, 0)
+      new ClassificationTrainingLeaf(finalTraining, myLeafLearner, 0)
     } else {
-      new ClassificationTrainingNode(finalTraining, split, delta, numFeaturesActual, remainingDepth = maxDepth - 1, maxDepth)
+      new ClassificationTrainingNode(finalTraining, myLeafLearner, split, delta, numFeaturesActual, remainingDepth = maxDepth - 1, maxDepth)
     }
 
     /* Wrap them up in a regression tree */

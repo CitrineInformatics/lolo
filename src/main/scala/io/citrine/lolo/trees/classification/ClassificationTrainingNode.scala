@@ -1,6 +1,6 @@
 package io.citrine.lolo.trees.classification
 
-import io.citrine.lolo.PredictionResult
+import io.citrine.lolo.{Learner, PredictionResult}
 import io.citrine.lolo.trees.{InternalModelNode, ModelNode, TrainingNode}
 import io.citrine.lolo.trees.splits.{ClassificationSplitter, NoSplit, Split}
 
@@ -9,6 +9,7 @@ import io.citrine.lolo.trees.splits.{ClassificationSplitter, NoSplit, Split}
   */
 class ClassificationTrainingNode(
                                   trainingData: Seq[(Vector[AnyVal], Char, Double)],
+                                  leafLearner: Learner,
                                   split: Split,
                                   deltaImpurity: Double,
                                   numFeatures: Int,
@@ -24,22 +25,22 @@ class ClassificationTrainingNode(
   lazy val leftChild = if (leftTrain.size > 1 && remainingDepth > 0 && leftTrain.exists(_._2 != leftTrain.head._2)) {
     lazy val (leftSplit, leftDelta) = ClassificationSplitter.getBestSplit(leftTrain, numFeatures)
     if (!leftSplit.isInstanceOf[NoSplit]) {
-      new ClassificationTrainingNode(leftTrain, leftSplit, leftDelta, numFeatures, remainingDepth - 1, maxDepth)
+      new ClassificationTrainingNode(leftTrain, leafLearner, leftSplit, leftDelta, numFeatures, remainingDepth - 1, maxDepth)
     } else {
-      new ClassificationTrainingLeaf(leftTrain, maxDepth - remainingDepth)
+      new ClassificationTrainingLeaf(leftTrain, leafLearner, maxDepth - remainingDepth)
     }
   } else {
-    new ClassificationTrainingLeaf(leftTrain, maxDepth - remainingDepth)
+    new ClassificationTrainingLeaf(leftTrain, leafLearner, maxDepth - remainingDepth)
   }
   lazy val rightChild = if (rightTrain.size > 1 && remainingDepth > 0 && rightTrain.exists(_._2 != rightTrain.head._2)) {
     lazy val (rightSplit, rightDelta) = ClassificationSplitter.getBestSplit(rightTrain, numFeatures)
     if (!rightSplit.isInstanceOf[NoSplit]) {
-      new ClassificationTrainingNode(rightTrain, rightSplit, rightDelta, numFeatures, remainingDepth - 1, maxDepth)
+      new ClassificationTrainingNode(rightTrain, leafLearner, rightSplit, rightDelta, numFeatures, remainingDepth - 1, maxDepth)
     } else {
-      new ClassificationTrainingLeaf(rightTrain, maxDepth - remainingDepth)
+      new ClassificationTrainingLeaf(rightTrain, leafLearner, maxDepth - remainingDepth)
     }
   } else {
-    new ClassificationTrainingLeaf(rightTrain, maxDepth - remainingDepth)
+    new ClassificationTrainingLeaf(rightTrain, leafLearner, maxDepth - remainingDepth)
   }
 
   /**
