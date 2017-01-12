@@ -1,7 +1,9 @@
-package io.citrine.lolo.trees
+package io.citrine.lolo.trees.classification
 
 import io.citrine.lolo.encoders.CategoricalEncoder
+import io.citrine.lolo.trees.regression.RegressionTree
 import io.citrine.lolo.trees.splits.{ClassificationSplitter, NoSplit, Split}
+import io.citrine.lolo.trees.{InternalModelNode, ModelNode, TrainingNode, TreeMeta}
 import io.citrine.lolo.{Learner, Model, MultiResult, PredictionResult, TrainingResult}
 
 import scala.collection.mutable

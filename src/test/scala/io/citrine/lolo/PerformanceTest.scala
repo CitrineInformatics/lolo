@@ -1,7 +1,7 @@
 package io.citrine.lolo
 
 import io.citrine.lolo.bags.Bagger
-import io.citrine.lolo.trees.RegressionTreeLearner
+import io.citrine.lolo.trees.regression.RegressionTreeLearner
 import org.junit.Test
 import org.junit.experimental.categories.Category
 
