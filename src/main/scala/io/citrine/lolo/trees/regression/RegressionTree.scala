@@ -1,11 +1,11 @@
-package io.citrine.lolo.trees
+package io.citrine.lolo.trees.regression
 
 import io.citrine.lolo.encoders.CategoricalEncoder
 import io.citrine.lolo.linear.GuessTheMeanLearner
-import io.citrine.lolo.trees.splits.{NoSplit, RegressionSplitter, Split}
+import io.citrine.lolo.trees.splits.{NoSplit, RegressionSplitter}
+import io.citrine.lolo.trees.{ModelNode, TrainingLeaf, TrainingNode, TreeMeta}
 import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
 
-import scala.collection.mutable
 
 /**
   * Learner for regression trees
@@ -59,7 +59,7 @@ class RegressionTreeLearner(
     }
 
     /* Encode the training data */
-    val encodedTraining = trainingData.map(p => (RegressionTree.encodeInput(p._1, encoders), p._2))
+    val encodedTraining = trainingData.map(p => (CategoricalEncoder.encodeInput(p._1, encoders), p._2))
 
     /* Add the weights to the (features, label) tuples and remove any with zero weight */
     val finalTraining = encodedTraining.zip(weights.getOrElse(Seq.fill(trainingData.size)(1.0))).map { case ((f, l), w) =>
@@ -75,109 +75,22 @@ class RegressionTreeLearner(
 
     /* The tree is built of training nodes */
     val (split, delta) = RegressionSplitter.getBestSplit(finalTraining, numFeaturesActual, hypers("minLeafInstances").asInstanceOf[Int])
-    val rootTrainingNode = if (split.isInstanceOf[NoSplit]) {
-      new RegressionTrainingLeaf(finalTraining, 0)
+    val rootTrainingNode: TrainingNode[AnyVal, Double] = if (split.isInstanceOf[NoSplit]) {
+      new TrainingLeaf(finalTraining, myLeafLearner, 0)
     } else {
       new RegressionTrainingNode(
         finalTraining,
+        myLeafLearner,
         split,
         delta,
         numFeaturesActual,
         minLeafInstances = hypers("minLeafInstances").asInstanceOf[Int],
-        remainingDepth = maxDepth - 1)
+        remainingDepth = maxDepth - 1,
+        maxDepth)
     }
 
     /* Wrap them up in a regression tree */
     new RegressionTreeTrainingResult(rootTrainingNode, encoders, hypers)
-  }
-
-  class RegressionTrainingNode(
-                                trainingData: Seq[(Vector[AnyVal], Double, Double)],
-                                split: Split,
-                                deltaImpurity: Double,
-                                numFeatures: Int,
-                                minLeafInstances: Int,
-                                remainingDepth: Int
-                              )
-    extends TrainingNode(
-      trainingData = trainingData,
-      remainingDepth = remainingDepth
-    ) {
-
-    // val (split: Split, deltaImpurity: Double) = RegressionSplitter.getBestSplit(trainingData, numFeatures)
-    assert(trainingData.size > 1, "If we are going to split, we need at least 2 training rows")
-    assert(!split.isInstanceOf[NoSplit], s"Empty split split for training data: \n${trainingData.map(_.toString() + "\n")}")
-
-    lazy val (leftTrain, rightTrain) = trainingData.partition(r => split.turnLeft(r._1))
-    assert(leftTrain.size > 0 && rightTrain.size > 0, s"Split ${split} resulted in zero size: ${trainingData.map(_._1(split.getIndex()))}")
-
-    lazy val leftChild = if (leftTrain.size >= 2 * minLeafInstances && remainingDepth > 0 && leftTrain.exists(_._2 != leftTrain.head._2)) {
-      val (leftSplit, leftDelta) = RegressionSplitter.getBestSplit(leftTrain, numFeatures, minLeafInstances)
-      if (!leftSplit.isInstanceOf[NoSplit]) {
-        new RegressionTrainingNode(leftTrain, leftSplit, leftDelta, numFeatures, minLeafInstances, remainingDepth - 1)
-      } else {
-        new RegressionTrainingLeaf(leftTrain, maxDepth - remainingDepth)
-      }
-    } else {
-      new RegressionTrainingLeaf(leftTrain, maxDepth - remainingDepth)
-    }
-
-    lazy val rightChild = if (rightTrain.size >= 2 * minLeafInstances && remainingDepth > 0 && rightTrain.exists(_._2 != rightTrain.head._2)) {
-      val (rightSplit, rightDelta) = RegressionSplitter.getBestSplit(rightTrain, numFeatures, minLeafInstances)
-      if (!rightSplit.isInstanceOf[NoSplit]) {
-        new RegressionTrainingNode(rightTrain, rightSplit, rightDelta, numFeatures, minLeafInstances, remainingDepth - 1)
-      } else {
-        new RegressionTrainingLeaf(rightTrain, maxDepth - remainingDepth)
-      }
-    } else {
-      new RegressionTrainingLeaf(rightTrain, maxDepth - remainingDepth)
-    }
-
-    /**
-      * Get the lightweight prediction node for the output tree
-      *
-      * @return lightweight prediction node
-      */
-    override def getNode(): ModelNode[PredictionResult[Double]] = {
-      new InternalModelNode[PredictionResult[Double]](split, leftChild.getNode(), rightChild.getNode())
-    }
-
-    override def getFeatureImportance(): mutable.ArraySeq[Double] = {
-      val improvement = deltaImpurity
-      var ans = leftChild.getFeatureImportance().zip(rightChild.getFeatureImportance()).map(p => p._1 + p._2)
-      ans(split.getIndex) = ans(split.getIndex) + improvement
-      ans
-    }
-  }
-
-  /**
-    * Average the training data to make a leaf prediction
-    *
-    * @param trainingData to train on
-    */
-  class RegressionTrainingLeaf(
-                                trainingData: Seq[(Vector[AnyVal], Double, Double)],
-                                depth: Int
-                              ) extends TrainingNode(
-    trainingData = trainingData,
-    remainingDepth = 0
-  ) {
-    /**
-      * Average the training data
-      *
-      * @return lightweight prediction node
-      */
-    def getNode(): ModelNode[PredictionResult[Double]] = {
-      new RegressionLeaf(myLeafLearner.train(trainingData).getModel().asInstanceOf[Model[PredictionResult[Double]]], depth)
-    }
-
-    override def getFeatureImportance(): mutable.ArraySeq[Double] = mutable.ArraySeq.fill(trainingData.head._1.size)(0.0)
-  }
-
-  class RegressionLeaf(model: Model[PredictionResult[Double]], depth: Int) extends ModelNode[PredictionResult[Double]] {
-    override def transform(input: Vector[AnyVal]): (PredictionResult[Double], TreeMeta) = {
-      (model.transform(Seq(input)), TreeMeta(depth))
-    }
   }
 
 }
@@ -223,7 +136,7 @@ class RegressionTree(
     */
   override def transform(inputs: Seq[Vector[Any]]): RegressionTreeResult = {
     new RegressionTreeResult(
-      inputs.map(inp => root.transform(RegressionTree.encodeInput(inp, encoders)))
+      inputs.map(inp => root.transform(CategoricalEncoder.encodeInput(inp, encoders)))
     )
   }
 }
@@ -257,25 +170,3 @@ class RegressionTreeResult(predictions: Seq[(PredictionResult[Double], TreeMeta)
     predictions.map(_._2.depth)
   }
 }
-
-/** Companion object with common utilities */
-object RegressionTree {
-  /**
-    * Apply a sequence of encoders to transform categorical variables into chars
-    *
-    * @param input    to encode
-    * @param encoders sequence of encoders
-    * @return input with categoricals encoded as chars
-    */
-  def encodeInput(input: Vector[Any], encoders: Seq[Option[CategoricalEncoder[Any]]]): Vector[AnyVal] = {
-    input.zip(encoders).map { case (v, e) =>
-      e match {
-        case Some(x) => x.encode(v)
-        case None => v.asInstanceOf[AnyVal]
-      }
-    }
-  }
-
-}
-
-

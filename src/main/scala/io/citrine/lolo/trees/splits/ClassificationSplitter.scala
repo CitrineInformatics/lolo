@@ -27,7 +27,7 @@ object ClassificationSplitter {
     * @param numFeatures to consider, randomly
     * @return a split object that optimally divides data
     */
-  def getBestSplit(data: Seq[(Vector[AnyVal], Char, Double)], numFeatures: Int): (Split, Double) = {
+  def getBestSplit(data: Seq[(Vector[AnyVal], Char, Double)], numFeatures: Int, minInstances: Int): (Split, Double) = {
     var bestSplit: Split = new NoSplit()
     var bestImpurity = Double.MaxValue
 
@@ -44,8 +44,8 @@ object ClassificationSplitter {
 
       /* Use different spliters for each type */
       val (possibleSplit, possibleImpurity) = rep._1(index) match {
-        case x: Double => getBestRealSplit(data, totalCategoryWeights, totalWeight, totalSquareSum, index)
-        case x: Char => getBestCategoricalSplit(data, totalCategoryWeights, totalWeight, totalSquareSum, index)
+        case x: Double => getBestRealSplit(data, totalCategoryWeights, totalWeight, totalSquareSum, index, minInstances)
+        case x: Char => getBestCategoricalSplit(data, totalCategoryWeights, totalWeight, totalSquareSum, index, minInstances)
         case x: Any => throw new IllegalArgumentException("Trying to split unknown feature type")
       }
 
@@ -68,7 +68,14 @@ object ClassificationSplitter {
     * @param index                of the feature to split on
     * @return the best split of this feature
     */
-  def getBestRealSplit(data: Seq[(Vector[AnyVal], Char, Double)], totalCategoryWeights: Map[Char, Double], totalWeight: Double, totalSquareSum: Double, index: Int): (RealSplit, Double) = {
+  def getBestRealSplit(
+                        data: Seq[(Vector[AnyVal], Char, Double)],
+                        totalCategoryWeights: Map[Char, Double],
+                        totalWeight: Double,
+                        totalSquareSum: Double,
+                        index: Int,
+                        minCount: Int
+                      ): (RealSplit, Double) = {
     /* Pull out the feature that's considered here and sort by it */
     val thinData = data.map(dat => (dat._1(index).asInstanceOf[Double], dat._2, dat._3)).sortBy(_._1)
 
@@ -82,7 +89,7 @@ object ClassificationSplitter {
     var bestPivot = Double.MinValue
 
     /* Move the data from the right to the left partition one value at a time */
-    (0 until data.size - 1).foreach { j =>
+    (0 until data.size - minCount).foreach { j =>
       val y = thinData(j)._2
       val w = thinData(j)._3
       val wl = leftCategoryWeights.getOrElse(y, 0.0)
@@ -99,7 +106,7 @@ object ClassificationSplitter {
          1) there is only one branch and
          2) it is usually false
        */
-      if (totalPurity > bestPurity && thinData(j + 1)._1 > thinData(j)._1 + 1.0e-9) {
+      if (totalPurity > bestPurity && j + 1 >= minCount && thinData(j + 1)._1 > thinData(j)._1 + 1.0e-9) {
         bestPurity = totalPurity
         /* Try pivots at the midpoints between consecutive member values */
         bestPivot = (thinData(j + 1)._1 + thinData(j)._1) / 2.0 // thinData(j)._1 //
@@ -108,18 +115,26 @@ object ClassificationSplitter {
     (new RealSplit(index, bestPivot), totalWeight - bestPurity)
   }
 
-  def getBestCategoricalSplit(data: Seq[(Vector[AnyVal], Char, Double)], totalCategoryWeights: Map[Char, Double], totalWeight: Double, totalSquareSum: Double, index: Int): (CategoricalSplit, Double) = {
+  def getBestCategoricalSplit(
+                               data: Seq[(Vector[AnyVal], Char, Double)],
+                               totalCategoryWeights: Map[Char, Double],
+                               totalWeight: Double,
+                               totalSquareSum: Double,
+                               index: Int,
+                               minCount: Int
+                             ): (CategoricalSplit, Double) = {
     val thinData = data.map(dat => (dat._1(index).asInstanceOf[Char], dat._2, dat._3))
     val groupedData = thinData.groupBy(_._1).mapValues { g =>
       val dict = g.groupBy(_._2).mapValues(v => v.map(_._3).sum)
       val impurity = dict.values.map(Math.pow(_, 2)).sum / Math.pow(dict.values.sum, 2)
-      (dict, impurity)
+      (dict, impurity, g.size)
     }
     val orderedNames = groupedData.toSeq.sortBy(_._2._2).map(_._1)
 
     /* Base cases for iteration */
     val leftCategoryWeights = mutable.Map[Char, Double]()
     var leftWeight = 0.0
+    var leftNum: Int = 0
     var leftSquareSum = 0.0
     var rightSquareSum = totalSquareSum
 
@@ -128,7 +143,8 @@ object ClassificationSplitter {
 
     /* Move the data from the right to the left partition one value at a time */
     (0 until orderedNames.size - 1).foreach { j =>
-      val dict = groupedData(orderedNames(j))._1
+      val gd = groupedData(orderedNames(j))
+      val dict = gd._1
       dict.foreach { case (y, w) =>
         val wl = leftCategoryWeights.getOrElse(y, 0.0)
         leftSquareSum += w * (w + 2 * wl)
@@ -136,6 +152,7 @@ object ClassificationSplitter {
         leftCategoryWeights(y) = w + wl
         leftWeight = leftWeight + w
       }
+      leftNum = leftNum + gd._3
 
       /* This is just relative, so we can subtract off the sum of the squares, data.map(Math.pow(_._2, 2)) */
       val totalPurity = leftSquareSum / leftWeight + rightSquareSum / (totalWeight - leftWeight)
@@ -145,7 +162,7 @@ object ClassificationSplitter {
          1) there is only one branch and
          2) it is usually false
        */
-      if (totalPurity > bestPurity) {
+      if (totalPurity > bestPurity && leftNum >= minCount && (thinData.size - leftNum) >= minCount) {
         bestPurity = totalPurity
         bestSet = orderedNames.slice(0, j + 1).toSet
       }
