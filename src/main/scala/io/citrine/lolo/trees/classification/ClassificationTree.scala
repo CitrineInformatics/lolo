@@ -19,7 +19,7 @@ class ClassificationTreeLearner(
 
   val myLeafLearner: Learner = leafLearner.getOrElse(new GuessTheMeanLearner)
 
-  override var hypers: Map[String, Any] = Map("maxDepth" -> 30)
+  override var hypers: Map[String, Any] = Map("maxDepth" -> 30, "minLeafInstances" -> 1)
 
     override def setHypers(moreHypers: Map[String, Any]): this.type = {
     hypers = hypers ++ moreHypers
@@ -68,11 +68,20 @@ class ClassificationTreeLearner(
     }
 
     /* The tree is built of training nodes */
-    val (split, delta) = ClassificationSplitter.getBestSplit(finalTraining, numFeaturesActual)
+    val (split, delta) = ClassificationSplitter.getBestSplit(finalTraining, numFeaturesActual, hypers("minLeafInstances").asInstanceOf[Int])
     val rootTrainingNode = if (split.isInstanceOf[NoSplit]) {
       new TrainingLeaf(finalTraining, myLeafLearner, 0)
     } else {
-      new ClassificationTrainingNode(finalTraining, myLeafLearner, split, delta, numFeaturesActual, remainingDepth = maxDepth - 1, maxDepth)
+      new ClassificationTrainingNode(
+        finalTraining,
+        myLeafLearner,
+        split,
+        delta,
+        numFeaturesActual,
+        remainingDepth = maxDepth - 1,
+        maxDepth = maxDepth,
+        minLeafInstances = hypers("minLeafInstances").asInstanceOf[Int]
+      )
     }
 
     /* Wrap them up in a regression tree */

@@ -170,31 +170,3 @@ class RegressionTreeResult(predictions: Seq[(PredictionResult[Double], TreeMeta)
     predictions.map(_._2.depth)
   }
 }
-
-/** Companion object with common utilities */
-object RegressionTree {
-
-  def buildChild(
-                        trainingData: Seq[(Vector[AnyVal], Double, Double)],
-                        leafLearner: Learner,
-                        minLeafInstances: Int,
-                        remainingDepth: Int,
-                        maxDepth: Int,
-                        numFeatures: Int
-                      ): TrainingNode[AnyVal, Double] = {
-    if (trainingData.size >= 2 * minLeafInstances && remainingDepth > 0 && trainingData.exists(_._2 != trainingData.head._2)) {
-      val (leftSplit, leftDelta) = RegressionSplitter.getBestSplit(trainingData, numFeatures, minLeafInstances)
-      if (!leftSplit.isInstanceOf[NoSplit]) {
-        new RegressionTrainingNode(trainingData, leafLearner, leftSplit, leftDelta, numFeatures, minLeafInstances, remainingDepth - 1, maxDepth)
-      } else {
-        new TrainingLeaf(trainingData, leafLearner, maxDepth - remainingDepth)
-      }
-    } else {
-      new TrainingLeaf(trainingData, leafLearner, maxDepth - remainingDepth)
-    }
-  }
-
-
-}
-
-
