@@ -108,12 +108,17 @@ class BaggedTrainingResult(
   lazy val NibT = Nib.transpose
   lazy val model = new BaggedModel(models, Nib, useJackknife, biasModel)
   lazy val rep = trainingData.head._2
-  lazy val predictedVsActual = trainingData.zip(NibT).map { case ((f, l), nb) =>
-    val predicted = rep match {
-      case x: Double => models.zip(nb).filter(_._2 == 0).map(_._1.transform(Seq(f)).getExpected().head.asInstanceOf[Double]).sum / nb.count(_ == 0)
-      case x: Any => models.zip(nb).filter(_._2 == 0).map(_._1.transform(Seq(f)).getExpected().head).groupBy(identity).maxBy(_._2.size)._1
+  lazy val predictedVsActual = trainingData.zip(NibT).flatMap { case ((f, l), nb) =>
+    val oob = models.zip(nb).filter(_._2 == 0)
+    if (oob.nonEmpty) {
+      val predicted = rep match {
+        case x: Double => oob.map(_._1.transform(Seq(f)).getExpected().head.asInstanceOf[Double]).sum / oob.size
+        case x: Any => oob.map(_._1.transform(Seq(f)).getExpected().head).groupBy(identity).maxBy(_._2.size)._1
+      }
+      Seq((f, predicted, l))
+    } else {
+      Seq()
     }
-    (f, predicted, l)
   }
 
   lazy val loss = rep match {
