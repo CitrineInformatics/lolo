@@ -1,6 +1,6 @@
 package io.citrine.lolo.trees
 
-import io.citrine.lolo.PredictionResult
+import io.citrine.lolo.{Learner, Model, PredictionResult}
 import io.citrine.lolo.trees.splits.Split
 
 import scala.collection.mutable
@@ -63,5 +63,36 @@ class InternalModelNode[T <: PredictionResult[Any]](
     } else {
       right.transform(input)
     }
+  }
+}
+
+/**
+  * Average the training data to make a leaf prediction
+  *
+  * @param trainingData to train on
+  */
+class TrainingLeaf[T](
+                              trainingData: Seq[(Vector[AnyVal], T, Double)],
+                              leafLearner: Learner,
+                              depth: Int
+                            ) extends TrainingNode(
+  trainingData = trainingData,
+  remainingDepth = 0
+) {
+  /**
+    * Average the training data
+    *
+    * @return lightweight prediction node
+    */
+  def getNode(): ModelNode[PredictionResult[T]] = {
+    new ModelLeaf(leafLearner.train(trainingData).getModel().asInstanceOf[Model[PredictionResult[T]]], depth)
+  }
+
+  override def getFeatureImportance(): mutable.ArraySeq[Double] = mutable.ArraySeq.fill(trainingData.head._1.size)(0.0)
+}
+
+class ModelLeaf[T](model: Model[PredictionResult[T]], depth: Int) extends ModelNode[PredictionResult[T]] {
+  override def transform(input: Vector[AnyVal]): (PredictionResult[T], TreeMeta) = {
+    (model.transform(Seq(input)), TreeMeta(depth))
   }
 }
