@@ -1,4 +1,4 @@
-package io.citrine.lolo.trees
+package io.citrine.lolo.trees.splits
 
 import org.junit.Test
 

@@ -1,7 +1,8 @@
 package io.citrine.lolo.learners
 
 import io.citrine.lolo.bags.Bagger
-import io.citrine.lolo.trees.{ClassificationTreeLearner, RegressionTreeLearner}
+import io.citrine.lolo.trees.classification.ClassificationTreeLearner
+import io.citrine.lolo.trees.regression.RegressionTreeLearner
 import io.citrine.lolo.{Learner, TrainingResult}
 
 /**

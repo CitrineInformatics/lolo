@@ -1,12 +1,12 @@
-package io.citrine.lolo.trees
+package io.citrine.lolo.trees.regression
 
 import java.io.{File, FileOutputStream, ObjectOutputStream}
 
 import io.citrine.lolo.TestUtils
 import io.citrine.lolo.linear.LinearRegressionLearner
 import io.citrine.lolo.stats.functions.Friedman
-import org.scalatest.Assertions._
 import org.junit.Test
+import org.scalatest.Assertions._
 
 /**
   * Created by maxhutch on 11/29/16.

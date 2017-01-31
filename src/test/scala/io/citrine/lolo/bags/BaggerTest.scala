@@ -2,7 +2,8 @@ package io.citrine.lolo.bags
 
 import io.citrine.lolo.TestUtils
 import io.citrine.lolo.stats.functions.Friedman
-import io.citrine.lolo.trees.{ClassificationTreeLearner, RegressionTreeLearner}
+import io.citrine.lolo.trees.classification.ClassificationTreeLearner
+import io.citrine.lolo.trees.regression.RegressionTreeLearner
 import org.junit.Test
 import org.scalatest.Assertions._
 
