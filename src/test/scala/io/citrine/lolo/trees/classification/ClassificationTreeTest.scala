@@ -15,6 +15,32 @@ import scala.util.Random
 @Test
 class ClassificationTreeTest {
 
+  @Test
+  def testBinary(): Unit = {
+    val rnd = new Random(seed = 0L)
+    assert(rnd.nextLong() == -4962768465676381896L)
+    val trainingData = TestUtils.binTrainingData(
+      TestUtils.generateTrainingData(2048, 12, noise = 0.1,
+        function = Friedman.friedmanSilverman),
+      responseBins = Some(2)
+    )
+    val DTLearner = new ClassificationTreeLearner()
+    val DTMeta = DTLearner.train(trainingData)
+    val DT = DTMeta.getModel()
+
+    /* We should be able to memorize the inputs */
+    val output = DT.transform(trainingData.map(_._1))
+    trainingData.zip(output.getExpected()).foreach { case ((x, a), p) =>
+      assert(a == p, s"${a} != ${p} for ${x}")
+    }
+    assert(output.getGradient().isEmpty)
+    output.getDepth().foreach(d => assert(d > 0))
+
+    /* The first features should be the most important */
+    val importances = DTMeta.getFeatureImportance().get
+    assert(importances.slice(0, 5).min > importances.slice(5, importances.size).max)
+  }
+
   /**
     * Test a larger case and time it as a benchmark guideline
     */
@@ -90,6 +116,7 @@ object ClassificationTreeTest {
     * @param argv args
     */
   def main(argv: Array[String]): Unit = {
+    new ClassificationTreeTest().testBinary()
     new ClassificationTreeTest().longerTest()
     new ClassificationTreeTest().testCategorical()
   }
