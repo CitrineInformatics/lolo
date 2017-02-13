@@ -167,7 +167,7 @@ object ClassificationSplitter {
         bestSet = orderedNames.slice(0, j + 1).toSet
       }
     }
-    (new CategoricalSplit(index, bestSet), totalWeight - bestPurity)
+    (new CategoricalSplit(index, new scala.collection.mutable.BitSet() ++ bestSet.map(_.toInt)), totalWeight - bestPurity)
   }
 
 }

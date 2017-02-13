@@ -1,5 +1,7 @@
 package io.citrine.lolo.trees.splits
 
+import scala.collection.BitSet
+
 /**
   * Splits are used by decision trees to partition the input space
   */
@@ -79,7 +81,7 @@ class RealSplit(index: Int, pivot: Double) extends Split {
   * @param index      of the categorical feature
   * @param includeSet set of values that turn left
   */
-class CategoricalSplit(index: Int, includeSet: Set[Char]) extends Split {
+class CategoricalSplit(index: Int, includeSet: BitSet) extends Split {
 
   /**
     * If the value at the index position is in the set, turn left
@@ -88,7 +90,7 @@ class CategoricalSplit(index: Int, includeSet: Set[Char]) extends Split {
     * @return true if input takes the left split
     */
   override def turnLeft(input: Vector[AnyVal]): Boolean = {
-    includeSet.contains(input(index).asInstanceOf[Char])
+    includeSet.contains(input(index).asInstanceOf[Char].toInt)
   }
 
   /**
