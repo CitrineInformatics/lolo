@@ -5,6 +5,7 @@ import java.io.{File, FileOutputStream, ObjectOutputStream}
 import io.citrine.lolo.TestUtils
 import io.citrine.lolo.linear.LinearRegressionLearner
 import io.citrine.lolo.stats.functions.Friedman
+import io.citrine.lolo.trees.classification.ClassificationTreeLearner
 import org.junit.Test
 import org.scalatest.Assertions._
 
@@ -13,6 +14,23 @@ import org.scalatest.Assertions._
   */
 @Test
 class RegressionTreeTest {
+
+  /**
+    * Trivial models with no splits should have finite feature importance.
+    */
+  @Test
+  def testFeatureImportanceNaN(): Unit = {
+    val X = Vector.fill(100) {
+      val input = Vector.fill(10)(1.0)
+      (input, 2.0)
+    }
+
+    val DTLearner = new RegressionTreeLearner()
+    val DTMeta = DTLearner.train(X)
+    val DT = DTMeta.getModel()
+    assert(DTMeta.getFeatureImportance()
+      .get.forall(v => !v.isNaN))
+  }
 
   /**
     * Test a simple tree with only real inputs

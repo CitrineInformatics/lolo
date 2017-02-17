@@ -1,5 +1,6 @@
 package io.citrine.lolo.trees.splits
 
+import scala.collection.immutable.BitSet
 import scala.util.Random
 
 /**
@@ -123,7 +124,7 @@ object RegressionSplitter {
     /* Make sure there is more than one member for most of the classes */
     val nonTrivial: Double = groupedData.filter(_._2._3 > 1).map(_._2._2).sum
     if (nonTrivial / totalWeight < 0.5) {
-      return (new CategoricalSplit(index, Set.empty[Char]), Double.MaxValue)
+      return (new CategoricalSplit(index, BitSet()), Double.MaxValue)
     }
 
     /* Compute the average label for each categorical value */
@@ -155,7 +156,7 @@ object RegressionSplitter {
         bestSet = orderedNames.slice(0, j + 1).toSet
       }
     }
-    (new CategoricalSplit(index, bestSet), bestVariance)
+    (new CategoricalSplit(index, new scala.collection.mutable.BitSet() ++ bestSet.map(_.toInt)), bestVariance)
   }
 
 }

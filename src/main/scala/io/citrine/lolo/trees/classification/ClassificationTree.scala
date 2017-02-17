@@ -2,9 +2,9 @@ package io.citrine.lolo.trees.classification
 
 import io.citrine.lolo.encoders.CategoricalEncoder
 import io.citrine.lolo.linear.GuessTheMeanLearner
-import io.citrine.lolo.trees.splits.{ClassificationSplitter, NoSplit, Split}
-import io.citrine.lolo.trees.{InternalModelNode, ModelNode, TrainingLeaf, TrainingNode, TreeMeta}
-import io.citrine.lolo.{Learner, Model, MultiResult, PredictionResult, TrainingResult}
+import io.citrine.lolo.trees.splits.{ClassificationSplitter, NoSplit}
+import io.citrine.lolo.trees.{ModelNode, TrainingLeaf, TrainingNode, TreeMeta}
+import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
 
 
 /**
@@ -21,7 +21,7 @@ class ClassificationTreeLearner(
 
   override var hypers: Map[String, Any] = Map("maxDepth" -> 30, "minLeafInstances" -> 1)
 
-    override def setHypers(moreHypers: Map[String, Any]): this.type = {
+  override def setHypers(moreHypers: Map[String, Any]): this.type = {
     hypers = hypers ++ moreHypers
     myLeafLearner.setHypers(moreHypers)
     this
@@ -101,7 +101,13 @@ class ClassificationTrainingResult(
 
   /* Grab the feature influences */
   lazy val importance = rootTrainingNode.getFeatureImportance()
-  lazy val importanceNormalized = importance.map(_ / importance.sum)
+  lazy val importanceNormalized = {
+    if (Math.abs(importance.sum) > 0) {
+      importance.map(_ / importance.sum)
+    } else {
+      importance.map(_ => 1.0 / importance.size)
+    }
+  }
 
   /**
     * Get the hyperparameters used to train this model
