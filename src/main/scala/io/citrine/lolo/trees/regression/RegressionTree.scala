@@ -103,7 +103,13 @@ class RegressionTreeTrainingResult(
                                   ) extends TrainingResult {
   lazy val model = new RegressionTree(rootTrainingNode.getNode(), encoders)
   lazy val importance = rootTrainingNode.getFeatureImportance()
-  lazy val importanceNormalized = importance.map(_ / importance.sum)
+  lazy val importanceNormalized = {
+    if (Math.abs(importance.sum) > 0) {
+      importance.map(_ / importance.sum)
+    } else {
+      importance.map(_ => 1.0 / importance.size)
+    }
+  }
 
   override def getModel(): RegressionTree = model
 
