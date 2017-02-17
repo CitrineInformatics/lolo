@@ -15,6 +15,23 @@ import scala.util.Random
 @Test
 class ClassificationTreeTest {
 
+  /**
+    * Trivial models with no splits should have finite feature importance.
+    */
+  @Test
+  def testFeatureImportanceNaN(): Unit = {
+    val X = Vector.fill(100) {
+      val input = Vector.fill(10)(1.0)
+      (input, 2.0)
+    }
+
+    val DTLearner = new ClassificationTreeLearner()
+    val DTMeta = DTLearner.train(X)
+    val DT = DTMeta.getModel()
+    assert(DTMeta.getFeatureImportance()
+      .get.forall(v => !v.isNaN))
+  }
+
   @Test
   def testBinary(): Unit = {
     val rnd = new Random(seed = 0L)
