@@ -3,6 +3,11 @@ package io.citrine.lolo.transformers
 import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
 
 /**
+  * Standardize the training data to zero mean and unit variance before feeding it into another learner
+  *
+  * This is particularly helpful for regularized methods, like ridge regression, where
+  * the relative scale of the features and labels is important.
+  *
   * Created by maxhutch on 2/19/17.
   */
 class Standardizer(baseLearner: Learner) extends Learner() {
@@ -14,7 +19,7 @@ class Standardizer(baseLearner: Learner) extends Learner() {
   }
 
   /**
-    * Train a model
+    * Create affine transformations for continuous features and labels; pass data through to learner
     *
     * @param trainingData to train on
     * @param weights      for the training rows, if applicable
@@ -36,6 +41,13 @@ class Standardizer(baseLearner: Learner) extends Learner() {
   }
 }
 
+/**
+  * Training result wrapping the base learner's training result next to the transformations
+  *
+  * @param baseTrainingResult
+  * @param trans
+  * @param hypers
+  */
 class StandardizerTrainingResult(
                                   baseTrainingResult: TrainingResult,
                                   trans: Seq[Option[(Double, Double)]],
@@ -58,9 +70,17 @@ class StandardizerTrainingResult(
   override def getFeatureImportance(): Option[Vector[Double]] = baseTrainingResult.getFeatureImportance()
 }
 
+/**
+  * Model that wrapps the base model next to the transformations
+  *
+  * @param baseModel
+  * @param trans
+  * @tparam T
+  */
 class StandardizerModel[T](baseModel: Model[PredictionResult[T]], trans: Seq[Option[(Double, Double)]]) extends Model[PredictionResult[T]] {
+
   /**
-    * Apply the model to a seq of inputs
+    * Standardize the inputs and then apply the base model
     *
     * @param inputs to apply the model to
     * @return a predictionresult which includes, at least, the expected outputs
@@ -71,9 +91,18 @@ class StandardizerModel[T](baseModel: Model[PredictionResult[T]], trans: Seq[Opt
   }
 }
 
+/**
+  * Prediction that wraps the base prediction next to the transformation
+  *
+  * @param baseResult
+  * @param trans
+  * @tparam T
+  */
 class StandardizerPrediction[T](baseResult: PredictionResult[T], trans: Seq[Option[(Double, Double)]]) extends PredictionResult[T] {
   /**
     * Get the expected values for this prediction
+    *
+    * Just reverse any transformation that was applied to the labels
     *
     * @return expected value of each prediction
     */
@@ -87,20 +116,22 @@ class StandardizerPrediction[T](baseResult: PredictionResult[T], trans: Seq[Opti
   /**
     * Get the uncertainty of the prediction
     *
-    * For example, in regression this is sqrt(bias^2 + variance)
+    * This is un-standardized by rescaling by the label's variance
+    *
     * @return uncertainty of each prediction
     */
   override def getUncertainty(): Option[Seq[Any]] = {
     baseResult.getUncertainty() match {
-      case None => None
-      case Some(x: Seq[Double]) => Some(x.map(_ * rescale))
-      case Some(x: Seq[Any]) => Some(x)
+      case Some(x) if trans.head.isDefined => Some(x.map(_.asInstanceOf[Double] * rescale))
+      case x: Any => x
     }
   }
 
 
   /**
     * Get the gradient or sensitivity of each prediction
+    *
+    * This is un-stanardized by rescaling by the label's variance divided by the feature transformation's variance
     *
     * @return a vector of doubles for each prediction
     */
@@ -121,7 +152,17 @@ class StandardizerPrediction[T](baseResult: PredictionResult[T], trans: Seq[Opti
   val intercept = trans.head.map(_._1).getOrElse(1.0)
 }
 
+/**
+  * Utilities to compute and apply standarizations
+  */
 object Standardizer {
+
+  /**
+    * The standardizations are just shifts and rescale.  The shift is by the mean and the re-scale is by the variance
+    *
+    * @param values to get a standardizer for
+    * @return
+    */
   def getStandardization(values: Seq[Double]): (Double, Double) = {
     val mean = values.sum / values.size
     val scale = Math.sqrt(values.map(v => Math.pow(v - mean, 2)).sum / values.size)
@@ -131,7 +172,7 @@ object Standardizer {
   /**
     * Get standardization for multiple values in a vector.
     *
-    * This has a different name because scala erases the inner type of Seq[T]
+    * This has a different name because the jvm erases the inner type of Seq[T]
     *
     * @param values sequence of vectors to be standardized
     * @return sequence of standardization, each as an option
@@ -147,15 +188,29 @@ object Standardizer {
     }
   }
 
+  /**
+    * Apply the standardization to vectors, which should result in an output with zero mean and unit variance
+    *
+    * @param input to standardize
+    * @param trans transformtions to apply.  None means no transformation
+    * @return sequence of standardized vectors
+    */
   def applyStandardization(input: Seq[Vector[Any]], trans: Seq[Option[(Double, Double)]]): Seq[Vector[Any]] = {
     input.map { r =>
       r.zip(trans).map {
         case (x: Double, Some(t)) => (x - t._1) * t._2
-        case (x: Any, None) => x
+        case (x: Any, _) => x
       }
     }
   }
 
+  /**
+    * Apply the standardization to a sequence of values, which should result in output with zero mean and unit variance
+    *
+    * @param input to standardize
+    * @param trans transformation to apply
+    * @return sequence of standardized values
+    */
   def applyStandardization(input: Seq[Any], trans: Option[(Double, Double)]): Seq[Any] = {
     if (trans.isEmpty) return input
 
