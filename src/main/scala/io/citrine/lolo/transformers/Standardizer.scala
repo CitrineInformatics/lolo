@@ -7,6 +7,7 @@ import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
   */
 class Standardizer(baseLearner: Learner) extends Learner() {
   override var hypers: Map[String, Any] = Map()
+
   override def setHypers(moreHypers: Map[String, Any]): this.type = {
     baseLearner.setHypers(moreHypers)
     super.setHypers(moreHypers)
@@ -77,7 +78,7 @@ class StandardizerPrediction[T](baseResult: PredictionResult[T], trans: Seq[Opti
     * @return expected value of each prediction
     */
   override def getExpected(): Seq[T] = {
-    baseResult.getExpected().map{
+    baseResult.getExpected().map {
       case x: Double => x * rescale + intercept
       case x: Any => x
     }.asInstanceOf[Seq[T]]
@@ -106,10 +107,13 @@ class StandardizerPrediction[T](baseResult: PredictionResult[T], trans: Seq[Opti
   override def getGradient(): Option[Seq[Vector[Double]]] = {
     baseResult.getGradient() match {
       case None => None
-      case Some(x) => Some(x.map(g => g.zip(trans.tail).map {
-        case (y: Double, Some((_, m))) => y * rescale * m
-        case (y, None) => y * rescale
-      }))
+      case Some(x) =>
+        Some(x.map(g => g.zip(trans.tail).map {
+          // If there was a (linear) transformer used on that input, take the slope "m" and rescale by it
+          case (y: Double, Some((_, m))) => y * rescale * m
+          // Otherwise, just rescale by the output transformer
+          case (y, None) => y * rescale
+        }))
     }
   }
 
@@ -121,19 +125,20 @@ object Standardizer {
   def getStandardization(values: Seq[Double]): (Double, Double) = {
     val mean = values.sum / values.size
     val scale = Math.sqrt(values.map(v => Math.pow(v - mean, 2)).sum / values.size)
-    (mean, 1.0/scale)
+    (mean, 1.0 / scale)
   }
 
   /**
     * Get standardization for multiple values in a vector.
     *
     * This has a different name because scala erases the inner type of Seq[T]
+    *
     * @param values sequence of vectors to be standardized
     * @return sequence of standardization, each as an option
     */
   def getMultiStandardization(values: Seq[Vector[Any]]): Seq[Option[(Double, Double)]] = {
     val rep = values.head
-    rep.indices.map{i =>
+    rep.indices.map { i =>
       rep(i) match {
         case x: Double =>
           Some(getStandardization(values.map(r => r(i).asInstanceOf[Double])))
@@ -143,7 +148,7 @@ object Standardizer {
   }
 
   def applyStandardization(input: Seq[Vector[Any]], trans: Seq[Option[(Double, Double)]]): Seq[Vector[Any]] = {
-    input.map {r =>
+    input.map { r =>
       r.zip(trans).map {
         case (x: Double, Some(t)) => (x - t._1) * t._2
         case (x: Any, None) => x
@@ -154,7 +159,7 @@ object Standardizer {
   def applyStandardization(input: Seq[Any], trans: Option[(Double, Double)]): Seq[Any] = {
     if (trans.isEmpty) return input
 
-    input.asInstanceOf[Seq[Double]].map{r =>
+    input.asInstanceOf[Seq[Double]].map { r =>
       (r - trans.get._1) * trans.get._2
     }
   }
