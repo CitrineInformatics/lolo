@@ -66,11 +66,11 @@ class StandardizerModel[T](baseModel: Model[PredictionResult[T]], trans: Seq[Opt
     */
   override def transform(inputs: Seq[Vector[Any]]): StandardizerPrediction[T] = {
     val standardInputs = Standardizer.applyStandardization(inputs, trans.tail)
-    new StandardizerPrediction(baseModel.transform(standardInputs), trans.head.getOrElse((0, 0)))
+    new StandardizerPrediction(baseModel.transform(standardInputs), trans)
   }
 }
 
-class StandardizerPrediction[T](baseResult: PredictionResult[T], trans: (Double, Double)) extends PredictionResult[T] {
+class StandardizerPrediction[T](baseResult: PredictionResult[T], trans: Seq[Option[(Double, Double)]]) extends PredictionResult[T] {
   /**
     * Get the expected values for this prediction
     *
@@ -78,7 +78,7 @@ class StandardizerPrediction[T](baseResult: PredictionResult[T], trans: (Double,
     */
   override def getExpected(): Seq[T] = {
     baseResult.getExpected().map{
-      case x: Double => x * rescale + trans._1
+      case x: Double => x * rescale + intercept
       case x: Any => x
     }.asInstanceOf[Seq[T]]
   }
@@ -97,7 +97,24 @@ class StandardizerPrediction[T](baseResult: PredictionResult[T], trans: (Double,
     }
   }
 
-  val rescale = 1.0 / trans._2
+
+  /**
+    * Get the gradient or sensitivity of each prediction
+    *
+    * @return a vector of doubles for each prediction
+    */
+  override def getGradient(): Option[Seq[Vector[Double]]] = {
+    baseResult.getGradient() match {
+      case None => None
+      case Some(x) => Some(x.map(g => g.zip(trans.tail).map {
+        case (y: Double, Some((_, m))) => y * rescale * m
+        case (y, None) => y * rescale
+      }))
+    }
+  }
+
+  val rescale = 1.0 / trans.head.map(_._2).getOrElse(1.0)
+  val intercept = trans.head.map(_._1).getOrElse(1.0)
 }
 
 object Standardizer {
