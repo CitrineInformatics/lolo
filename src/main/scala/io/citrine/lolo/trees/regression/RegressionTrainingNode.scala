@@ -88,10 +88,10 @@ object RegressionTrainingNode {
       if (!leftSplit.isInstanceOf[NoSplit]) {
         new RegressionTrainingNode(trainingData, leafLearner, leftSplit, leftDelta, numFeatures, minLeafInstances, remainingDepth - 1, maxDepth)
       } else {
-        new TrainingLeaf(trainingData, leafLearner, maxDepth - remainingDepth)
+        new RegressionTrainingLeaf(trainingData, leafLearner, maxDepth - remainingDepth)
       }
     } else {
-      new TrainingLeaf(trainingData, leafLearner, maxDepth - remainingDepth)
+      new RegressionTrainingLeaf(trainingData, leafLearner, maxDepth - remainingDepth)
     }
   }
 }
