@@ -5,7 +5,6 @@ import java.io.{File, FileOutputStream, ObjectOutputStream}
 import io.citrine.lolo.TestUtils
 import io.citrine.lolo.linear.LinearRegressionLearner
 import io.citrine.lolo.stats.functions.Friedman
-import io.citrine.lolo.trees.classification.ClassificationTreeLearner
 import org.junit.Test
 import org.scalatest.Assertions._
 
@@ -148,6 +147,22 @@ class RegressionTreeTest {
     val oos = new ObjectOutputStream(new FileOutputStream(tmpFile))
     oos.writeObject(DT)
   }
+
+  def testShortTreeWithLinearLeaf(): Unit = {
+     val trainingData = TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman)
+
+    val linearLearner = new LinearRegressionLearner().setHyper("regParam", 1.0)
+    val DTLearner = new RegressionTreeLearner(leafLearner = Some(linearLearner)).setHyper("minLeafInstances", 128)
+    val DTMeta = DTLearner.train(trainingData)
+    val DT = DTMeta.getModel()
+
+    /* The first feature should be the most important */
+    val importances = DTMeta.getFeatureImportance().get
+    println(importances)
+    assert(importances(1) == importances.max)
+    /* They should all be non-zero */
+    assert(importances.min > 0.0)
+  }
 }
 
 /** Companion driver */
@@ -162,5 +177,6 @@ object RegressionTreeTest {
     new RegressionTreeTest().longerTest()
     new RegressionTreeTest().testCategorical()
     new RegressionTreeTest().testLinearLeaves()
+    new RegressionTreeTest().testShortTreeWithLinearLeaf()
   }
 }
