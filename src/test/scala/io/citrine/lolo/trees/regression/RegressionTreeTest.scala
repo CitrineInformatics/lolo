@@ -148,6 +148,9 @@ class RegressionTreeTest {
     oos.writeObject(DT)
   }
 
+  /**
+    * Test a really short tree to make sure the linear model feature importance gets carried through
+    */
   def testShortTreeWithLinearLeaf(): Unit = {
      val trainingData = TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman)
 
