@@ -107,6 +107,17 @@ class LinearRegressionTrainingResult(model: LinearRegressionModel, hypers: Map[S
   override def getHypers(): Map[String, Any] = hypers
 
   override def getModel(): LinearRegressionModel = model
+
+  /**
+    * Get a measure of the importance of the model features
+    *
+    * @return feature influences as an array of doubles
+    */
+  override def getFeatureImportance(): Option[Vector[Double]] = {
+    val beta = model.getBeta().map(Math.abs)
+    val renorm = 1.0 / beta.sum
+    Some(beta.map(_ * renorm))
+  }
 }
 
 /**
@@ -143,6 +154,12 @@ class LinearRegressionModel(
     }.getOrElse(beta).toArray.toVector
     new LinearRegressionResult(result, grad)
   }
+
+  /**
+    * Get the beta from the linear model \beta^T X = y
+    * @return beta as a vector of double
+    */
+  def getBeta(): Vector[Double] = beta.toScalaVector()
 }
 
 /**
