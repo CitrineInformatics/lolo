@@ -7,6 +7,8 @@ import io.citrine.lolo.trees.regression.RegressionTreeLearner
 import org.junit.Test
 import org.scalatest.Assertions._
 
+import scala.util.Random
+
 /**
   * Created by maxhutch on 11/29/16.
   */
@@ -100,6 +102,35 @@ class BaggerTest {
     )
   }
 
+  /**
+    * Test that the noise level is captured by the uncertainty
+    *
+    * Here, x3 is part of the true function but missing from the inputs
+    * Therefore, it serves as a noise source.  Can we capture its uncertainty?
+    */
+  def testUncertainty(): Unit = {
+    val trainingData = Seq.tabulate(8192){i =>
+      val x1 = Random.nextGaussian()
+      val x2 = Random.nextGaussian()
+      val x3 = Random.nextGaussian()
+      val x4 = Random.nextGaussian()
+      val x5 = Random.nextGaussian()
+      val x6 = Random.nextGaussian()
+      val x7 = Random.nextGaussian()
+      (Vector(x1, x2, x4, x5, x6, x7), x1 + x3)
+    }
+    val DTLearner = new RegressionTreeLearner(numFeatures = 2).setHyper("minLeafInstances", 8)
+    val baggedLearner = new Bagger(DTLearner, numBags = trainingData.size)
+    val RFMeta = baggedLearner.train(trainingData)
+    val RF = RFMeta.getModel()
+    val res = RF.transform(Seq(Vector.fill(6)(0.0)))
+    val std = res.getUncertainty().get.head.asInstanceOf[Double]
+    val mean = res.getExpected().head.asInstanceOf[Double]
+    println(s"Predicted ${mean} +/- ${std}")
+    assert(Math.abs(mean) < 0.5)
+    assert(Math.abs(std - 1.0) < 0.5)
+  }
+
 }
 
 /**
@@ -113,6 +144,7 @@ object BaggerTest {
     */
   def main(argv: Array[String]): Unit = {
     new BaggerTest()
-      .testClassificationBagger()
+      // .testClassificationBagger()
+      .testUncertainty()
   }
 }
