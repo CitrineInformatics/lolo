@@ -6,6 +6,7 @@ import io.citrine.lolo.{Learner, Model, PredictionResult}
 import scala.collection.mutable
 
 /**
+  * Training leaf node for regression trees
   * Created by maxhutch on 3/8/17.
   */
 class RegressionTrainingLeaf(
@@ -15,14 +16,18 @@ class RegressionTrainingLeaf(
                             ) extends TrainingNode(trainingData, depth) {
 
   /**
-    * Average the training data
+    * Wrap the leaf model (previously trained) in a lightweight leaf node
     *
     * @return lightweight prediction node
     */
   def getNode(): ModelNode[PredictionResult[Double]] = {
-    new ModelLeaf(leafLearner.train(trainingData).getModel().asInstanceOf[Model[PredictionResult[Double]]], depth)
+    new ModelLeaf(model.asInstanceOf[Model[PredictionResult[Double]]], depth)
   }
 
+  /**
+    * Pull the leaf model's feature importance and rescale it by the remaining impurity
+    * @return feature importance as a vector
+    */
   def getFeatureImportance(): scala.collection.mutable.ArraySeq[Double] = {
     importance match {
       case Some(x) =>
@@ -35,7 +40,10 @@ class RegressionTrainingLeaf(
     }
   }
 
+  /** Train the leaf learner on the training data */
   val leafTrainingResult = leafLearner.train(trainingData)
+  /** Pull out the model for future use */
   val model = leafTrainingResult.getModel().asInstanceOf[Model[PredictionResult[Double]]]
+  /** Pull out the importance for future use */
   val importance = leafTrainingResult.getFeatureImportance()
 }
