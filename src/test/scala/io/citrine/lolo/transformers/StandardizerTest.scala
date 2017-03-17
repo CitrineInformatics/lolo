@@ -3,6 +3,7 @@ package io.citrine.lolo.transformers
 import io.citrine.lolo.TestUtils
 import io.citrine.lolo.linear.{GuessTheMeanLearner, LinearRegressionLearner}
 import io.citrine.lolo.stats.functions.Friedman
+import io.citrine.lolo.trees.classification.ClassificationTreeLearner
 import org.junit.Test
 
 /**
@@ -101,6 +102,24 @@ class StandardizerTest {
       assert(Math.abs(free - standard) > 1.0e-9, s"${free} and ${standard} should NOT be the same")
     }
   }
+
+  def testStandardClassification(): Unit = {
+    val trainingData = TestUtils.binTrainingData(
+      TestUtils.generateTrainingData(2048, 12, noise = 0.1,
+        function = Friedman.friedmanSilverman),
+      responseBins = Some(2)
+    )
+    val learner = new ClassificationTreeLearner()
+    val model = learner.train(trainingData).getModel()
+    val result = model.transform(trainingData.map(_._1)).getExpected()
+
+    val standardLearner = new Standardizer(learner)
+    val standardModel = standardLearner.train(trainingData).getModel()
+    val standardResult = standardModel.transform(trainingData.map(_._1)).getExpected()
+    result.zip(standardResult).foreach { case (free: String, standard: String) =>
+      assert(free == standard, s"Standard classification tree should be the same")
+    }
+  }
 }
 
 object StandardizerTest {
@@ -109,5 +128,6 @@ object StandardizerTest {
     new StandardizerTest().testStandardGTM()
     new StandardizerTest().testStandardLinear()
     new StandardizerTest().testStandardRidge()
+    new StandardizerTest().testStandardClassification()
   }
 }
