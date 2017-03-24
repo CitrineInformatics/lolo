@@ -35,7 +35,7 @@ class Standardizer(baseLearner: Learner) extends Learner() {
 
     val (inputs, labels) = trainingData.unzip
     val standardTrainingData = Standardizer.applyStandardization(inputs, inputTrans).zip(Standardizer.applyStandardization(labels, outputTrans))
-    val baseTrainingResult = baseLearner.train(standardTrainingData)
+    val baseTrainingResult = baseLearner.train(standardTrainingData, weights)
 
     new StandardizerTrainingResult(baseTrainingResult, Seq(outputTrans) ++ inputTrans, hypers)
   }
