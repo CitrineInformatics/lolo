@@ -6,6 +6,8 @@ import io.citrine.lolo.stats.functions.Friedman
 import io.citrine.lolo.trees.classification.ClassificationTreeLearner
 import org.junit.Test
 
+import scala.util.Random
+
 /**
   * Created by maxhutch on 2/19/17.
   */
@@ -13,6 +15,7 @@ import org.junit.Test
 class StandardizerTest {
 
   val data = TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman)
+  val weights = Vector.fill(data.size)(if (Random.nextBoolean()) Random.nextDouble() else 0.0)
 
   @Test
   def testStandardMeanAndVariance(): Unit = {
@@ -64,13 +67,13 @@ class StandardizerTest {
   @Test
   def testStandardLinear(): Unit = {
     val learner = new LinearRegressionLearner()
-    val model = learner.train(data).getModel()
+    val model = learner.train(data, Some(weights)).getModel()
     val result = model.transform(data.map(_._1))
     val expected = result.getExpected()
     val gradient = result.getGradient()
 
     val standardLearner = new Standardizer(learner)
-    val standardModel = standardLearner.train(data).getModel()
+    val standardModel = standardLearner.train(data, Some(weights)).getModel()
     val standardResult = standardModel.transform(data.map(_._1))
     val standardExpected = standardResult.getExpected()
     val standardGradient = standardResult.getGradient()
@@ -109,6 +112,7 @@ class StandardizerTest {
         function = Friedman.friedmanSilverman),
       responseBins = Some(2)
     )
+
     val learner = new ClassificationTreeLearner()
     val model = learner.train(trainingData).getModel()
     val result = model.transform(trainingData.map(_._1)).getExpected()
