@@ -142,6 +142,8 @@ class RegressionTreeTest {
     /* The first feature should be the most important */
     val importances = DTMeta.getFeatureImportance().get
     assert(importances(1) == importances.max)
+    /* They should all be non-zero */
+    assert(importances.min > 0.0)
 
     val tmpFile: File = File.createTempFile("tmp", ".csv")
     val oos = new ObjectOutputStream(new FileOutputStream(tmpFile))
@@ -151,20 +153,23 @@ class RegressionTreeTest {
   /**
     * Test a really short tree to make sure the linear model feature importance gets carried through
     */
+  @Test
   def testShortTreeWithLinearLeaf(): Unit = {
-     val trainingData = TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman)
+     val trainingData = TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, seed = 3L)
+    println(trainingData.last)
 
     val linearLearner = new LinearRegressionLearner().setHyper("regParam", 1.0)
-    val DTLearner = new RegressionTreeLearner(leafLearner = Some(linearLearner)).setHyper("minLeafInstances", 128)
+    val DTLearner = new RegressionTreeLearner(leafLearner = Some(linearLearner)).setHyper("maxDepth", 0)
     val DTMeta = DTLearner.train(trainingData)
     val DT = DTMeta.getModel()
 
     /* The first feature should be the most important */
     val importances = DTMeta.getFeatureImportance().get
-    println(importances)
     assert(importances(1) == importances.max)
     /* They should all be non-zero */
     assert(importances.min > 0.0)
+    /* They should have roughly the same value (linear regression has some noise in it) */
+    assert(Math.abs(importances(0) - 0.3013112101739557) < 1.0e-3)
   }
 }
 
