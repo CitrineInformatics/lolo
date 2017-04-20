@@ -122,6 +122,7 @@ class BaggerTest {
         }
       }
     )
+    Thread.sleep(1000)
     assert(fut.cancel(true), "Failed to cancel future")
 
     try {
