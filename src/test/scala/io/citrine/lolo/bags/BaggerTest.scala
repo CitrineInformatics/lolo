@@ -1,6 +1,6 @@
 package io.citrine.lolo.bags
 
-import java.util.concurrent.{Callable, CancellationException, Executors, Future}
+import java.util.concurrent.{Callable, CancellationException, Executors, Future, TimeUnit}
 
 import io.citrine.lolo.TestUtils
 import io.citrine.lolo.stats.functions.Friedman
@@ -111,29 +111,41 @@ class BaggerTest {
     val DTLearner = new RegressionTreeLearner(numFeatures = 3)
     val baggedLearner = new Bagger(DTLearner, numBags = trainingData.size)
 
+    // Create a future to run train
     val tmpPool = Executors.newFixedThreadPool(1)
     val fut: Future[BaggedTrainingResult] = tmpPool.submit(
       new Callable[BaggedTrainingResult] {
         override def call() = {
-          println("Starting to run the future")
           val res = baggedLearner.train(trainingData)
           assert(false, "Training was not terminated")
           res
         }
       }
     )
+    // Let the thread start
     Thread.sleep(1000)
+
+    // Cancel it
+    val start = System.currentTimeMillis()
     assert(fut.cancel(true), "Failed to cancel future")
 
+    // Make sure we get either a cancellation of interrupted exception
     try {
       fut.get()
       assert(false, "Future completed")
     } catch {
       case _: CancellationException =>
       case _: InterruptedException =>
-      case _: Throwable => assert(false)
+      case _: Throwable => assert(false, "Future threw an exception")
     }
+
+    // Shutdown the pool
     tmpPool.shutdown()
+    assert(tmpPool.awaitTermination(1, TimeUnit.MINUTES), "Thread pool didn't terminate after a minute!")
+
+    // Did it halt fast enough?
+    val totalTime = (System.currentTimeMillis() - start) * 1.0e-3
+    assert(totalTime < 2.0, "Thread took too long to terminate")
   }
 }
 
