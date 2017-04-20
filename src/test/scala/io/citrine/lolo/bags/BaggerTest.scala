@@ -147,6 +147,6 @@ object BaggerTest {
     */
   def main(argv: Array[String]): Unit = {
     new BaggerTest()
-      .testInterupt()
+      .testInterrupt()
   }
 }
