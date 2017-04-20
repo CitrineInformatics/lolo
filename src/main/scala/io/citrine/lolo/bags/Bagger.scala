@@ -4,8 +4,10 @@ import breeze.linalg.{DenseMatrix, DenseVector, min, norm}
 import breeze.numerics.abs
 import breeze.stats.distributions.Poisson
 import io.citrine.lolo.stats.metrics.ClassificationMetrics
+import io.citrine.lolo.util.{Async, InterruptibleExecutionContext}
 import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
 
+import scala.collection.parallel.ExecutionContextTaskSupport
 import scala.collection.parallel.immutable.ParSeq
 
 /**
@@ -61,9 +63,12 @@ class Bagger(
     }
 
     /* Learn the actual models */
-    val models = (0 until actualBags).par.map { i =>
+    val parIterator = (0 until actualBags).par
+    parIterator.tasksupport = new ExecutionContextTaskSupport(InterruptibleExecutionContext())
+    val models = parIterator.map { i =>
       method.train(trainingData.toVector, Some(Nib(i).zip(weightsActual).map(p => p._1.toDouble * p._2)))
     }
+
 
     /* Extract the feature importances so the base meta-data can be garbage collected */
     val importances: Option[Vector[Double]] = models.head.getFeatureImportance() match {
@@ -73,6 +78,7 @@ class Bagger(
         }.map(_ / models.size))
       case None => None
     }
+    Async.canStop()
 
     /* Wrap the models in a BaggedModel object */
     if (biasLearner.isEmpty) {
@@ -88,7 +94,10 @@ class Bagger(
         val bias = Math.max(Math.E * Math.abs(p.asInstanceOf[Double] - a.asInstanceOf[Double]) - u.asInstanceOf[Double], 0.0)
         (f, bias)
       }
+      Async.canStop()
       val biasModel = biasLearner.get.train(biasTraining).getModel()
+      Async.canStop()
+
       new BaggedTrainingResult(models.map(_.getModel()), hypers, importances, Nib, trainingData, useJackknife, Some(biasModel))
     }
   }
@@ -324,15 +333,21 @@ class BaggedResult(
 
     /* These operations are pulled out of the loop and extra-verbose for performance */
     val JMat = NibJ.t * predMat
+    Async.canStop()
     val JMat2 = JMat :* JMat * ((Nib.size - 1.0) / Nib.size)
+    Async.canStop()
     val IJMat = NibIJ.t * predMat
+    Async.canStop()
     val IJMat2 = IJMat :* IJMat
+    Async.canStop()
     val arg = IJMat2 + JMat2
+    Async.canStop()
 
     /* Avoid division in the loop */
     val inverseSize = 1.0 / modelPredictions.head.size
 
     (0 until modelPredictions.size).map { i =>
+      Async.canStop()
       /* Compute the first order bias correction for the variance estimators */
       val correction = Math.pow(inverseSize * norm(predMat(::, i) - meanPrediction(i)), 2)
 
