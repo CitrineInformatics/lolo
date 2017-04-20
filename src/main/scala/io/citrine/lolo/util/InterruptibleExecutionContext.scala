@@ -24,5 +24,6 @@ class InterruptibleExecutionContext(executionContext: ExecutionContext) extends 
   */
 object InterruptibleExecutionContext {
   private val default = new InterruptibleExecutionContext(ExecutionContext.global)
+
   def apply(): InterruptibleExecutionContext = default
 }
