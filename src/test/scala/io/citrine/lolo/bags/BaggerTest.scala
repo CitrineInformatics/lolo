@@ -1,5 +1,7 @@
 package io.citrine.lolo.bags
 
+import java.util.concurrent.{Callable, CancellationException, Executors, Future, FutureTask}
+
 import io.citrine.lolo.TestUtils
 import io.citrine.lolo.stats.functions.Friedman
 import io.citrine.lolo.trees.classification.ClassificationTreeLearner
@@ -100,6 +102,38 @@ class BaggerTest {
     )
   }
 
+  /**
+    * Test the fit performance of the regression bagger
+    */
+  @Test
+  def testInterupt(): Unit = {
+    val trainingData = TestUtils.generateTrainingData(2048, 12, noise = 0.1, function = Friedman.friedmanSilverman)
+    val DTLearner = new RegressionTreeLearner(numFeatures = 3)
+    val baggedLearner = new Bagger(DTLearner, numBags = trainingData.size)
+
+    val tmpPool = Executors.newFixedThreadPool(1)
+    val fut: Future[BaggedTrainingResult] = tmpPool.submit(
+      new Callable[BaggedTrainingResult] {
+        override def call() = {
+          println("Starting to run the future")
+          val res = baggedLearner.train(trainingData)
+          assert(false, "Training was not terminated")
+          res
+        }
+      }
+    )
+
+    println(s"Cancelled? ${fut.cancel(true)}")
+    try {
+      fut.get()
+    } catch {
+      case _: CancellationException =>
+      case _: InterruptedException =>
+      case _: Throwable => assert(false)
+    }
+    println("Done?")
+    tmpPool.shutdown()
+  }
 }
 
 /**
@@ -113,6 +147,6 @@ object BaggerTest {
     */
   def main(argv: Array[String]): Unit = {
     new BaggerTest()
-      .testClassificationBagger()
+      .testInterupt()
   }
 }

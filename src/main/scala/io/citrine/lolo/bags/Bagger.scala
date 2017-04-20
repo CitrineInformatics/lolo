@@ -4,8 +4,10 @@ import breeze.linalg.{DenseMatrix, DenseVector, min, norm}
 import breeze.numerics.abs
 import breeze.stats.distributions.Poisson
 import io.citrine.lolo.stats.metrics.ClassificationMetrics
+import io.citrine.lolo.util.InterruptibleExecutionContext
 import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
 
+import scala.collection.parallel.ExecutionContextTaskSupport
 import scala.collection.parallel.immutable.ParSeq
 
 /**
@@ -61,9 +63,12 @@ class Bagger(
     }
 
     /* Learn the actual models */
-    val models = (0 until actualBags).par.map { i =>
+    val parIterator = (0 until actualBags).par
+    parIterator.tasksupport = new ExecutionContextTaskSupport(InterruptibleExecutionContext)
+    val models = parIterator.map { i =>
       method.train(trainingData.toVector, Some(Nib(i).zip(weightsActual).map(p => p._1.toDouble * p._2)))
     }
+
 
     /* Extract the feature importances so the base meta-data can be garbage collected */
     val importances: Option[Vector[Double]] = models.head.getFeatureImportance() match {
@@ -75,6 +80,7 @@ class Bagger(
     }
 
     /* Wrap the models in a BaggedModel object */
+    println("Training bias model")
     if (biasLearner.isEmpty) {
       new BaggedTrainingResult(models.map(_.getModel()), hypers, importances, Nib, trainingData, useJackknife)
     } else {
@@ -89,6 +95,7 @@ class Bagger(
         (f, bias)
       }
       val biasModel = biasLearner.get.train(biasTraining).getModel()
+
       new BaggedTrainingResult(models.map(_.getModel()), hypers, importances, Nib, trainingData, useJackknife, Some(biasModel))
     }
   }
