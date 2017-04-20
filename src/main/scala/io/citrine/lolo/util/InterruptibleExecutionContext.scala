@@ -8,13 +8,21 @@ import scala.concurrent.ExecutionContext
   * Thin wrapper around the global execution context
   * Created by maxhutch on 4/20/17.
   */
-object InterruptibleExecutionContext extends ExecutionContext {
+class InterruptibleExecutionContext(executionContext: ExecutionContext) extends ExecutionContext {
   override def execute(runnable: Runnable): Unit = {
-    if (Thread.interrupted()) throw new InterruptedException
-    ExecutionContext.global.execute(runnable)
+    Async.canStop()
+    executionContext.execute(runnable)
   }
 
   override def reportFailure(cause: Throwable): Unit = {
-    ExecutionContext.global.reportFailure(cause)
+    executionContext.reportFailure(cause)
   }
+}
+
+/**
+  * Provide default InterruptibleExecutionContext based on the global EC
+  */
+object InterruptibleExecutionContext {
+  private val default = new InterruptibleExecutionContext(ExecutionContext.global)
+  def apply(): InterruptibleExecutionContext = default
 }

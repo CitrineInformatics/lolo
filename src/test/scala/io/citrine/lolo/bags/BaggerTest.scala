@@ -103,10 +103,10 @@ class BaggerTest {
   }
 
   /**
-    * Test the fit performance of the regression bagger
+    * Test that the bagged learner can be interrupted
     */
   @Test
-  def testInterupt(): Unit = {
+  def testInterrupt(): Unit = {
     val trainingData = TestUtils.generateTrainingData(2048, 12, noise = 0.1, function = Friedman.friedmanSilverman)
     val DTLearner = new RegressionTreeLearner(numFeatures = 3)
     val baggedLearner = new Bagger(DTLearner, numBags = trainingData.size)
@@ -122,16 +122,16 @@ class BaggerTest {
         }
       }
     )
+    assert(fut.cancel(true), "Failed to cancel future")
 
-    println(s"Cancelled? ${fut.cancel(true)}")
     try {
       fut.get()
+      assert(false, "Future completed")
     } catch {
       case _: CancellationException =>
       case _: InterruptedException =>
       case _: Throwable => assert(false)
     }
-    println("Done?")
     tmpPool.shutdown()
   }
 }
