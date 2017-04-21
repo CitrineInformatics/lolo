@@ -32,6 +32,14 @@ class Bagger(
 
   override var hypers: Map[String, Any] = Map()
 
+  private def combineImportance(v1: Option[Vector[Double]], v2: Option[Vector[Double]]): Option[Vector[Double]] = {
+    (v1, v2) match {
+      case (None, None) => None
+      case (Some(v1: Vector[Double]), Some(v2: Vector[Double])) => Some(v1.zip(v2).map(p => p._1 + p._2))
+      case _ => None
+    }
+  }
+
   /**
     * Draw with replacement from the training data for each model
     *
@@ -62,30 +70,29 @@ class Bagger(
       }
     }
 
-    /* Learn the actual models */
+    /* Learn the actual models in parallel */
     val parIterator = (0 until actualBags).par
     parIterator.tasksupport = new ExecutionContextTaskSupport(InterruptibleExecutionContext())
-    val models = parIterator.map { i =>
-      method.train(trainingData.toVector, Some(Nib(i).zip(weightsActual).map(p => p._1.toDouble * p._2)))
-    }
+    val (models, importances: ParSeq[Option[Vector[Double]]]) = parIterator.map { i =>
+      // Train the model
+      val meta = method.train(trainingData.toVector, Some(Nib(i).zip(weightsActual).map(p => p._1.toDouble * p._2)))
+      // Extract the model and feature importance from the TrainingResult
+      (meta.getModel(), meta.getFeatureImportance())
+    }.unzip
 
-
-    /* Extract the feature importances so the base meta-data can be garbage collected */
-    val importances: Option[Vector[Double]] = models.head.getFeatureImportance() match {
-      case Some(x) =>
-        Some(models.map(base => base.getFeatureImportance().get).reduce { (v1, v2) =>
-          v1.zip(v2).map(p => p._1 + p._2)
-        }.map(_ / models.size))
-      case None => None
-    }
-    Async.canStop()
+    // Average the feature importances
+    val averageImportance: Option[Vector[Double]] = importances.reduce{combineImportance}.map(_.map(_ / importances.size))
 
     /* Wrap the models in a BaggedModel object */
     if (biasLearner.isEmpty) {
-      new BaggedTrainingResult(models.map(_.getModel()), hypers, importances, Nib, trainingData, useJackknife)
+      Async.canStop()
+      new BaggedTrainingResult(models, hypers, averageImportance, Nib, trainingData, useJackknife)
     } else {
-      val baggedModel = new BaggedModel(models.map(_.getModel()), Nib, useJackknife)
+      Async.canStop()
+      val baggedModel = new BaggedModel(models, Nib, useJackknife)
+      Async.canStop()
       val baggedRes = baggedModel.transform(trainingData.map(_._1))
+      Async.canStop()
       val biasTraining = trainingData.zip(
         baggedRes.getExpected().zip(baggedRes.getUncertainty().get)
       ).map { case ((f, a), (p, u)) =>
@@ -98,7 +105,7 @@ class Bagger(
       val biasModel = biasLearner.get.train(biasTraining).getModel()
       Async.canStop()
 
-      new BaggedTrainingResult(models.map(_.getModel()), hypers, importances, Nib, trainingData, useJackknife, Some(biasModel))
+      new BaggedTrainingResult(models, hypers, averageImportance, Nib, trainingData, useJackknife, Some(biasModel))
     }
   }
 }
