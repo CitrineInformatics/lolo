@@ -1,5 +1,7 @@
 package io.citrine.lolo.bags
 
+import java.util.concurrent.{Callable, CancellationException, Executors, Future, TimeUnit}
+
 import io.citrine.lolo.TestUtils
 import io.citrine.lolo.stats.functions.Friedman
 import io.citrine.lolo.trees.classification.ClassificationTreeLearner
@@ -57,12 +59,12 @@ class BaggerTest {
 
     /* Inspect the results */
     val results = RF.transform(trainingData.map(_._1))
-    val means       = results.getExpected()
-    assert(trainingData.map(_._2).zip(means).forall{ case (a, p) => a == p})
+    val means = results.getExpected()
+    assert(trainingData.map(_._2).zip(means).forall { case (a, p) => a == p })
 
     val uncertainty = results.getUncertainty()
     assert(uncertainty.isDefined)
-    assert(trainingData.map(_._2).zip(uncertainty.get).forall{ case (a, probs) =>
+    assert(trainingData.map(_._2).zip(uncertainty.get).forall { case (a, probs) =>
       val classProbabilities = probs.asInstanceOf[Map[Any, Double]]
       val maxProb = classProbabilities(a)
       maxProb > 0.5 && maxProb < 1.0 && Math.abs(classProbabilities.values.sum - 1.0) < 1.0e-6
@@ -100,6 +102,51 @@ class BaggerTest {
     )
   }
 
+  /**
+    * Test that the bagged learner can be interrupted
+    */
+  @Test
+  def testInterrupt(): Unit = {
+    val trainingData = TestUtils.generateTrainingData(2048, 12, noise = 0.1, function = Friedman.friedmanSilverman)
+    val DTLearner = new RegressionTreeLearner(numFeatures = 3)
+    val baggedLearner = new Bagger(DTLearner, numBags = trainingData.size)
+
+    // Create a future to run train
+    val tmpPool = Executors.newFixedThreadPool(1)
+    val fut: Future[BaggedTrainingResult] = tmpPool.submit(
+      new Callable[BaggedTrainingResult] {
+        override def call() = {
+          val res = baggedLearner.train(trainingData)
+          assert(false, "Training was not terminated")
+          res
+        }
+      }
+    )
+    // Let the thread start
+    Thread.sleep(1000)
+
+    // Cancel it
+    val start = System.currentTimeMillis()
+    assert(fut.cancel(true), "Failed to cancel future")
+
+    // Make sure we get either a cancellation of interrupted exception
+    try {
+      fut.get()
+      assert(false, "Future completed")
+    } catch {
+      case _: CancellationException =>
+      case _: InterruptedException =>
+      case _: Throwable => assert(false, "Future threw an exception")
+    }
+
+    // Shutdown the pool
+    tmpPool.shutdown()
+    assert(tmpPool.awaitTermination(1, TimeUnit.MINUTES), "Thread pool didn't terminate after a minute!")
+
+    // Did it halt fast enough?
+    val totalTime = (System.currentTimeMillis() - start) * 1.0e-3
+    assert(totalTime < 2.0, "Thread took too long to terminate")
+  }
 }
 
 /**
@@ -113,6 +160,6 @@ object BaggerTest {
     */
   def main(argv: Array[String]): Unit = {
     new BaggerTest()
-      .testClassificationBagger()
+      .testInterrupt()
   }
 }

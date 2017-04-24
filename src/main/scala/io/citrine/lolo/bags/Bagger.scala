@@ -4,8 +4,10 @@ import breeze.linalg.{DenseMatrix, DenseVector, min, norm}
 import breeze.numerics.abs
 import breeze.stats.distributions.Poisson
 import io.citrine.lolo.stats.metrics.ClassificationMetrics
+import io.citrine.lolo.util.{Async, InterruptibleExecutionContext}
 import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
 
+import scala.collection.parallel.ExecutionContextTaskSupport
 import scala.collection.parallel.immutable.ParSeq
 
 /**
@@ -29,6 +31,14 @@ class Bagger(
   }
 
   override var hypers: Map[String, Any] = Map()
+
+  private def combineImportance(v1: Option[Vector[Double]], v2: Option[Vector[Double]]): Option[Vector[Double]] = {
+    (v1, v2) match {
+      case (None, None) => None
+      case (Some(v1: Vector[Double]), Some(v2: Vector[Double])) => Some(v1.zip(v2).map(p => p._1 + p._2))
+      case _ => None
+    }
+  }
 
   /**
     * Draw with replacement from the training data for each model
@@ -60,26 +70,29 @@ class Bagger(
       }
     }
 
-    /* Learn the actual models */
-    val models = (0 until actualBags).par.map { i =>
-      method.train(trainingData.toVector, Some(Nib(i).zip(weightsActual).map(p => p._1.toDouble * p._2)))
-    }
+    /* Learn the actual models in parallel */
+    val parIterator = (0 until actualBags).par
+    parIterator.tasksupport = new ExecutionContextTaskSupport(InterruptibleExecutionContext())
+    val (models, importances: ParSeq[Option[Vector[Double]]]) = parIterator.map { i =>
+      // Train the model
+      val meta = method.train(trainingData.toVector, Some(Nib(i).zip(weightsActual).map(p => p._1.toDouble * p._2)))
+      // Extract the model and feature importance from the TrainingResult
+      (meta.getModel(), meta.getFeatureImportance())
+    }.unzip
 
-    /* Extract the feature importances so the base meta-data can be garbage collected */
-    val importances: Option[Vector[Double]] = models.head.getFeatureImportance() match {
-      case Some(x) =>
-        Some(models.map(base => base.getFeatureImportance().get).reduce { (v1, v2) =>
-          v1.zip(v2).map(p => p._1 + p._2)
-        }.map(_ / models.size))
-      case None => None
-    }
+    // Average the feature importances
+    val averageImportance: Option[Vector[Double]] = importances.reduce{combineImportance}.map(_.map(_ / importances.size))
 
     /* Wrap the models in a BaggedModel object */
     if (biasLearner.isEmpty) {
-      new BaggedTrainingResult(models.map(_.getModel()), hypers, importances, Nib, trainingData, useJackknife)
+      Async.canStop()
+      new BaggedTrainingResult(models, hypers, averageImportance, Nib, trainingData, useJackknife)
     } else {
-      val baggedModel = new BaggedModel(models.map(_.getModel()), Nib, useJackknife)
+      Async.canStop()
+      val baggedModel = new BaggedModel(models, Nib, useJackknife)
+      Async.canStop()
       val baggedRes = baggedModel.transform(trainingData.map(_._1))
+      Async.canStop()
       val biasTraining = trainingData.zip(
         baggedRes.getExpected().zip(baggedRes.getUncertainty().get)
       ).map { case ((f, a), (p, u)) =>
@@ -88,8 +101,11 @@ class Bagger(
         val bias = Math.max(Math.E * Math.abs(p.asInstanceOf[Double] - a.asInstanceOf[Double]) - u.asInstanceOf[Double], 0.0)
         (f, bias)
       }
+      Async.canStop()
       val biasModel = biasLearner.get.train(biasTraining).getModel()
-      new BaggedTrainingResult(models.map(_.getModel()), hypers, importances, Nib, trainingData, useJackknife, Some(biasModel))
+      Async.canStop()
+
+      new BaggedTrainingResult(models, hypers, averageImportance, Nib, trainingData, useJackknife, Some(biasModel))
     }
   }
 }
@@ -324,15 +340,21 @@ class BaggedResult(
 
     /* These operations are pulled out of the loop and extra-verbose for performance */
     val JMat = NibJ.t * predMat
+    Async.canStop()
     val JMat2 = JMat :* JMat * ((Nib.size - 1.0) / Nib.size)
+    Async.canStop()
     val IJMat = NibIJ.t * predMat
+    Async.canStop()
     val IJMat2 = IJMat :* IJMat
+    Async.canStop()
     val arg = IJMat2 + JMat2
+    Async.canStop()
 
     /* Avoid division in the loop */
     val inverseSize = 1.0 / modelPredictions.head.size
 
     (0 until modelPredictions.size).map { i =>
+      Async.canStop()
       /* Compute the first order bias correction for the variance estimators */
       val correction = Math.pow(inverseSize * norm(predMat(::, i) - meanPrediction(i)), 2)
 
