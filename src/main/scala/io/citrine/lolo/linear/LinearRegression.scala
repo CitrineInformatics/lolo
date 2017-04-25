@@ -61,7 +61,7 @@ class LinearRegressionLearner(fitIntercept: Boolean = true) extends Learner {
       if (fitIntercept) regVector(-1) = 0.0
       val M = At * A + diag(regVector)
       try {
-        val Mi = inv(M)
+        val Mi = pinv(M)
         /* Backsub to get the coefficients */
         Mi * At * b
       } catch {
