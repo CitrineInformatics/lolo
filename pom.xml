@@ -6,7 +6,7 @@
 
     <groupId>io.citrine</groupId>
     <artifactId>lolo</artifactId>
-    <version>0.2.5</version>
+    <version>0.2.6</version>
     <packaging>jar</packaging>
 
     <name>${project.groupId}:${project.artifactId}</name>
@@ -42,6 +42,12 @@
     </properties>
 
     <dependencies>
+        <dependency>
+            <groupId>com.github.fommil.netlib</groupId>
+            <artifactId>all</artifactId>
+            <version>1.1.2</version>
+            <type>pom</type>
+        </dependency>
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
