@@ -156,10 +156,9 @@ class RegressionTreeTest {
   @Test
   def testShortTreeWithLinearLeaf(): Unit = {
      val trainingData = TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, seed = 3L)
-    println(trainingData.last)
 
-    val linearLearner = new LinearRegressionLearner().setHyper("regParam", 1.0)
-    val DTLearner = new RegressionTreeLearner(leafLearner = Some(linearLearner)).setHyper("maxDepth", 0)
+    val linearLearner = new LinearRegressionLearner().setHyper("regParam", 0.0)
+    val DTLearner = new RegressionTreeLearner(leafLearner = Some(linearLearner), maxDepth = 0)
     val DTMeta = DTLearner.train(trainingData)
     val DT = DTMeta.getModel()
 
@@ -169,7 +168,7 @@ class RegressionTreeTest {
     /* They should all be non-zero */
     assert(importances.min > 0.0)
     /* They should have roughly the same value (linear regression has some noise in it) */
-    assert(Math.abs(importances(0) - 0.3013112101739557) < 1.0e-3)
+    assert(Math.abs(importances(1) - 0.351) < 1.0e-2)
   }
 }
 
@@ -181,10 +180,10 @@ object RegressionTreeTest {
     * @param argv args
     */
   def main(argv: Array[String]): Unit = {
-    new RegressionTreeTest().testSimpleTree()
-    new RegressionTreeTest().longerTest()
-    new RegressionTreeTest().testCategorical()
-    new RegressionTreeTest().testLinearLeaves()
+    // new RegressionTreeTest().testSimpleTree()
+    // new RegressionTreeTest().longerTest()
+    // new RegressionTreeTest().testCategorical()
+    // new RegressionTreeTest().testLinearLeaves()
     new RegressionTreeTest().testShortTreeWithLinearLeaf()
   }
 }
