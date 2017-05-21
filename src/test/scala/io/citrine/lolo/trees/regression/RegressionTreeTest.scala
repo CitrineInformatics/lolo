@@ -155,8 +155,10 @@ class RegressionTreeTest {
     */
   @Test
   def testShortTreeWithLinearLeaf(): Unit = {
-     val trainingData = TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, seed = 3L)
-    println(trainingData.last)
+    val trainingData = TestUtils.binTrainingData(
+      TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, seed = 3L),
+      inputBins = Seq((11, 8))
+    ).asInstanceOf[Seq[(Vector[Any], Double)]]
 
     val linearLearner = new LinearRegressionLearner().setHyper("regParam", 1.0)
     val DTLearner = new RegressionTreeLearner(leafLearner = Some(linearLearner)).setHyper("maxDepth", 0)
@@ -169,7 +171,7 @@ class RegressionTreeTest {
     /* They should all be non-zero */
     assert(importances.min > 0.0)
     /* They should have roughly the same value (linear regression has some noise in it) */
-    assert(Math.abs(importances(0) - 0.3013112101739557) < 1.0e-3)
+    assert(Math.abs(importances(0) - 0.30030792928576033) < 1.0e-3)
   }
 }
 

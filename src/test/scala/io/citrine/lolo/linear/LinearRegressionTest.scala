@@ -134,6 +134,15 @@ class LinearRegressionTest {
     val output = model.transform(trainingData.map(_._1))
     val predicted = output.getExpected()
     val beta = output.getGradient().get.head
+    val importance = lrm.getFeatureImportance().get
+
+    /* Make sure that feature importance matches the gradient */
+    val betaScale = beta.map(Math.abs).sum
+    beta.zip(importance).foreach{case (b, i) =>
+      val diff = Math.abs(Math.abs(b / betaScale) - i)
+      assert(diff < Double.MinPositiveValue || diff / i < 1.0e-9,
+        s"Beta and feature importance disagree: ${b / betaScale} vs ${i}")
+    }
 
     assert(norm(new DenseVector(beta.toArray)(1 to -2) - beta0) < 1.0e-9, "Coefficients are inaccurate")
     assert(beta.head == 0.0, "Non-zero graident given to leading categorical feature")
