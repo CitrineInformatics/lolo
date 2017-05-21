@@ -25,7 +25,7 @@ class LinearRegressionLearner(fitIntercept: Boolean = true) extends Learner {
     val n = trainingData.size
 
     /* Get the indices of the continuous features */
-    val indices = trainingData.head._1.zipWithIndex
+    val indices: Vector[Int] = trainingData.head._1.zipWithIndex
       .filter(_._1.isInstanceOf[Double])
       .filterNot(_._1.asInstanceOf[Double].isNaN)
       .map(_._2)
@@ -76,7 +76,7 @@ class LinearRegressionLearner(fitIntercept: Boolean = true) extends Learner {
     }
 
     val indicesToModel = if (indices.size < trainingData.head._1.size) {
-      Some(indices)
+      Some(indices, trainingData.head._1.size)
     } else {
       None
     }
@@ -131,7 +131,7 @@ class LinearRegressionTrainingResult(model: LinearRegressionModel, hypers: Map[S
 class LinearRegressionModel(
                              beta: DenseVector[Double],
                              intercept: Double,
-                             indices: Option[Vector[Int]] = None
+                             indices: Option[(Vector[Int], Int)] = None
                            ) extends Model[LinearRegressionResult] {
 
   /**
@@ -141,17 +141,13 @@ class LinearRegressionModel(
     * @return a predictionresult which includes, at least, the expected outputs
     */
   override def transform(inputs: Seq[Vector[Any]]): LinearRegressionResult = {
-    val filteredInputs = indices.map(ind => inputs.map(inp => ind.map(inp(_)))).getOrElse(inputs).flatten.asInstanceOf[Seq[Double]]
+    val filteredInputs = indices.map{case (ind, size) => inputs.map(inp => ind.map(inp(_)))}.getOrElse(inputs).flatten.asInstanceOf[Seq[Double]]
     val inputMatrix = new DenseMatrix(filteredInputs.size / inputs.size, inputs.size,
       filteredInputs.toArray
     )
     val resultVector = beta.t * inputMatrix + intercept
     val result = resultVector.t.toArray.toSeq
-    val grad = indices.map { inds =>
-      val empty = DenseVector.zeros[Double](inputs.head.size)
-      inds.zipWithIndex.foreach { case (j, i) => empty(j) = beta(i) }
-      empty
-    }.getOrElse(beta).toArray.toVector
+    val grad = getBeta()
     new LinearRegressionResult(result, grad)
   }
 
@@ -159,7 +155,13 @@ class LinearRegressionModel(
     * Get the beta from the linear model \beta^T X = y
     * @return beta as a vector of double
     */
-  def getBeta(): Vector[Double] = beta.toScalaVector()
+  def getBeta(): Vector[Double] = {
+    indices.map { case (inds, size) =>
+      val empty = DenseVector.zeros[Double](size)
+      inds.zipWithIndex.foreach { case (j, i) => empty(j) = beta(i) }
+      empty
+    }.getOrElse(beta).toArray.toVector
+  }
 }
 
 /**
