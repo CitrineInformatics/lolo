@@ -177,7 +177,7 @@ class RegressionTreeTest {
   }
 
   /**
-    * Test with random weights
+    * Test with random weights to ensure all feature importances of stump tree with linear leaves are non-negative
     */
   @Test
   def testWeights(): Unit = {
