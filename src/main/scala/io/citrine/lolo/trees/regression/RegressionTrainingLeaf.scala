@@ -31,10 +31,10 @@ class RegressionTrainingLeaf(
   def getFeatureImportance(): scala.collection.mutable.ArraySeq[Double] = {
     importance match {
       case Some(x) =>
-        val expectations: (Double, Double) = trainingData.map{ case (v, l, w) =>
-          (l * w, l * l * w)
-        }.reduce((u: (Double, Double), v: (Double, Double)) => (u._1 + v._1, u._2 + v._2))
-        val impurity = expectations._2 / trainingData.size - Math.pow(expectations._1 / trainingData.size, 2.0)
+        val expectations: (Double, Double, Double) = trainingData.map{ case (v, l, w) =>
+          (l * w, l * l * w, w)
+        }.reduce((u: (Double, Double, Double), v: (Double, Double, Double)) => (u._1 + v._1, u._2 + v._2, u._3 + v._3))
+        val impurity = expectations._2 / expectations._3 - Math.pow(expectations._1 / expectations._3, 2.0)
         mutable.ArraySeq(x: _*).map(_ * impurity)
       case None => mutable.ArraySeq.fill(trainingData.head._1.size)(0.0)
     }
