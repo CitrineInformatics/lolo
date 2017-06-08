@@ -8,6 +8,8 @@ import io.citrine.lolo.stats.functions.Friedman
 import org.junit.Test
 import org.scalatest.Assertions._
 
+import scala.util.Random
+
 /**
   * Created by maxhutch on 11/29/16.
   */
@@ -154,9 +156,11 @@ class RegressionTreeTest {
     * Test a really short tree to make sure the linear model feature importance gets carried through
     */
   @Test
-  def testShortTreeWithLinearLeaf(): Unit = {
-     val trainingData = TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, seed = 3L)
-    println(trainingData.last)
+  def testStumpWithLinearLeaf(): Unit = {
+    val trainingData = TestUtils.binTrainingData(
+      TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, seed = 3L),
+      inputBins = Seq((11, 8))
+    ).asInstanceOf[Seq[(Vector[Any], Double)]]
 
     val linearLearner = new LinearRegressionLearner().setHyper("regParam", 1.0)
     val DTLearner = new RegressionTreeLearner(leafLearner = Some(linearLearner)).setHyper("maxDepth", 0)
@@ -169,8 +173,26 @@ class RegressionTreeTest {
     /* They should all be non-zero */
     assert(importances.min > 0.0)
     /* They should have roughly the same value (linear regression has some noise in it) */
-    assert(Math.abs(importances(0) - 0.3013112101739557) < 1.0e-3)
+    assert(Math.abs(importances(0) - 0.30030792928576033) < 1.0e-3)
   }
+
+  /**
+    * Test with random weights to ensure all feature importances of stump tree with linear leaves are non-negative
+    */
+  @Test
+  def testWeights(): Unit = {
+    val trainingData = TestUtils.generateTrainingData(32, 12, noise = 100.0, function = Friedman.friedmanSilverman, seed = 3L)
+
+    val linearLearner = new LinearRegressionLearner().setHyper("regParam", 1.0)
+    val DTLearner = new RegressionTreeLearner(leafLearner = Some(linearLearner)).setHyper("maxDepth", 1)
+    val DTMeta = DTLearner.train(trainingData, weights = Some(Seq.fill(trainingData.size){Random.nextInt(8)}))
+    val DT = DTMeta.getModel()
+
+    /* The first feature should be the most important */
+    val importances = DTMeta.getFeatureImportance().get
+    assert(importances.forall(_ >= 0.0), "Found negative feature importance")
+  }
+
 }
 
 /** Companion driver */
@@ -185,6 +207,6 @@ object RegressionTreeTest {
     new RegressionTreeTest().longerTest()
     new RegressionTreeTest().testCategorical()
     new RegressionTreeTest().testLinearLeaves()
-    new RegressionTreeTest().testShortTreeWithLinearLeaf()
+    new RegressionTreeTest().testWeights()
   }
 }
