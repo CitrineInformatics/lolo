@@ -36,7 +36,7 @@ class RegressionTrainingLeaf(
           (l * w, l * l * w, w)
         }.reduce((u: (Double, Double, Double), v: (Double, Double, Double)) => (u._1 + v._1, u._2 + v._2, u._3 + v._3))
         // Use those sums to compute the variance as E[x^2] - E[x]^2
-        val impurity = expectations._2 / expectations._3 - Math.pow(expectations._1 / expectations._3, 2.0)
+        val impurity = Math.max(expectations._2 / expectations._3 - Math.pow(expectations._1 / expectations._3, 2.0), 0.0)
         mutable.ArraySeq(x: _*).map(_ * impurity)
       case None => mutable.ArraySeq.fill(trainingData.head._1.size)(0.0)
     }
