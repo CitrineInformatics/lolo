@@ -4,4 +4,4 @@ scala:
 jdk:
  - oraclejdk8
 script:
- - mvn -B -e -X package
+ - mvn -B package
