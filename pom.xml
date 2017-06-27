@@ -81,6 +81,7 @@
                 <configuration>
                     <parallel>methods</parallel>
                     <threadCount>1</threadCount>
+                    <argLine>-Xmx1024m -XX:MaxPermSize=256m</argLine>
                     <perCoreThreadCount>true</perCoreThreadCount>
                     <excludedGroups>io.citrine.lolo.SlowTest</excludedGroups>
                 </configuration>
@@ -93,6 +94,7 @@
                     <parallel>methods</parallel>
                     <threadCount>1</threadCount>
                     <perCoreThreadCount>true</perCoreThreadCount>
+                    <argLine>-Xmx4096m -XX:MaxPermSize=256m</argLine>
                     <groups>io.citrine.lolo.SlowTest</groups>
                     <includes>
                         <include>**/*Test.java</include>
