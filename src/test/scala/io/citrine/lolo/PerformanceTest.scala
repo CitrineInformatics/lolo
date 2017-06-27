@@ -47,8 +47,7 @@ class PerformanceTest {
     (timeTraining, timePredicting)
   }
 
-  @Test
-  @Category(Array(classOf[SlowTest]))
+  // @Category(Array(classOf[SlowTest]))
   def benchmark(): Unit = {
     val quiet: Boolean = true
     val trainingData = TestUtils.generateTrainingData(47667, 37)
