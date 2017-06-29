@@ -9,9 +9,11 @@ script: mvn test -P !build-extras -B
 cache:
   directories:
   - "~/.m2/repository"
+# Deploy to maven central
 after_success:
 - "./cd/before-deploy.sh"
 - "./cd/deploy.sh"
+# Maven central-related creds
 env:
   global:
   - secure: ni7o8uAiai+1p+7wo7R9sVdvcHAL6zIBLWvwhvcZU6LgdUoDtTFHDiqBmfv2Q0XU7I4i1iFgs1XVJr5OdMc/dzas+cXYL9TlWQ7tjbutgQYs+ulSFuxlKnwzPspt0m3hnf131Z7Q9QMQaAFcxdEL4hPjJPHr97gCTIcNKnLcP3pQU0sOYM3W/xOf0ukTP8LdYNWvs9iDsVxaULmMVnkSKQc8fZhDxsT52rV086ui7PKMFXuLRb++tKFGCEM8C5mPrnlUab/wuOxaao2YA37Qag0vpg06E+mgUFPhsAt7XchoIOJ7/k+yF2DAS9+gF5PmhmKNJKljIefuTGzNSnHT9aNwofeaKOgXAeQXcQJGgHtrjbmBkyGvC+NZSJ1z8i+2i9aumt8L9cBFuPPIqvVgSki4L65iL81icc7Kqj2CYanSzuGXYoluwPE3sMIlFaY/74KozaBqUZCwC6VAPEBFe0yWXl227WDlWExJ2DH8SOf/2dnsohsi2GCHC0jj0TFVm+vy7fWbS8rpuFsW4IchuvfHzNKuz6D1E2kSpPj7YAiuyEA4mv3nltskPeyag6pixU2iugc/Gay3Or5AHGl/9OK/dwnnQJMh5LdI0o/J5gdA87F4+7jYhl6p3AOlRRgVLgpgjJUpKShfK+qMFs4kydRrQ1ctNfAvEAmxGKCFLj0=
