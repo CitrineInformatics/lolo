@@ -69,7 +69,7 @@ class ClassificationTreeLearner(
 
     /* The tree is built of training nodes */
     val (split, delta) = ClassificationSplitter.getBestSplit(finalTraining, numFeaturesActual, hypers("minLeafInstances").asInstanceOf[Int])
-    val rootTrainingNode = if (split.isInstanceOf[NoSplit]) {
+    val rootTrainingNode = if (split.isInstanceOf[NoSplit] || maxDepth == 0) {
       new TrainingLeaf(finalTraining, myLeafLearner, 0)
     } else {
       new ClassificationTrainingNode(
