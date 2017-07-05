@@ -55,6 +55,11 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>io.citrine</groupId>
+            <artifactId>theta</artifactId>
+            <version>0.1.3</version>
+        </dependency>
+        <dependency>
             <groupId>org.scalanlp</groupId>
             <artifactId>breeze_2.11</artifactId> <!-- or 2.11 -->
             <version>0.12</version>
