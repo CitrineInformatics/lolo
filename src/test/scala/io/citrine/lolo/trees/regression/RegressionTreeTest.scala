@@ -163,17 +163,25 @@ class RegressionTreeTest {
     ).asInstanceOf[Seq[(Vector[Any], Double)]]
 
     val linearLearner = new LinearRegressionLearner().setHyper("regParam", 1.0)
-    val DTLearner = new RegressionTreeLearner(leafLearner = Some(linearLearner)).setHyper("maxDepth", 0)
+    val DTLearner = new RegressionTreeLearner(leafLearner = Some(linearLearner), maxDepth = 0)
     val DTMeta = DTLearner.train(trainingData)
     val DT = DTMeta.getModel()
 
-    /* The first feature should be the most important */
+    val linearImportance = linearLearner.train(trainingData).getFeatureImportance().get
+
     val importances = DTMeta.getFeatureImportance().get
+
+    /* The first feature should be the most important */
     assert(importances(1) == importances.max)
     /* They should all be non-zero */
-    assert(importances.min > 0.0)
-    /* They should have roughly the same value (linear regression has some noise in it) */
-    assert(Math.abs(importances(0) - 0.30030792928576033) < 1.0e-3)
+    assert(importances.last == 0.0)
+
+    assert(linearImportance.zip(importances).map{case (x, y) => x-y}.forall(d => Math.abs(d) < 1.0e-9),
+      s"Expected linear and maxDepth=0 importances to align"
+    )
+
+    val result = DT.transform(trainingData.map(_._1))
+    assert(result.getDepth().forall(_ == 0), s"Expected all the predictions to be depth 0")
   }
 
   /**
@@ -184,7 +192,7 @@ class RegressionTreeTest {
     val trainingData = TestUtils.generateTrainingData(32, 12, noise = 100.0, function = Friedman.friedmanSilverman, seed = 3L)
 
     val linearLearner = new LinearRegressionLearner().setHyper("regParam", 1.0)
-    val DTLearner = new RegressionTreeLearner(leafLearner = Some(linearLearner)).setHyper("maxDepth", 1)
+    val DTLearner = new RegressionTreeLearner(leafLearner = Some(linearLearner), maxDepth = 1)
     val DTMeta = DTLearner.train(trainingData, weights = Some(Seq.fill(trainingData.size){Random.nextInt(8)}))
     val DT = DTMeta.getModel()
 
@@ -203,10 +211,6 @@ object RegressionTreeTest {
     * @param argv args
     */
   def main(argv: Array[String]): Unit = {
-    new RegressionTreeTest().testSimpleTree()
-    new RegressionTreeTest().longerTest()
-    new RegressionTreeTest().testCategorical()
-    new RegressionTreeTest().testLinearLeaves()
-    new RegressionTreeTest().testWeights()
+    new RegressionTreeTest().testStumpWithLinearLeaf()
   }
 }
