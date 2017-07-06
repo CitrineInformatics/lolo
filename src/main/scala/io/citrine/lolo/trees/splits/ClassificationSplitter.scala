@@ -18,7 +18,7 @@ import scala.util.Random
   *
   * Created by maxhutch on 12/2/16.
   */
-object ClassificationSplitter {
+object ClassificationSplitter extends Splitter[Char]{
 
   /**
     * Get the best split, considering numFeature random features (w/o replacement)
