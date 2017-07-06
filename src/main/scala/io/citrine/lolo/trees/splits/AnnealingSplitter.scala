@@ -5,27 +5,24 @@ import scala.collection.mutable
 import scala.util.Random
 
 /**
-  * Find the best split for regression problems.
+  * Find a split for a regression problem
   *
-  * The best split is the one that reduces the total weighted variance:
-  * totalVariance = N_left * \sigma_left^2 + N_right * \sigma_right^2
-  * which, in scala-ish, would be:
-  * totalVariance = leftWeight  * (leftSquareSum /leftWeight  - (leftSum  / leftWeight )^2)
-  * + rightWeight * (rightSquareSum/rightWeight - (rightSum / rightWeight)^2)
-  * Because we are comparing them, we can subtract off leftSquareSum + rightSquareSum, which yields the following simple
-  * expression after some simplification:
-  * totalVariance = -leftSum * leftSum / leftWeight - Math.pow(totalSum - leftSum, 2) / (totalWeight - leftWeight)
-  * which depends only on updates to leftSum and leftWeight (since totalSum and totalWeight are constant).
+  * The splits are picked with a probability that is related to the reduction in variance:
+  * P(split) ~ exp[ - {reduction in variance} / ({temperature} * {total variance} ]
+  * recalling that the "variance" here is weighted by the sample size (so its really the sum of the square difference
+  * from the mean).  This is akin to kinetic monte carlo and simulated annealing techniques.
   *
   * Created by maxhutch on 11/29/16.
   */
 class AnnealingSplitter(temperature: Double) extends Splitter[Double] {
 
   /**
-    * Get the best split, considering numFeature random features (w/o replacement)
+    * Get the a split probabalisticly, considering numFeature random features (w/o replacement), ensuring that the
+    * resulting partitions have at least minInstances in them
     *
-    * @param data        to split
-    * @param numFeatures to consider, randomly
+    * @param data         to split
+    * @param numFeatures  to consider, randomly
+    * @param minInstances minimum instances permitted in a post-split partition
     * @return a split object that optimally divides data
     */
   def getBestSplit(data: Seq[(Vector[AnyVal], Double, Double)], numFeatures: Int, minInstances: Int): (Split, Double) = {
