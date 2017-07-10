@@ -86,7 +86,7 @@
                 <configuration>
                     <parallel>methods</parallel>
                     <threadCount>1</threadCount>
-                    <argLine>-Xmx1024m -XX:MaxPermSize=256m</argLine>
+                    <argLine>-Xmx1024m -XX:+UseG1GC</argLine>
                     <perCoreThreadCount>true</perCoreThreadCount>
                     <excludedGroups>io.citrine.lolo.SlowTest</excludedGroups>
                 </configuration>

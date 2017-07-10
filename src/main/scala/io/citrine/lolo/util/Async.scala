@@ -10,7 +10,6 @@ object Async {
     */
   def canStop(): Unit = {
     if (Thread.interrupted()) throw new InterruptedException()
-    System.gc() // hint that the gc could run now
     Thread.sleep(1) // sleep for 1 ms to yield
   }
 }
