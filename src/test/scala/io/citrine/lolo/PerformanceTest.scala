@@ -2,6 +2,7 @@ package io.citrine.lolo
 
 import io.citrine.lolo.bags.Bagger
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
+import io.citrine.theta.Stopwatch
 import org.junit.Test
 import org.junit.experimental.categories.Category
 
@@ -25,34 +26,22 @@ class PerformanceTest {
     val inputs = data.map(_._1)
     val DTLearner = new RegressionTreeLearner(numFeatures = k / 4)
     val baggedLearner = new Bagger(DTLearner, numBags = b)
-    val nIter = 4
 
-    baggedLearner.train(data).getModel()
-    val startTraining = System.nanoTime()
+    val timeTraining = Stopwatch.time({baggedLearner.train(data).getModel()}, benchmark = "None", minRun = 4, targetError = 0.2)
     val model = baggedLearner.train(data).getModel()
-    (0 until nIter - 1).foreach {i =>
-      val tmp = baggedLearner.train(data).getModel()
-    }
-    val timeTraining = (System.nanoTime() - startTraining) / 1.0e9 / nIter
 
-    model.transform(inputs).getUncertainty()
-    val startPredicting = System.nanoTime()
-    val res = model.transform(inputs).getUncertainty()
-    (0 until nIter - 1).foreach {i =>
-      val tmp = model.transform(inputs).getUncertainty()
-    }
-    val timePredicting = (System.nanoTime() - startPredicting) / 1.0e9 / nIter
+    val timePredicting = Stopwatch.time({model.transform(inputs).getUncertainty()}, benchmark = "None", minRun = 4, targetError = 0.2)
 
     if (!quiet) println(f"${timeTraining}%10.4f, ${timePredicting}%10.4f, ${n}%6d, ${k}%6d, ${b}%6d")
     (timeTraining, timePredicting)
   }
 
-  // @Category(Array(classOf[SlowTest]))
+  @Test
   def benchmark(): Unit = {
     val quiet: Boolean = true
-    val trainingData = TestUtils.generateTrainingData(47667, 37)
+    val trainingData = TestUtils.generateTrainingData(2048, 37)
     // val Ns = Seq(8192, 16384, 32768)
-    val Ns = Seq(1024, 2048, 4096)
+    val Ns = Seq(512, 1024, 2048)
     val Ks = Seq(8, 16, 32)
     val Bs = Seq(512, 1024, 2048)
     if (!quiet) println(f"${"Train"}%10s, ${"Apply"}%10s, ${"N"}%6s, ${"K"}%6s, ${"B"}%6s")
@@ -73,7 +62,9 @@ class PerformanceTest {
 
     assert(bApplyScale.forall(s => s < Math.sqrt(8.0) && s > Math.sqrt(2.0)), bApplyScale)
     assert(kApplyScale.forall(s => s < Math.sqrt(2.0) && s > Math.sqrt(0.5)), kApplyScale)
-    assert(nApplyScale.forall(s => s < Math.sqrt(32.0) && s > Math.sqrt(8.0)), nApplyScale)
+    // Relaxing the lower bound because the blocked matrix-vector products can be super-linear on the margin
+    // (because of the cost of loading the matrix into memory)
+    assert(nApplyScale.forall(s => s < Math.sqrt(32.0) && s > Math.sqrt(4.0)), nApplyScale)
   }
 
 }

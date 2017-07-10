@@ -6,7 +6,7 @@
 
     <groupId>io.citrine</groupId>
     <artifactId>lolo</artifactId>
-    <version>0.2.8</version>
+    <version>0.2.9</version>
     <packaging>jar</packaging>
 
     <name>${project.groupId}:${project.artifactId}</name>
@@ -55,6 +55,11 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>io.citrine</groupId>
+            <artifactId>theta</artifactId>
+            <version>0.1.3</version>
+        </dependency>
+        <dependency>
             <groupId>org.scalanlp</groupId>
             <artifactId>breeze_2.11</artifactId> <!-- or 2.11 -->
             <version>0.12</version>
@@ -81,7 +86,7 @@
                 <configuration>
                     <parallel>methods</parallel>
                     <threadCount>1</threadCount>
-                    <argLine>-Xmx1024m -XX:MaxPermSize=256m</argLine>
+                    <argLine>-Xmx1024m</argLine>
                     <perCoreThreadCount>true</perCoreThreadCount>
                     <excludedGroups>io.citrine.lolo.SlowTest</excludedGroups>
                 </configuration>

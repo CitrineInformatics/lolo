@@ -3,6 +3,8 @@
 Lolo
 ====
 
+![Travis](https://travis-ci.org/CitrineInformatics/lolo.svg?branch=develop)
+
 Lolo is a [random forest](https://en.wikipedia.org/wiki/Lolo_National_Forest)-centered machine learning library in Scala.
 
 The core of Lolo is bagging simple base learners, like decision trees, to imbue robust uncertainty estimates via 
@@ -29,7 +31,7 @@ Lolo is on the central repository, and can be used by simply adding the followin
 <dependency>
     <groupId>io.citrine</groupId>
     <artifactId>lolo</artifactId>
-    <version>0.2.7</version>
+    <version>0.2.9</version>
 </dependency>
 ```
 Lolo provides higher level wrappers for common learner combinations.

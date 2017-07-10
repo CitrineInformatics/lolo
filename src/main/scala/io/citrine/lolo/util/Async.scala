@@ -10,5 +10,6 @@ object Async {
     */
   def canStop(): Unit = {
     if (Thread.interrupted()) throw new InterruptedException()
+    Thread.sleep(1) // sleep for 1 ms to yield
   }
 }
