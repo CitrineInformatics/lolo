@@ -45,9 +45,9 @@ class SplitterTest {
 
   @Test
   def testLargeDuplicates(): Unit = {
-    val base = Vector(Random.nextDouble() * 1.0e9)
+    val base: Double = 3.0e9
     val trainingData = Seq.fill(8){
-      (base, Random.nextDouble(), 1.0)
+      (Vector(base + Random.nextDouble()), Random.nextDouble(), 1.0)
     }
 
     val (split, variance) = RegressionSplitter.getBestRealSplit(trainingData, 0.0, 8.0, 0, 1)
