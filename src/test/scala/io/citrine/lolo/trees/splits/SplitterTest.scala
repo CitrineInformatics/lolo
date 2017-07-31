@@ -43,6 +43,12 @@ class SplitterTest {
     assert(Math.abs(totalVariance - totalVarianceSuperShort) < 1.0e-9, s"${totalVariance} != ${totalVarianceSuperShort}")
   }
 
+  /**
+    * Test that large features that are almost the same don't end up being split
+    *
+    * There are numerical issues with the features are distinct but there is no double precision
+    * value in between them to split on.  This results in post-split partitions with zero size
+    */
   @Test
   def testLargeDuplicates(): Unit = {
     val base: Double = 3.0e9
