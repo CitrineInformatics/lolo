@@ -43,6 +43,23 @@ class SplitterTest {
     assert(Math.abs(totalVariance - totalVarianceSuperShort) < 1.0e-9, s"${totalVariance} != ${totalVarianceSuperShort}")
   }
 
+  /**
+    * Test that large features that are almost the same don't end up being split
+    *
+    * There are numerical issues with the features are distinct but there is no double precision
+    * value in between them to split on.  This results in post-split partitions with zero size
+    */
+  @Test
+  def testLargeDuplicates(): Unit = {
+    val base: Double = 3.0e9
+    val trainingData = Seq.fill(8){
+      (Vector(base + Random.nextDouble()), Random.nextDouble(), 1.0)
+    }
+
+    val (split, variance) = RegressionSplitter.getBestRealSplit(trainingData, 0.0, 8.0, 0, 1)
+    assert(variance == Double.MaxValue, "didn't expect to find a valid split")
+  }
+
 }
 
 /** Companion driver */
@@ -53,6 +70,6 @@ object SplitterTest {
     * @param argv args
     */
   def main(argv: Array[String]): Unit = {
-    new SplitterTest().testTotalVarianceCalculation()
+    new SplitterTest().testLargeDuplicates()
   }
 }

@@ -55,8 +55,12 @@ object ClassificationSplitter {
         bestSplit = possibleSplit
       }
     }
-    val deltaImpurity = -bestImpurity
-    (bestSplit, deltaImpurity)
+    if (bestImpurity == Double.MaxValue) {
+      (new NoSplit(), 0.0)
+    } else {
+      val deltaImpurity = -bestImpurity
+      (bestSplit, deltaImpurity)
+    }
   }
 
   /**
@@ -106,7 +110,8 @@ object ClassificationSplitter {
          1) there is only one branch and
          2) it is usually false
        */
-      if (totalPurity > bestPurity && j + 1 >= minCount && thinData(j + 1)._1 > thinData(j)._1 + 1.0e-9) {
+
+      if (totalPurity > bestPurity && j + 1 >= minCount && Math.abs((thinData(j + 1)._1 - thinData(j)._1)/thinData(j)._1) > 1.0e-9) {
         bestPurity = totalPurity
         /* Try pivots at the midpoints between consecutive member values */
         bestPivot = (thinData(j + 1)._1 + thinData(j)._1) / 2.0 // thinData(j)._1 //
