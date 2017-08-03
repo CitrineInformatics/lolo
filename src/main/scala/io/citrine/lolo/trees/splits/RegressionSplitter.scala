@@ -54,8 +54,12 @@ object RegressionSplitter {
         bestSplit = possibleSplit
       }
     }
-    val deltaImpurity = -bestVariance - totalSum * totalSum / totalWeight
-    (bestSplit, deltaImpurity)
+    if (bestVariance == Double.MaxValue) {
+      (new NoSplit(), 0.0)
+    } else {
+      val deltaImpurity = -bestVariance - totalSum * totalSum / totalWeight
+      (bestSplit, deltaImpurity)
+    }
   }
 
   /**
@@ -90,7 +94,7 @@ object RegressionSplitter {
          1) there is only one branch and
          2) it is usually false
        */
-      if (totalVariance < bestVariance && j + 1 >= minCount && thinData(j + 1)._1 > thinData(j)._1 + 1.0e-9) {
+      if (totalVariance < bestVariance && j + 1 >= minCount && Math.abs((thinData(j + 1)._1 - thinData(j)._1) / thinData(j)._1) > 1.0e-9) {
         bestVariance = totalVariance
         /* Try pivots at the midpoints between consecutive member values */
         bestPivot = (thinData(j + 1)._1 + thinData(j)._1) / 2.0 // thinData(j)._1 //
