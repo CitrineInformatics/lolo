@@ -71,8 +71,8 @@ class PerformanceTest {
   @Test
   def testAbsolute(): Unit = {
     val (nominalTrain, nominalPredict) = timedTest(trainingData, 1024, 32, 1024)
-    assert(nominalTrain < 7.0, "Expected nominal train to have theta < 9.0")
-    assert(nominalPredict < 4.0, "Expected nominal transform to have theta < 6.0")
+    assert(nominalTrain < 7.0, s"Expected nominal train to have theta < 9.0 but was ${nominalTrain}")
+    assert(nominalPredict < 4.0, s"Expected nominal transform to have theta < 6.0 but was ${nominalPredict}")
   }
 
   val trainingData = TestUtils.generateTrainingData(2048, 37)
