@@ -26,10 +26,10 @@ class PerformanceTest {
     val DTLearner = new RegressionTreeLearner(numFeatures = k / 4)
     val baggedLearner = new Bagger(DTLearner, numBags = b)
 
-    val timeTraining = Stopwatch.time({baggedLearner.train(data).getModel()}, benchmark = "None", minRun = 4, targetError = 0.2)
+    val timeTraining = Stopwatch.time({baggedLearner.train(data).getModel()}, benchmark = "None", minRun = 4, targetError = 0.1)
     val model = baggedLearner.train(data).getModel()
 
-    val timePredicting = Stopwatch.time({model.transform(inputs).getUncertainty()}, benchmark = "None", minRun = 4, targetError = 0.2)
+    val timePredicting = Stopwatch.time({model.transform(inputs).getUncertainty()}, benchmark = "None", minRun = 4, targetError = 0.1)
 
     if (!quiet) println(f"${timeTraining}%10.4f, ${timePredicting}%10.4f, ${n}%6d, ${k}%6d, ${b}%6d")
     (timeTraining, timePredicting)
