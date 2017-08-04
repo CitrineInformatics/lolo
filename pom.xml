@@ -84,10 +84,7 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>2.19.1</version>
                 <configuration>
-                    <parallel>methods</parallel>
-                    <threadCount>1</threadCount>
                     <argLine>-Xmx1024m</argLine>
-                    <perCoreThreadCount>true</perCoreThreadCount>
                     <excludedGroups>io.citrine.lolo.SlowTest</excludedGroups>
                 </configuration>
             </plugin>
