@@ -36,9 +36,8 @@ class PerformanceTest {
   }
 
   @Test
-  def benchmark(): Unit = {
+  def testScaling(): Unit = {
     val quiet: Boolean = true
-    val trainingData = TestUtils.generateTrainingData(2048, 37)
     val Ns = Seq(512, 1024, 2048)
     val Ks = Seq(8, 16, 32)
     val Bs = Seq(1024, 2048, 4096)
@@ -66,10 +65,21 @@ class PerformanceTest {
     assert(nApplyScale.forall(s => s < Math.sqrt(32.0) && s > Math.sqrt(4.0)), nApplyScale)
   }
 
+  /**
+    * Test the absolute performance to check for overall regressions
+    */
+  @Test
+  def testAbsolute(): Unit = {
+    val (nominalTrain, nominalPredict) = timedTest(trainingData, 1024, 32, 1024)
+    assert(nominalTrain < 7.0, "Expected nominal train to have theta < 9.0")
+    assert(nominalPredict < 4.0, "Expected nominal transform to have theta < 6.0")
+  }
+
+  val trainingData = TestUtils.generateTrainingData(2048, 37)
 }
 
 object PerformanceTest {
   def main(argv: Array[String]): Unit = {
-    new PerformanceTest().benchmark()
+    new PerformanceTest().testAbsolute()
   }
 }
