@@ -4,7 +4,6 @@ import io.citrine.lolo.bags.Bagger
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
 import io.citrine.theta.Stopwatch
 import org.junit.Test
-import org.junit.experimental.categories.Category
 
 /**
   * Created by maxhutch on 12/29/16.
@@ -27,24 +26,23 @@ class PerformanceTest {
     val DTLearner = new RegressionTreeLearner(numFeatures = k / 4)
     val baggedLearner = new Bagger(DTLearner, numBags = b)
 
-    val timeTraining = Stopwatch.time({baggedLearner.train(data).getModel()}, benchmark = "None", minRun = 4, targetError = 0.2)
+    val timeTraining = Stopwatch.time({baggedLearner.train(data).getModel()}, benchmark = "None", minRun = 4, targetError = 0.1)
     val model = baggedLearner.train(data).getModel()
 
-    val timePredicting = Stopwatch.time({model.transform(inputs).getUncertainty()}, benchmark = "None", minRun = 4, targetError = 0.2)
+    val timePredicting = Stopwatch.time({model.transform(inputs).getUncertainty()}, benchmark = "None", minRun = 4, targetError = 0.1)
 
     if (!quiet) println(f"${timeTraining}%10.4f, ${timePredicting}%10.4f, ${n}%6d, ${k}%6d, ${b}%6d")
     (timeTraining, timePredicting)
   }
 
   @Test
-  def benchmark(): Unit = {
+  def testScaling(): Unit = {
     val quiet: Boolean = true
-    val trainingData = TestUtils.generateTrainingData(2048, 37)
-    // val Ns = Seq(8192, 16384, 32768)
     val Ns = Seq(512, 1024, 2048)
     val Ks = Seq(8, 16, 32)
     val Bs = Seq(1024, 2048, 4096)
     if (!quiet) println(f"${"Train"}%10s, ${"Apply"}%10s, ${"N"}%6s, ${"K"}%6s, ${"B"}%6s")
+    timedTest(trainingData, Ns.head, Ks.head, Bs.head, true)
     val (bTrain, bApply) = Bs.map(b => timedTest(trainingData, Ns.head, Ks.head, b, quiet)).unzip
     val (kTrain, kApply) = (bTrain.zip(bApply).take(1) ++ Ks.tail.map(k => timedTest(trainingData, Ns.head, k, Bs.head, quiet))).unzip
     val (nTrain, nApply) = (bTrain.zip(bApply).take(1) ++ Ns.tail.map(n => timedTest(trainingData, n, Ks.head, Bs.head, quiet))).unzip
@@ -67,10 +65,21 @@ class PerformanceTest {
     assert(nApplyScale.forall(s => s < Math.sqrt(32.0) && s > Math.sqrt(4.0)), nApplyScale)
   }
 
+  /**
+    * Test the absolute performance to check for overall regressions
+    */
+  @Test
+  def testAbsolute(): Unit = {
+    val (nominalTrain, nominalPredict) = timedTest(trainingData, 1024, 32, 1024)
+    assert(nominalTrain < 8.0, s"Expected nominal train to have theta < 8.0 but was ${nominalTrain}")
+    assert(nominalPredict < 7.0, s"Expected nominal transform to have theta < 7.0 but was ${nominalPredict}")
+  }
+
+  val trainingData = TestUtils.generateTrainingData(2048, 37)
 }
 
 object PerformanceTest {
   def main(argv: Array[String]): Unit = {
-    new PerformanceTest().benchmark()
+    new PerformanceTest().testAbsolute()
   }
 }

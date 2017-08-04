@@ -10,7 +10,7 @@ import scala.util.Random
 @Test
 class DistanceCorrelationTest {
 
-  val N: Int = 256
+  val N: Int = 512
 
   def dist(x: Double, y: Double): Double = Math.abs(x - y)
 
@@ -20,7 +20,7 @@ class DistanceCorrelationTest {
     val Y: Seq[Double] = Seq.tabulate(N)(i => Random.nextGaussian())
     val dcorr = DistanceCorrelation.distanceCorrelation(X, Y, dist)
 
-    assert(dcorr < 0.15, s"dCorr for indepnedent vars is ${dcorr}" )
+    assert(dcorr < 0.15, s"dCorr for independent vars is ${dcorr}" )
   }
 
 
