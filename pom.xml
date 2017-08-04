@@ -57,7 +57,7 @@
         <dependency>
             <groupId>io.citrine</groupId>
             <artifactId>theta</artifactId>
-            <version>0.1.3</version>
+            <version>0.2.0</version>
         </dependency>
         <dependency>
             <groupId>org.scalanlp</groupId>

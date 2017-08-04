@@ -4,7 +4,6 @@ import io.citrine.lolo.bags.Bagger
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
 import io.citrine.theta.Stopwatch
 import org.junit.Test
-import org.junit.experimental.categories.Category
 
 /**
   * Created by maxhutch on 12/29/16.
@@ -40,11 +39,11 @@ class PerformanceTest {
   def benchmark(): Unit = {
     val quiet: Boolean = true
     val trainingData = TestUtils.generateTrainingData(2048, 37)
-    // val Ns = Seq(8192, 16384, 32768)
     val Ns = Seq(512, 1024, 2048)
     val Ks = Seq(8, 16, 32)
     val Bs = Seq(1024, 2048, 4096)
     if (!quiet) println(f"${"Train"}%10s, ${"Apply"}%10s, ${"N"}%6s, ${"K"}%6s, ${"B"}%6s")
+    timedTest(trainingData, Ns.head, Ks.head, Bs.head, true)
     val (bTrain, bApply) = Bs.map(b => timedTest(trainingData, Ns.head, Ks.head, b, quiet)).unzip
     val (kTrain, kApply) = (bTrain.zip(bApply).take(1) ++ Ks.tail.map(k => timedTest(trainingData, Ns.head, k, Bs.head, quiet))).unzip
     val (nTrain, nApply) = (bTrain.zip(bApply).take(1) ++ Ns.tail.map(n => timedTest(trainingData, n, Ks.head, Bs.head, quiet))).unzip
