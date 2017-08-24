@@ -29,7 +29,7 @@ class RegressionTreeLearner(
   }
 
   /** Hyperparameters */
-  var hypers: Map[String, Any] = Map("minLeafInstances" -> 1)
+  var hypers: Map[String, Any] = Map("minLeafInstances" -> 1, "maxDepth" -> maxDepth, "numFeatures" -> numFeatures)
 
   /** Learner to use for training the leaves */
   val myLeafLearner = leafLearner.getOrElse(new GuessTheMeanLearner())
@@ -67,15 +67,15 @@ class RegressionTreeLearner(
     }.filter(_._3 > 0).toVector
 
     /* If the number of features isn't specified, use all of them */
-    val numFeaturesActual = if (numFeatures > 0) {
-      numFeatures
+    val numFeaturesActual = if (hypers("numFeatures").asInstanceOf[Int] > 0) {
+      hypers("numFeatures").asInstanceOf[Int]
     } else {
       finalTraining.head._1.size
     }
 
     /* The tree is built of training nodes */
     val (split, delta) = RegressionSplitter.getBestSplit(finalTraining, numFeaturesActual, hypers("minLeafInstances").asInstanceOf[Int])
-    val rootTrainingNode: TrainingNode[AnyVal, Double] = if (split.isInstanceOf[NoSplit] || maxDepth == 0) {
+    val rootTrainingNode: TrainingNode[AnyVal, Double] = if (split.isInstanceOf[NoSplit] || hypers("maxDepth").asInstanceOf[Int] == 0) {
       new RegressionTrainingLeaf(finalTraining, myLeafLearner, 0)
     } else {
       new RegressionTrainingNode(
@@ -85,8 +85,8 @@ class RegressionTreeLearner(
         delta,
         numFeaturesActual,
         minLeafInstances = hypers("minLeafInstances").asInstanceOf[Int],
-        remainingDepth = maxDepth - 1,
-        maxDepth)
+        remainingDepth = hypers("maxDepth").asInstanceOf[Int] - 1,
+        hypers("maxDepth").asInstanceOf[Int])
     }
 
     /* Wrap them up in a regression tree */

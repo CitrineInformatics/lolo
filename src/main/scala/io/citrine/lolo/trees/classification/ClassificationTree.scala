@@ -19,7 +19,7 @@ class ClassificationTreeLearner(
 
   val myLeafLearner: Learner = leafLearner.getOrElse(new GuessTheMeanLearner)
 
-  override var hypers: Map[String, Any] = Map("maxDepth" -> 30, "minLeafInstances" -> 1)
+  override var hypers: Map[String, Any] = Map("maxDepth" -> 30, "minLeafInstances" -> 1, "numFeatures" -> numFeatures)
 
   override def setHypers(moreHypers: Map[String, Any]): this.type = {
     hypers = hypers ++ moreHypers
@@ -61,8 +61,8 @@ class ClassificationTreeLearner(
     }.filter(_._3 > 0).toVector
 
     /* If the number of features isn't specified, use all of them */
-    val numFeaturesActual = if (numFeatures > 0) {
-      numFeatures
+    val numFeaturesActual = if (hypers("numFeatures").asInstanceOf[Int] > 0) {
+      hypers("numFeatures").asInstanceOf[Int]
     } else {
       finalTraining.head._1.size
     }
