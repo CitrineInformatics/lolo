@@ -20,8 +20,8 @@ import scala.collection.parallel.immutable.ParSeq
   */
 class Bagger(
               method: Learner,
-              var numBags: Int = -1,
-              val useJackknife: Boolean = true,
+              numBags: Int = -1,
+              useJackknife: Boolean = true,
               biasLearner: Option[Learner] = None
             ) extends Learner {
 
@@ -30,7 +30,7 @@ class Bagger(
     super.setHypers(moreHypers)
   }
 
-  override var hypers: Map[String, Any] = Map()
+  override var hypers: Map[String, Any] = Map("useJackknife" -> useJackknife, "numBags" -> numBags)
 
   private def combineImportance(v1: Option[Vector[Double]], v2: Option[Vector[Double]]): Option[Vector[Double]] = {
     (v1, v2) match {
@@ -56,8 +56,8 @@ class Bagger(
     val weightsActual = weights.getOrElse(Seq.fill(trainingData.size)(1.0))
 
     /* Set default number of bags */
-    val actualBags = if (numBags > 0) {
-      numBags
+    val actualBags = if (hypers("numBags").asInstanceOf[Int] > 0) {
+      hypers("numBags").asInstanceOf[Int]
     } else {
       trainingData.size
     }
@@ -86,10 +86,10 @@ class Bagger(
     /* Wrap the models in a BaggedModel object */
     if (biasLearner.isEmpty) {
       Async.canStop()
-      new BaggedTrainingResult(models, hypers, averageImportance, Nib, trainingData, useJackknife)
+      new BaggedTrainingResult(models, hypers, averageImportance, Nib, trainingData, hypers("useJackknife").asInstanceOf[Boolean])
     } else {
       Async.canStop()
-      val baggedModel = new BaggedModel(models, Nib, useJackknife)
+      val baggedModel = new BaggedModel(models, Nib, hypers("useJackknife").asInstanceOf[Boolean])
       Async.canStop()
       val baggedRes = baggedModel.transform(trainingData.map(_._1))
       Async.canStop()
@@ -105,7 +105,7 @@ class Bagger(
       val biasModel = biasLearner.get.train(biasTraining).getModel()
       Async.canStop()
 
-      new BaggedTrainingResult(models, hypers, averageImportance, Nib, trainingData, useJackknife, Some(biasModel))
+      new BaggedTrainingResult(models, hypers, averageImportance, Nib, trainingData, hypers("useJackknife").asInstanceOf[Boolean], Some(biasModel))
     }
   }
 }
