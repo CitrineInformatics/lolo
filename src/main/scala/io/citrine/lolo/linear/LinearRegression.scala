@@ -12,7 +12,7 @@ import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
   */
 class LinearRegressionLearner(fitIntercept: Boolean = true) extends Learner {
 
-  var hypers: Map[String, Any] = Map("regParam" -> 0.0)
+  var hypers: Map[String, Any] = Map("regParam" -> 0.0, "fitIntercept" -> fitIntercept)
 
   /**
     * Train a linear model via direct inversion.
@@ -33,7 +33,7 @@ class LinearRegressionLearner(fitIntercept: Boolean = true) extends Learner {
 
 
     /* If we are fitting the intercept, add a row of 1s */
-    val At = if (fitIntercept) {
+    val At = if (hypers("fitIntercept").asInstanceOf[Boolean]) {
       new DenseMatrix(indices.size + 1, n, trainingData.map(r => indices.map(r._1(_).asInstanceOf[Double]) :+ 1.0).flatten.toArray)
     } else {
       new DenseMatrix(indices.size, n, trainingData.map(r => indices.map(r._1(_).asInstanceOf[Double])).flatten.toArray)
@@ -58,7 +58,7 @@ class LinearRegressionLearner(fitIntercept: Boolean = true) extends Learner {
     val beta = if (hypers("regParam").asInstanceOf[Double] > 0 || n >= k) {
       /* Construct the regularized problem and solve it */
       val regVector = Math.pow(hypers("regParam").asInstanceOf[Double], 2) * DenseVector.ones[Double](k)
-      if (fitIntercept) regVector(-1) = 0.0
+      if (hypers("fitIntercept").asInstanceOf[Boolean]) regVector(-1) = 0.0
       val M = At * A + diag(regVector)
       try {
         val Mi = pinv(M)
@@ -82,7 +82,7 @@ class LinearRegressionLearner(fitIntercept: Boolean = true) extends Learner {
     }
 
     /* If we fit the intercept, take it off the end of the coefficients */
-    val model = if (fitIntercept) {
+    val model = if (hypers("fitIntercept").asInstanceOf[Boolean]) {
       new LinearRegressionModel(beta(0 to -2), beta(-1), indices = indicesToModel)
     } else {
       new LinearRegressionModel(beta, 0.0, indices = indicesToModel)
