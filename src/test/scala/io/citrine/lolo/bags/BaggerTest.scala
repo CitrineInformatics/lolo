@@ -77,6 +77,35 @@ class BaggerTest {
   }
 
   /**
+    * Test that the uncertainty metrics are properly calibrated
+    *
+    * This test is based on the "standard" RMSE, which is computed by dividing the error
+    * by the predicted uncertainty.  On the exterior, these is an additional extrapolative
+    * uncertainty that isn't captured well by this method, so we test the interior and the full
+    * set independently
+    */
+  def testUncertaintyCalibration(): Unit = {
+    val width = 0.1
+    val trainingData = TestUtils.generateTrainingData(128, 6, xscale = width, seed = 6L)
+    val DTLearner = new RegressionTreeLearner(numFeatures = 6)
+    val bias = new RegressionTreeLearner(maxDepth = 4)
+    val baggedLearner = new Bagger(DTLearner, numBags = 16 * trainingData.size, biasLearner = Some(bias))
+    val RFMeta = baggedLearner.train(trainingData)
+    val RF = RFMeta.getModel()
+
+    val interiorTestSet = TestUtils.generateTrainingData(64, 6, xscale = width/2.0, xoff = width/4.0, seed = 7L)
+    val fullTestSet = TestUtils.generateTrainingData(64, 6, xscale = width, seed = 7L)
+
+    val interiorStandardRMSE = BaggerTest.getStandardRMSE(interiorTestSet, RF)
+    val fullStandardRMSE = BaggerTest.getStandardRMSE(fullTestSet, RF)
+    assert(interiorStandardRMSE > 0.85, "Standard RMSE in the interior should be greater than 0.85")
+    assert(interiorStandardRMSE < 1.0, "Standard RMSE in the interior should be less than 1.0")
+
+    assert(fullStandardRMSE < 1.85, "Standard RMSE over the full domain should be less than 1.85")
+    // println(s"Standard RMSE (int, full): ${interiorStandardRMSE} ${fullStandardRMSE}")
+  }
+
+  /**
     * Test the scores on a smaller example, because computing them all can be expensive.
     *
     * In general, we don't even know that the self-score (score on a prediction on oneself) is maximal.  For example,
@@ -160,6 +189,21 @@ object BaggerTest {
     */
   def main(argv: Array[String]): Unit = {
     new BaggerTest()
-      .testInterrupt()
+      .testUncertaintyCalibration()
   }
+
+
+  def getStandardRMSE(testSet: Seq[(Vector[Any], Double)], model: BaggedModel): Double = {
+    val predictions = model.transform(testSet.map(_._1))
+    val pva = testSet.map(_._2).zip(
+      predictions.getExpected().asInstanceOf[Seq[Double]].zip(
+        predictions.getUncertainty().get.asInstanceOf[Seq[Double]]
+      )
+    )
+    val standardError = pva.map{ case (a: Double, (p: Double, u: Double)) =>
+      Math.abs(a - p) / u
+    }
+    Math.sqrt(standardError.map(Math.pow(_, 2.0)).sum / testSet.size)
+  }
+
 }
