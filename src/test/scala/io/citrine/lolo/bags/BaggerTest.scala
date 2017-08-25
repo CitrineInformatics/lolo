@@ -9,6 +9,8 @@ import io.citrine.lolo.trees.regression.RegressionTreeLearner
 import org.junit.Test
 import org.scalatest.Assertions._
 
+import scala.util.Random
+
 /**
   * Created by maxhutch on 11/29/16.
   */
@@ -74,6 +76,38 @@ class BaggerTest {
     /* The first feature should be the most important */
     val importances = RFMeta.getFeatureImportance().get
     assert(importances.slice(0, 5).min > importances.slice(5, importances.size).max)
+  }
+
+  /**
+    * Test that the uncertainty metrics are properly calibrated
+    *
+    * This test is based on the "standard" RMSE, which is computed by dividing the error
+    * by the predicted uncertainty.  On the exterior, these is an additional extrapolative
+    * uncertainty that isn't captured well by this method, so we test the interior and the full
+    * set independently
+    */
+  def testUncertaintyCalibration(): Unit = {
+    val width = 0.10 // make the function more linear
+    val nFeatures = 5
+    val bagsPerRow = 4 // picked to be large enough that bias correction is small but model isn't too expensive
+    val trainingData = TestUtils.generateTrainingData(128, nFeatures, xscale = width, seed = Random.nextLong())
+    val DTLearner = new RegressionTreeLearner(numFeatures = nFeatures)
+    val bias = new RegressionTreeLearner(maxDepth = 4)
+    val baggedLearner = new Bagger(DTLearner, numBags = bagsPerRow * trainingData.size, biasLearner = Some(bias))
+    val RFMeta = baggedLearner.train(trainingData)
+    val RF = RFMeta.getModel()
+
+    val interiorTestSet = TestUtils.generateTrainingData(128, nFeatures, xscale = width/2.0, xoff = width/4.0, seed = Random.nextLong())
+    val fullTestSet = TestUtils.generateTrainingData(128, nFeatures, xscale = width, seed = Random.nextLong())
+
+    val interiorStandardRMSE = BaggerTest.getStandardRMSE(interiorTestSet, RF)
+    val fullStandardRMSE = BaggerTest.getStandardRMSE(fullTestSet, RF)
+    println(s"Standard RMSE (int, full): ${interiorStandardRMSE} ${fullStandardRMSE}")
+    assert(interiorStandardRMSE > 0.50, "Standard RMSE in the interior should be greater than 0.5")
+    assert(interiorStandardRMSE < 1.50, "Standard RMSE in the interior should be less than 1.5")
+
+    assert(fullStandardRMSE < 2.5, "Standard RMSE over the full domain should be less than 2.5")
+    assert(fullStandardRMSE > 1.0, "Standard RMSE over the full domain should be greater than 1.0")
   }
 
   /**
@@ -160,6 +194,21 @@ object BaggerTest {
     */
   def main(argv: Array[String]): Unit = {
     new BaggerTest()
-      .testInterrupt()
+      .testUncertaintyCalibration()
   }
+
+
+  def getStandardRMSE(testSet: Seq[(Vector[Any], Double)], model: BaggedModel): Double = {
+    val predictions = model.transform(testSet.map(_._1))
+    val pva = testSet.map(_._2).zip(
+      predictions.getExpected().asInstanceOf[Seq[Double]].zip(
+        predictions.getUncertainty().get.asInstanceOf[Seq[Double]]
+      )
+    )
+    val standardError = pva.map{ case (a: Double, (p: Double, u: Double)) =>
+      Math.abs(a - p) / u
+    }
+    Math.sqrt(standardError.map(Math.pow(_, 2.0)).sum / testSet.size)
+  }
+
 }

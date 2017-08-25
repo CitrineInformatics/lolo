@@ -32,12 +32,14 @@ object TestUtils {
                             rows: Int,
                             cols: Int,
                             function: (Seq[Double] => Double) = Friedman.friedmanGrosseSilverman,
+                            xscale: Double = 1.0,
+                            xoff: Double = 0.0,
                             noise: Double = 0.0,
                             seed: Long = 0L
                           ): Vector[(Vector[Double], Double)] = {
     val rnd = new Random(seed)
     Vector.fill(rows){
-      val input = Vector.fill(cols)(rnd.nextDouble())
+      val input = Vector.fill(cols)(xscale * rnd.nextDouble() + xoff)
       (input, function(input) + noise * rnd.nextGaussian())
     }
   }
