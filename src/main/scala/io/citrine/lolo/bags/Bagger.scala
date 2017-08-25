@@ -103,7 +103,7 @@ class Bagger(
       ).map { case ((f, a), (p, u)) =>
         // Math.E is only statistically correct.  It should be actualBags / Nib.transpose(i).count(_ == 0)
         // Or, better yet, filter the bags that don't include the training example
-        val bias = Math.max(Math.E * Math.abs(p.asInstanceOf[Double] - a.asInstanceOf[Double]) - u.asInstanceOf[Double], 0.0)
+        val bias = Math.E * Math.max(Math.abs(p.asInstanceOf[Double] - a.asInstanceOf[Double]) - u.asInstanceOf[Double], 0.0)
         (f, bias)
       }
       Async.canStop()
