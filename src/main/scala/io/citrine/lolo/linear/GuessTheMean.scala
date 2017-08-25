@@ -7,8 +7,6 @@ import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
   */
 class GuessTheMeanLearner extends Learner {
 
-  override var hypers: Map[String, Any] = Map()
-
   /**
     * Train a model
     *

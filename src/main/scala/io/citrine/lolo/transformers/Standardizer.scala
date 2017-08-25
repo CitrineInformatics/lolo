@@ -10,12 +10,15 @@ import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
   *
   * Created by maxhutch on 2/19/17.
   */
-class Standardizer(baseLearner: Learner) extends Learner() {
-  override var hypers: Map[String, Any] = Map()
+class Standardizer(baseLearner: Learner) extends Learner {
 
   override def setHypers(moreHypers: Map[String, Any]): this.type = {
     baseLearner.setHypers(moreHypers)
     super.setHypers(moreHypers)
+  }
+
+  override def getHypers(): Map[String, Any] = {
+    baseLearner.getHypers() ++ hypers
   }
 
   /**
@@ -37,7 +40,7 @@ class Standardizer(baseLearner: Learner) extends Learner() {
     val standardTrainingData = Standardizer.applyStandardization(inputs, inputTrans).zip(Standardizer.applyStandardization(labels, outputTrans))
     val baseTrainingResult = baseLearner.train(standardTrainingData, weights)
 
-    new StandardizerTrainingResult(baseTrainingResult, Seq(outputTrans) ++ inputTrans, hypers)
+    new StandardizerTrainingResult(baseTrainingResult, Seq(outputTrans) ++ inputTrans, getHypers())
   }
 }
 

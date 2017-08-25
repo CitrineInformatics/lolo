@@ -24,7 +24,7 @@ class RandomForest(
                     subsetStrategy: Any = "auto"
                   ) extends Learner {
 
-  override var hypers: Map[String, Any] = Map(
+  hypers = Map(
     "numTrees" -> numTrees,
     "useJackknife" -> useJackknife,
     "biasLearner" -> biasLearner,
