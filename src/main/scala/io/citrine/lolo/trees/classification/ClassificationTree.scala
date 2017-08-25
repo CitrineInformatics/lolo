@@ -19,7 +19,7 @@ class ClassificationTreeLearner(
 
   val myLeafLearner: Learner = leafLearner.getOrElse(new GuessTheMeanLearner)
 
-  hypers = Map("maxDepth" -> 30, "minLeafInstances" -> 1, "numFeatures" -> numFeatures)
+  setHypers(Map("maxDepth" -> 30, "minLeafInstances" -> 1, "numFeatures" -> numFeatures))
 
   override def setHypers(moreHypers: Map[String, Any]): this.type = {
     hypers = hypers ++ moreHypers

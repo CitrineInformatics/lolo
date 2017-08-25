@@ -12,7 +12,7 @@ import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
   */
 class LinearRegressionLearner(fitIntercept: Boolean = true) extends Learner {
 
-  hypers = Map("regParam" -> 0.0, "fitIntercept" -> fitIntercept)
+  setHypers(Map("regParam" -> 0.0, "fitIntercept" -> fitIntercept))
 
   /**
     * Train a linear model via direct inversion.

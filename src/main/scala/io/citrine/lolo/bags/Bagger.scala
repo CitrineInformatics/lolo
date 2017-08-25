@@ -25,7 +25,7 @@ class Bagger(
               biasLearner: Option[Learner] = None
             ) extends Learner {
 
-  hypers = Map("useJackknife" -> useJackknife, "numBags" -> numBags)
+  setHypers(Map("useJackknife" -> useJackknife, "numBags" -> numBags))
 
   override def setHypers(moreHypers: Map[String, Any]): Bagger.this.type = {
     method.setHypers(moreHypers)

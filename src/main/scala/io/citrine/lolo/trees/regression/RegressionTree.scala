@@ -25,7 +25,7 @@ class RegressionTreeLearner(
   val myLeafLearner = leafLearner.getOrElse(new GuessTheMeanLearner())
 
   /** Hyperparameters */
-  hypers = Map("minLeafInstances" -> 1, "maxDepth" -> maxDepth, "numFeatures" -> numFeatures)
+  setHypers(Map("minLeafInstances" -> 1, "maxDepth" -> maxDepth, "numFeatures" -> numFeatures))
 
   override def setHypers(moreHypers: Map[String, Any]): this.type = {
     hypers = hypers ++ moreHypers

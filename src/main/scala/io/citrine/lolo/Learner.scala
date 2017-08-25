@@ -14,7 +14,7 @@ trait Learner extends Serializable {
     hypers = hypers ++ moreHypers
     this
   }
-  protected var hypers: Map[String, Any] = Map()
+  var hypers: Map[String, Any] = Map()
 
   /**
     * Set a single hyperparameter
