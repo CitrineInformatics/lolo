@@ -9,6 +9,8 @@ import io.citrine.lolo.trees.regression.RegressionTreeLearner
 import org.junit.Test
 import org.scalatest.Assertions._
 
+import scala.util.Random
+
 /**
   * Created by maxhutch on 11/29/16.
   */
@@ -85,24 +87,27 @@ class BaggerTest {
     * set independently
     */
   def testUncertaintyCalibration(): Unit = {
-    val width = 0.1
-    val trainingData = TestUtils.generateTrainingData(128, 6, xscale = width, seed = 6L)
-    val DTLearner = new RegressionTreeLearner(numFeatures = 6)
+    val width = 0.10 // make the function more linear
+    val nFeatures = 5
+    val bagsPerRow = 4 // picked to be large enough that bias correction is small but model isn't too expensive
+    val trainingData = TestUtils.generateTrainingData(128, nFeatures, xscale = width, seed = Random.nextLong())
+    val DTLearner = new RegressionTreeLearner(numFeatures = nFeatures)
     val bias = new RegressionTreeLearner(maxDepth = 4)
-    val baggedLearner = new Bagger(DTLearner, numBags = 16 * trainingData.size, biasLearner = Some(bias))
+    val baggedLearner = new Bagger(DTLearner, numBags = bagsPerRow * trainingData.size, biasLearner = Some(bias))
     val RFMeta = baggedLearner.train(trainingData)
     val RF = RFMeta.getModel()
 
-    val interiorTestSet = TestUtils.generateTrainingData(64, 6, xscale = width/2.0, xoff = width/4.0, seed = 7L)
-    val fullTestSet = TestUtils.generateTrainingData(64, 6, xscale = width, seed = 7L)
+    val interiorTestSet = TestUtils.generateTrainingData(128, nFeatures, xscale = width/2.0, xoff = width/4.0, seed = Random.nextLong())
+    val fullTestSet = TestUtils.generateTrainingData(128, nFeatures, xscale = width, seed = Random.nextLong())
 
     val interiorStandardRMSE = BaggerTest.getStandardRMSE(interiorTestSet, RF)
     val fullStandardRMSE = BaggerTest.getStandardRMSE(fullTestSet, RF)
-    assert(interiorStandardRMSE > 0.85, "Standard RMSE in the interior should be greater than 0.85")
-    assert(interiorStandardRMSE < 1.0, "Standard RMSE in the interior should be less than 1.0")
+    println(s"Standard RMSE (int, full): ${interiorStandardRMSE} ${fullStandardRMSE}")
+    assert(interiorStandardRMSE > 0.50, "Standard RMSE in the interior should be greater than 0.5")
+    assert(interiorStandardRMSE < 1.50, "Standard RMSE in the interior should be less than 1.5")
 
-    assert(fullStandardRMSE < 1.85, "Standard RMSE over the full domain should be less than 1.85")
-    // println(s"Standard RMSE (int, full): ${interiorStandardRMSE} ${fullStandardRMSE}")
+    assert(fullStandardRMSE < 2.5, "Standard RMSE over the full domain should be less than 2.5")
+    assert(fullStandardRMSE > 1.0, "Standard RMSE over the full domain should be greater than 1.0")
   }
 
   /**
