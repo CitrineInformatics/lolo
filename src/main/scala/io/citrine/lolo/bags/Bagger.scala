@@ -25,12 +25,17 @@ class Bagger(
               biasLearner: Option[Learner] = None
             ) extends Learner {
 
+  setHypers(Map("useJackknife" -> useJackknife, "numBags" -> numBags))
+
   override def setHypers(moreHypers: Map[String, Any]): Bagger.this.type = {
     method.setHypers(moreHypers)
     super.setHypers(moreHypers)
   }
 
-  override var hypers: Map[String, Any] = Map("useJackknife" -> useJackknife, "numBags" -> numBags)
+  override def getHypers(): Map[String, Any] = {
+    method.getHypers() ++ hypers
+  }
+
 
   private def combineImportance(v1: Option[Vector[Double]], v2: Option[Vector[Double]]): Option[Vector[Double]] = {
     (v1, v2) match {
@@ -105,7 +110,7 @@ class Bagger(
       val biasModel = biasLearner.get.train(biasTraining).getModel()
       Async.canStop()
 
-      new BaggedTrainingResult(models, hypers, averageImportance, Nib, trainingData, hypers("useJackknife").asInstanceOf[Boolean], Some(biasModel))
+      new BaggedTrainingResult(models, getHypers(), averageImportance, Nib, trainingData, hypers("useJackknife").asInstanceOf[Boolean], Some(biasModel))
     }
   }
 }

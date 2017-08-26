@@ -21,6 +21,11 @@ class RegressionTreeLearner(
                              maxDepth: Int = 30,
                              leafLearner: Option[Learner] = None
                            ) extends Learner {
+  /** Learner to use for training the leaves */
+  val myLeafLearner = leafLearner.getOrElse(new GuessTheMeanLearner())
+
+  /** Hyperparameters */
+  setHypers(Map("minLeafInstances" -> 1, "maxDepth" -> maxDepth, "numFeatures" -> numFeatures))
 
   override def setHypers(moreHypers: Map[String, Any]): this.type = {
     hypers = hypers ++ moreHypers
@@ -28,11 +33,9 @@ class RegressionTreeLearner(
     this
   }
 
-  /** Hyperparameters */
-  var hypers: Map[String, Any] = Map("minLeafInstances" -> 1, "maxDepth" -> maxDepth, "numFeatures" -> numFeatures)
-
-  /** Learner to use for training the leaves */
-  val myLeafLearner = leafLearner.getOrElse(new GuessTheMeanLearner())
+  override def getHypers(): Map[String, Any] = {
+    myLeafLearner.getHypers() ++ hypers
+  }
 
   /**
     * Train the tree by recursively partitioning (splitting) the training data on a single feature
@@ -90,7 +93,7 @@ class RegressionTreeLearner(
     }
 
     /* Wrap them up in a regression tree */
-    new RegressionTreeTrainingResult(rootTrainingNode, encoders, hypers)
+    new RegressionTreeTrainingResult(rootTrainingNode, encoders, getHypers())
   }
 
 }
