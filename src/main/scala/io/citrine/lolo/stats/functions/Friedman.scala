@@ -16,7 +16,8 @@ object Friedman {
     * @return test function(x)
     */
   def friedmanSilverman(x: Seq[Double]): Double = {
-    0.1 * Math.exp(4.0 * x(0)) + 4.0 / (1 + Math.exp(- 20.0 * (x(1) - 0.5))) + 3.0 * x(2) + 2.0 * x(3) + x(4)
+    val x_pad = x.padTo(5, 0.0)
+    0.1 * Math.exp(4.0 * x_pad(0)) + 4.0 / (1 + Math.exp(- 20.0 * (x_pad(1) - 0.5))) + 3.0 * x_pad(2) + 2.0 * x_pad(3) + x_pad(4)
   }
 
   /**
@@ -29,6 +30,7 @@ object Friedman {
     * @return test function(x)
     */
   def friedmanGrosseSilverman(x: Seq[Double]): Double = {
-    10.0 * Math.sin(Math.PI * x(0) * x(1)) + 20.0 * Math.pow(x(2) - 0.5, 2) + 10.0 * x(3) + 5.0 * x(4)
+    val x_pad = x.padTo(5, 0.0)
+    10.0 * Math.sin(Math.PI * x_pad(0) * x_pad(1)) + 20.0 * Math.pow(x_pad(2) - 0.5, 2) + 10.0 * x_pad(3) + 5.0 * x_pad(4)
   }
 }

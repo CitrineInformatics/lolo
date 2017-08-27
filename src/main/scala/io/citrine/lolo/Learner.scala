@@ -5,15 +5,32 @@ package io.citrine.lolo
   */
 trait Learner extends Serializable {
 
+  /**
+    * Set block of hyperparameters
+    * @param moreHypers hyperparameters to set
+    * @return this learner
+    */
   def setHypers(moreHypers: Map[String, Any]): this.type = {
     hypers = hypers ++ moreHypers
     this
   }
-  var hypers: Map[String, Any]
+  var hypers: Map[String, Any] = Map()
 
+  /**
+    * Set a single hyperparameter
+    * @param name of the hyperparameter
+    * @param value of the hyperparameter
+    * @return this learner
+    */
   def setHyper(name: String, value: Any): this.type = {
     setHypers(Map(name -> value))
   }
+
+  /**
+    * Get the hyperparameter map
+    * @return map of hyperparameters
+    */
+  def getHypers(): Map[String, Any] = hypers
 
   /**
     * Train a model

@@ -20,17 +20,22 @@ import scala.collection.parallel.immutable.ParSeq
   */
 class Bagger(
               method: Learner,
-              var numBags: Int = -1,
-              val useJackknife: Boolean = true,
+              numBags: Int = -1,
+              useJackknife: Boolean = true,
               biasLearner: Option[Learner] = None
             ) extends Learner {
+
+  setHypers(Map("useJackknife" -> useJackknife, "numBags" -> numBags))
 
   override def setHypers(moreHypers: Map[String, Any]): Bagger.this.type = {
     method.setHypers(moreHypers)
     super.setHypers(moreHypers)
   }
 
-  override var hypers: Map[String, Any] = Map()
+  override def getHypers(): Map[String, Any] = {
+    method.getHypers() ++ hypers
+  }
+
 
   private def combineImportance(v1: Option[Vector[Double]], v2: Option[Vector[Double]]): Option[Vector[Double]] = {
     (v1, v2) match {
@@ -56,8 +61,8 @@ class Bagger(
     val weightsActual = weights.getOrElse(Seq.fill(trainingData.size)(1.0))
 
     /* Set default number of bags */
-    val actualBags = if (numBags > 0) {
-      numBags
+    val actualBags = if (hypers("numBags").asInstanceOf[Int] > 0) {
+      hypers("numBags").asInstanceOf[Int]
     } else {
       trainingData.size
     }
@@ -86,10 +91,10 @@ class Bagger(
     /* Wrap the models in a BaggedModel object */
     if (biasLearner.isEmpty) {
       Async.canStop()
-      new BaggedTrainingResult(models, hypers, averageImportance, Nib, trainingData, useJackknife)
+      new BaggedTrainingResult(models, hypers, averageImportance, Nib, trainingData, hypers("useJackknife").asInstanceOf[Boolean])
     } else {
       Async.canStop()
-      val baggedModel = new BaggedModel(models, Nib, useJackknife)
+      val baggedModel = new BaggedModel(models, Nib, hypers("useJackknife").asInstanceOf[Boolean])
       Async.canStop()
       val baggedRes = baggedModel.transform(trainingData.map(_._1))
       Async.canStop()
@@ -98,14 +103,14 @@ class Bagger(
       ).map { case ((f, a), (p, u)) =>
         // Math.E is only statistically correct.  It should be actualBags / Nib.transpose(i).count(_ == 0)
         // Or, better yet, filter the bags that don't include the training example
-        val bias = Math.max(Math.E * Math.abs(p.asInstanceOf[Double] - a.asInstanceOf[Double]) - u.asInstanceOf[Double], 0.0)
+        val bias = Math.E * Math.max(Math.abs(p.asInstanceOf[Double] - a.asInstanceOf[Double]) - u.asInstanceOf[Double], 0.0)
         (f, bias)
       }
       Async.canStop()
       val biasModel = biasLearner.get.train(biasTraining).getModel()
       Async.canStop()
 
-      new BaggedTrainingResult(models, hypers, averageImportance, Nib, trainingData, useJackknife, Some(biasModel))
+      new BaggedTrainingResult(models, getHypers(), averageImportance, Nib, trainingData, hypers("useJackknife").asInstanceOf[Boolean], Some(biasModel))
     }
   }
 }
