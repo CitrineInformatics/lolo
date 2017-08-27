@@ -35,7 +35,7 @@ class PerformanceTest {
     (timeTraining, timePredicting)
   }
 
-  @Test
+  // @Test
   def testScaling(): Unit = {
     val quiet: Boolean = true
     val Ns = Seq(512, 1024, 2048)
