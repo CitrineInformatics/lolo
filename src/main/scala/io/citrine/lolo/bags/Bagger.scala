@@ -91,7 +91,7 @@ class Bagger(
     /* Wrap the models in a BaggedModel object */
     if (biasLearner.isEmpty) {
       Async.canStop()
-      new BaggedTrainingResult(models, hypers, averageImportance, Nib, trainingData, hypers("useJackknife").asInstanceOf[Boolean])
+      new BaggedTrainingResult(models, getHypers(), averageImportance, Nib, trainingData, hypers("useJackknife").asInstanceOf[Boolean])
     } else {
       Async.canStop()
       val baggedModel = new BaggedModel(models, Nib, hypers("useJackknife").asInstanceOf[Boolean])
