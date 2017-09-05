@@ -6,7 +6,7 @@
 
     <groupId>io.citrine</groupId>
     <artifactId>lolo</artifactId>
-    <version>0.2.8</version>
+    <version>0.2.9</version>
     <packaging>jar</packaging>
 
     <name>${project.groupId}:${project.artifactId}</name>
@@ -86,7 +86,6 @@
                 <configuration>
                     <parallel>methods</parallel>
                     <threadCount>1</threadCount>
-                    <argLine>-Xmx1024m -XX:MaxPermSize=256m</argLine>
                     <perCoreThreadCount>true</perCoreThreadCount>
                     <excludedGroups>io.citrine.lolo.SlowTest</excludedGroups>
                 </configuration>

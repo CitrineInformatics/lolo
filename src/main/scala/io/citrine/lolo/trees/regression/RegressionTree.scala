@@ -75,13 +75,14 @@ class RegressionTreeLearner(
     }
 
     /* The tree is built of training nodes */
-    val (split, delta) = RegressionSplitter.getBestSplit(finalTraining, numFeaturesActual, hypers("minLeafInstances").asInstanceOf[Int])
+    val (split, delta) = splitter.getBestSplit(finalTraining, numFeaturesActual, hypers("minLeafInstances").asInstanceOf[Int])
     val rootTrainingNode: TrainingNode[AnyVal, Double] = if (split.isInstanceOf[NoSplit] || maxDepth == 0) {
       new RegressionTrainingLeaf(finalTraining, myLeafLearner, 0)
     } else {
       new RegressionTrainingNode(
         finalTraining,
         myLeafLearner,
+        splitter,
         split,
         delta,
         numFeaturesActual,
