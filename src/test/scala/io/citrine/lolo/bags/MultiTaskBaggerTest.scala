@@ -1,13 +1,10 @@
 package io.citrine.lolo.bags
 
-import java.util.concurrent.{Callable, CancellationException, Executors, Future, TimeUnit}
-
 import io.citrine.lolo.TestUtils
 import io.citrine.lolo.stats.functions.Friedman
 import io.citrine.lolo.stats.metrics.ClassificationMetrics
 import io.citrine.lolo.trees.classification.ClassificationTreeLearner
 import io.citrine.lolo.trees.multitask.MultiTaskTreeLearner
-import io.citrine.lolo.trees.regression.RegressionTreeLearner
 import org.junit.Test
 import org.scalatest.Assertions._
 
