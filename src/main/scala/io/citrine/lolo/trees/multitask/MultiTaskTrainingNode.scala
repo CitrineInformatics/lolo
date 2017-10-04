@@ -15,36 +15,39 @@ class MultiTaskTrainingNode(inputs: Seq[(Vector[AnyVal], Array[AnyVal], Double)]
       (Some(new MultiTaskTrainingNode(leftData)), Some(new MultiTaskTrainingNode(rightData)))
   }
 
-  lazy val leftNodes = leftChild.get.getNodes()
-  lazy val rightNodes = rightChild.get.getNodes()
-
-
-  def getNodes(): Seq[ModelNode[PredictionResult[Any]]] = {
-    val labels = inputs.head._2
-    labels.indices.map{k =>
-      val node = if (leftChild.isDefined && rightChild.isDefined) {
-        if (labels(k).isInstanceOf[Double]) {
-          new InternalModelNode[PredictionResult[Double]](
-            split,
-            leftNodes(k).asInstanceOf[ModelNode[PredictionResult[Double]]],
-            rightNodes(k).asInstanceOf[ModelNode[PredictionResult[Double]]]
-          )
-        } else {
-          if (!labels(k).isInstanceOf[Char]) throw new IllegalArgumentException("Training data wasn't double or char")
-           new InternalModelNode[PredictionResult[Char]](
-            split,
-            leftNodes(k).asInstanceOf[ModelNode[PredictionResult[Char]]],
-            rightNodes(k).asInstanceOf[ModelNode[PredictionResult[Char]]]
-          )
-        }
-      } else {
-        if (labels(k).isInstanceOf[Double]) {
-          new TrainingLeaf[Double](inputs.map(x => (x._1, x._2(k).asInstanceOf[Double], x._3)), new GuessTheMeanLearner(), 1).getNode()
-        } else {
-          new TrainingLeaf[Char](inputs.map(x => (x._1, x._2(k).asInstanceOf[Char], x._3)), new GuessTheMeanLearner(), 1).getNode()
-        }
-      }
-      node.asInstanceOf[ModelNode[PredictionResult[Any]]]
+  def getNode(index: Int): ModelNode[PredictionResult[Any]] = {
+    val label = inputs.head._2(index)
+    val reducedData = if (label.isInstanceOf[Double]) {
+      inputs.map(x => (x._1, x._2(index).asInstanceOf[Double], x._3)).filterNot(_._2.isNaN)
+    } else {
+      inputs.map(x => (x._1, x._2(index).asInstanceOf[Char], x._3)).filter(_._2 > 0)
     }
+    val (left, right) = reducedData.partition(r => split.turnLeft(r._1))
+
+    val node = if (leftChild.isDefined && rightChild.isDefined && left.nonEmpty && right.nonEmpty) {
+      if (label.isInstanceOf[Double]) {
+        new InternalModelNode[PredictionResult[Double]](
+          split,
+          leftChild.get.getNode(index).asInstanceOf[ModelNode[PredictionResult[Double]]],
+          rightChild.get.getNode(index).asInstanceOf[ModelNode[PredictionResult[Double]]]
+        )
+      } else {
+        if (!label.isInstanceOf[Char]) throw new IllegalArgumentException("Training data wasn't double or char")
+         new InternalModelNode[PredictionResult[Char]](
+          split,
+          leftChild.get.getNode(index).asInstanceOf[ModelNode[PredictionResult[Char]]],
+          rightChild.get.getNode(index).asInstanceOf[ModelNode[PredictionResult[Char]]]
+        )
+      }
+    } else {
+      if (label.isInstanceOf[Double]) {
+        new TrainingLeaf[Double](reducedData.asInstanceOf[Seq[(Vector[AnyVal], Double, Double)]], new GuessTheMeanLearner(), 1).getNode()
+      } else {
+        new TrainingLeaf[Char](reducedData.asInstanceOf[Seq[(Vector[AnyVal], Char, Double)]], new GuessTheMeanLearner(), 1).getNode()
+      }
+    }
+    node.asInstanceOf[ModelNode[PredictionResult[Any]]]
   }
 }
+
+object MultiTaskTrainingNode

@@ -35,7 +35,7 @@ class MultiTaskTreeLearner extends MultiTaskLearner {
       if (v.isInstanceOf[Double]) {
         None
       } else {
-        Some(CategoricalEncoder.buildEncoder(labels(i)))
+        Some(CategoricalEncoder.buildEncoder(labels(i).filterNot(_ == null)))
       }
     }
     val encodedLabels = labelsTransposed.map(CategoricalEncoder.encodeInput(_, outputEncoders))
@@ -44,7 +44,7 @@ class MultiTaskTreeLearner extends MultiTaskLearner {
       (encodedInputs(i), encodedLabels(i).toArray, weights.map(_(i)).getOrElse(1.0))
     }
     val root = new MultiTaskTrainingNode(collectedData)
-    val nodes = root.getNodes()
+    val nodes = labels.indices.map(root.getNode)
 
     val models = labels.indices.map{i =>
       if (labels(i).head.isInstanceOf[Double]) {

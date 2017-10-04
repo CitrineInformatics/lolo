@@ -32,4 +32,8 @@ object ClassificationMetrics {
       }
       f1scores.sum / predictedVsActual.size
   }
+
+  def f1scores(predicted: Seq[Any], actual: Seq[Any]): Double = {
+    f1scores(predicted.zip(actual).map(x => (Vector(), x._1, x._2)))
+  }
 }

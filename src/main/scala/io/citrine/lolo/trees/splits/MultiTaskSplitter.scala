@@ -137,16 +137,19 @@ object MultiTaskSplitter {
   }
 
   def computeImpurity(labels: Seq[(Array[AnyVal], Double)]): Double = {
-    val sumWeights: Double = labels.map(_._2).sum
-    if (sumWeights == 0.0 || labels.size == 1 || labels.head._1.isEmpty) return 0.0
+    if (labels.size == 1 || labels.head._1.isEmpty || labels.map(_._2).sum == 0.0) return 0.0
 
     labels.head._1.indices.map{ i =>
       labels.head._1(i) match {
         case _: Double =>
-          val mean: Double = labels.map(l => l._2 * l._1(i).asInstanceOf[Double]).sum / sumWeights
-          labels.map(l => l._2 * Math.pow(l._1(i).asInstanceOf[Double] - mean, 2.0)).sum
+          val filtered = labels.map(x => (x._1(i).asInstanceOf[Double], x._2)).filterNot(_._1.isNaN)
+          val sumWeights = filtered.map(_._2).sum
+          val mean: Double = filtered.map(l => l._1 * l._2).sum / sumWeights
+          filtered.map(l => l._2 * Math.pow(l._1 - mean, 2.0)).sum
         case _: Char =>
-          (1.0 - labels.map(l => (l._1(i).asInstanceOf[Char], l._2)).groupBy(_._1).values
+          val filtered = labels.map(x => (x._1(i).asInstanceOf[Char], x._2)).filter(_._1 > 0)
+          val sumWeights = filtered.map(_._2).sum
+          (1.0 - filtered.groupBy(_._1).values
             .map(x => Math.pow(x.map(_._2).sum / sumWeights, 2.0)).sum) * sumWeights
       }
     }.sum
