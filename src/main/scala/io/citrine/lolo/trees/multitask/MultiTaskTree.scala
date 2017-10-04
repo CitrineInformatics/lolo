@@ -42,7 +42,8 @@ class MultiTaskTreeLearner extends MultiTaskLearner {
 
     val collectedData = inputs.indices.map{i =>
       (encodedInputs(i), encodedLabels(i).toArray, weights.map(_(i)).getOrElse(1.0))
-    }
+    }.filter(_._3 > 0.0)
+
     val root = new MultiTaskTrainingNode(collectedData)
     val nodes = labels.indices.map(root.getNode)
 
