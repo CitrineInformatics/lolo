@@ -77,7 +77,6 @@ object MultiTaskSplitter {
         None
       }
     }
-    println(pivots)
     if (pivots.isEmpty) {
       (new NoSplit, Double.MaxValue)
     } else {
@@ -129,7 +128,6 @@ object MultiTaskSplitter {
         None
       }
     }
-    println(pivots)
     if (pivots.isEmpty) {
       (new NoSplit, Double.MaxValue)
     } else {
