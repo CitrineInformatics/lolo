@@ -13,9 +13,9 @@ class MultiTaskSplitterTest {
   @Test
   def testImpurity(): Unit = {
     val data = Seq(
-      (Array[AnyVal](0.0, 0.toChar), 1.0),
-      (Array[AnyVal](1.0, 1.toChar), 1.0),
-      (Array[AnyVal](100.0, 10.toChar), 0.0)
+      (Array[AnyVal](0.0, 1.toChar), 1.0),
+      (Array[AnyVal](1.0, 2.toChar), 1.0),
+      (Array[AnyVal](100.0, 3.toChar), 0.0)
     )
 
     val impurity = MultiTaskSplitter.computeImpurity(data)
@@ -40,15 +40,15 @@ class MultiTaskSplitterTest {
   @Test
   def testBestCategoricalSplit(): Unit = {
     val data = Seq(
-      (Vector(0.toChar), Array[AnyVal](0.0, 0.toChar), 1.0),
-      (Vector(1.toChar), Array[AnyVal](1.0, 1.toChar), 1.0),
-      (Vector(1.toChar), Array[AnyVal](2.0, 1.toChar), 1.0),
-      (Vector(2.toChar), Array[AnyVal](200.0, 2.toChar), 0.0)
+      (Vector(1.toChar), Array[AnyVal](0.0, 1.toChar), 1.0),
+      (Vector(2.toChar), Array[AnyVal](1.0, 2.toChar), 1.0),
+      (Vector(2.toChar), Array[AnyVal](2.0, 2.toChar), 1.0),
+      (Vector(3.toChar), Array[AnyVal](200.0, 3.toChar), 0.0)
     )
 
     val (pivot, impurity) = MultiTaskSplitter.getBestCategoricalSplit(data, 3.0, 0, 1)
-    val turns = data.map(x => pivot.turnLeft(x._1))
-    assert(turns == Seq(true, false, false, true))
+    val turns = data.map(x => pivot.turnLeft(x._1)).take(3)
+    assert(turns == Seq(true, false, false))
     assert(impurity == 0.5)
   }
 }
