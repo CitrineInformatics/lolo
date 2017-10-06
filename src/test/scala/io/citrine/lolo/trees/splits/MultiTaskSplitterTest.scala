@@ -10,6 +10,9 @@ import scala.util.Random
 @Test
 class MultiTaskSplitterTest {
 
+  /**
+    * Test calculation of impurity on a known set
+    */
   @Test
   def testImpurity(): Unit = {
     val data = Seq(
@@ -22,6 +25,9 @@ class MultiTaskSplitterTest {
     assert(impurity == (0.25 + 0.5) * 2.0)
   }
 
+  /**
+    * Test that the real split goes in the right place
+    */
   @Test
   def testBestRealSplit(): Unit = {
     val data = Seq(
@@ -37,6 +43,9 @@ class MultiTaskSplitterTest {
     assert(impurity == 0.5)
   }
 
+  /**
+    * Test that a categorical split goes in the right place
+    */
   @Test
   def testBestCategoricalSplit(): Unit = {
     val data = Seq(

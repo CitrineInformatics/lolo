@@ -8,9 +8,7 @@ import scala.collection.parallel.ExecutionContextTaskSupport
 import scala.collection.parallel.immutable.ParSeq
 
 /**
-  * A bagger creates an ensemble of models by training the learner on random samples of the training data
-  *
-  * Created by maxhutch on 11/14/16.
+  * Create an ensemble of multi-task models
   *
   * @param method  learner to train each model in the ensemble
   * @param numBags number of models in the ensemble
@@ -32,7 +30,6 @@ class MultiTaskBagger(
   override def getHypers(): Map[String, Any] = {
     method.getHypers() ++ hypers
   }
-
 
   private def combineImportance(v1: Option[Vector[Double]], v2: Option[Vector[Double]]): Option[Vector[Double]] = {
     (v1, v2) match {
@@ -66,8 +63,8 @@ class MultiTaskBagger(
 
     /* Compute the number of instances of each training row in each training sample */
     val dist = new Poisson(1.0)
-    val Nib = Vector.tabulate(actualBags) { i =>
-      Vector.tabulate(inputs.size) { j =>
+    val Nib = Vector.tabulate(actualBags) { _ =>
+      Vector.tabulate(inputs.size) { _ =>
         dist.draw()
       }
     }
@@ -75,16 +72,18 @@ class MultiTaskBagger(
     /* Learn the actual models in parallel */
     val parIterator = (0 until actualBags).par
     parIterator.tasksupport = new ExecutionContextTaskSupport(InterruptibleExecutionContext())
-    val (models, importances: ParSeq[Seq[Option[Vector[Double]]]]) = parIterator.map { i =>
+    val (models: ParSeq[Seq[Model[PredictionResult[Any]]]], importances: ParSeq[Seq[Option[Vector[Double]]]]) = parIterator.map { i =>
       // Train the model
       val meta = method.train(inputs.toVector, labels, Some(Nib(i).zip(weightsActual).map(p => p._1.toDouble * p._2)))
       // Extract the model and feature importance from the TrainingResult
       (meta.map(_.getModel()), meta.map(_.getFeatureImportance()))
     }.unzip
 
-    // Average the feature importances
-
-    /* Wrap the models in a BaggedModel object */
+    /* Wrap the models in a BaggedModel object
+     *
+     * Transpose the models and importances so the bags are the inner index and the labels are the outer index.
+     * Foreach label, emit a BaggedTrainingResult
+     */
     models.transpose.zip(importances.seq.transpose).zipWithIndex.map { case ((m, i: Seq[Option[Vector[Double]]]), k) =>
       val averageImportance: Option[Vector[Double]] = i.reduce {
         combineImportance

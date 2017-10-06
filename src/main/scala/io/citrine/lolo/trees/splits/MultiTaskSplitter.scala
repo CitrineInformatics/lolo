@@ -1,6 +1,5 @@
 package io.citrine.lolo.trees.splits
 
-import scala.collection.immutable.BitSet
 import scala.util.Random
 
 /**
@@ -52,8 +51,8 @@ object MultiTaskSplitter {
   /**
     * Find the best split on a continuous variable
     *
-    * @param data        to split
-    * @param index       of the feature to split on
+    * @param data  to split
+    * @param index of the feature to split on
     * @return the best split of this feature
     */
   def getBestRealSplit(
@@ -136,16 +135,26 @@ object MultiTaskSplitter {
     }
   }
 
+  /**
+    * Compute the impurity of a set of weighted labels
+    * @param labels is a seq of (Array of multiple labels, single weight)
+    * @return the impurity, which is in [0, number of labels * sum of weights]
+    */
   def computeImpurity(labels: Seq[(Array[AnyVal], Double)]): Double = {
+    // Return early if there is no impurity
     if (labels.size == 1 || labels.head._1.isEmpty || labels.map(_._2).sum == 0.0) return 0.0
 
-    labels.head._1.indices.map{ i =>
+    // Sum the impurity of each individual label
+    labels.head._1.indices.map { i =>
+      // Check type
       labels.head._1(i) match {
+        // Compute the Sum of weight * (x - mean)^2
         case _: Double =>
           val filtered = labels.map(x => (x._1(i).asInstanceOf[Double], x._2)).filterNot(_._1.isNaN)
           val sumWeights = filtered.map(_._2).sum
           val mean: Double = filtered.map(l => l._1 * l._2).sum / sumWeights
           filtered.map(l => l._2 * Math.pow(l._1 - mean, 2.0)).sum
+        // Compute the Gini impurity, then multiply it by the total weight
         case _: Char =>
           val filtered = labels.map(x => (x._1(i).asInstanceOf[Char], x._2)).filter(_._1 > 0)
           val sumWeights = filtered.map(_._2).sum

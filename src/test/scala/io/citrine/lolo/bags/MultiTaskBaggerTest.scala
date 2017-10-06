@@ -17,7 +17,7 @@ import scala.util.Random
 class MultiTaskBaggerTest {
 
   /**
-    * Test the fit performance of the regression bagger
+    * Test that we get a reasonable output on a single regression problem
     */
   @Test
   def testSingleRegression(): Unit = {
@@ -43,7 +43,7 @@ class MultiTaskBaggerTest {
   }
 
   /**
-    * Test the fit performance of the classification bagger
+    * Test the we get a reasonable result on a single classification problem
     */
   @Test
   def testClassificationBagger(): Unit = {
@@ -73,7 +73,10 @@ class MultiTaskBaggerTest {
     assert(results.getGradient().isEmpty, "Returned a gradient when there shouldn't be one")
   }
 
-
+  /**
+    * Test that multi-task (regression, classification) with sparse classification labels
+    * outperforms a direct classification model on the same label
+    */
   @Test
   def testSparseMixedBagged(): Unit = {
     /* Setup some data */
@@ -104,7 +107,7 @@ class MultiTaskBaggerTest {
     val singleF1 = ClassificationMetrics.f1scores(reference, catLabel)
     val multiF1 = ClassificationMetrics.f1scores(catResults, catLabel)
 
-    assert(multiF1 > singleF1)
+    assert(multiF1 > singleF1, s"Multi-task is under-performing single-task")
     assert(multiF1 < 1.0)
   }
 }

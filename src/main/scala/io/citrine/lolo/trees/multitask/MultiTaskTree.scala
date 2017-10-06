@@ -6,6 +6,10 @@ import io.citrine.lolo.trees.classification.ClassificationTree
 import io.citrine.lolo.trees.regression.RegressionTree
 import io.citrine.lolo.{Model, MultiTaskLearner, PredictionResult, TrainingResult}
 
+/**
+  * Multi-task tree learner, which produces multiple decision trees with the same split structure
+  *
+  */
 class MultiTaskTreeLearner extends MultiTaskLearner {
 
   /**
@@ -25,11 +29,12 @@ class MultiTaskTreeLearner extends MultiTaskLearner {
       if (v.isInstanceOf[Double]) {
         None
       } else {
-        Some(CategoricalEncoder.buildEncoder(inputs.map(_(i))))
+        Some(CategoricalEncoder.buildEncoder(inputs.map(_ (i))))
       }
     }
     val encodedInputs = inputs.map(r => CategoricalEncoder.encodeInput(r, inputEncoders))
 
+    /* Create encoders for any categorical labels */
     val repOutput = labels.map(_.head)
     val outputEncoders: Seq[Option[CategoricalEncoder[Any]]] = repOutput.zipWithIndex.map { case (v, i) =>
       if (v.isInstanceOf[Double]) {
@@ -40,14 +45,19 @@ class MultiTaskTreeLearner extends MultiTaskLearner {
     }
     val encodedLabels = labelsTransposed.map(CategoricalEncoder.encodeInput(_, outputEncoders))
 
-    val collectedData = inputs.indices.map{i =>
-      (encodedInputs(i), encodedLabels(i).toArray, weights.map(_(i)).getOrElse(1.0))
+    // Encode the inputs, outputs, and filter out zero weight rows
+    val collectedData = inputs.indices.map { i =>
+      (encodedInputs(i), encodedLabels(i).toArray, weights.map(_ (i)).getOrElse(1.0))
     }.filter(_._3 > 0.0)
 
+    // Construct the training tree
     val root = new MultiTaskTrainingNode(collectedData)
+
+    // Construct the model trees
     val nodes = labels.indices.map(root.getNode)
 
-    val models = labels.indices.map{i =>
+    // Stick the model trees into RegressionTree and ClassificationTree objects
+    val models = labels.indices.map { i =>
       if (labels(i).head.isInstanceOf[Double]) {
         new RegressionTree(
           nodes(i).asInstanceOf[ModelNode[PredictionResult[Double]]],
@@ -62,6 +72,7 @@ class MultiTaskTreeLearner extends MultiTaskLearner {
       }
     }
 
+    // Wrap the models in dead-simple training results and return
     models.map(new MultiTaskTreeTrainingResult(_, hypers))
   }
 }

@@ -38,7 +38,7 @@ trait MultiTaskLearner extends Serializable {
     * @param inputs to train on
     * @param labels sequence of sequences of labels
     * @param weights for the training rows, if applicable
-    * @return training result containing a model
+    * @return a sequence of training results, one for each label
     */
   def train(inputs: Seq[Vector[Any]], labels: Seq[Seq[Any]], weights: Option[Seq[Double]] = None): Seq[TrainingResult]
 }
