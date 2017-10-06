@@ -70,7 +70,6 @@ class PerformanceTest {
   /**
     * Test the absolute performance to check for overall regressions
     */
-  @Test
   def testAbsolute(): Unit = {
     val (nominalTrain, nominalPredict) = timedTest(trainingData, 1024, 32, 1024)
     assert(nominalTrain < 8.0, s"Expected nominal train to have theta < 8.0 but was ${nominalTrain}")
