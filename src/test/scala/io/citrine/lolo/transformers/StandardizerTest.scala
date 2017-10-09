@@ -3,7 +3,9 @@ package io.citrine.lolo.transformers
 import io.citrine.lolo.TestUtils
 import io.citrine.lolo.linear.{GuessTheMeanLearner, LinearRegressionLearner}
 import io.citrine.lolo.stats.functions.Friedman
+import io.citrine.lolo.stats.metrics.ClassificationMetrics
 import io.citrine.lolo.trees.classification.ClassificationTreeLearner
+import io.citrine.lolo.trees.multitask.MultiTaskTreeLearner
 import org.junit.Test
 
 import scala.util.Random
@@ -106,6 +108,7 @@ class StandardizerTest {
     }
   }
 
+  @Test
   def testStandardClassification(): Unit = {
     val trainingData = TestUtils.binTrainingData(
       TestUtils.generateTrainingData(2048, 12, noise = 0.1,
@@ -123,6 +126,39 @@ class StandardizerTest {
     result.zip(standardResult).foreach { case (free: String, standard: String) =>
       assert(free == standard, s"Standard classification tree should be the same")
     }
+  }
+
+  /**
+    * Test that multitask sandardization has the proper performance and invariants
+    */
+  @Test
+  def testMultiTaskStandardizer(): Unit = {
+    // Generate multi-task training data
+    val (inputs, doubleLabel) = data.unzip
+    val catLabel = inputs.map(x => Friedman.friedmanGrosseSilverman(x) > 15.0)
+
+    // Sparsify the categorical labels
+    val sparseCatLabel = catLabel.map(x => if (Random.nextBoolean()) x else null)
+
+    // Screw up the scale of the double labels
+    val scale = 10000.0
+    val rescaledLabel = doubleLabel.map(_ * scale)
+
+    // Train and evaluate standard models on original and rescaled labels
+    val standardizer = new MultiTaskStandardizer(new MultiTaskTreeLearner())
+    val baseRes     = standardizer.train(inputs, Seq(doubleLabel,   sparseCatLabel)).last.getModel().transform(inputs).getExpected()
+    val standardRes = standardizer.train(inputs, Seq(rescaledLabel, sparseCatLabel)).last.getModel().transform(inputs).getExpected()
+    // Train and evaluate unstandardized model on rescaled labels
+    val unstandardizedRes = new MultiTaskTreeLearner().train(inputs, Seq(rescaledLabel, sparseCatLabel)).last.getModel().transform(inputs).getExpected()
+
+    // Compute metrics for each of the models
+    val baseF1 = ClassificationMetrics.f1scores(baseRes, catLabel)
+    val standardF1 = ClassificationMetrics.f1scores(standardRes, catLabel)
+    val unstandardF1 = ClassificationMetrics.f1scores(unstandardizedRes, catLabel)
+
+    // Assert some things
+    assert(baseF1 == standardF1, s"Expected training to be invariant the scale of the labels")
+    assert(standardF1 > unstandardF1, s"Expected multi-task weighted towards other label would be worse")
   }
 }
 
