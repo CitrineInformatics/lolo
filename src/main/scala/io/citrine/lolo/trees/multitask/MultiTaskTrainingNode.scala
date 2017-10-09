@@ -8,7 +8,7 @@ import io.citrine.lolo.trees.{InternalModelNode, ModelNode, TrainingLeaf}
 /**
   * Node in a multi-task training tree, which can produce nodes for its model trees
   *
-  * @param inputs data on which to select spilts and form models
+  * @param inputs data on which to select splits and form models
   */
 class MultiTaskTrainingNode(inputs: Seq[(Vector[AnyVal], Array[AnyVal], Double)]) {
 
