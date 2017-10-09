@@ -6,16 +6,6 @@ import scala.util.Random
 /**
   * Find the best split for classification problems.
   *
-  * The best split is the one that reduces the total weighted variance:
-  * totalVariance = N_left * \sigma_left^2 + N_right * \sigma_right^2
-  * which, in scala-ish, would be:
-  * totalVariance = leftWeight  * (leftSquareSum /leftWeight  - (leftSum  / leftWeight )^2)
-  * + rightWeight * (rightSquareSum/rightWeight - (rightSum / rightWeight)^2)
-  * Because we are comparing them, we can subtract off leftSquareSum + rightSquareSum, which yields the following simple
-  * expression after some simplification:
-  * totalVariance = -leftSum * leftSum / leftWeight - Math.pow(totalSum - leftSum, 2) / (totalWeight - leftWeight)
-  * which depends only on updates to leftSum and leftWeight (since totalSum and totalWeight are constant).
-  *
   * Created by maxhutch on 12/2/16.
   */
 object ClassificationSplitter {

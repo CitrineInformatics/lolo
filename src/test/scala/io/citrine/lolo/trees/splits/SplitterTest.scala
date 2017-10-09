@@ -56,7 +56,9 @@ class SplitterTest {
       (Vector(base + Random.nextDouble()), Random.nextDouble(), 1.0)
     }
 
-    val (split, variance) = RegressionSplitter.getBestRealSplit(trainingData, 0.0, 8.0, 0, 1)
+    val calculator = new VarianceCalculator(0.0, 0.0, 8.0)
+
+    val (_, variance) = RegressionSplitter.getBestRealSplit(trainingData, calculator, 0, 1)
     assert(variance == Double.MaxValue, "didn't expect to find a valid split")
   }
 
