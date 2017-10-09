@@ -1,6 +1,8 @@
 package io.citrine.lolo
 
-import io.citrine.lolo.bags.Bagger
+import io.citrine.lolo.bags.{Bagger, MultiTaskBagger}
+import io.citrine.lolo.trees.classification.ClassificationTreeLearner
+import io.citrine.lolo.trees.multitask.MultiTaskTreeLearner
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
 import io.citrine.theta.Stopwatch
 import org.junit.Test
@@ -68,11 +70,28 @@ class PerformanceTest {
   /**
     * Test the absolute performance to check for overall regressions
     */
-  @Test
   def testAbsolute(): Unit = {
     val (nominalTrain, nominalPredict) = timedTest(trainingData, 1024, 32, 1024)
     assert(nominalTrain < 8.0, s"Expected nominal train to have theta < 8.0 but was ${nominalTrain}")
     assert(nominalPredict < 7.0, s"Expected nominal transform to have theta < 7.0 but was ${nominalPredict}")
+  }
+
+  def testMultitaskOverhead(N: Int): (Double, Double) = {
+    val subset = trainingData.take(N)
+    val inputs = subset.map(_._1)
+    val realLabels = subset.map(_._2)
+    val catLabels = realLabels.map(_ > realLabels.sum / realLabels.size)
+
+    val trainSingle: Double = Stopwatch.time({
+      new Bagger(new RegressionTreeLearner()).train(inputs.zip(realLabels)).getLoss()
+      new Bagger(new ClassificationTreeLearner()).train(inputs.zip(catLabels)).getLoss()
+    }, minRun = 1, maxRun = 1)
+
+    val trainMulti: Double = Stopwatch.time({
+      new MultiTaskBagger(new MultiTaskTreeLearner()).train(inputs, Seq(realLabels, catLabels)).map(_.getLoss())
+    }, minRun = 1, maxRun = 1)
+
+    (trainMulti, trainSingle)
   }
 
   val trainingData = TestUtils.generateTrainingData(2048, 37)
@@ -80,6 +99,9 @@ class PerformanceTest {
 
 object PerformanceTest {
   def main(argv: Array[String]): Unit = {
-    new PerformanceTest().testAbsolute()
+    Seq(32, 64, 128, 256, 512).foreach{i =>
+      val times = new PerformanceTest().testMultitaskOverhead(i)
+      println(i, times._1, times._2)
+    }
   }
 }
