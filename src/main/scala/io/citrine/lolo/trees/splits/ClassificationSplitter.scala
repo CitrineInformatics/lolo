@@ -1,5 +1,7 @@
 package io.citrine.lolo.trees.splits
 
+import io.citrine.lolo.trees.impurity.GiniCalculator
+
 import scala.collection.mutable
 import scala.util.Random
 

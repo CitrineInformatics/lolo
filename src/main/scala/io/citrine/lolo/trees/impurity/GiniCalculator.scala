@@ -1,7 +1,14 @@
-package io.citrine.lolo.trees.splits
+package io.citrine.lolo.trees.impurity
 
 import scala.collection.mutable
 
+/**
+  * Calculate the weighted Gini Impurity: weight * (1 - \sum_j f_j^2), where f_j is the frequency of the jth label
+  *
+  * @param totalCategoryWeights the total weight of each label
+  * @param totalSquareSum the sum of the squares of the weights
+  * @param totalWeight the total weight over all the labels
+  */
 class GiniCalculator(
                       totalCategoryWeights: Map[Char, Double],
                       totalSquareSum: Double,
@@ -9,23 +16,27 @@ class GiniCalculator(
                     ) extends ImpurityCalculator[Char] {
 
   def add(value: Char, weight: Double): Double = {
-    val wl = leftCategoryWeights.getOrElse(value, 0.0)
-    leftSquareSum += weight * (weight + 2 * wl)
-    val wr = totalCategoryWeights(value) - wl
-    rightSquareSum += weight * (weight - 2 * wr)
-    leftCategoryWeights(value) = wl + weight
-    leftWeight += weight
+    if (value > 0) {
+      val wl = leftCategoryWeights.getOrElse(value, 0.0)
+      leftSquareSum += weight * (weight + 2 * wl)
+      val wr = totalCategoryWeights(value) - wl
+      rightSquareSum += weight * (weight - 2 * wr)
+      leftCategoryWeights(value) = wl + weight
+      leftWeight += weight
+    }
 
     getImpurity
   }
 
   def remove(value: Char, weight: Double): Double = {
-    val wl = leftCategoryWeights.getOrElse(value, 0.0)
-    leftSquareSum += weight * (weight - 2 * wl)
-    val wr = totalCategoryWeights(value) - wl
-    rightSquareSum += weight * (weight + 2 * wr)
-    leftCategoryWeights(value) = wl - weight
-    leftWeight -= weight
+    if (value > 0) {
+      val wl = leftCategoryWeights.getOrElse(value, 0.0)
+      leftSquareSum += weight * (weight - 2 * wl)
+      val wr = totalCategoryWeights(value) - wl
+      rightSquareSum += weight * (weight + 2 * wr)
+      leftCategoryWeights(value) = wl - weight
+      leftWeight -= weight
+    }
 
     getImpurity
   }
@@ -57,7 +68,15 @@ class GiniCalculator(
   private var rightSquareSum: Double = totalSquareSum
 }
 
+/**
+  * Companion object
+  */
 object GiniCalculator {
+  /**
+    * Build a GiniCalculator from weighted data
+    * @param data to build the calculator for
+    * @return a GiniCalculator
+    */
   def build(data: Seq[(Char, Double)]): GiniCalculator = {
     // Be sure to filter out missing labels, which are marked as 0.toChar
     val totalCategoryWeights = data.filter(_._1 > 0).groupBy(_._1).mapValues(_.map(_._2).sum)

@@ -1,5 +1,6 @@
 package io.citrine.lolo.trees.splits
 
+import io.citrine.lolo.trees.impurity.VarianceCalculator
 import org.junit.Test
 
 import scala.util.Random

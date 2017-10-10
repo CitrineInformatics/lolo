@@ -1,4 +1,4 @@
-package io.citrine.lolo.trees.splits
+package io.citrine.lolo.trees.impurity
 
 /**
   * Interface for an impurity calculator, which computes an impurity metric to drive a splitter

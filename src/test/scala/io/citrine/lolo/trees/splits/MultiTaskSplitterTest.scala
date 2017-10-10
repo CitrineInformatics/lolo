@@ -1,29 +1,14 @@
 package io.citrine.lolo.trees.splits
 
+import io.citrine.lolo.trees.impurity.MultiImpurityCalculator
 import org.junit.Test
 
-import scala.util.Random
 
 /**
   * Created by maxhutch on 12/1/16.
   */
 @Test
 class MultiTaskSplitterTest {
-
-  /**
-    * Test calculation of impurity on a known set
-    */
-  @Test
-  def testImpurity(): Unit = {
-    val data = Seq(
-      (Array[AnyVal](0.0, 1.toChar), 1.0),
-      (Array[AnyVal](1.0, 2.toChar), 1.0),
-      (Array[AnyVal](100.0, 3.toChar), 0.0)
-    )
-
-    val impurity = MultiTaskSplitter.computeImpurity(data)
-    assert(impurity == (0.25 + 0.5) * 2.0)
-  }
 
   /**
     * Test that the real split goes in the right place
