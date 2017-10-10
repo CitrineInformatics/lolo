@@ -1,4 +1,4 @@
-package io.citrine.lolo.trees.splits
+package io.citrine.lolo.trees.impurity
 
 import scala.collection.mutable
 

@@ -1,5 +1,7 @@
 package io.citrine.lolo.trees.splits
 
+import io.citrine.lolo.trees.impurity.MultiImpurityCalculator
+
 import scala.util.Random
 
 /**
@@ -144,30 +146,12 @@ object MultiTaskSplitter {
 
   /**
     * Compute the impurity of a set of weighted labels
+    *
     * @param labels is a seq of (Array of multiple labels, single weight)
     * @return the impurity, which is in [0, number of labels * sum of weights]
     */
   def computeImpurity(labels: Seq[(Array[AnyVal], Double)]): Double = {
-    // Return early if there is no impurity
-    if (labels.size == 1 || labels.head._1.isEmpty || labels.map(_._2).sum == 0.0) return 0.0
-
-    // Sum the impurity of each individual label
-    labels.head._1.indices.map { i =>
-      // Check type
-      labels.head._1(i) match {
-        // Compute the Sum of weight * (x - mean)^2
-        case _: Double =>
-          val filtered = labels.map(x => (x._1(i).asInstanceOf[Double], x._2)).filterNot(_._1.isNaN)
-          val sumWeights = filtered.map(_._2).sum
-          val mean: Double = filtered.map(l => l._1 * l._2).sum / sumWeights
-          filtered.map(l => l._2 * Math.pow(l._1 - mean, 2.0)).sum
-        // Compute the Gini impurity, then multiply it by the total weight
-        case _: Char =>
-          val filtered = labels.map(x => (x._1(i).asInstanceOf[Char], x._2)).filter(_._1 > 0)
-          val sumWeights = filtered.map(_._2).sum
-          (1.0 - filtered.groupBy(_._1).values
-            .map(x => Math.pow(x.map(_._2).sum / sumWeights, 2.0)).sum) * sumWeights
-      }
-    }.sum
+    val calculator = MultiImpurityCalculator.build(labels.map(_._1), labels.map(_._2))
+    calculator.getImpurity
   }
 }

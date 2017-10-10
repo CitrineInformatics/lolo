@@ -1,5 +1,7 @@
 package io.citrine.lolo.trees.splits
 
+import io.citrine.lolo.trees.impurity.VarianceCalculator
+
 import scala.collection.immutable.BitSet
 import scala.util.Random
 

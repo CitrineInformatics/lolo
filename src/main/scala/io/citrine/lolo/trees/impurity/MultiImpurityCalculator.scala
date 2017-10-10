@@ -1,7 +1,8 @@
-package io.citrine.lolo.trees.splits
+package io.citrine.lolo.trees.impurity
 
 /**
   * Compute the impurity of array-valued labels by summing over the impurity of each index on its own
+  *
   * @param calculators to use to compute the impurity of each index
   */
 class MultiImpurityCalculator(
