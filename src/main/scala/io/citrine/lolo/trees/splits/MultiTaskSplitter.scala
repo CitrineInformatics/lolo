@@ -18,7 +18,8 @@ object MultiTaskSplitter {
   def getBestSplit(data: Seq[(Vector[AnyVal], Array[AnyVal], Double)], numFeatures: Int, minInstances: Int): (Split, Double) = {
     var bestSplit: Split = new NoSplit()
     var bestImpurity = Double.MaxValue
-    val totalWeight = data.map(_._3).sum
+    val calculator = MultiImpurityCalculator.build(data.map(_._2), data.map(_._3))
+    val initialImpurity = calculator.getImpurity
 
     /* Pre-compute these for the variance calculation */
     val rep = data.head
@@ -29,8 +30,8 @@ object MultiTaskSplitter {
 
       /* Use different spliters for each type */
       val (possibleSplit, possibleImpurity) = rep._1(index) match {
-        case _: Double => getBestRealSplit(data, totalWeight, index, minInstances)
-        case _: Char => getBestCategoricalSplit(data, totalWeight, index, minInstances)
+        case _: Double => getBestRealSplit(data, calculator, index, minInstances)
+        case _: Char => getBestCategoricalSplit(data, calculator, index, minInstances)
         case _: Any => throw new IllegalArgumentException("Trying to split unknown feature type")
       }
 
@@ -43,7 +44,7 @@ object MultiTaskSplitter {
     if (bestImpurity == Double.MaxValue) {
       (new NoSplit(), 0.0)
     } else {
-      val deltaImpurity = computeImpurity(data.map(x => (x._2, x._3))) - bestImpurity
+      val deltaImpurity = initialImpurity - bestImpurity
       (bestSplit, deltaImpurity)
     }
   }
@@ -57,20 +58,20 @@ object MultiTaskSplitter {
     */
   def getBestRealSplit(
                         data: Seq[(Vector[AnyVal], Array[AnyVal], Double)],
-                        totalWeight: Double,
+                        calculator: MultiImpurityCalculator,
                         index: Int,
                         minCount: Int
                       ): (Split, Double) = {
     /* Pull out the feature that's considered here and sort by it */
     val thinData = data.map(dat => (dat._1(index).asInstanceOf[Double], dat._2, dat._3)).sortBy(_._1)
     val features = thinData.map(x => x._1)
-    val labels = thinData.map(x => (x._2, x._3))
 
     /* Move the data from the right to the left partition one value at a time */
-    val pivots = (minCount until data.size - (minCount - 1)).flatMap { j =>
-      if (Math.abs((features(j) - features(j - 1)) / features(j - 1)) > 1.0e-9) {
-        val totalImpurity = computeImpurity(labels.take(j)) + computeImpurity(labels.takeRight(data.size - j))
-        val pivot = (features(j) + features(j - 1)) / 2.0
+    calculator.reset()
+    val pivots = (0 until data.size - minCount).flatMap { j =>
+      val totalImpurity = calculator.add(thinData(j)._2, thinData(j)._3)
+      if (j + 1 >= minCount && Math.abs((features(j + 1) - features(j)) / features(j)) > 1.0e-9) {
+        val pivot = (features(j + 1) + features(j)) / 2.0
         Some((pivot, totalImpurity))
       } else {
         None
@@ -94,12 +95,13 @@ object MultiTaskSplitter {
     */
   def getBestCategoricalSplit(
                                data: Seq[(Vector[AnyVal], Array[AnyVal], Double)],
-                               totalWeight: Double,
+                               calculator: MultiImpurityCalculator,
                                index: Int,
                                minCount: Int
                              ): (Split, Double) = {
     /* Extract the features at the index */
-    val thinData = data.map(dat => (dat._1(index).asInstanceOf[Char], dat._2, dat._3))
+    val thinData: Seq[(Char, Array[AnyVal], Double)] = data.map(dat => (dat._1(index).asInstanceOf[Char], dat._2, dat._3))
+    val totalWeight = thinData.map(_._3).sum
 
     /* Group the data by categorical feature and compute the weighted sum and sum of the weights for each */
     val groupedData: Map[Char, (Double, Double, Double)] = thinData.groupBy(_._1).mapValues(g =>
@@ -116,12 +118,17 @@ object MultiTaskSplitter {
     val orderedNames: Seq[Char] = groupedData.toSeq.sortBy(_._2._1).map(_._1)
 
     /* Add the categories one at a time in order of their average label */
-    val pivots = (1 until orderedNames.size).flatMap { j =>
-      val (left, right) = thinData.partition(x => orderedNames.take(j).contains(x._1))
+    var leftNum = 0
+    calculator.reset()
+    val pivots = (0 until orderedNames.size).flatMap { j =>
+      thinData.filter(r => orderedNames(j) == r._1).map{r =>
+        calculator.add(r._2, r._3)
+        leftNum = leftNum + 1
+      }
+      val totalImpurity = calculator.getImpurity
 
-      if (left.size >= minCount && right.size >= minCount) {
-        val totalImpurity = Seq(left, right).map(part => computeImpurity(part.map(x => (x._2, x._3)))).sum
-        val set = orderedNames.take(j).toSet
+      if (leftNum >= minCount && thinData.size - leftNum >= minCount) {
+        val set = orderedNames.take(j + 1).toSet
         Some(set, totalImpurity)
       } else {
         None
