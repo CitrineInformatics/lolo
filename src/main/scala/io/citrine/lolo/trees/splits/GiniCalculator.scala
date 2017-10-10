@@ -6,7 +6,7 @@ class GiniCalculator(
                       totalCategoryWeights: Map[Char, Double],
                       totalSquareSum: Double,
                       totalWeight: Double
-                    ) {
+                    ) extends ImpurityCalculator[Char] {
 
   def add(value: Char, weight: Double): Double = {
     val wl = leftCategoryWeights.getOrElse(value, 0.0)

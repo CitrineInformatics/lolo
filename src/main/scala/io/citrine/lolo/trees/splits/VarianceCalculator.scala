@@ -1,6 +1,10 @@
 package io.citrine.lolo.trees.splits
 
-class VarianceCalculator(totalSum: Double, totalSquareSum: Double, totalWeight: Double) {
+class VarianceCalculator(
+                          totalSum: Double,
+                          totalSquareSum: Double,
+                          totalWeight: Double
+                        ) extends ImpurityCalculator[Double] {
 
   def add(value: Double, weight: Double): Double = {
     leftSum += value * weight
