@@ -17,9 +17,9 @@ class MultiImpurityCalculator(
     */
   def add(value: Array[AnyVal], weight: Double): Double = {
     value.zip(calculators).map{case (v, calc) =>
-      if (v.isInstanceOf[Double] && !v.asInstanceOf[Double].isNaN){
+      if (v.isInstanceOf[Double]){
         calc.asInstanceOf[ImpurityCalculator[Double]].add(v.asInstanceOf[Double], weight)
-      } else if (v.isInstanceOf[Char] && v.asInstanceOf[Char] > 0) {
+      } else if (v.isInstanceOf[Char]) {
         calc.asInstanceOf[ImpurityCalculator[Char]].add(v.asInstanceOf[Char], weight)
       }
     }
@@ -35,9 +35,9 @@ class MultiImpurityCalculator(
     */
   def remove(value: Array[AnyVal], weight: Double): Double = {
     value.zip(calculators).map{case (v, calc) =>
-      if (v.isInstanceOf[Double] && !v.asInstanceOf[Double].isNaN){
+      if (v.isInstanceOf[Double]){
         calc.asInstanceOf[ImpurityCalculator[Double]].remove(v.asInstanceOf[Double], weight)
-      } else if (v.isInstanceOf[Char] && v.asInstanceOf[Char] > 0) {
+      } else if (v.isInstanceOf[Char]) {
         calc.asInstanceOf[ImpurityCalculator[Char]].remove(v.asInstanceOf[Char], weight)
       }
     }

@@ -1,5 +1,12 @@
 package io.citrine.lolo.trees.impurity
 
+/**
+  * Calculat the weighted variance, which is \sum w_i * (x_i - \bar{x})^2, where \bar{x} is the weighted mean of x
+  *
+  * @param totalSum weighted sum of the labels
+  * @param totalSquareSum weighted sum of the squares of the labels
+  * @param totalWeight sum of the weights
+  */
 class VarianceCalculator(
                           totalSum: Double,
                           totalSquareSum: Double,
@@ -7,14 +14,18 @@ class VarianceCalculator(
                         ) extends ImpurityCalculator[Double] {
 
   def add(value: Double, weight: Double): Double = {
-    leftSum += value * weight
-    leftWeight += weight
+    if (!value.isNaN) {
+      leftSum += value * weight
+      leftWeight += weight
+    }
     getImpurity
   }
 
   def remove(value: Double, weight: Double): Double = {
-    leftSum -= value * weight
-    leftWeight -= weight
+    if (!value.isNaN) {
+      leftSum -= value * weight
+      leftWeight -= weight
+    }
     getImpurity
   }
 
@@ -30,7 +41,9 @@ class VarianceCalculator(
   def getImpurity: Double = {
     val rightSum = totalSum - leftSum
     val rightWeight = totalWeight - leftWeight
-    if (rightWeight == 0.0 || leftWeight == 0.0) {
+    if (totalWeight == 0.0) {
+      0.0
+    } else if (rightWeight == 0.0 || leftWeight == 0.0) {
       totalSquareSum - totalSum * totalSum / totalWeight
     } else {
       totalSquareSum - leftSum * leftSum / leftWeight - rightSum * rightSum / rightWeight
@@ -41,7 +54,16 @@ class VarianceCalculator(
   private var leftWeight: Double = 0.0
 }
 
+/**
+  * Companion object
+  */
 object VarianceCalculator {
+  /**
+    * Build a variance calculator for labels and weights
+    * @param labels to build calculator for
+    * @param weights to build calculator for
+    * @return VarianceCalculator for these labels and weights
+    */
   def build(labels: Seq[Double], weights: Seq[Double]): VarianceCalculator = {
     // be sure to filter out "missing" labels, which are NaN
     val config: (Double, Double, Double) = labels.zip(weights).filterNot(_._1.isNaN()).map { case (l, w) =>
