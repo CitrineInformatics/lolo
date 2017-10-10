@@ -1,6 +1,6 @@
 package io.citrine.lolo.transformers
 
-import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
+import io.citrine.lolo._
 
 /**
   * Standardize the training data to zero mean and unit variance before feeding it into another learner
@@ -41,6 +41,47 @@ class Standardizer(baseLearner: Learner) extends Learner {
     val baseTrainingResult = baseLearner.train(standardTrainingData, weights)
 
     new StandardizerTrainingResult(baseTrainingResult, Seq(outputTrans) ++ inputTrans, getHypers())
+  }
+}
+
+class MultiTaskStandardizer(baseLearner: MultiTaskLearner) extends MultiTaskLearner {
+
+  override def setHypers(moreHypers: Map[String, Any]): this.type = {
+    baseLearner.setHypers(moreHypers)
+    super.setHypers(moreHypers)
+  }
+
+  override def getHypers(): Map[String, Any] = {
+    baseLearner.getHypers() ++ hypers
+  }
+
+  /**
+    * Train a model
+    *
+    * @param inputs  to train on
+    * @param labels  sequence of sequences of labels
+    * @param weights for the training rows, if applicable
+    * @return a sequence of training results, one for each label
+    */
+  override def train(inputs: Seq[Vector[Any]], labels: Seq[Seq[Any]], weights: Option[Seq[Double]]): Seq[TrainingResult] = {
+    val inputTrans = Standardizer.getMultiStandardization(inputs)
+    val outputTrans: Seq[Option[(Double, Double)]] = labels.map{ labelSeq =>
+      if (labelSeq.head != null && labelSeq.head.isInstanceOf[Double]) {
+        Some(Standardizer.getStandardization(labelSeq.asInstanceOf[Seq[Double]].filterNot(_.isNaN())))
+      } else {
+        None
+      }
+    }
+    val standardInputs = Standardizer.applyStandardization(inputs, inputTrans)
+    val standardLabels = labels.zip(outputTrans).map{ case (labelSeq, trans) =>
+        Standardizer.applyStandardization(labelSeq, trans)
+    }
+
+    val baseTrainingResult = baseLearner.train(standardInputs, standardLabels, weights)
+
+    baseTrainingResult.zip(outputTrans).map{case (base, trans) =>
+      new StandardizerTrainingResult(base, Seq(trans) ++ inputTrans, getHypers())
+    }
   }
 }
 
