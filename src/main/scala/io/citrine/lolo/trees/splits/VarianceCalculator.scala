@@ -30,7 +30,11 @@ class VarianceCalculator(
   def getImpurity: Double = {
     val rightSum = totalSum - leftSum
     val rightWeight = totalWeight - leftWeight
-    totalSquareSum - leftSum * leftSum / leftWeight - rightSum * rightSum / rightWeight
+    if (rightWeight == 0.0 || leftWeight == 0.0) {
+      totalSquareSum - totalSum * totalSum / totalWeight
+    } else {
+      totalSquareSum - leftSum * leftSum / leftWeight - rightSum * rightSum / rightWeight
+    }
   }
 
   private var leftSum: Double = 0.0
@@ -39,6 +43,7 @@ class VarianceCalculator(
 
 object VarianceCalculator {
   def build(labels: Seq[Double], weights: Seq[Double]): VarianceCalculator = {
+    // be sure to filter out "missing" labels, which are NaN
     val config: (Double, Double, Double) = labels.zip(weights).filterNot(_._1.isNaN()).map { case (l, w) =>
       (w * l, w * l * l, w)
     }.reduce { (p1: (Double, Double, Double), p2: (Double, Double, Double)) =>

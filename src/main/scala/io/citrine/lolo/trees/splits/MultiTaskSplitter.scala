@@ -68,10 +68,10 @@ object MultiTaskSplitter {
 
     /* Move the data from the right to the left partition one value at a time */
     calculator.reset()
-    val pivots = (0 until data.size - (minCount - 1)).flatMap { j =>
+    val pivots = (0 until data.size - minCount).flatMap { j =>
       val totalImpurity = calculator.add(thinData(j)._2, thinData(j)._3)
-      if (j + 1 > minCount && Math.abs((features(j) - features(j - 1)) / features(j - 1)) > 1.0e-9) {
-        val pivot = (features(j) + features(j - 1)) / 2.0
+      if (j + 1 >= minCount && Math.abs((features(j + 1) - features(j)) / features(j)) > 1.0e-9) {
+        val pivot = (features(j + 1) + features(j)) / 2.0
         Some((pivot, totalImpurity))
       } else {
         None
@@ -128,7 +128,7 @@ object MultiTaskSplitter {
       val totalImpurity = calculator.getImpurity
 
       if (leftNum >= minCount && thinData.size - leftNum >= minCount) {
-        val set = orderedNames.take(j).toSet
+        val set = orderedNames.take(j + 1).toSet
         Some(set, totalImpurity)
       } else {
         None

@@ -42,7 +42,7 @@ class GiniCalculator(
   }
 
   def getImpurity: Double = {
-    if (leftWeight == 0 || leftWeight == totalWeight) {
+    if (leftSquareSum == 0 || rightSquareSum == 0) {
       totalWeight - totalSquareSum / totalWeight
     } else {
       totalWeight - leftSquareSum / leftWeight - rightSquareSum / (totalWeight - leftWeight)
@@ -57,6 +57,7 @@ class GiniCalculator(
 
 object GiniCalculator {
   def build(data: Seq[(Char, Double)]): GiniCalculator = {
+    // Be sure to filter out missing labels, which are marked as 0.toChar
     val totalCategoryWeights = data.filter(_._1 > 0).groupBy(_._1).mapValues(_.map(_._2).sum)
     val totalSquareSum = totalCategoryWeights.values.map(v => Math.pow(v, 2)).sum
     val totalWeight = totalCategoryWeights.values.sum

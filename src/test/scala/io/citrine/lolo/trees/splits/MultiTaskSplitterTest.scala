@@ -31,10 +31,10 @@ class MultiTaskSplitterTest {
   @Test
   def testBestRealSplit(): Unit = {
     val data = Seq(
-      (Vector(0.0), Array[AnyVal](0.0, 0.toChar), 1.0),
-      (Vector(1.0), Array[AnyVal](1.0, 1.toChar), 1.0),
-      (Vector(2.0), Array[AnyVal](2.0, 1.toChar), 1.0),
-      (Vector(100.0), Array[AnyVal](200.0, 2.toChar), 0.0)
+      (Vector(0.0), Array[AnyVal](0.0, 1.toChar), 1.0),
+      (Vector(1.0), Array[AnyVal](1.0, 2.toChar), 1.0),
+      (Vector(2.0), Array[AnyVal](2.0, 2.toChar), 1.0),
+      (Vector(100.0), Array[AnyVal](200.0, 3.toChar), 0.0)
     )
     val calculator = MultiImpurityCalculator.build(data.map(_._2), data.map(_._3))
 
@@ -59,6 +59,7 @@ class MultiTaskSplitterTest {
 
     val (pivot, impurity) = MultiTaskSplitter.getBestCategoricalSplit(data, calculator, 0, 1)
     val turns = data.map(x => pivot.turnLeft(x._1)).take(3)
+    println(turns)
     assert(turns == Seq(true, false, false))
     assert(impurity == 0.5)
   }
