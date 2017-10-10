@@ -63,4 +63,22 @@ class MultiTaskSplitterTest {
     assert(turns == Seq(true, false, false))
     assert(impurity == 0.5)
   }
+
+  /**
+    * Make sure the split functions when one of the labels is completely missing
+    */
+  @Test
+  def testAllEmptyLabels(): Unit = {
+    val inputs = Seq(
+      Vector(0.4566490222691504, 0.21730793346810628, 0.08289198941227605),
+      Vector(0.0025661310641983404, 0.21416453420489545, 0.15783628254609094)
+    )
+    val labels = Vector(Array(1.238, null), Array(1.180, null))
+    val weights = Vector(1.0, 1.0)
+    val data = inputs.indices.map{i =>
+      (inputs(i), labels(i).asInstanceOf[Array[AnyVal]], weights(i))
+    }
+    val (pivot, impurity) = MultiTaskSplitter.getBestSplit(data, data.head._1.size, 1)
+    assert(!pivot.isInstanceOf[NoSplit])
+  }
 }

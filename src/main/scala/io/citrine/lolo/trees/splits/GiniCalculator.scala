@@ -42,7 +42,9 @@ class GiniCalculator(
   }
 
   def getImpurity: Double = {
-    if (leftSquareSum == 0 || rightSquareSum == 0) {
+    if (totalWeight == 0) {
+      0.0
+    } else if (leftSquareSum == 0 || rightSquareSum == 0) {
       totalWeight - totalSquareSum / totalWeight
     } else {
       totalWeight - leftSquareSum / leftWeight - rightSquareSum / (totalWeight - leftWeight)
