@@ -57,7 +57,7 @@ class GiniCalculator(
 
 object GiniCalculator {
   def build(data: Seq[(Char, Double)]): GiniCalculator = {
-    val totalCategoryWeights = data.groupBy(_._1).mapValues(_.map(_._2).sum)
+    val totalCategoryWeights = data.filter(_._1 > 0).groupBy(_._1).mapValues(_.map(_._2).sum)
     val totalSquareSum = totalCategoryWeights.values.map(v => Math.pow(v, 2)).sum
     val totalWeight = totalCategoryWeights.values.sum
     new GiniCalculator(totalCategoryWeights, totalSquareSum, totalWeight)
