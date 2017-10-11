@@ -5,6 +5,7 @@ import io.citrine.lolo.stats.functions.Friedman
 import io.citrine.lolo.stats.metrics.ClassificationMetrics
 import io.citrine.lolo.trees.classification.ClassificationTreeLearner
 import io.citrine.lolo.trees.multitask.MultiTaskTreeLearner
+import io.citrine.lolo.trees.regression.RegressionTreeLearner
 import org.junit.Test
 import org.scalatest.Assertions._
 
@@ -71,6 +72,25 @@ class MultiTaskBaggerTest {
       maxProb > 0.5 && maxProb < 1.0 && Math.abs(classProbabilities.values.sum - 1.0) < 1.0e-6
     })
     assert(results.getGradient().isEmpty, "Returned a gradient when there shouldn't be one")
+  }
+
+  /**
+    * Test that multi-task with dense labels works, and remembers all its inputs
+    */
+  @Test
+  def testMixed(): Unit = {
+    /* Setup some data */
+    val raw: Seq[(Vector[Double], Double)] = TestUtils.generateTrainingData(256, 12, noise = 0.1, function = Friedman.friedmanSilverman)
+    val inputs: Seq[Vector[Double]] = raw.map(_._1)
+    val realLabel: Seq[Double] = raw.map(_._2)
+    val catLabel: Seq[Boolean] = raw.map(_._2 > realLabel.max / 2.0)
+    val DTLearner = new MultiTaskTreeLearner()
+    val baggedLearner = new MultiTaskBagger(DTLearner, numBags = inputs.size, biasLearner = Some(new RegressionTreeLearner(maxDepth = 2)))
+    val RFMeta = baggedLearner.train(inputs, Seq(realLabel, catLabel)).last
+    val RF = RFMeta.getModel()
+
+    val catResults = RF.transform(inputs).getExpected().asInstanceOf[Seq[Boolean]]
+    assert(catResults.zip(catLabel).forall(p => p._1 == p._2))
   }
 
   /**
