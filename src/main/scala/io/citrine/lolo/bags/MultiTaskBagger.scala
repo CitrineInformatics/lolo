@@ -90,7 +90,7 @@ class MultiTaskBagger(
       }.map(_.map(_ / importances.size))
       val trainingData = inputs.zip(labels(k))
       Async.canStop()
-      if (biasLearner.isEmpty) {
+      if (biasLearner.isEmpty || !labels(k).head.isInstanceOf[Double]) {
         new BaggedTrainingResult(m, getHypers(), averageImportance, Nib, inputs.zip(labels(k)), hypers("useJackknife").asInstanceOf[Boolean])
       } else {
         Async.canStop()
