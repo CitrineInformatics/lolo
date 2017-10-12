@@ -118,14 +118,19 @@ class MultiTaskBaggerTest {
 
     val catResults = RF.transform(inputs).getExpected()
 
-    val reference = new Bagger(new ClassificationTreeLearner(), numBags = inputs.size)
+    val referenceModel = new Bagger(new ClassificationTreeLearner(), numBags = inputs.size)
       .train(inputs.zip(sparseCat).filterNot(_._2 == null))
+    val reference = referenceModel
       .getModel()
       .transform(inputs)
       .getExpected()
 
     val singleF1 = ClassificationMetrics.f1scores(reference, catLabel)
     val multiF1 = ClassificationMetrics.f1scores(catResults, catLabel)
+
+    val singleLoss = referenceModel.getLoss().get
+    val multiLoss  = RFMeta.getLoss().get
+    assert(multiLoss <= singleLoss, "Multi-task is underperforming single-task")
 
     assert(multiF1 > singleF1, s"Multi-task is under-performing single-task")
     assert(multiF1 < 1.0)
