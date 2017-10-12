@@ -126,6 +126,8 @@ class MultiTaskBaggerTest {
     val RF = RFMeta.getModel()
 
     val catResults = RF.transform(inputs).getExpected()
+    val realUncertainty = trainingResult.head.getModel().transform(inputs).getUncertainty().get
+    assert(realUncertainty.forall(!_.asInstanceOf[Double].isNaN), s"Some uncertainty values were NaN")
 
     val referenceModel = new Bagger(new ClassificationTreeLearner(), numBags = inputs.size)
       .train(inputs.zip(sparseCat).filterNot(_._2 == null))
