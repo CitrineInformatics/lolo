@@ -1,6 +1,7 @@
 package io.citrine.lolo.bags
 
 import io.citrine.lolo.TestUtils
+import io.citrine.lolo.linear.GuessTheMeanLearner
 import io.citrine.lolo.stats.functions.Friedman
 import io.citrine.lolo.stats.metrics.ClassificationMetrics
 import io.citrine.lolo.trees.classification.ClassificationTreeLearner
@@ -120,7 +121,7 @@ class MultiTaskBaggerTest {
     )
 
     val DTLearner = new MultiTaskTreeLearner()
-    val baggedLearner = new MultiTaskBagger(DTLearner, numBags = inputs.size)
+    val baggedLearner = new MultiTaskBagger(DTLearner, numBags = inputs.size, biasLearner = Some(new GuessTheMeanLearner))
     val trainingResult = baggedLearner.train(inputs, Seq(sparseReal, sparseCat))
     val RFMeta = trainingResult.last
     val RF = RFMeta.getModel()
