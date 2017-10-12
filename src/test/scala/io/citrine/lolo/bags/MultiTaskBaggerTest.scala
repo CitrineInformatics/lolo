@@ -113,7 +113,7 @@ class MultiTaskBaggerTest {
     )
     val sparseReal = realLabel.map(x =>
       if (Random.nextDouble() > 0.75) {
-        null
+        Double.NaN
       } else {
         x
       }
