@@ -1,6 +1,7 @@
 package io.citrine.lolo.bags
 
 import io.citrine.lolo.TestUtils
+import io.citrine.lolo.linear.GuessTheMeanLearner
 import io.citrine.lolo.stats.functions.Friedman
 import io.citrine.lolo.stats.metrics.ClassificationMetrics
 import io.citrine.lolo.trees.classification.ClassificationTreeLearner
@@ -111,15 +112,27 @@ class MultiTaskBaggerTest {
         x
       }
     )
+    val sparseReal = realLabel.map(x =>
+      if (Random.nextDouble() > 0.75) {
+        Double.NaN
+      } else {
+        x
+      }
+    )
+
     val DTLearner = new MultiTaskTreeLearner()
-    val baggedLearner = new MultiTaskBagger(DTLearner, numBags = inputs.size)
-    val RFMeta = baggedLearner.train(inputs, Seq(realLabel, sparseCat)).last
+    val baggedLearner = new MultiTaskBagger(DTLearner, numBags = inputs.size, biasLearner = Some(new GuessTheMeanLearner))
+    val trainingResult = baggedLearner.train(inputs, Seq(sparseReal, sparseCat))
+    val RFMeta = trainingResult.last
     val RF = RFMeta.getModel()
 
     val catResults = RF.transform(inputs).getExpected()
+    val realUncertainty = trainingResult.head.getModel().transform(inputs).getUncertainty().get
+    assert(realUncertainty.forall(!_.asInstanceOf[Double].isNaN), s"Some uncertainty values were NaN")
 
-    val reference = new Bagger(new ClassificationTreeLearner(), numBags = inputs.size)
+    val referenceModel = new Bagger(new ClassificationTreeLearner(), numBags = inputs.size)
       .train(inputs.zip(sparseCat).filterNot(_._2 == null))
+    val reference = referenceModel
       .getModel()
       .transform(inputs)
       .getExpected()
@@ -127,8 +140,16 @@ class MultiTaskBaggerTest {
     val singleF1 = ClassificationMetrics.f1scores(reference, catLabel)
     val multiF1 = ClassificationMetrics.f1scores(catResults, catLabel)
 
+    // Make sure we can grab the loss without issue
+    val singleLoss = referenceModel.getLoss().get
+    val multiLoss  = RFMeta.getLoss().get
+    val regressionLoss = trainingResult.head.getLoss().get
+    assert(!singleLoss.isNaN, "Single task classification loss was NaN")
+    assert(!multiLoss.isNaN, "Sparse multitask classification loss was NaN")
+    assert(!regressionLoss.isNaN, "Sparse regression loss was NaN")
+
     assert(multiF1 > singleF1, s"Multi-task is under-performing single-task")
-    assert(multiF1 < 1.0)
+    assert(multiF1 <= 1.0, "Multitask classification F1 score was greater than 1.0")
   }
 }
 

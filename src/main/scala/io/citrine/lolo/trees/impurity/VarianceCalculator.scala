@@ -68,7 +68,7 @@ object VarianceCalculator {
     // be sure to filter out "missing" labels, which are NaN
     val config: (Double, Double, Double) = labels.zip(weights).filterNot(_._1.isNaN()).map { case (l, w) =>
       (w * l, w * l * l, w)
-    }.reduce { (p1: (Double, Double, Double), p2: (Double, Double, Double)) =>
+    }.fold((0.0, 0.0, 0.0)){(p1: (Double, Double, Double), p2: (Double, Double, Double)) =>
       (p1._1 + p2._1, p1._2 + p2._2, p1._3 + p2._3)
     }
     new VarianceCalculator(config._1, config._2, config._3)
