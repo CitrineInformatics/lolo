@@ -82,6 +82,9 @@ object GiniCalculator {
   def build(data: Seq[(Char, Double)]): GiniCalculator = {
     // Be sure to filter out missing labels, which are marked as 0.toChar
     val totalCategoryWeights = data.filter(_._1 > 0).groupBy(_._1).mapValues(_.map(_._2).sum)
+    if (totalCategoryWeights.isEmpty) {
+      return new GiniCalculator(Array.empty[Double], 0.0, 0.0)
+    }
 
     val weightsArray = new Array[Double](totalCategoryWeights.keySet.max + 1)
     val totalSquareSum = totalCategoryWeights.map { case (k, v) =>
