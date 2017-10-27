@@ -22,10 +22,14 @@ class PerformanceTest {
     * @param quiet whether to print messages to the screen
     * @return the training and application time, in seconds
     */
-  def timedTest(trainingData: Seq[(Vector[Any], Double)], n: Int, k: Int, b: Int, quiet: Boolean = true): (Double, Double) = {
+  def timedTest(trainingData: Seq[(Vector[Any], Any)], n: Int, k: Int, b: Int, quiet: Boolean = true): (Double, Double) = {
     val data = trainingData.map(p => (p._1.take(k), p._2)).take(n)
     val inputs = data.map(_._1)
-    val DTLearner = new RegressionTreeLearner(numFeatures = k / 4)
+    val DTLearner = if (trainingData.head._2.isInstanceOf[Double]) {
+      new RegressionTreeLearner(numFeatures = k / 4)
+    } else {
+      new ClassificationTreeLearner(numFeatures = k / 4)
+    }
     val baggedLearner = new Bagger(DTLearner, numBags = b)
 
     val timeTraining = Stopwatch.time({baggedLearner.train(data).getModel()}, benchmark = "None", minRun = 4, targetError = 0.1, maxRun = 32)
@@ -71,9 +75,11 @@ class PerformanceTest {
     * Test the absolute performance to check for overall regressions
     */
   def testAbsolute(): Unit = {
-    val (nominalTrain, nominalPredict) = timedTest(trainingData, 1024, 32, 1024)
-    assert(nominalTrain < 8.0, s"Expected nominal train to have theta < 8.0 but was ${nominalTrain}")
-    assert(nominalPredict < 7.0, s"Expected nominal transform to have theta < 7.0 but was ${nominalPredict}")
+    // val (nominalTrain, nominalPredict) = timedTest(trainingData, 1024, 32, 1024)
+    val (nominalTrain, nominalPredict) = timedTest(classificationData, 1024, 32, 1024)
+    println(nominalTrain, nominalPredict)
+    // assert(nominalTrain < 8.0, s"Expected nominal train to have theta < 8.0 but was ${nominalTrain}")
+    // assert(nominalPredict < 7.0, s"Expected nominal transform to have theta < 7.0 but was ${nominalPredict}")
   }
 
   def testMultitaskOverhead(N: Int): (Double, Double) = {
@@ -95,13 +101,12 @@ class PerformanceTest {
   }
 
   val trainingData = TestUtils.generateTrainingData(2048, 37)
+  val classificationData = TestUtils.binTrainingData(trainingData, responseBins = Some(8))
 }
 
 object PerformanceTest {
   def main(argv: Array[String]): Unit = {
-    Seq(32, 64, 128, 256, 512).foreach{i =>
-      val times = new PerformanceTest().testMultitaskOverhead(i)
-      println(i, times._1, times._2)
-    }
+    new PerformanceTest().testAbsolute()
+
   }
 }
