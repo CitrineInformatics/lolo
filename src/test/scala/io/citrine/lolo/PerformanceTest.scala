@@ -8,9 +8,14 @@ import io.citrine.theta.Stopwatch
 import org.junit.Test
 
 /**
+  * Performance tests
+  *
+  * NOTE: the performance is not sufficiently stable on travis to
+  * run these continuously.  Therefore, they've had their @Test annotations
+  * removed and are meant to be run locally to collect a performance signal while developing.
+  *
   * Created by maxhutch on 12/29/16.
   */
-@Test
 class PerformanceTest {
 
   /**
@@ -73,13 +78,11 @@ class PerformanceTest {
 
   /**
     * Test the absolute performance to check for overall regressions
+    *
     */
   def testAbsolute(): Unit = {
-    // val (nominalTrain, nominalPredict) = timedTest(trainingData, 1024, 32, 1024)
     val (nominalTrain, nominalPredict) = timedTest(classificationData, 1024, 32, 1024)
     println(nominalTrain, nominalPredict)
-    // assert(nominalTrain < 8.0, s"Expected nominal train to have theta < 8.0 but was ${nominalTrain}")
-    // assert(nominalPredict < 7.0, s"Expected nominal transform to have theta < 7.0 but was ${nominalPredict}")
   }
 
   def testMultitaskOverhead(N: Int): (Double, Double) = {

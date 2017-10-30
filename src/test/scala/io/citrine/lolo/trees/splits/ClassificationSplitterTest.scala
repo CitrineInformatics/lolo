@@ -6,7 +6,10 @@ import io.citrine.theta.Stopwatch
 
 
 /**
-  * Hold some performance profiling routines
+  * Hold some performance profiling routines.
+  *
+  * NOTE: performance on travis isn't sufficiently stable to run these continouously.
+  * For now, they are intended as developer tools for collecting performance signal.
   */
 class ClassificationSplitterTest {
 
@@ -17,14 +20,13 @@ class ClassificationSplitterTest {
     val timeLarge = Stopwatch.time({
       ClassificationSplitter.getBestSplit(ClassificationSplitterTest.encodedData, 12, 1)
     })
-    println(timeLarge)
 
     val timeSmall = Stopwatch.time({
       (0 until ClassificationSplitterTest.nRow / ClassificationSplitterTest.nSubset).foreach { i =>
         ClassificationSplitter.getBestSplit(ClassificationSplitterTest.subset, 12, 1)
       }
     })
-    println(timeSmall)
+    println(s"The normalized cost of splitting is ${timeLarge} and ${timeSmall} for large and small, resp.")
   }
 
 }
