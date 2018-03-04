@@ -6,7 +6,7 @@
 
     <groupId>io.citrine</groupId>
     <artifactId>lolo</artifactId>
-    <version>0.4.2</version>
+    <version>1.0.0</version>
     <packaging>jar</packaging>
 
     <name>${project.groupId}:${project.artifactId}</name>
@@ -38,7 +38,6 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <jackson-version>2.7.2</jackson-version>
     </properties>
 
     <dependencies>
@@ -57,23 +56,28 @@
         <dependency>
             <groupId>io.citrine</groupId>
             <artifactId>theta</artifactId>
-            <version>0.2.0</version>
+            <version>1.0.0</version>
         </dependency>
         <dependency>
             <groupId>org.scalanlp</groupId>
-            <artifactId>breeze_2.11</artifactId> <!-- or 2.11 -->
-            <version>0.12</version>
+            <artifactId>breeze_2.12</artifactId> <!-- or 2.11 -->
+            <version>0.13.2</version>
         </dependency>
         <dependency>
             <groupId>org.scalactic</groupId>
-            <artifactId>scalactic_2.11</artifactId>
-            <version>3.0.0</version>
+            <artifactId>scalactic_2.12</artifactId>
+            <version>3.0.5</version>
         </dependency>
         <dependency>
             <groupId>org.scalatest</groupId>
-            <artifactId>scalatest_2.11</artifactId>
-            <version>3.0.0</version>
+            <artifactId>scalatest_2.12</artifactId>
+            <version>3.0.5</version>
             <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.scala-lang</groupId>
+            <artifactId>scala-library</artifactId>
+            <version>2.12.4</version>
         </dependency>
     </dependencies>
 
@@ -107,28 +111,6 @@
                     <nexusUrl>https://oss.sonatype.org/</nexusUrl>
                     <autoReleaseAfterClose>true</autoReleaseAfterClose>
                 </configuration>
-            </plugin>
-
-            <plugin>
-                <groupId>org.scala-tools</groupId>
-                <artifactId>maven-scala-plugin</artifactId>
-                <version>2.14.2</version>
-                <executions>
-                    <execution>
-                        <id>scala-compile-first</id>
-                        <phase>process-resources</phase>
-                        <goals>
-                            <goal>add-source</goal>
-                            <goal>compile</goal>
-                        </goals>
-                    </execution>
-                    <execution>
-                        <goals>
-                            <goal>compile</goal>
-                            <goal>testCompile</goal>
-                        </goals>
-                    </execution>
-                </executions>
             </plugin>
             <plugin>
                 <groupId>org.scalastyle</groupId>
@@ -224,17 +206,19 @@
                         <version>3.2.1</version>
                         <executions>
                             <execution>
+                                <id>scala-compile-first</id>
+                                <phase>process-resources</phase>
+                                <goals>
+                                    <goal>add-source</goal>
+                                    <goal>compile</goal>
+                                </goals>
+                            </execution>
+                            <execution>
                                 <id>Compile</id>
                                 <goals>
                                     <goal>compile</goal>
                                     <goal>testCompile</goal>
                                 </goals>
-                                <configuration>
-                                    <args>
-                                        <arg>-dependencyfile</arg>
-                                        <arg>${project.build.directory}/.scala_dependencies</arg>
-                                    </args>
-                                </configuration>
                             </execution>
                             <execution>
                                 <id>attach-javadocs</id>

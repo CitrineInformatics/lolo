@@ -8,7 +8,7 @@ Lolo
 Lolo is a [random forest](https://en.wikipedia.org/wiki/Lolo_National_Forest)-centered machine learning library in Scala.
 
 The core of Lolo is bagging simple base learners, like decision trees, to imbue robust uncertainty estimates via 
-[jackknife-style variance estimators](http://www.jmlr.org/papers/volume15/wager14a/source/wager14a.pdf) and explicit bias models.
+[jackknife-style variance estimators](http://jmlr.org/papers/volume15/wager14a/wager14a.pdf) and explicit bias models.
 
 Lolo supports:
  * continuous and categorical features
