@@ -12,3 +12,7 @@ lazy val root = (project in file("."))
     licenses         += "Apache2" ->  url("http://www.apache.org/licenses/LICENSE-2.0.txt"),
     libraryDependencies ++= loloDeps
   )
+
+enablePlugins(SiteScaladocPlugin)
+enablePlugins(GhpagesPlugin)
+git.remoteRepo := "git@github.com:CitrineInformatics/lolo.git"
