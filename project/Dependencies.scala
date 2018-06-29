@@ -11,8 +11,8 @@ object Dependencies {
     "com.github.fommil.netlib" % "all" % netlibVersion,
     "junit" % "junit" % junitVersion % "test",
     "io.citrine" % "theta" % thetaVersion,
-    "org.scalactic" % "scalactic_2.12" % scalaticVersion,
-    "org.scalatest" % "scalatest_2.12" % scalaticVersion % "test",
+    "org.scalactic" %% "scalactic" % scalaticVersion,
+    "org.scalatest" %% "scalatest" % scalaticVersion % "test",
     "com.novocode" % "junit-interface" % "0.11" % "test"
   )
 }
