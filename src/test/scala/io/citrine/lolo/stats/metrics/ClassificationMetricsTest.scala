@@ -21,8 +21,8 @@ class ClassificationMetricsTest {
     }
     val loss = ClassificationMetrics.f1scores(pva)
     /* The loss should be in (0.0, 1.0) */
-    assert(!loss.isNaN)
-    assert(loss > 0.0)
-    assert(loss < 1.0)
+    assert(!loss.isNaN, s"Loss was NaN")
+    assert(loss >= 0.0, s"Loss was less than 0: ${loss}")
+    assert(loss <= 1.0, s"Loss was greater than 1: ${loss}")
   }
 }
