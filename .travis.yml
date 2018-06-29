@@ -1,20 +1,19 @@
 language: scala
 scala:
 - 2.11.2
+- 2.12.4
+
 jdk:
 - oraclejdk8
-install: mvn install -P !build-extras -DskipTests=true -Dmaven.javadoc.skip=true -B
-  -V
-script: mvn test -P !build-extras -B
+
+script: sbt ++$TRAVIS_SCALA_VERSION test
+
 cache:
   directories:
-  - "~/.m2/repository"
-after_success:
-- "./cd/before-deploy.sh"
-- "./cd/deploy.sh"
-env:
-  global:
-  - secure: FrHaublJMcjvXrLETTXYt3Ii9qxeXP+1tLGN7pvR1c2OHN8gL2ski8oEpNF7UhbLyW2nF/7Z+T64ORyxExeeWeVjor7Iw043GqADYb+ChIF1cj0hCKQebe60LVqzoV5cAyaKc4bDq3wLckoWSniE2YYSV3Lt1wnahNa2LVS6OAptYKq8EoTy75bQ+o9PV22yJM6Z/NCZRi6GE9zCxH+zM/PXd3k+aJTs2zud44cX9uARruS68gcvdx3BCmgQVhBV47L1UQyZIX7907B6CG8WRFn9Z5o1rikS6OH6vXChYEO4XxO+7HLJusFPF+oxOLJZTffShK6fiBeL7085cl8TDxl1uqJjb6DFnaP1IsZW+8Q5HZ3uVegwsdFtR2aHmXDfHHymFFl+7LtMPPZf+oewt1GpA8dRfdPorKXSCkQg9hfT+AWwO5EtW1872u61nkFRiU33qe/2d3mYmEG39GrR0Ci0iDLP0Ey/fnC4nEfgjO9AACKssHUD/81bCVtm7uYLNI4vrAsZfTfHVvjOKaIktKXaN6IRJJ+J1/ba3EQvuY2R7ee4PyU4LNig/7qnXBovKHVGSZMRXgrGGFfTX6oN0THP0RKKmlVX7MQsDL6ocOjWxAZdFvdhzMJDnPQw3gTgwS0a8R8bs18AafQu5PoKPoQMfR150fc56msR/Urm+Bs=
-  - secure: S1dPROe1/zg+ApjgBRvVAZASS/+1Mpgaz/kr+JJjKt6Hr34wLGiQY7kOZkuMicqsaj/NooFKMjJ86pO/QNEOQlpkWjKYmCL3Tqp+NGMh0wf1Tgbzmc+WT8PgMZT+N1RXbVQmCYwDEHEN+nqG8OxDA41dbBhHqQema7DQ1A21OHRhxgrIqMSwBRTq/OFMZhJ20Cnbanu5seoRhgufyN76ytPgfYDyfreLIwq86FcGGH0A5zV1oCNo8unYndQHmxs0y35OnTKj/yRShFQ7xXwXKKlI1CzzOXZkCfWsI//wXJTopKwRYGjouVBsp87lXPZioDuLNZrAqR7us0yFGjtoPCEE62R4LEUr+H/+nn3OjN10iElzYWhXvk3uMRu5JjDNcCqRtZ/pfBilTF0kYVAjtNH4Ufnp6jmVILEpEk8q1L8piwVj/a1oy26qABNJSWS451ELhx7wCqqIylXZPoffaoKvKzqMMDy424jf36cevu1pubv4FzG8267qeKpsRALz+c9kUr4wlIjLN89kfObkVoDmscC8ioB0wCeU2/jWqqADGGTw8EA57WIAqSF2zi8fMkgYZEj/0veXLVEB8AZ2lPupMcw3mEzCVwX9CylOAOt/v09EKU96fWJ6llrpy9aawkjmsALm3Mvle2OUu+73gJ/qIDpM9EcgzojWZvTe5Lg=
-  - secure: i4NmJJFzfmX3Bp6OCuRs5vQg3EYd1NQm9aX4SxLmqw6kPhpKbxmL7wU6Q/uMtbsovo6xtsolxy/cc6HnCLs+fygx8xnEXfTKDlEy51D9jWJAG2+ORMlWJBQJmX+5e0S0Q4zvBeKzueEBqX9i6mJkTGtvwo+k9fxXueyXjuWy8t3aguRCY1Rm57Iy1OzUt1aDMoxb5kBaG6+gZB6tZ4HnmEXKYJkemxAbN+/911ZvT3L8OCMFUwxSESa21g1y9hKJXOHsygwoAuGcffzqNQRAoVZfjOJiVbmyJ0M24h+/XrTFVL9/MF+0q0jk/bB4FONTw7NlrKtdCIBA4yTRLPXZxT+aih0EEw9Kn4HUjOLxdXYxdJ04CJwFTG0q1d+SEM1YaoGRS0CNGLfW2X0k7ecp+IjwlfurZStccaj0c1uXb8pyv9oP20gIBAyaleaK82JjOtV9REZso34Lob3lg6WxtRE8tPKe+BpsiTMeMXsyDXuTnsLilwMLhOPIrnFLC62PTa9qMqZ0E9W8v6Ut8+mlprRW/lQkmEAa9Jw7EheBaobrt9PU6/CUKaViNAWKgrMIjcLJYs9Y2TcxrYIHKizCzuxVfWK2GVk6luOtUDpXUR9dgwJG5fDiDDMDZPV1IIPKtg9n4cjsWFYkPaIThvZdbzssUJLiP3/pNT7ttQPLM4s=
-  - secure: FiSecN9waE87jcU4wUi50EapMaX3TWQEJaDgMRmu7cp75Nb4Rqjvn9Eklfeu5wmQyt5EDglxU2IEZS+4vGhHREtG0cBNd4IAbuw1I2x4LRv2WIM+D170Bpg3wkDaw1woSt0mKh2pqRa3GyDuDFDUgNdqp4lOMSqn+tSupYpvYCIPJ23vhG3s/b5v5dPAVV7CB/OiJptGOce2NG/XJ45/QGSzPMrzYkzoqgZgbPtDHWBMSmYYF0HYKw0nKsclBFrNkUZ4aAgjfqxHh5kQOsuhxY/M7LGD5BI8tIqGr/aCfGgJ9I1ezDGLrN4q+IwQW8S6+Je2jcd/tx0Gk6EvCVltm3ixfuQYWg3CYMe6dusJQUSi4igQaNzvm3Heg/C4qE8A5VUXmVRcO9Cg2J6LG70s5J5oULM49kM1uf3R7mK0e1Wow3mwiW/ymL91yEaIQ/H8RdV2uMUGytQ5o7/U+/uhjs58mRFXBG0B4HwU8P0reKSZDBq6kvJy2sWZlfmbEWKnlChppRnxIGGXNCLiUK49IfqAkyySliQbiNE8CaN5RekJfz/fkZlB8HDHsRmcYxClVD6uezBmYaNJLmMQeCzbKQ7YKPFOwN6rKKWnCMEhs/v2matLo4/sgQKxK9cj2a+v30g0m/yS3fau1tO0oEkT7yawAeb1KTUX6ZBlHh3Sl8E=
+    - $HOME/.ivy2/cache
+    - $HOME/.sbt
+
+before_cache:
+  # Cleanup the cached directories to avoid unnecessary cache updates
+  - find $HOME/.ivy2/cache -name "ivydata-*.properties" -print -delete
+  - find $HOME/.sbt        -name "*.lock"               -print -delete
