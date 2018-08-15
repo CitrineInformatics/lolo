@@ -19,6 +19,10 @@ class StandardizerTest {
   val data = TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman)
   val weights = Vector.fill(data.size)(if (Random.nextBoolean()) Random.nextDouble() else 0.0)
 
+  // Creating another dataset which has 1 feature that has 0 variance.
+  val data2 = data.map(d => (1.11 +: d._1, d._2))
+  val weights2 = Vector.fill(data2.size)(if (Random.nextBoolean()) Random.nextDouble() else 0.0)
+
   @Test
   def testStandardMeanAndVariance(): Unit = {
     val inputs = data.map(_._1)
@@ -89,6 +93,37 @@ class StandardizerTest {
       assert(diff < 1.0e-9, "Gradients should be the same")
     }
   }
+
+
+  /**
+    * @Author Astha Garg
+    * When the variance of a particular feature is 0, the test for expected and gradient fails.
+    *
+    */
+  @Test
+  def testStandardGradient(): Unit = {
+    val learner = new LinearRegressionLearner()
+    val model = learner.train(data2, Some(weights2)).getModel()
+    val result = model.transform(data2.map(_._1))
+    val expected = result.getExpected()
+    val gradient = result.getGradient()
+
+    val standardLearner = new Standardizer(learner)
+    val standardModel = standardLearner.train(data2, Some(weights2)).getModel()
+    val standardResult = standardModel.transform(data2.map(_._1))
+    val standardExpected = standardResult.getExpected()
+    val standardGradient = standardResult.getGradient()
+
+     expected.zip(standardExpected).foreach { case (free: Double, standard: Double) =>
+      assert(Math.abs(free - standard) < 1.0e-9, s"${free} and ${standard} should be the same")
+    }
+
+    gradient.get.zip(standardGradient.get).foreach { case (free, standard) =>
+      val diff = free.zip(standard).map { case (f, s) => Math.abs(f - s) }.max
+      assert(diff < 1.0e-9, s"Gradients should be the same. The diff is $diff")
+    }
+  }
+
 
   /**
     * Ridge regression should depend on standardization
