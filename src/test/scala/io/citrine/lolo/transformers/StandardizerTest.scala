@@ -113,11 +113,6 @@ class StandardizerTest {
     val standardExpected = standardResult.getExpected()
     val standardGradient = standardResult.getGradient()
 
-    // This test fails about 1 out of 10 times, but its not clear why. It is not fixed by the 0 x NaN fix.
-    expected.zip(standardExpected).foreach { case (free: Double, standard: Double) =>
-      assert(Math.abs(free - standard) < 1.0e-9, s"Failed test for expected. ${free} and ${standard} should be the same")
-    }
-
 
     // This test fails currently, but will pass by uncommenting the 0xNaN case under Standardizer.getGradient
     gradient.get.toList.flatten.zip(standardGradient.get.toList.flatten).foreach { case (free: Double, standard: Double) =>
@@ -129,6 +124,14 @@ class StandardizerTest {
       val diff = free.zip(standard).map { case (f, s) => Math.abs(f - s) }.max
       assert(diff < 1.0e-9, s"Gradients should be the same. The diff is $diff")
     }
+
+    // This test fails about 1 out of 10 times, but its not clear why. It is not fixed by the 0 x NaN fix.
+    // Moving it below the others so that the gradient test would fail before this
+    expected.zip(standardExpected).foreach { case (free: Double, standard: Double) =>
+      assert(Math.abs(free - standard) < 1.0e-9, s"Failed test for expected. ${free} and ${standard} should be the same")
+    }
+
+
   }
 
 
