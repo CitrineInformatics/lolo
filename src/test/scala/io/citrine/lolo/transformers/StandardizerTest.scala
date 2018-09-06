@@ -16,7 +16,7 @@ import scala.util.Random
 @Test
 class StandardizerTest {
 
-  val data: Vector[(Vector[Double], Double)] = TestUtils.generateTrainingData(30, 12, noise = 0.1, function = Friedman.friedmanSilverman)
+  val data: Vector[(Vector[Double], Double)] = TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman)
   val weights: Vector[Double] = Vector.fill(data.size)(if (Random.nextBoolean()) Random.nextDouble() else 0.0)
 
   // Creating another dataset which has 1 feature that has 0 variance.
