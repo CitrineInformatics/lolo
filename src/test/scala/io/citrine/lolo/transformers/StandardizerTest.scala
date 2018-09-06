@@ -118,6 +118,7 @@ class StandardizerTest {
       assert(Math.abs(free - standard) < 1.0e-9, s"Failed test for expected. ${free} and ${standard} should be the same")
     }
 
+
     // This test fails currently, but will pass by uncommenting the 0xNaN case under Standardizer.getGradient
     gradient.get.toList.flatten.zip(standardGradient.get.toList.flatten).foreach { case (free: Double, standard: Double) =>
       assert(Math.abs(free - standard) < 1.0e-9, s"Failed test for gradient. ${free} and ${standard} gradients should be the same")
