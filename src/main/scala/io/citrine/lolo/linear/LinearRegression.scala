@@ -30,6 +30,11 @@ class LinearRegressionLearner(fitIntercept: Boolean = true) extends Learner {
       .filterNot(_._1.asInstanceOf[Double].isNaN)
       .map(_._2)
       .filterNot(i => trainingData.exists(_._1(i).asInstanceOf[Double].isNaN))
+      .filterNot{i =>
+        val unregularized = !hypers.get("regParam").exists(_.asInstanceOf[Double] > 0.0)
+        lazy val constant = trainingData.forall(_._1(i) == trainingData.head._1(i))
+        unregularized && constant // remove constant features if there's no regularization
+      }
 
 
     /* If we are fitting the intercept, add a row of 1s */

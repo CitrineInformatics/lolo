@@ -16,12 +16,11 @@ import scala.util.Random
 @Test
 class StandardizerTest {
 
-  val data = TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman)
-  val weights = Vector.fill(data.size)(if (Random.nextBoolean()) Random.nextDouble() else 0.0)
+  val data: Vector[(Vector[Double], Double)] = TestUtils.generateTrainingData(30, 12, noise = 0.1, function = Friedman.friedmanSilverman)
+  val weights: Vector[Double] = Vector.fill(data.size)(if (Random.nextBoolean()) Random.nextDouble() else 0.0)
 
   // Creating another dataset which has 1 feature that has 0 variance.
-  val data2 = data.map(d => (1.11 +: d._1, d._2))
-  val weights2 = Vector.fill(data2.size)(if (Random.nextBoolean()) Random.nextDouble() else 0.0)
+  val dataWithConstant: Vector[(Vector[Double], Double)] = data.map(d => (0.0 +: d._1, d._2))
 
   @Test
   def testStandardMeanAndVariance(): Unit = {
@@ -96,28 +95,35 @@ class StandardizerTest {
 
 
   /**
-    * @Author Astha Garg
     * When the variance of a particular feature is 0, the test for expected and gradient fails.
     *
+    * @author Astha Garg
     */
   @Test
-  def testStandardGradient(): Unit = {
+  def testStandardWithConstantFeature(): Unit = {
     val learner = new LinearRegressionLearner()
-    val model = learner.train(data2, Some(weights2)).getModel()
-    val result = model.transform(data2.map(_._1))
+    val model = learner.train(dataWithConstant, Some(weights)).getModel()
+    val result = model.transform(dataWithConstant.map(_._1))
     val expected = result.getExpected()
     val gradient = result.getGradient()
 
     val standardLearner = new Standardizer(learner)
-    val standardModel = standardLearner.train(data2, Some(weights2)).getModel()
-    val standardResult = standardModel.transform(data2.map(_._1))
+    val standardModel = standardLearner.train(dataWithConstant, Some(weights)).getModel()
+    val standardResult = standardModel.transform(dataWithConstant.map(_._1))
     val standardExpected = standardResult.getExpected()
     val standardGradient = standardResult.getGradient()
 
-     expected.zip(standardExpected).foreach { case (free: Double, standard: Double) =>
-      assert(Math.abs(free - standard) < 1.0e-9, s"${free} and ${standard} should be the same")
+    // This test fails about 1 out of 10 times, but its not clear why. It is not fixed by the 0 x NaN fix.
+    expected.zip(standardExpected).foreach { case (free: Double, standard: Double) =>
+      assert(Math.abs(free - standard) < 1.0e-9, s"Failed test for expected. ${free} and ${standard} should be the same")
     }
 
+    // This test fails currently, but will pass by uncommenting the 0xNaN case under Standardizer.getGradient
+    gradient.get.toList.flatten.zip(standardGradient.get.toList.flatten).foreach { case (free: Double, standard: Double) =>
+      assert(Math.abs(free - standard) < 1.0e-9, s"Failed test for gradient. ${free} and ${standard} gradients should be the same")
+    }
+
+    // The gradient wrt the first constant feature is ill-defined without regularization
     gradient.get.zip(standardGradient.get).foreach { case (free, standard) =>
       val diff = free.zip(standard).map { case (f, s) => Math.abs(f - s) }.max
       assert(diff < 1.0e-9, s"Gradients should be the same. The diff is $diff")
@@ -191,15 +197,5 @@ class StandardizerTest {
 
     // Assert some things
     assert(Math.abs(baseF1 - standardF1) < 1.0e-6, s"Expected training to be invariant the scale of the labels")
-  }
-}
-
-object StandardizerTest {
-  def main(argv: Array[String]): Unit = {
-    new StandardizerTest().testStandardMeanAndVariance()
-    new StandardizerTest().testStandardGTM()
-    new StandardizerTest().testStandardLinear()
-    new StandardizerTest().testStandardRidge()
-    new StandardizerTest().testStandardClassification()
   }
 }
