@@ -16,11 +16,11 @@ import scala.util.Random
 @Test
 class StandardizerTest {
 
-  val data: Vector[(Vector[Double], Double)] = TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman)
+  val data: Vector[(Vector[Double], Double)] = TestUtils.generateTrainingData(30, 12, noise = 0.1, function = Friedman.friedmanSilverman)
   val weights: Vector[Double] = Vector.fill(data.size)(if (Random.nextBoolean()) Random.nextDouble() else 0.0)
 
   // Creating another dataset which has 1 feature that has 0 variance.
-  val dataWithConstant: Vector[(Vector[Double], Double)] = data.map(d => (1.11 +: d._1, d._2))
+  val dataWithConstant: Vector[(Vector[Double], Double)] = data.map(d => (0.0 +: d._1, d._2))
 
   @Test
   def testStandardMeanAndVariance(): Unit = {
@@ -113,8 +113,14 @@ class StandardizerTest {
     val standardExpected = standardResult.getExpected()
     val standardGradient = standardResult.getGradient()
 
+    // This test fails about 1 out of 10 times, but its not clear why. It is not fixed by the 0 x NaN fix.
     expected.zip(standardExpected).foreach { case (free: Double, standard: Double) =>
-      assert(Math.abs(free - standard) < 1.0e-9, s"${free} and ${standard} should be the same")
+      assert(Math.abs(free - standard) < 1.0e-9, s"Failed test for expected. ${free} and ${standard} should be the same")
+    }
+
+    // This test fails currently, but will pass by uncommenting the 0xNaN case under Standardizer.getGradient
+    gradient.get.toList.flatten.zip(standardGradient.get.toList.flatten).foreach { case (free: Double, standard: Double) =>
+      assert(Math.abs(free - standard) < 1.0e-9, s"Failed test for gradient. ${free} and ${standard} gradients should be the same")
     }
 
     // The gradient wrt the first constant feature is ill-defined without regularization
