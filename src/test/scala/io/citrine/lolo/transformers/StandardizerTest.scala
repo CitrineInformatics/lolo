@@ -95,7 +95,7 @@ class StandardizerTest {
 
 
   /**
-    * When the variance of a particular feature is 0, the test for expected and gradient fails.
+    * When the variance of a particular feature is 0
     *
     * @author Astha Garg
     */
@@ -114,7 +114,6 @@ class StandardizerTest {
     val standardGradient = standardResult.getGradient()
 
 
-    // This test fails currently, but will pass by uncommenting the 0xNaN case under Standardizer.getGradient
     gradient.get.toList.flatten.zip(standardGradient.get.toList.flatten).foreach { case (free: Double, standard: Double) =>
       assert(Math.abs(free - standard) < 1.0e-9, s"Failed test for gradient. ${free} and ${standard} gradients should be the same")
     }
@@ -125,8 +124,7 @@ class StandardizerTest {
       assert(diff < 1.0e-9, s"Gradients should be the same. The diff is $diff")
     }
 
-    // This test fails about 1 out of 10 times, but its not clear why. It is not fixed by the 0 x NaN fix.
-    // Moving it below the others so that the gradient test would fail before this
+    // This test fails ~30% of the time when nRows=30, but its not clear why.
     expected.zip(standardExpected).foreach { case (free: Double, standard: Double) =>
       assert(Math.abs(free - standard) < 1.0e-9, s"Failed test for expected. ${free} and ${standard} should be the same")
     }
