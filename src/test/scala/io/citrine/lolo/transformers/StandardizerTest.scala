@@ -20,7 +20,7 @@ class StandardizerTest {
   val weights: Vector[Double] = Vector.fill(data.size)(if (Random.nextBoolean()) Random.nextDouble() else 0.0)
 
   // Creating another dataset which has 1 feature that has 0 variance.
-  val dataWithConstant: Vector[(Vector[Double], Double)] = data.map(d => (1.11 +: d._1, d._2))
+  val dataWithConstant: Vector[(Vector[Double], Double)] = data.map(d => (0.0 +: d._1, d._2))
 
   @Test
   def testStandardMeanAndVariance(): Unit = {
@@ -95,7 +95,7 @@ class StandardizerTest {
 
 
   /**
-    * When the variance of a particular feature is 0, the test for expected and gradient fails.
+    * When the variance of a particular feature is 0
     *
     * @author Astha Garg
     */
@@ -113,8 +113,9 @@ class StandardizerTest {
     val standardExpected = standardResult.getExpected()
     val standardGradient = standardResult.getGradient()
 
-    expected.zip(standardExpected).foreach { case (free: Double, standard: Double) =>
-      assert(Math.abs(free - standard) < 1.0e-9, s"${free} and ${standard} should be the same")
+
+    gradient.get.toList.flatten.zip(standardGradient.get.toList.flatten).foreach { case (free: Double, standard: Double) =>
+      assert(Math.abs(free - standard) < 1.0e-9, s"Failed test for gradient. ${free} and ${standard} gradients should be the same")
     }
 
     // The gradient wrt the first constant feature is ill-defined without regularization
@@ -122,6 +123,13 @@ class StandardizerTest {
       val diff = free.zip(standard).map { case (f, s) => Math.abs(f - s) }.max
       assert(diff < 1.0e-9, s"Gradients should be the same. The diff is $diff")
     }
+
+    // This test fails ~30% of the time when nRows=30, but its not clear why.
+    expected.zip(standardExpected).foreach { case (free: Double, standard: Double) =>
+      assert(Math.abs(free - standard) < 1.0e-9, s"Failed test for expected. ${free} and ${standard} should be the same")
+    }
+
+
   }
 
 
