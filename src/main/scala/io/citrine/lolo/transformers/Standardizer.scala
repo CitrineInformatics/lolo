@@ -184,7 +184,8 @@ class StandardizerPrediction[T](baseResult: PredictionResult[T], trans: Seq[Opti
       case None => None
       case Some(x) =>
         Some(x.map(g => g.zip(trans.tail).map {
-          // case (0.0, Some((_, Double.PositiveInfinity))) => 0
+          // 0 * Inf is just ambiguous, and in this context it should be 0.
+          case (0.0, Some((_, Double.PositiveInfinity))) => 0
           // If there was a (linear) transformer used on that input, take the slope "m" and rescale by it
           case (y: Double, Some((_, m))) => y * rescale * m
           // Otherwise, just rescale by the output transformer
