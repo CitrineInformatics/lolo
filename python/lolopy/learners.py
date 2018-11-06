@@ -42,19 +42,30 @@ class RandomForest(BaseEstimator, RegressorMixin):
             # Copy the X into an array
             x_i_java = ListConverter().convert(x_i, self.gateway._gateway_client)
             x_i_java = self.gateway.jvm.scala.collection.JavaConverters.asScalaBuffer(x_i_java).toVector()
-            pair = self.gateway.jvm.scala.Tuple3(x_i_java, float(y_i), 1.0)
+
+            # If weights are None, RF expects a 3ple
+            if weights is None:
+                pair = self.gateway.jvm.scala.Tuple3(x_i_java, float(y_i), 1.0)
+            else:
+                pair = self.gateway.jvm.scala.Tuple2(x_i_java, float(y_i))
+
+            # Append to training data list
             train_data.append(pair)
         train_data = self.gateway.jvm.scala.collection.JavaConverters.asScalaBuffer(train_data)
 
         # Make the weights
-        weights_java = self.gateway.jvm.java.util.ArrayList(len(y))
-        if weights is None:
-            for i in range(len(y)):
-                weights_java.append(1)
-        weights_java = self.gateway.jvm.scala.collection.JavaConverters.asScalaBuffer(weights_java)
+        # TODO: Make the weights work
 
-        # Run the training
-        result = learner.train(train_data)
+        if weights is None:
+            result = learner.train(train_data)
+        else:
+            # Convert weights to scala array
+            weights_java = ListConverter().convert(weights, self.gateway._gateway_client)
+            weights_java = self.gateway.jvm.scala.collection.JavaConverters.asScalaBuffer(weights_java)
+
+            # Call training with weights
+            #  We encapsulate weights in "scale.Some" to make it an "Optional" class
+            result = learner.train(train_data, self.gateway.jvm.scala.Some(weights_java))
 
         # Get the model out
         self.model_ = result.getModel()

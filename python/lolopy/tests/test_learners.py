@@ -11,11 +11,16 @@ class TestRF(TestCase):
 
         # Train the model
         X, y = load_boston(True)
+        #X = X[:9]
+        #y = y[:9]
         rf.fit(X, y)
 
         # Run some predictions
         y_pred = rf.predict(X)
         self.assertEqual(len(y_pred), len(y))
+
+        # Test with weights (make sure it doesn't crash)
+        rf.fit(X, y, [1.0]*len(y))
 
         # Run predictions with std dev
         y_pred, y_std = rf.predict(X, return_std=True)
