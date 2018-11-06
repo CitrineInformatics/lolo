@@ -26,7 +26,7 @@ def get_java_gateway(reuse=True):
 
     # TODO: Find a way to get the path to scala (might just detect if on Windows vs Linux
     _gateway = JavaGateway.launch_gateway(classpath=os.path.pathsep.join([
-        os.path.abspath(lolo_path)]), java_path="scala.bat", die_on_exit=True)
+        os.path.abspath(lolo_path)]), die_on_exit=True)
     return _gateway
 
 JavaGateway()
