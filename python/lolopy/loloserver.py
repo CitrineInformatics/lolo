@@ -1,6 +1,8 @@
 """Methods related to starting and stopping the Java Gateway"""
 from py4j.java_gateway import JavaGateway
+import sys
 import os
+
 
 def _find_lolo_jar():
     """Attempt to automatically find a jar file for Lolo
@@ -28,5 +30,3 @@ def get_java_gateway(reuse=True):
     _gateway = JavaGateway.launch_gateway(classpath=os.path.pathsep.join([
         os.path.abspath(lolo_path)]), die_on_exit=True)
     return _gateway
-
-JavaGateway()

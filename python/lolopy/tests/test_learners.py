@@ -1,18 +1,17 @@
-from lolopy.learners import RandomForest
-from sklearn.datasets import load_boston
-from sklearn.metrics import r2_score
+from lolopy.learners import RandomForestRegressor, RandomForestClassifier
+from sklearn.metrics import r2_score, accuracy_score
+from sklearn.datasets import load_boston, load_iris
 from unittest import TestCase, main
+import numpy as np
 
 
 class TestRF(TestCase):
 
     def test_rf_regressor(self):
-        rf = RandomForest()
+        rf = RandomForestRegressor()
 
         # Train the model
         X, y = load_boston(True)
-        #X = X[:9]
-        #y = y[:9]
         rf.fit(X, y)
 
         # Run some predictions
@@ -26,6 +25,23 @@ class TestRF(TestCase):
         y_pred, y_std = rf.predict(X, return_std=True)
         self.assertEqual(len(y_pred), len(y_std))
         print('R^2:', r2_score(y_pred, y))
+
+    def test_classifier(self):
+        rf = RandomForestClassifier()
+
+        # Load in the iris dataset
+        X, y = load_iris(True)
+        rf.fit(X, y)
+
+        # Predict the probability of membership in each class
+        y_prob = rf.predict_proba(X)
+        self.assertEqual((len(X), 3), np.shape(y_prob))
+        self.assertAlmostEqual(len(X), np.sum(y_prob))
+
+        # Test just getting the predicted class
+        y_pred = rf.predict(X)
+        self.assertEqual(len(X), len(y_pred))
+        print('Accuracy:', accuracy_score(y, y_pred))
 
 
 if __name__ == "__main__":
