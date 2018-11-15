@@ -16,7 +16,7 @@ import io.citrine.lolo.{Learner, TrainingResult}
   * @param subsetStrategy for random feature selection at each split
   *                       (auto => 1/3 for regression, sqrt for classification)
   */
-class RandomForest(
+case class RandomForest(
                     numTrees: Int = -1,
                     useJackknife: Boolean = true,
                     biasLearner: Option[Learner] = None,
@@ -24,13 +24,15 @@ class RandomForest(
                     subsetStrategy: Any = "auto"
                   ) extends Learner {
 
-  setHypers(Map(
-    "numTrees" -> numTrees,
-    "useJackknife" -> useJackknife,
-    "biasLearner" -> biasLearner,
-    "leafLearner" -> leafLearner,
-    "subsetStrategy" -> subsetStrategy
-  ))
+  override def getHypers(): Map[String, Any] = {
+    Map(
+      "numTrees" -> numTrees,
+      "useJackknife" -> useJackknife,
+      "biasLearner" -> biasLearner,
+      "leafLearner" -> leafLearner,
+      "subsetStrategy" -> subsetStrategy
+    )
+  }
 
   /**
     * Train a random forest model
@@ -45,7 +47,7 @@ class RandomForest(
   override def train(trainingData: Seq[(Vector[Any], Any)], weights: Option[Seq[Double]]): TrainingResult = {
     trainingData.head._2 match {
       case x: Double =>
-        val numFeatures: Int = hypers("subsetStrategy") match {
+        val numFeatures: Int = subsetStrategy match {
           case x: String =>
             x match {
               case "auto" => (trainingData.head._1.size / 3.0).toInt
@@ -60,16 +62,16 @@ class RandomForest(
             (trainingData.head._1.size * x).toInt
         }
         val DTLearner = new RegressionTreeLearner(
-          leafLearner = hypers("leafLearner").asInstanceOf[Option[Learner]],
+          leafLearner = leafLearner,
           numFeatures = numFeatures)
         val bagger = new Bagger(DTLearner,
-          numBags = hypers("numTrees").asInstanceOf[Int],
-          useJackknife = hypers("useJackknife").asInstanceOf[Boolean],
-          biasLearner = hypers("biasLearner").asInstanceOf[Option[Learner]]
+          numBags = numTrees,
+          useJackknife = useJackknife,
+          biasLearner = biasLearner
         )
         bagger.train(trainingData, weights)
       case x: Any =>
-        val numFeatures: Int = hypers("subsetStrategy") match {
+        val numFeatures: Int = subsetStrategy match {
           case x: String =>
             x match {
               case "auto" => Math.sqrt(trainingData.head._1.size).toInt
@@ -85,7 +87,7 @@ class RandomForest(
         }
         val DTLearner = new ClassificationTreeLearner(numFeatures = numFeatures)
         val bagger = new Bagger(DTLearner,
-          numBags = hypers("numTrees").asInstanceOf[Int]
+          numBags = numTrees
         )
         bagger.train(trainingData, weights)
     }

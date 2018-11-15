@@ -138,7 +138,7 @@ class StandardizerTest {
     */
   @Test
   def testStandardRidge(): Unit = {
-    val learner = new LinearRegressionLearner().setHyper("regParam", 1.0)
+    val learner = new LinearRegressionLearner(regParam = Some(1.0))
     val model = learner.train(data).getModel()
     val result = model.transform(data.map(_._1)).getExpected()
 

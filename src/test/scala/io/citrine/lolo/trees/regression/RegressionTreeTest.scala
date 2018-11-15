@@ -128,8 +128,8 @@ class RegressionTreeTest {
   def testLinearLeaves(): Unit = {
     val trainingData = TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman)
 
-    val linearLearner = new LinearRegressionLearner().setHyper("regParam", 0.0)
-    val DTLearner = new RegressionTreeLearner(leafLearner = Some(linearLearner)).setHyper("minLeafInstances", 2)
+    val linearLearner = new LinearRegressionLearner(regParam = Some(0.0))
+    val DTLearner = new RegressionTreeLearner(leafLearner = Some(linearLearner), minLeafInstances = 2)
     val DTMeta = DTLearner.train(trainingData)
     val DT = DTMeta.getModel()
 
@@ -162,7 +162,7 @@ class RegressionTreeTest {
       inputBins = Seq((11, 8))
     ).asInstanceOf[Seq[(Vector[Any], Double)]]
 
-    val linearLearner = new LinearRegressionLearner().setHyper("regParam", 1.0)
+    val linearLearner = new LinearRegressionLearner(regParam = Some(1.0))
     val DTLearner = new RegressionTreeLearner(leafLearner = Some(linearLearner), maxDepth = 0)
     val DTMeta = DTLearner.train(trainingData)
     val DT = DTMeta.getModel()
@@ -191,7 +191,7 @@ class RegressionTreeTest {
   def testWeights(): Unit = {
     val trainingData = TestUtils.generateTrainingData(32, 12, noise = 100.0, function = Friedman.friedmanSilverman, seed = 3L)
 
-    val linearLearner = new LinearRegressionLearner().setHyper("regParam", 1.0)
+    val linearLearner = new LinearRegressionLearner(regParam = Some(1.0))
     val DTLearner = new RegressionTreeLearner(leafLearner = Some(linearLearner), maxDepth = 1)
     val DTMeta = DTLearner.train(trainingData, weights = Some(Seq.fill(trainingData.size){Random.nextInt(8)}))
     val DT = DTMeta.getModel()

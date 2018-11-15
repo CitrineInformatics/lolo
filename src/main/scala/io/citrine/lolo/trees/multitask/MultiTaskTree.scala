@@ -12,6 +12,8 @@ import io.citrine.lolo.{Model, MultiTaskLearner, PredictionResult, TrainingResul
   */
 class MultiTaskTreeLearner extends MultiTaskLearner {
 
+  override def getHypers(): Map[String, Any] = Map()
+
   /**
     * Train a model
     *
@@ -73,7 +75,7 @@ class MultiTaskTreeLearner extends MultiTaskLearner {
     }
 
     // Wrap the models in dead-simple training results and return
-    models.map(new MultiTaskTreeTrainingResult(_, hypers))
+    models.map(new MultiTaskTreeTrainingResult(_, getHypers()))
   }
 }
 

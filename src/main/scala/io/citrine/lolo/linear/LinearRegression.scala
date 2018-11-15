@@ -10,9 +10,17 @@ import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
   *
   * @param fitIntercept whether to fit an intercept or not
   */
-class LinearRegressionLearner(fitIntercept: Boolean = true) extends Learner {
+case class LinearRegressionLearner(
+                                    regParam: Option[Double] = None,
+                                    fitIntercept: Boolean = true
+                                  ) extends Learner {
 
-  setHypers(Map("regParam" -> 0.0, "fitIntercept" -> fitIntercept))
+  /**
+    * Get the hyperparameter map
+    *
+    * @return map of hyperparameters
+    */
+  override def getHypers(): Map[String, Any] = Map("regParam" -> 0.0, "fitIntercept" -> fitIntercept)
 
   /**
     * Train a linear model via direct inversion.
@@ -31,14 +39,14 @@ class LinearRegressionLearner(fitIntercept: Boolean = true) extends Learner {
       .map(_._2)
       .filterNot(i => trainingData.exists(_._1(i).asInstanceOf[Double].isNaN))
       .filterNot{i =>
-        val unregularized = !hypers.get("regParam").exists(_.asInstanceOf[Double] > 0.0)
+        val unregularized = !regParam.exists(_.asInstanceOf[Double] > 0.0)
         lazy val constant = trainingData.forall(_._1(i) == trainingData.head._1(i))
         unregularized && constant // remove constant features if there's no regularization
       }
 
 
     /* If we are fitting the intercept, add a row of 1s */
-    val At = if (hypers("fitIntercept").asInstanceOf[Boolean]) {
+    val At = if (fitIntercept) {
       new DenseMatrix(indices.size + 1, n, trainingData.map(r => indices.map(r._1(_).asInstanceOf[Double]) :+ 1.0).flatten.toArray)
     } else {
       new DenseMatrix(indices.size, n, trainingData.map(r => indices.map(r._1(_).asInstanceOf[Double])).flatten.toArray)
@@ -60,10 +68,10 @@ class LinearRegressionLearner(fitIntercept: Boolean = true) extends Learner {
       new DenseVector(trainingData.map(_._2.asInstanceOf[Double]).toArray)
     }
 
-    val beta = if (hypers("regParam").asInstanceOf[Double] > 0 || n >= k) {
+    val beta = if (regParam.exists(_ > 0) || n >= k) {
       /* Construct the regularized problem and solve it */
-      val regVector = Math.pow(hypers("regParam").asInstanceOf[Double], 2) * DenseVector.ones[Double](k)
-      if (hypers("fitIntercept").asInstanceOf[Boolean]) regVector(-1) = 0.0
+      val regVector = Math.pow(regParam.get, 2) * DenseVector.ones[Double](k)
+      if (fitIntercept) regVector(-1) = 0.0
       val M = At * A + diag(regVector)
       try {
         val Mi = pinv(M)
@@ -87,7 +95,7 @@ class LinearRegressionLearner(fitIntercept: Boolean = true) extends Learner {
     }
 
     /* If we fit the intercept, take it off the end of the coefficients */
-    val model = if (hypers("fitIntercept").asInstanceOf[Boolean]) {
+    val model = if (fitIntercept) {
       new LinearRegressionModel(beta(0 to -2), beta(-1), indices = indicesToModel)
     } else {
       new LinearRegressionModel(beta, 0.0, indices = indicesToModel)
@@ -119,8 +127,8 @@ class LinearRegressionTrainingResult(model: LinearRegressionModel, hypers: Map[S
     * @return feature influences as an array of doubles
     */
   override def getFeatureImportance(): Option[Vector[Double]] = {
-    val beta = model.getBeta().map(Math.abs)
-    val renorm = 1.0 / beta.sum
+    val beta: Vector[Double] = model.getBeta().map(Math.abs)
+    val renorm: Double = 1.0 / beta.sum
     Some(beta.map(_ * renorm))
   }
 }

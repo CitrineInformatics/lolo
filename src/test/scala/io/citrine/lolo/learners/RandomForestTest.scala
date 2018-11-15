@@ -21,7 +21,6 @@ class RandomForestTest {
     )
 
     val RFMeta = new RandomForest()
-      .setHyper("numFeatures", 3)
       .train(trainingData)
     val RF = RFMeta.getModel()
 
@@ -48,8 +47,7 @@ class RandomForestTest {
       TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman),
       inputBins = Seq((0, 8)), responseBins = Some(8)
     )
-    val RFMeta = new RandomForest()
-      .setHyper("numTrees", trainingData.size * 2)
+    val RFMeta = new RandomForest(numTrees = trainingData.size * 2)
       .train(trainingData)
     val RF = RFMeta.getModel()
 

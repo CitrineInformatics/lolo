@@ -5,7 +5,14 @@ import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
 /**
   * Created by maxhutch on 11/15/16.
   */
-class GuessTheMeanLearner extends Learner {
+case class GuessTheMeanLearner() extends Learner {
+
+  /**
+    * Get the hyperparameter map
+    *
+    * @return map of hyperparameters
+    */
+  override def getHypers(): Map[String, Any] = Map()
 
   /**
     * Train a model

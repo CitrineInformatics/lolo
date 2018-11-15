@@ -13,22 +13,15 @@ import scala.collection.parallel.immutable.ParSeq
   * @param method  learner to train each model in the ensemble
   * @param numBags number of models in the ensemble
   */
-class MultiTaskBagger(
+case class MultiTaskBagger(
                        method: MultiTaskLearner,
                        numBags: Int = -1,
                        useJackknife: Boolean = true,
                        biasLearner: Option[Learner] = None
                      ) extends MultiTaskLearner {
 
-  setHypers(Map("useJackknife" -> useJackknife, "numBags" -> numBags))
-
-  override def setHypers(moreHypers: Map[String, Any]): this.type = {
-    method.setHypers(moreHypers)
-    super.setHypers(moreHypers)
-  }
-
   override def getHypers(): Map[String, Any] = {
-    method.getHypers() ++ hypers
+    Map("useJackknife" -> useJackknife, "numBags" -> numBags)
   }
 
   private def combineImportance(v1: Option[Vector[Double]], v2: Option[Vector[Double]]): Option[Vector[Double]] = {
@@ -55,8 +48,8 @@ class MultiTaskBagger(
     val weightsActual = weights.getOrElse(Seq.fill(inputs.size)(1.0))
 
     /* Set default number of bags */
-    val actualBags = if (hypers("numBags").asInstanceOf[Int] > 0) {
-      hypers("numBags").asInstanceOf[Int]
+    val actualBags = if (numBags > 0) {
+      numBags
     } else {
       inputs.size
     }
@@ -91,10 +84,10 @@ class MultiTaskBagger(
       val trainingData = inputs.zip(labels(k))
       Async.canStop()
       if (biasLearner.isEmpty || !labels(k).head.isInstanceOf[Double]) {
-        new BaggedTrainingResult(m, getHypers(), averageImportance, Nib, inputs.zip(labels(k)), hypers("useJackknife").asInstanceOf[Boolean])
+        new BaggedTrainingResult(m, getHypers(), averageImportance, Nib, inputs.zip(labels(k)), useJackknife)
       } else {
         Async.canStop()
-        val baggedModel = new BaggedModel(m, Nib, hypers("useJackknife").asInstanceOf[Boolean])
+        val baggedModel = new BaggedModel(m, Nib, useJackknife)
         Async.canStop()
         val baggedRes = baggedModel.transform(trainingData.map(_._1))
         Async.canStop()
@@ -114,7 +107,7 @@ class MultiTaskBagger(
         val biasModel = biasLearner.get.train(biasTraining).getModel()
         Async.canStop()
 
-        new BaggedTrainingResult(m, getHypers(), averageImportance, Nib, trainingData, hypers("useJackknife").asInstanceOf[Boolean], Some(biasModel))
+        new BaggedTrainingResult(m, getHypers(), averageImportance, Nib, trainingData, useJackknife, Some(biasModel))
       }
     }.seq
   }

@@ -12,14 +12,7 @@ import io.citrine.lolo._
   */
 class Standardizer(baseLearner: Learner) extends Learner {
 
-  override def setHypers(moreHypers: Map[String, Any]): this.type = {
-    baseLearner.setHypers(moreHypers)
-    super.setHypers(moreHypers)
-  }
-
-  override def getHypers(): Map[String, Any] = {
-    baseLearner.getHypers() ++ hypers
-  }
+  override def getHypers(): Map[String, Any] = baseLearner.getHypers()
 
   /**
     * Create affine transformations for continuous features and labels; pass data through to learner
@@ -46,13 +39,8 @@ class Standardizer(baseLearner: Learner) extends Learner {
 
 class MultiTaskStandardizer(baseLearner: MultiTaskLearner) extends MultiTaskLearner {
 
-  override def setHypers(moreHypers: Map[String, Any]): this.type = {
-    baseLearner.setHypers(moreHypers)
-    super.setHypers(moreHypers)
-  }
-
   override def getHypers(): Map[String, Any] = {
-    baseLearner.getHypers() ++ hypers
+    baseLearner.getHypers()
   }
 
   /**

@@ -14,21 +14,15 @@ import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
   */
 class ClassificationTreeLearner(
                                  val numFeatures: Int = -1,
+                                 maxDepth: Int = 30,
+                                 minLeafInstances: Int = 1,
                                  leafLearner: Option[Learner] = None
                                ) extends Learner {
 
   val myLeafLearner: Learner = leafLearner.getOrElse(new GuessTheMeanLearner)
 
-  setHypers(Map("maxDepth" -> 30, "minLeafInstances" -> 1, "numFeatures" -> numFeatures))
-
-  override def setHypers(moreHypers: Map[String, Any]): this.type = {
-    hypers = hypers ++ moreHypers
-    myLeafLearner.setHypers(moreHypers)
-    this
-  }
-
   override def getHypers(): Map[String, Any] = {
-    myLeafLearner.getHypers() ++ hypers
+    myLeafLearner.getHypers() ++ Map("maxDepth" -> maxDepth, "minLeafInstances" -> 1, "numFeatures" -> numFeatures)
   }
 
   /**
@@ -41,7 +35,6 @@ class ClassificationTreeLearner(
   override def train(trainingData: Seq[(Vector[Any], Any)], weights: Option[Seq[Double]]): ClassificationTrainingResult = {
     assert(trainingData.size > 4, s"We need to have at least 4 rows, only ${trainingData.size} given")
     val repInput = trainingData.head._1
-    val maxDepth = hypers("maxDepth").asInstanceOf[Int]
 
     /* Create encoders for any categorical features */
     val inputEncoders: Seq[Option[CategoricalEncoder[Any]]] = repInput.zipWithIndex.map { case (v, i) =>
@@ -65,14 +58,14 @@ class ClassificationTreeLearner(
     }.filter(_._3 > 0).toVector
 
     /* If the number of features isn't specified, use all of them */
-    val numFeaturesActual = if (hypers("numFeatures").asInstanceOf[Int] > 0) {
-      hypers("numFeatures").asInstanceOf[Int]
+    val numFeaturesActual = if (numFeatures > 0) {
+      numFeatures
     } else {
       finalTraining.head._1.size
     }
 
     /* The tree is built of training nodes */
-    val (split, delta) = ClassificationSplitter.getBestSplit(finalTraining, numFeaturesActual, hypers("minLeafInstances").asInstanceOf[Int])
+    val (split, delta) = ClassificationSplitter.getBestSplit(finalTraining, numFeaturesActual, minLeafInstances)
     val rootTrainingNode = if (split.isInstanceOf[NoSplit] || maxDepth == 0) {
       new TrainingLeaf(finalTraining, myLeafLearner, 0)
     } else {
@@ -84,7 +77,7 @@ class ClassificationTreeLearner(
         numFeaturesActual,
         remainingDepth = maxDepth - 1,
         maxDepth = maxDepth,
-        minLeafInstances = hypers("minLeafInstances").asInstanceOf[Int]
+        minLeafInstances = minLeafInstances
       )
     }
 

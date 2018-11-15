@@ -16,25 +16,17 @@ import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
   * @param maxDepth    to grow the tree to
   * @param leafLearner learner to train the leaves with
   */
-class RegressionTreeLearner(
+case class RegressionTreeLearner(
                              numFeatures: Int = -1,
                              maxDepth: Int = 30,
+                             minLeafInstances: Int = 1,
                              leafLearner: Option[Learner] = None
                            ) extends Learner {
   /** Learner to use for training the leaves */
   val myLeafLearner = leafLearner.getOrElse(new GuessTheMeanLearner())
 
-  /** Hyperparameters */
-  setHypers(Map("minLeafInstances" -> 1, "maxDepth" -> maxDepth, "numFeatures" -> numFeatures))
-
-  override def setHypers(moreHypers: Map[String, Any]): this.type = {
-    hypers = hypers ++ moreHypers
-    myLeafLearner.setHypers(moreHypers)
-    this
-  }
-
   override def getHypers(): Map[String, Any] = {
-    myLeafLearner.getHypers() ++ hypers
+    myLeafLearner.getHypers() ++ Map("minLeafInstances" -> minLeafInstances, "maxDepth" -> maxDepth, "numFeatures" -> numFeatures)
   }
 
   /**
@@ -70,15 +62,15 @@ class RegressionTreeLearner(
     }.filter(_._3 > 0).toVector
 
     /* If the number of features isn't specified, use all of them */
-    val numFeaturesActual = if (hypers("numFeatures").asInstanceOf[Int] > 0) {
-      hypers("numFeatures").asInstanceOf[Int]
+    val numFeaturesActual = if (numFeatures > 0) {
+      numFeatures
     } else {
       finalTraining.head._1.size
     }
 
     /* The tree is built of training nodes */
-    val (split, delta) = RegressionSplitter.getBestSplit(finalTraining, numFeaturesActual, hypers("minLeafInstances").asInstanceOf[Int])
-    val rootTrainingNode: TrainingNode[AnyVal, Double] = if (split.isInstanceOf[NoSplit] || hypers("maxDepth").asInstanceOf[Int] == 0) {
+    val (split, delta) = RegressionSplitter.getBestSplit(finalTraining, numFeaturesActual, minLeafInstances)
+    val rootTrainingNode: TrainingNode[AnyVal, Double] = if (split.isInstanceOf[NoSplit] || maxDepth == 0) {
       new RegressionTrainingLeaf(finalTraining, myLeafLearner, 0)
     } else {
       new RegressionTrainingNode(
@@ -87,9 +79,9 @@ class RegressionTreeLearner(
         split,
         delta,
         numFeaturesActual,
-        minLeafInstances = hypers("minLeafInstances").asInstanceOf[Int],
-        remainingDepth = hypers("maxDepth").asInstanceOf[Int] - 1,
-        hypers("maxDepth").asInstanceOf[Int])
+        minLeafInstances = minLeafInstances,
+        remainingDepth = maxDepth - 1,
+        maxDepth)
     }
 
     /* Wrap them up in a regression tree */
