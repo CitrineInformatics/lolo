@@ -26,7 +26,7 @@ case class Bagger(
             ) extends Learner {
 
   override def getHypers(): Map[String, Any] = {
-    Map("useJackknife" -> useJackknife, "numBags" -> numBags)
+    method.getHypers() ++ Map("useJackknife" -> useJackknife, "numBags" -> numBags)
   }
 
 

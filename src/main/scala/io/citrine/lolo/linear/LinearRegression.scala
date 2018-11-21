@@ -70,7 +70,7 @@ case class LinearRegressionLearner(
 
     val beta = if (regParam.exists(_ > 0) || n >= k) {
       /* Construct the regularized problem and solve it */
-      val regVector = Math.pow(regParam.get, 2) * DenseVector.ones[Double](k)
+      val regVector = Math.pow(regParam.getOrElse(0.0), 2) * DenseVector.ones[Double](k)
       if (fitIntercept) regVector(-1) = 0.0
       val M = At * A + diag(regVector)
       try {
