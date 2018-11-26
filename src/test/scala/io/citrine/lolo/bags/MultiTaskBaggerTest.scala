@@ -67,11 +67,13 @@ class MultiTaskBaggerTest {
 
     val uncertainty = results.getUncertainty()
     assert(uncertainty.isDefined)
-    assert(trainingData.map(_._2).zip(uncertainty.get).forall { case (a, probs) =>
+    trainingData.map(_._2).zip(uncertainty.get).foreach { case (a, probs) =>
       val classProbabilities = probs.asInstanceOf[Map[Any, Double]]
       val maxProb = classProbabilities(a)
-      maxProb > 0.5 && maxProb < 1.0 && Math.abs(classProbabilities.values.sum - 1.0) < 1.0e-6
-    })
+      assert(maxProb >= 0.5)
+      assert(maxProb < 1.0)
+      assert(Math.abs(classProbabilities.values.sum - 1.0) < 1.0e-6)
+    }
     assert(results.getGradient().isEmpty, "Returned a gradient when there shouldn't be one")
   }
 
