@@ -65,6 +65,38 @@ class RandomForestTest {
     })
   }
 
+  /**
+    * Test that the regression forest does the same thing as the regression bagger
+    */
+  @Test
+  def testTreeConvergence(): Unit = {
+    val nRow = 1024
+    val (trainingData, testData) = TestUtils.binTrainingData(
+      TestUtils.generateTrainingData(nRow * 2, 12, noise = 0.1, function = Friedman.friedmanSilverman),
+      inputBins = Seq((0, 8))
+    ).splitAt(nRow)
+
+    val (ucurve, ecurve) = Seq(2 * nRow, nRow, nRow / 2, nRow / 4).map{nTree =>
+      val RFMeta = RandomForest(numTrees = nTree).train(trainingData)
+      val RF = RFMeta.getModel()
+      val results = RF.transform(testData.map(_._1))
+      val sigma: Seq[Double] = results.getUncertainty().get.asInstanceOf[Seq[Double]]
+      assert(sigma.forall(_ >= 0.0))
+      assert(results.getGradient().isEmpty, "Returned a gradient when there shouldn't be one")
+
+      /* The first feature should be the most important */
+      val importances = RFMeta.getFeatureImportance().get
+      assert(importances(1) == importances.max)
+
+      val totalUncertainty = sigma.sum
+      val totalError = results.getExpected().zip(testData.map(_._2)).map{case (x: Double, y: Double) => Math.abs(x - y)}.sum
+      ((nTree, totalUncertainty), (nTree, totalError))
+    }.unzip
+    println(ecurve)
+    println(ucurve)
+    println(ucurve.map{case (idx, u) => (idx, u / ucurve.head._2)})
+  }
+
 }
 
 object RandomForestTest {
