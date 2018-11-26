@@ -60,7 +60,7 @@ class MultiTaskSplitterTest {
     )
     val labels = Vector(Array(1.238, null), Array(1.180, null))
     val weights = Vector(1.0, 1.0)
-    val data = inputs.indices.map{i =>
+    val data = inputs.indices.map { i =>
       (inputs(i), labels(i).asInstanceOf[Array[AnyVal]], weights(i))
     }
     val (pivot, impurity) = MultiTaskSplitter.getBestSplit(data, data.head._1.size, 1)

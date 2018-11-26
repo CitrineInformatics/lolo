@@ -10,7 +10,7 @@ import io.citrine.lolo._
   *
   * Created by maxhutch on 2/19/17.
   */
-class Standardizer(baseLearner: Learner) extends Learner {
+case class Standardizer(baseLearner: Learner) extends Learner {
 
   override def getHypers(): Map[String, Any] = baseLearner.getHypers()
 
@@ -53,7 +53,7 @@ class MultiTaskStandardizer(baseLearner: MultiTaskLearner) extends MultiTaskLear
     */
   override def train(inputs: Seq[Vector[Any]], labels: Seq[Seq[Any]], weights: Option[Seq[Double]]): Seq[TrainingResult] = {
     val inputTrans = Standardizer.getMultiStandardization(inputs)
-    val outputTrans: Seq[Option[(Double, Double)]] = labels.map{ labelSeq =>
+    val outputTrans: Seq[Option[(Double, Double)]] = labels.map { labelSeq =>
       if (labelSeq.head != null && labelSeq.head.isInstanceOf[Double]) {
         Some(Standardizer.getStandardization(labelSeq.asInstanceOf[Seq[Double]].filterNot(_.isNaN())))
       } else {
@@ -61,13 +61,13 @@ class MultiTaskStandardizer(baseLearner: MultiTaskLearner) extends MultiTaskLear
       }
     }
     val standardInputs = Standardizer.applyStandardization(inputs, inputTrans)
-    val standardLabels = labels.zip(outputTrans).map{ case (labelSeq, trans) =>
-        Standardizer.applyStandardization(labelSeq, trans)
+    val standardLabels = labels.zip(outputTrans).map { case (labelSeq, trans) =>
+      Standardizer.applyStandardization(labelSeq, trans)
     }
 
     val baseTrainingResult = baseLearner.train(standardInputs, standardLabels, weights)
 
-    baseTrainingResult.zip(outputTrans).map{case (base, trans) =>
+    baseTrainingResult.zip(outputTrans).map { case (base, trans) =>
       new StandardizerTrainingResult(base, Seq(trans) ++ inputTrans, getHypers())
     }
   }

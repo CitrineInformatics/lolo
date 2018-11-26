@@ -7,6 +7,7 @@ trait MultiTaskLearner extends Serializable {
 
   /**
     * Get the hyperparameter map
+    *
     * @return map of hyperparameters
     */
   def getHypers(): Map[String, Any]
@@ -14,8 +15,8 @@ trait MultiTaskLearner extends Serializable {
   /**
     * Train a model
     *
-    * @param inputs to train on
-    * @param labels sequence of sequences of labels
+    * @param inputs  to train on
+    * @param labels  sequence of sequences of labels
     * @param weights for the training rows, if applicable
     * @return a sequence of training results, one for each label
     */

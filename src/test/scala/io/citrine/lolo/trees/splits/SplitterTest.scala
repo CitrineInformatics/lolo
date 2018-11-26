@@ -53,7 +53,7 @@ class SplitterTest {
   @Test
   def testLargeDuplicates(): Unit = {
     val base: Double = 3.0e9
-    val trainingData = Seq.fill(8){
+    val trainingData = Seq.fill(8) {
       (Vector(base + Random.nextDouble()), Random.nextDouble(), 1.0)
     }
 

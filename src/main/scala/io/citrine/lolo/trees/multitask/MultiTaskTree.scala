@@ -10,7 +10,7 @@ import io.citrine.lolo.{Model, MultiTaskLearner, PredictionResult, TrainingResul
   * Multi-task tree learner, which produces multiple decision trees with the same split structure
   *
   */
-class MultiTaskTreeLearner extends MultiTaskLearner {
+case class MultiTaskTreeLearner() extends MultiTaskLearner {
 
   override def getHypers(): Map[String, Any] = Map()
 

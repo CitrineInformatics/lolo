@@ -26,8 +26,8 @@ class BaggerTest {
       TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman),
       inputBins = Seq((0, 8))
     )
-    val DTLearner = new RegressionTreeLearner(numFeatures = 3)
-    val baggedLearner = new Bagger(DTLearner, numBags = trainingData.size)
+    val DTLearner = RegressionTreeLearner(numFeatures = 3)
+    val baggedLearner = Bagger(DTLearner, numBags = trainingData.size)
     val RFMeta = baggedLearner.train(trainingData)
     val RF = RFMeta.getModel()
 
@@ -56,8 +56,8 @@ class BaggerTest {
       TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman),
       inputBins = Seq((0, 8)), responseBins = Some(8)
     )
-    val DTLearner = new ClassificationTreeLearner()
-    val baggedLearner = new Bagger(DTLearner, numBags = trainingData.size / 2)
+    val DTLearner = ClassificationTreeLearner()
+    val baggedLearner = Bagger(DTLearner, numBags = trainingData.size / 2)
     val RFMeta = baggedLearner.train(trainingData)
     val RF = RFMeta.getModel()
 
@@ -95,13 +95,13 @@ class BaggerTest {
     val nFeatures = 5
     val bagsPerRow = 4 // picked to be large enough that bias correction is small but model isn't too expensive
     val trainingData = TestUtils.generateTrainingData(128, nFeatures, xscale = width, seed = Random.nextLong())
-    val DTLearner = new RegressionTreeLearner(numFeatures = nFeatures)
-    val bias = new RegressionTreeLearner(maxDepth = 4)
-    val baggedLearner = new Bagger(DTLearner, numBags = bagsPerRow * trainingData.size, biasLearner = Some(bias))
+    val DTLearner = RegressionTreeLearner(numFeatures = nFeatures)
+    val bias = RegressionTreeLearner(maxDepth = 4)
+    val baggedLearner = Bagger(DTLearner, numBags = bagsPerRow * trainingData.size, biasLearner = Some(bias))
     val RFMeta = baggedLearner.train(trainingData)
     val RF = RFMeta.getModel()
 
-    val interiorTestSet = TestUtils.generateTrainingData(128, nFeatures, xscale = width/2.0, xoff = width/4.0, seed = Random.nextLong())
+    val interiorTestSet = TestUtils.generateTrainingData(128, nFeatures, xscale = width / 2.0, xoff = width / 4.0, seed = Random.nextLong())
     val fullTestSet = TestUtils.generateTrainingData(128, nFeatures, xscale = width, seed = Random.nextLong())
 
     val interiorStandardRMSE = BaggerTest.getStandardRMSE(interiorTestSet, RF)
@@ -126,8 +126,8 @@ class BaggerTest {
   def testScores(): Unit = {
     val csv = TestUtils.readCsv("double_example.csv")
     val trainingData = csv.map(vec => (vec.init, vec.last.asInstanceOf[Double]))
-    val DTLearner = new RegressionTreeLearner()
-    val baggedLearner = new Bagger(DTLearner, numBags = trainingData.size * 16) // use lots of trees to reduce noise
+    val DTLearner = RegressionTreeLearner()
+    val baggedLearner = Bagger(DTLearner, numBags = trainingData.size * 16) // use lots of trees to reduce noise
     val RF = baggedLearner.train(trainingData).getModel()
 
     /* Call transform on the training data */
@@ -146,8 +146,8 @@ class BaggerTest {
   @Test
   def testInterrupt(): Unit = {
     val trainingData = TestUtils.generateTrainingData(2048, 12, noise = 0.1, function = Friedman.friedmanSilverman)
-    val DTLearner = new RegressionTreeLearner(numFeatures = 3)
-    val baggedLearner = new Bagger(DTLearner, numBags = trainingData.size)
+    val DTLearner = RegressionTreeLearner(numFeatures = 3)
+    val baggedLearner = Bagger(DTLearner, numBags = trainingData.size)
 
     // Create a future to run train
     val tmpPool = Executors.newFixedThreadPool(1)
@@ -209,7 +209,7 @@ object BaggerTest {
         predictions.getUncertainty().get.asInstanceOf[Seq[Double]]
       )
     )
-    val standardError = pva.map{ case (a: Double, (p: Double, u: Double)) =>
+    val standardError = pva.map { case (a: Double, (p: Double, u: Double)) =>
       Math.abs(a - p) / u
     }
     Math.sqrt(standardError.map(Math.pow(_, 2.0)).sum / testSet.size)

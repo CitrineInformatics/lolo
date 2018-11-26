@@ -1,6 +1,6 @@
 package io.citrine.lolo.linear
 
-import breeze.linalg.{DenseMatrix, DenseVector, diag, inv, norm, pinv, sum, trace}
+import breeze.linalg.{DenseMatrix, DenseVector, diag, pinv, sum}
 import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
 
 /**
@@ -38,7 +38,7 @@ case class LinearRegressionLearner(
       .filterNot(_._1.asInstanceOf[Double].isNaN)
       .map(_._2)
       .filterNot(i => trainingData.exists(_._1(i).asInstanceOf[Double].isNaN))
-      .filterNot{i =>
+      .filterNot { i =>
         val unregularized = !regParam.exists(_.asInstanceOf[Double] > 0.0)
         lazy val constant = trainingData.forall(_._1(i) == trainingData.head._1(i))
         unregularized && constant // remove constant features if there's no regularization
@@ -79,7 +79,7 @@ case class LinearRegressionLearner(
         Mi * At * b
       } catch {
         case x: Throwable =>
-          val mean = if (weightsMatrix.isDefined) sum(b)/weights.get.sum else sum(b) / b.length
+          val mean = if (weightsMatrix.isDefined) sum(b) / weights.get.sum else sum(b) / b.length
           val res = DenseVector.zeros[Double](k)
           res(-1) = mean
           res
@@ -154,7 +154,7 @@ class LinearRegressionModel(
     * @return a predictionresult which includes, at least, the expected outputs
     */
   override def transform(inputs: Seq[Vector[Any]]): LinearRegressionResult = {
-    val filteredInputs = indices.map{case (ind, size) => inputs.map(inp => ind.map(inp(_)))}.getOrElse(inputs).flatten.asInstanceOf[Seq[Double]]
+    val filteredInputs = indices.map { case (ind, size) => inputs.map(inp => ind.map(inp(_))) }.getOrElse(inputs).flatten.asInstanceOf[Seq[Double]]
     val inputMatrix = new DenseMatrix(filteredInputs.size / inputs.size, inputs.size,
       filteredInputs.toArray
     )
@@ -165,6 +165,7 @@ class LinearRegressionModel(
   }
 
   /**
+    *
     * Get the beta from the linear model \beta^T X = y
     * @return beta as a vector of double
     */

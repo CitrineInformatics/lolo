@@ -14,11 +14,11 @@ import scala.collection.parallel.immutable.ParSeq
   * @param numBags number of models in the ensemble
   */
 case class MultiTaskBagger(
-                       method: MultiTaskLearner,
-                       numBags: Int = -1,
-                       useJackknife: Boolean = true,
-                       biasLearner: Option[Learner] = None
-                     ) extends MultiTaskLearner {
+                            method: MultiTaskLearner,
+                            numBags: Int = -1,
+                            useJackknife: Boolean = true,
+                            biasLearner: Option[Learner] = None
+                          ) extends MultiTaskLearner {
 
   override def getHypers(): Map[String, Any] = {
     Map("useJackknife" -> useJackknife, "numBags" -> numBags)

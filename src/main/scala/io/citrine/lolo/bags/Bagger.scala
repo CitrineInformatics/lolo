@@ -19,11 +19,11 @@ import scala.collection.parallel.immutable.ParSeq
   * @param numBags number of models in the ensemble
   */
 case class Bagger(
-              method: Learner,
-              numBags: Int = -1,
-              useJackknife: Boolean = true,
-              biasLearner: Option[Learner] = None
-            ) extends Learner {
+                   method: Learner,
+                   numBags: Int = -1,
+                   useJackknife: Boolean = true,
+                   biasLearner: Option[Learner] = None
+                 ) extends Learner {
 
   override def getHypers(): Map[String, Any] = {
     method.getHypers() ++ Map("useJackknife" -> useJackknife, "numBags" -> numBags)
@@ -79,7 +79,9 @@ case class Bagger(
     }.unzip
 
     // Average the feature importances
-    val averageImportance: Option[Vector[Double]] = importances.reduce{combineImportance}.map(_.map(_ / importances.size))
+    val averageImportance: Option[Vector[Double]] = importances.reduce {
+      combineImportance
+    }.map(_.map(_ / importances.size))
 
     /* Wrap the models in a BaggedModel object */
     if (biasLearner.isEmpty) {
@@ -124,7 +126,7 @@ class BaggedTrainingResult(
   lazy val rep = trainingData.find(_._2 != null).get._2
   lazy val predictedVsActual = trainingData.zip(NibT).flatMap { case ((f, l), nb) =>
     val oob = models.zip(nb).filter(_._2 == 0)
-    if (oob.isEmpty || l == null || (l.isInstanceOf[Double] && l.asInstanceOf[Double].isNaN) ) {
+    if (oob.isEmpty || l == null || (l.isInstanceOf[Double] && l.asInstanceOf[Double].isNaN)) {
       Seq()
     } else {
       val predicted = l match {

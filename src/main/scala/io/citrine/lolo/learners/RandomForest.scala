@@ -17,12 +17,12 @@ import io.citrine.lolo.{Learner, TrainingResult}
   *                       (auto => 1/3 for regression, sqrt for classification)
   */
 case class RandomForest(
-                    numTrees: Int = -1,
-                    useJackknife: Boolean = true,
-                    biasLearner: Option[Learner] = None,
-                    leafLearner: Option[Learner] = None,
-                    subsetStrategy: Any = "auto"
-                  ) extends Learner {
+                         numTrees: Int = -1,
+                         useJackknife: Boolean = true,
+                         biasLearner: Option[Learner] = None,
+                         leafLearner: Option[Learner] = None,
+                         subsetStrategy: Any = "auto"
+                       ) extends Learner {
 
   override def getHypers(): Map[String, Any] = {
     Map(
@@ -61,10 +61,10 @@ case class RandomForest(
           case x: Double =>
             (trainingData.head._1.size * x).toInt
         }
-        val DTLearner = new RegressionTreeLearner(
+        val DTLearner = RegressionTreeLearner(
           leafLearner = leafLearner,
           numFeatures = numFeatures)
-        val bagger = new Bagger(DTLearner,
+        val bagger = Bagger(DTLearner,
           numBags = numTrees,
           useJackknife = useJackknife,
           biasLearner = biasLearner
@@ -85,8 +85,8 @@ case class RandomForest(
           case x: Double =>
             (trainingData.head._1.size * x).toInt
         }
-        val DTLearner = new ClassificationTreeLearner(numFeatures = numFeatures)
-        val bagger = new Bagger(DTLearner,
+        val DTLearner = ClassificationTreeLearner(numFeatures = numFeatures)
+        val bagger = Bagger(DTLearner,
           numBags = numTrees
         )
         bagger.train(trainingData, weights)

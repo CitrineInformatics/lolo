@@ -53,11 +53,11 @@ class StandardizerTest {
     */
   @Test
   def testStandardGTM(): Unit = {
-    val learner = new GuessTheMeanLearner
+    val learner = GuessTheMeanLearner()
     val model = learner.train(data).getModel()
     val result = model.transform(data.map(_._1)).getExpected()
 
-    val standardLearner = new Standardizer(new GuessTheMeanLearner)
+    val standardLearner = Standardizer(GuessTheMeanLearner())
     val standardModel = standardLearner.train(data).getModel()
     val standardResult = standardModel.transform(data.map(_._1)).getExpected()
 
@@ -71,13 +71,13 @@ class StandardizerTest {
     */
   @Test
   def testStandardLinear(): Unit = {
-    val learner = new LinearRegressionLearner()
+    val learner = LinearRegressionLearner()
     val model = learner.train(data, Some(weights)).getModel()
     val result = model.transform(data.map(_._1))
     val expected = result.getExpected()
     val gradient = result.getGradient()
 
-    val standardLearner = new Standardizer(learner)
+    val standardLearner = Standardizer(learner)
     val standardModel = standardLearner.train(data, Some(weights)).getModel()
     val standardResult = standardModel.transform(data.map(_._1))
     val standardExpected = standardResult.getExpected()
@@ -101,13 +101,13 @@ class StandardizerTest {
     */
   @Test
   def testStandardWithConstantFeature(): Unit = {
-    val learner = new LinearRegressionLearner()
+    val learner = LinearRegressionLearner()
     val model = learner.train(dataWithConstant, Some(weights)).getModel()
     val result = model.transform(dataWithConstant.map(_._1))
     val expected = result.getExpected()
     val gradient = result.getGradient()
 
-    val standardLearner = new Standardizer(learner)
+    val standardLearner = Standardizer(learner)
     val standardModel = standardLearner.train(dataWithConstant, Some(weights)).getModel()
     val standardResult = standardModel.transform(dataWithConstant.map(_._1))
     val standardExpected = standardResult.getExpected()
@@ -138,7 +138,7 @@ class StandardizerTest {
     */
   @Test
   def testStandardRidge(): Unit = {
-    val learner = new LinearRegressionLearner(regParam = Some(1.0))
+    val learner = LinearRegressionLearner(regParam = Some(1.0))
     val model = learner.train(data).getModel()
     val result = model.transform(data.map(_._1)).getExpected()
 
@@ -159,11 +159,11 @@ class StandardizerTest {
       responseBins = Some(2)
     )
 
-    val learner = new ClassificationTreeLearner()
+    val learner = ClassificationTreeLearner()
     val model = learner.train(trainingData).getModel()
     val result = model.transform(trainingData.map(_._1)).getExpected()
 
-    val standardLearner = new Standardizer(learner)
+    val standardLearner = Standardizer(learner)
     val standardModel = standardLearner.train(trainingData).getModel()
     val standardResult = standardModel.transform(trainingData.map(_._1)).getExpected()
     result.zip(standardResult).foreach { case (free: String, standard: String) =>
@@ -188,8 +188,8 @@ class StandardizerTest {
     val rescaledLabel = doubleLabel.map(_ * scale)
 
     // Train and evaluate standard models on original and rescaled labels
-    val standardizer = new MultiTaskStandardizer(new MultiTaskTreeLearner())
-    val baseRes     = standardizer.train(inputs, Seq(doubleLabel,   sparseCatLabel)).last.getModel().transform(inputs).getExpected()
+    val standardizer = new MultiTaskStandardizer(MultiTaskTreeLearner())
+    val baseRes = standardizer.train(inputs, Seq(doubleLabel, sparseCatLabel)).last.getModel().transform(inputs).getExpected()
     val standardRes = standardizer.train(inputs, Seq(rescaledLabel, sparseCatLabel)).last.getModel().transform(inputs).getExpected()
     // Train and evaluate unstandardized model on rescaled labels
 

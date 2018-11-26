@@ -7,6 +7,7 @@ trait Learner extends Serializable {
 
   /**
     * Get the hyperparameter map
+    *
     * @return map of hyperparameters
     */
   def getHypers(): Map[String, Any]

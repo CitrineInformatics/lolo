@@ -16,7 +16,7 @@ class ClassificationMetricsTest {
   def testSparse(): Unit = {
     val N = 512
     /* Make random predictions */
-    val pva = Seq.tabulate(N){i =>
+    val pva = Seq.tabulate(N) { i =>
       (Vector(0.0), Random.nextInt(N).toString, Random.nextInt(N).toString)
     }
     val loss = ClassificationMetrics.f1scores(pva)

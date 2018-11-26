@@ -38,7 +38,7 @@ object TestUtils {
                             seed: Long = 0L
                           ): Vector[(Vector[Double], Double)] = {
     val rnd = new Random(seed)
-    Vector.fill(rows){
+    Vector.fill(rows) {
       val input = Vector.fill(cols)(xscale * rnd.nextDouble() + xoff)
       (input, function(input) + noise * rnd.nextGaussian())
     }
@@ -49,10 +49,10 @@ object TestUtils {
                       responseBins: Option[Int] = None
                      ): Seq[(Vector[Any], Any)] = {
     var outputData: Seq[(Vector[Any], Any)] = continuousData
-    inputBins.foreach{ case (index, nBins) =>
-        outputData = outputData.map{ case (input, response) =>
-          (input.updated(index, Math.round(input(index).asInstanceOf[Double] * nBins).toString), response)
-        }
+    inputBins.foreach { case (index, nBins) =>
+      outputData = outputData.map { case (input, response) =>
+        (input.updated(index, Math.round(input(index).asInstanceOf[Double] * nBins).toString), response)
+      }
     }
     responseBins.foreach { nBins =>
       val max = continuousData.map(_._2).max

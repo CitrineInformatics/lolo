@@ -8,12 +8,14 @@ abstract trait TrainingResult extends Serializable {
 
   /**
     * Get the model contained in the training result
+    *
     * @return the model
     */
   def getModel(): Model[PredictionResult[Any]]
 
   /**
     * Get the hyperparameters used to train this model
+    *
     * @return hypers set for model
     */
   def getHypers(): Map[String, Any]
@@ -27,12 +29,14 @@ abstract trait TrainingResult extends Serializable {
 
   /**
     * Get a measure of the loss of the model, e.g. RMS OOB error
+    *
     * @return
     */
   def getLoss(): Option[Double] = None
 
   /**
     * Get the predicted vs actual values, e.g. from OOB
+    *
     * @return seq of (feature vector, predicted value, and actual value)
     */
   def getPredictedVsActual(): Option[Seq[(Vector[Any], Any, Any)]] = None

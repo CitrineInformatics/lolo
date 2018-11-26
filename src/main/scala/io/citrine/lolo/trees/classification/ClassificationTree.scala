@@ -12,14 +12,14 @@ import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
   *
   * @param numFeatures subset of features to select splits from
   */
-class ClassificationTreeLearner(
-                                 val numFeatures: Int = -1,
-                                 maxDepth: Int = 30,
-                                 minLeafInstances: Int = 1,
-                                 leafLearner: Option[Learner] = None
-                               ) extends Learner {
+case class ClassificationTreeLearner(
+                                      numFeatures: Int = -1,
+                                      maxDepth: Int = 30,
+                                      minLeafInstances: Int = 1,
+                                      leafLearner: Option[Learner] = None
+                                    ) extends Learner {
 
-  val myLeafLearner: Learner = leafLearner.getOrElse(new GuessTheMeanLearner)
+  @transient private lazy val myLeafLearner: Learner = leafLearner.getOrElse(new GuessTheMeanLearner)
 
   override def getHypers(): Map[String, Any] = {
     myLeafLearner.getHypers() ++ Map("maxDepth" -> maxDepth, "minLeafInstances" -> 1, "numFeatures" -> numFeatures)

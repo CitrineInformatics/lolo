@@ -3,7 +3,7 @@ package io.citrine.lolo.trees.regression
 import io.citrine.lolo.encoders.CategoricalEncoder
 import io.citrine.lolo.linear.GuessTheMeanLearner
 import io.citrine.lolo.trees.splits.{NoSplit, RegressionSplitter}
-import io.citrine.lolo.trees.{ModelNode, TrainingLeaf, TrainingNode, TreeMeta}
+import io.citrine.lolo.trees.{ModelNode, TrainingNode, TreeMeta}
 import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
 
 
@@ -17,11 +17,11 @@ import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
   * @param leafLearner learner to train the leaves with
   */
 case class RegressionTreeLearner(
-                             numFeatures: Int = -1,
-                             maxDepth: Int = 30,
-                             minLeafInstances: Int = 1,
-                             leafLearner: Option[Learner] = None
-                           ) extends Learner {
+                                  numFeatures: Int = -1,
+                                  maxDepth: Int = 30,
+                                  minLeafInstances: Int = 1,
+                                  leafLearner: Option[Learner] = None
+                                ) extends Learner {
   /** Learner to use for training the leaves */
   val myLeafLearner = leafLearner.getOrElse(new GuessTheMeanLearner())
 

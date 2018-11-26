@@ -1,7 +1,7 @@
 package io.citrine.lolo.trees.regression
 
 import io.citrine.lolo.trees.splits.{NoSplit, RegressionSplitter, Split}
-import io.citrine.lolo.trees.{InternalModelNode, ModelNode, TrainingLeaf, TrainingNode}
+import io.citrine.lolo.trees.{InternalModelNode, ModelNode, TrainingNode}
 import io.citrine.lolo.{Learner, PredictionResult}
 
 /**
@@ -47,6 +47,7 @@ class RegressionTrainingNode(
     *
     * This routine sums the importance from the children and adds the local
     * improvement to the feature used in this split
+    *
     * @return feature importance as a vector
     */
   override def getFeatureImportance(): scala.collection.mutable.ArraySeq[Double] = {
