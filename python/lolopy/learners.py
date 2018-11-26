@@ -19,20 +19,14 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
         self.model_ = None
 
     def fit(self, X, y, weights=None):
-
         # Instantiate the JVM object
         learner = self._make_learner()
 
         # Convert all of the training data to Java arrays
-        train_data, weights_java = self._convert_train_data(X, y, weights)
+        train_data = self._convert_train_data(X, y, weights)
 
-        # Make the weights
-        if weights is None:
-            result = learner.train(train_data)
-        else:
-            # Call training with weights
-            #  We encapsulate weights in "scale.Some" to make it an "Optional" class
-            result = learner.train(train_data, self.gateway.jvm.scala.Some(weights_java))
+        # Train the model
+        result = learner.train(train_data)
 
         # Get the model out
         self.model_ = result.getModel()
@@ -43,7 +37,8 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
     def _make_learner(self):
         """Instantiate the learner used by Lolo to train a model
 
-        Ret"""
+        Returns:
+            (JavaObject) A lolo "Learner" object, which can be used to train a model"""
         pass
 
     def _convert_train_data(self, X, y, weights=None):
@@ -55,12 +50,15 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
             weights (ndarray): Wegihts for each sample
         Returns
             train_data (JavaObject): Pointer to the training data in Java
-            weights_java (JavaObject): POinter to the weights in Java, if provided
         """
+
+        # Make some default weights
+        if weights is None:
+            weights = [1.] * len(y)
 
         # Convert X and y to Java Objects
         train_data = self.gateway.jvm.java.util.ArrayList(len(y))
-        for x_i, y_i in zip(X, y):
+        for x_i, y_i, w_i in zip(X, y, weights):
             # Copy the X into an array
             x_i_java = ListConverter().convert(x_i, self.gateway._gateway_client)
             x_i_java = self.gateway.jvm.scala.collection.JavaConverters.asScalaBuffer(
@@ -72,25 +70,14 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
             else:
                 y_i = int(y_i)
 
-            # If weights are None, RF expects a 3ple
-            if weights is None:
-                pair = self.gateway.jvm.scala.Tuple3(x_i_java, y_i, 1.0)
-            else:
-                pair = self.gateway.jvm.scala.Tuple2(x_i_java, y_i)
+            # Make the data row
+            row = self.gateway.jvm.scala.Tuple3(x_i_java, y_i, w_i)
 
             # Append to training data list
-            train_data.append(pair)
+            train_data.append(row)
         train_data = self.gateway.jvm.scala.collection.JavaConverters.asScalaBuffer(train_data)
 
-        # Convert weights, if needed
-        if weights is not None:
-            # Convert weights to scala array
-            weights_java = ListConverter().convert(weights, self.gateway._gateway_client)
-            weights_java = self.gateway.jvm.scala.collection.JavaConverters.asScalaBuffer(weights_java)
-
-            return train_data, weights_java
-
-        return train_data, None
+        return train_data
 
     def _convert_run_data(self, X):
         """Convert the data to be run by the model
@@ -131,11 +118,6 @@ class BaseRandomForest(BaseLoloLearner):
         self.subsetStrategy = subsetStrategy
 
     def _make_learner(self):
-        """Instantiate the learner used by Lolo to train a model
-
-        Returns:
-            (JavaObject) A lolo "Learner" object, which can be used to train a model
-        """
         #  TODO: Figure our a more succinct way of dealing with optional arguments/Option values
         #  TODO: Do not hard-code use of RandomForest
         learner = self.gateway.jvm.io.citrine.lolo.learners.RandomForest(
