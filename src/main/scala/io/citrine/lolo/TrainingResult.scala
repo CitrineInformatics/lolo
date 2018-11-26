@@ -3,7 +3,6 @@ package io.citrine.lolo
 /**
   * Created by maxhutch on 12/4/16.
   */
-@SerialVersionUID(999L)
 trait TrainingResult extends Serializable {
 
   /**

@@ -45,7 +45,6 @@ trait ModelNode[T <: PredictionResult[Any]] extends Serializable {
   * @param right branch node
   * @tparam T type of the output
   */
-@SerialVersionUID(999L)
 class InternalModelNode[T <: PredictionResult[Any]](
                                                      split: Split,
                                                      left: ModelNode[T],

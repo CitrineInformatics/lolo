@@ -25,12 +25,10 @@ case class GuessTheMeanLearner() extends Learner {
   }
 }
 
-@SerialVersionUID(999L)
 class GuessTheMeanTrainingResult[T](model: GuessTheMeanModel[T]) extends TrainingResult {
   override def getModel(): Model[GuessTheMeanResult[T]] = model
 }
 
-@SerialVersionUID(1000L)
 class GuessTheMeanModel[T](mean: T) extends Model[GuessTheMeanResult[T]] {
 
   def transform(inputs: Seq[Vector[Any]]): GuessTheMeanResult[T] = {

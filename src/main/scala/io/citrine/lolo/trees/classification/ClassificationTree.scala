@@ -82,7 +82,6 @@ case class ClassificationTreeLearner(
   }
 }
 
-@SerialVersionUID(999L)
 class ClassificationTrainingResult(
                                     rootTrainingNode: TrainingNode[AnyVal, Char],
                                     inputEncoders: Seq[Option[CategoricalEncoder[Any]]],
@@ -114,7 +113,6 @@ class ClassificationTrainingResult(
 /**
   * Classification tree
   */
-@SerialVersionUID(999L)
 class ClassificationTree(
                           rootModelNode: ModelNode[PredictionResult[Char]],
                           inputEncoders: Seq[Option[CategoricalEncoder[Any]]],

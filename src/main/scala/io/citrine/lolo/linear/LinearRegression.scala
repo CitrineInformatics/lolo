@@ -103,7 +103,6 @@ case class LinearRegressionLearner(
   *
   * @param model contained
   */
-@SerialVersionUID(998L)
 class LinearRegressionTrainingResult(model: LinearRegressionModel) extends TrainingResult {
 
   override def getModel(): LinearRegressionModel = model
@@ -127,7 +126,6 @@ class LinearRegressionTrainingResult(model: LinearRegressionModel) extends Train
   * @param intercept intercept
   * @param indices   optional indices from which to extract real features
   */
-@SerialVersionUID(1000L)
 class LinearRegressionModel(
                              beta: DenseVector[Double],
                              intercept: Double,
