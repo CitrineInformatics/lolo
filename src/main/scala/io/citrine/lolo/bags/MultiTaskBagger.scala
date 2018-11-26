@@ -21,7 +21,7 @@ case class MultiTaskBagger(
                           ) extends MultiTaskLearner {
 
   override def getHypers(): Map[String, Any] = {
-    Map("useJackknife" -> useJackknife, "numBags" -> numBags)
+    method.getHypers() ++ Map("useJackknife" -> useJackknife, "numBags" -> numBags)
   }
 
   private def combineImportance(v1: Option[Vector[Double]], v2: Option[Vector[Double]]): Option[Vector[Double]] = {
