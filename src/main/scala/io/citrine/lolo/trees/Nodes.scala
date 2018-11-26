@@ -1,7 +1,7 @@
 package io.citrine.lolo.trees
 
-import io.citrine.lolo.{Learner, Model, PredictionResult}
 import io.citrine.lolo.trees.splits.Split
+import io.citrine.lolo.{Learner, Model, PredictionResult}
 
 import scala.collection.mutable
 
@@ -45,7 +45,6 @@ trait ModelNode[T <: PredictionResult[Any]] extends Serializable {
   * @param right branch node
   * @tparam T type of the output
   */
-@SerialVersionUID(999L)
 class InternalModelNode[T <: PredictionResult[Any]](
                                                      split: Split,
                                                      left: ModelNode[T],
@@ -72,10 +71,10 @@ class InternalModelNode[T <: PredictionResult[Any]](
   * @param trainingData to train on
   */
 class TrainingLeaf[T](
-                              trainingData: Seq[(Vector[AnyVal], T, Double)],
-                              leafLearner: Learner,
-                              depth: Int
-                            ) extends TrainingNode(
+                       trainingData: Seq[(Vector[AnyVal], T, Double)],
+                       leafLearner: Learner,
+                       depth: Int
+                     ) extends TrainingNode(
   trainingData = trainingData,
   remainingDepth = 0
 ) {

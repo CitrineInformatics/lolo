@@ -1,8 +1,8 @@
 package io.citrine.lolo.trees.classification
 
-import io.citrine.lolo.{Learner, PredictionResult}
-import io.citrine.lolo.trees.{InternalModelNode, ModelNode, TrainingLeaf, TrainingNode}
 import io.citrine.lolo.trees.splits.{ClassificationSplitter, NoSplit, Split}
+import io.citrine.lolo.trees.{InternalModelNode, ModelNode, TrainingLeaf, TrainingNode}
+import io.citrine.lolo.{Learner, PredictionResult}
 
 /**
   * Created by maxhutch on 1/12/17.

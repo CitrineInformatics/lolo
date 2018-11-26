@@ -7,10 +7,8 @@ import io.citrine.lolo.Learner
   *
   * They take a range of hypers as a Map[(String, Seq[Any])] and output the best map and loss
   * Created by maxhutch on 12/8/16.
-  *
-  * @param base learner to optimize parameters for
   */
-abstract class HyperOptimizer(base: Learner) {
+abstract class HyperOptimizer() {
 
   /**
     * Add a 1D hyper range to the space searched by this optimizer
@@ -34,5 +32,5 @@ abstract class HyperOptimizer(base: Learner) {
     * @param numIterations to take before terminating
     * @return the best hyper map found in give iterations and the corresponding loss
     */
-  def optimize(trainingData: Seq[(Vector[Any], Any)], numIterations: Int = 8): (Map[String, Any], Double)
+  def optimize(trainingData: Seq[(Vector[Any], Any)], numIterations: Int = 8, builder: Map[String, Any] => Learner): (Map[String, Any], Double)
 }

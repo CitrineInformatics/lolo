@@ -10,16 +10,7 @@ import io.citrine.lolo._
   *
   * Created by maxhutch on 2/19/17.
   */
-class Standardizer(baseLearner: Learner) extends Learner {
-
-  override def setHypers(moreHypers: Map[String, Any]): this.type = {
-    baseLearner.setHypers(moreHypers)
-    super.setHypers(moreHypers)
-  }
-
-  override def getHypers(): Map[String, Any] = {
-    baseLearner.getHypers() ++ hypers
-  }
+case class Standardizer(baseLearner: Learner) extends Learner {
 
   /**
     * Create affine transformations for continuous features and labels; pass data through to learner
@@ -40,20 +31,11 @@ class Standardizer(baseLearner: Learner) extends Learner {
     val standardTrainingData = Standardizer.applyStandardization(inputs, inputTrans).zip(Standardizer.applyStandardization(labels, outputTrans))
     val baseTrainingResult = baseLearner.train(standardTrainingData, weights)
 
-    new StandardizerTrainingResult(baseTrainingResult, Seq(outputTrans) ++ inputTrans, getHypers())
+    new StandardizerTrainingResult(baseTrainingResult, Seq(outputTrans) ++ inputTrans)
   }
 }
 
 class MultiTaskStandardizer(baseLearner: MultiTaskLearner) extends MultiTaskLearner {
-
-  override def setHypers(moreHypers: Map[String, Any]): this.type = {
-    baseLearner.setHypers(moreHypers)
-    super.setHypers(moreHypers)
-  }
-
-  override def getHypers(): Map[String, Any] = {
-    baseLearner.getHypers() ++ hypers
-  }
 
   /**
     * Train a model
@@ -65,7 +47,7 @@ class MultiTaskStandardizer(baseLearner: MultiTaskLearner) extends MultiTaskLear
     */
   override def train(inputs: Seq[Vector[Any]], labels: Seq[Seq[Any]], weights: Option[Seq[Double]]): Seq[TrainingResult] = {
     val inputTrans = Standardizer.getMultiStandardization(inputs)
-    val outputTrans: Seq[Option[(Double, Double)]] = labels.map{ labelSeq =>
+    val outputTrans: Seq[Option[(Double, Double)]] = labels.map { labelSeq =>
       if (labelSeq.head != null && labelSeq.head.isInstanceOf[Double]) {
         Some(Standardizer.getStandardization(labelSeq.asInstanceOf[Seq[Double]].filterNot(_.isNaN())))
       } else {
@@ -73,14 +55,14 @@ class MultiTaskStandardizer(baseLearner: MultiTaskLearner) extends MultiTaskLear
       }
     }
     val standardInputs = Standardizer.applyStandardization(inputs, inputTrans)
-    val standardLabels = labels.zip(outputTrans).map{ case (labelSeq, trans) =>
-        Standardizer.applyStandardization(labelSeq, trans)
+    val standardLabels = labels.zip(outputTrans).map { case (labelSeq, trans) =>
+      Standardizer.applyStandardization(labelSeq, trans)
     }
 
     val baseTrainingResult = baseLearner.train(standardInputs, standardLabels, weights)
 
-    baseTrainingResult.zip(outputTrans).map{case (base, trans) =>
-      new StandardizerTrainingResult(base, Seq(trans) ++ inputTrans, getHypers())
+    baseTrainingResult.zip(outputTrans).map { case (base, trans) =>
+      new StandardizerTrainingResult(base, Seq(trans) ++ inputTrans)
     }
   }
 }
@@ -90,12 +72,10 @@ class MultiTaskStandardizer(baseLearner: MultiTaskLearner) extends MultiTaskLear
   *
   * @param baseTrainingResult
   * @param trans
-  * @param hypers
   */
 class StandardizerTrainingResult(
                                   baseTrainingResult: TrainingResult,
-                                  trans: Seq[Option[(Double, Double)]],
-                                  hypers: Map[String, Any]
+                                  trans: Seq[Option[(Double, Double)]]
                                 ) extends TrainingResult {
   /**
     * Get the model contained in the training result
@@ -103,13 +83,6 @@ class StandardizerTrainingResult(
     * @return the model
     */
   override def getModel(): Model[PredictionResult[Any]] = new StandardizerModel(baseTrainingResult.getModel(), trans)
-
-  /**
-    * Get the hyperparameters used to train this model
-    *
-    * @return hypers set for model
-    */
-  override def getHypers(): Map[String, Any] = hypers
 
   override def getFeatureImportance(): Option[Vector[Double]] = baseTrainingResult.getFeatureImportance()
 }

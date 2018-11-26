@@ -66,8 +66,8 @@ object RegressionSplitter {
   /**
     * Find the best split on a continuous variable
     *
-    * @param data        to split
-    * @param index       of the feature to split on
+    * @param data  to split
+    * @param index of the feature to split on
     * @return the best split of this feature
     */
   def getBestRealSplit(data: Seq[(Vector[AnyVal], Double, Double)], calculator: VarianceCalculator, index: Int, minCount: Int): (RealSplit, Double) = {
@@ -101,8 +101,8 @@ object RegressionSplitter {
   /**
     * Get find the best categorical splitter.
     *
-    * @param data        to split
-    * @param index       of the feature to split on
+    * @param data  to split
+    * @param index of the feature to split on
     * @return the best split of this feature
     */
   def getBestCategoricalSplit(
