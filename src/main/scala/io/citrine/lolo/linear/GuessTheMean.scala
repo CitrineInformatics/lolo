@@ -8,13 +8,6 @@ import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
 case class GuessTheMeanLearner() extends Learner {
 
   /**
-    * Get the hyperparameter map
-    *
-    * @return map of hyperparameters
-    */
-  override def getHypers(): Map[String, Any] = Map()
-
-  /**
     * Train a model
     *
     * @param trainingData to train on
@@ -34,13 +27,6 @@ case class GuessTheMeanLearner() extends Learner {
 
 @SerialVersionUID(999L)
 class GuessTheMeanTrainingResult[T](model: GuessTheMeanModel[T]) extends TrainingResult {
-  /**
-    * Get the hyperparameters used to train this model
-    *
-    * @return hypers set for model
-    */
-  override def getHypers(): Map[String, Any] = Map.empty[String, Any]
-
   override def getModel(): Model[GuessTheMeanResult[T]] = model
 }
 

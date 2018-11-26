@@ -23,11 +23,7 @@ case class RegressionTreeLearner(
                                   leafLearner: Option[Learner] = None
                                 ) extends Learner {
   /** Learner to use for training the leaves */
-  val myLeafLearner = leafLearner.getOrElse(new GuessTheMeanLearner())
-
-  override def getHypers(): Map[String, Any] = {
-    myLeafLearner.getHypers() ++ Map("minLeafInstances" -> minLeafInstances, "maxDepth" -> maxDepth, "numFeatures" -> numFeatures)
-  }
+  @transient private lazy val myLeafLearner = leafLearner.getOrElse(GuessTheMeanLearner())
 
   /**
     * Train the tree by recursively partitioning (splitting) the training data on a single feature
@@ -85,7 +81,7 @@ case class RegressionTreeLearner(
     }
 
     /* Wrap them up in a regression tree */
-    new RegressionTreeTrainingResult(rootTrainingNode, encoders, getHypers())
+    new RegressionTreeTrainingResult(rootTrainingNode, encoders)
   }
 
 }
@@ -93,8 +89,7 @@ case class RegressionTreeLearner(
 @SerialVersionUID(999L)
 class RegressionTreeTrainingResult(
                                     rootTrainingNode: TrainingNode[AnyVal, Double],
-                                    encoders: Seq[Option[CategoricalEncoder[Any]]],
-                                    hypers: Map[String, Any]
+                                    encoders: Seq[Option[CategoricalEncoder[Any]]]
                                   ) extends TrainingResult {
   lazy val model = new RegressionTree(rootTrainingNode.getNode(), encoders)
   lazy val importance = rootTrainingNode.getFeatureImportance()
@@ -107,8 +102,6 @@ class RegressionTreeTrainingResult(
   }
 
   override def getModel(): RegressionTree = model
-
-  override def getHypers(): Map[String, Any] = hypers
 
   /**
     * Return the pre-computed influences

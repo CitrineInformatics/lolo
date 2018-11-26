@@ -20,10 +20,6 @@ case class MultiTaskBagger(
                             biasLearner: Option[Learner] = None
                           ) extends MultiTaskLearner {
 
-  override def getHypers(): Map[String, Any] = {
-    method.getHypers() ++ Map("useJackknife" -> useJackknife, "numBags" -> numBags)
-  }
-
   private def combineImportance(v1: Option[Vector[Double]], v2: Option[Vector[Double]]): Option[Vector[Double]] = {
     (v1, v2) match {
       case (None, None) => None
@@ -84,7 +80,7 @@ case class MultiTaskBagger(
       val trainingData = inputs.zip(labels(k))
       Async.canStop()
       if (biasLearner.isEmpty || !labels(k).head.isInstanceOf[Double]) {
-        new BaggedTrainingResult(m, getHypers(), averageImportance, Nib, inputs.zip(labels(k)), useJackknife)
+        new BaggedTrainingResult(m, averageImportance, Nib, inputs.zip(labels(k)), useJackknife)
       } else {
         Async.canStop()
         val baggedModel = new BaggedModel(m, Nib, useJackknife)
@@ -107,7 +103,7 @@ case class MultiTaskBagger(
         val biasModel = biasLearner.get.train(biasTraining).getModel()
         Async.canStop()
 
-        new BaggedTrainingResult(m, getHypers(), averageImportance, Nib, trainingData, useJackknife, Some(biasModel))
+        new BaggedTrainingResult(m, averageImportance, Nib, trainingData, useJackknife, Some(biasModel))
       }
     }.seq
   }

@@ -21,10 +21,6 @@ case class ClassificationTreeLearner(
 
   @transient private lazy val myLeafLearner: Learner = leafLearner.getOrElse(new GuessTheMeanLearner)
 
-  override def getHypers(): Map[String, Any] = {
-    myLeafLearner.getHypers() ++ Map("maxDepth" -> maxDepth, "minLeafInstances" -> 1, "numFeatures" -> numFeatures)
-  }
-
   /**
     * Train classification tree
     *
@@ -82,7 +78,7 @@ case class ClassificationTreeLearner(
     }
 
     /* Wrap them up in a regression tree */
-    new ClassificationTrainingResult(rootTrainingNode, inputEncoders, outputEncoder, getHypers())
+    new ClassificationTrainingResult(rootTrainingNode, inputEncoders, outputEncoder)
   }
 }
 
@@ -90,8 +86,7 @@ case class ClassificationTreeLearner(
 class ClassificationTrainingResult(
                                     rootTrainingNode: TrainingNode[AnyVal, Char],
                                     inputEncoders: Seq[Option[CategoricalEncoder[Any]]],
-                                    outputEncoder: CategoricalEncoder[Any],
-                                    hypers: Map[String, Any]
+                                    outputEncoder: CategoricalEncoder[Any]
                                   ) extends TrainingResult {
   /* Grab a prediction node.  The partitioning happens here */
   lazy val model = new ClassificationTree(rootTrainingNode.getNode(), inputEncoders, outputEncoder)
@@ -105,13 +100,6 @@ class ClassificationTrainingResult(
       importance.map(_ => 1.0 / importance.size)
     }
   }
-
-  /**
-    * Get the hyperparameters used to train this model
-    *
-    * @return hypers set for model
-    */
-  override def getHypers(): Map[String, Any] = hypers
 
   override def getModel(): ClassificationTree = model
 

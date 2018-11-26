@@ -93,7 +93,6 @@ class StandardizerTest {
     }
   }
 
-
   /**
     * When the variance of a particular feature is 0
     *
@@ -128,10 +127,7 @@ class StandardizerTest {
     expected.zip(standardExpected).foreach { case (free: Double, standard: Double) =>
       assert(Math.abs(free - standard) < 1.0e-9, s"Failed test for expected. ${free} and ${standard} should be the same")
     }
-
-
   }
-
 
   /**
     * Ridge regression should depend on standardization

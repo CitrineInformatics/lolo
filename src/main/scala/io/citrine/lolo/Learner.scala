@@ -6,13 +6,6 @@ package io.citrine.lolo
 trait Learner extends Serializable {
 
   /**
-    * Get the hyperparameter map
-    *
-    * @return map of hyperparameters
-    */
-  def getHypers(): Map[String, Any]
-
-  /**
     * Train a model
     *
     * @param trainingData to train on

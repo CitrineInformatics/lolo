@@ -16,13 +16,6 @@ case class LinearRegressionLearner(
                                   ) extends Learner {
 
   /**
-    * Get the hyperparameter map
-    *
-    * @return map of hyperparameters
-    */
-  override def getHypers(): Map[String, Any] = Map("regParam" -> 0.0, "fitIntercept" -> fitIntercept)
-
-  /**
     * Train a linear model via direct inversion.
     *
     * @param trainingData to train on
@@ -101,7 +94,7 @@ case class LinearRegressionLearner(
       new LinearRegressionModel(beta, 0.0, indices = indicesToModel)
     }
 
-    new LinearRegressionTrainingResult(model, getHypers())
+    new LinearRegressionTrainingResult(model)
   }
 }
 
@@ -110,14 +103,8 @@ case class LinearRegressionLearner(
   *
   * @param model contained
   */
-@SerialVersionUID(999L)
-class LinearRegressionTrainingResult(model: LinearRegressionModel, hypers: Map[String, Any]) extends TrainingResult {
-  /**
-    * Get the hyperparameters used to train this model
-    *
-    * @return hypers set for model
-    */
-  override def getHypers(): Map[String, Any] = hypers
+@SerialVersionUID(998L)
+class LinearRegressionTrainingResult(model: LinearRegressionModel) extends TrainingResult {
 
   override def getModel(): LinearRegressionModel = model
 

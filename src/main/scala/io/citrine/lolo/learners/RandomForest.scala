@@ -24,16 +24,6 @@ case class RandomForest(
                          subsetStrategy: Any = "auto"
                        ) extends Learner {
 
-  override def getHypers(): Map[String, Any] = {
-    Map(
-      "numTrees" -> numTrees,
-      "useJackknife" -> useJackknife,
-      "biasLearner" -> biasLearner,
-      "leafLearner" -> leafLearner,
-      "subsetStrategy" -> subsetStrategy
-    )
-  }
-
   /**
     * Train a random forest model
     *

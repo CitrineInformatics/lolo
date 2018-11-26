@@ -25,11 +25,6 @@ case class Bagger(
                    biasLearner: Option[Learner] = None
                  ) extends Learner {
 
-  override def getHypers(): Map[String, Any] = {
-    method.getHypers() ++ Map("useJackknife" -> useJackknife, "numBags" -> numBags)
-  }
-
-
   private def combineImportance(v1: Option[Vector[Double]], v2: Option[Vector[Double]]): Option[Vector[Double]] = {
     (v1, v2) match {
       case (None, None) => None
@@ -86,7 +81,7 @@ case class Bagger(
     /* Wrap the models in a BaggedModel object */
     if (biasLearner.isEmpty) {
       Async.canStop()
-      new BaggedTrainingResult(models, getHypers(), averageImportance, Nib, trainingData, useJackknife)
+      new BaggedTrainingResult(models, averageImportance, Nib, trainingData, useJackknife)
     } else {
       Async.canStop()
       val baggedModel = new BaggedModel(models, Nib, useJackknife)
@@ -105,7 +100,7 @@ case class Bagger(
       val biasModel = biasLearner.get.train(biasTraining).getModel()
       Async.canStop()
 
-      new BaggedTrainingResult(models, getHypers(), averageImportance, Nib, trainingData, useJackknife, Some(biasModel))
+      new BaggedTrainingResult(models, averageImportance, Nib, trainingData, useJackknife, Some(biasModel))
     }
   }
 }
@@ -113,7 +108,6 @@ case class Bagger(
 @SerialVersionUID(999L)
 class BaggedTrainingResult(
                             models: ParSeq[Model[PredictionResult[Any]]],
-                            hypers: Map[String, Any],
                             featureImportance: Option[Vector[Double]],
                             Nib: Vector[Vector[Int]],
                             trainingData: Seq[(Vector[Any], Any)],
@@ -156,13 +150,6 @@ class BaggedTrainingResult(
   override def getPredictedVsActual(): Option[Seq[(Vector[Any], Any, Any)]] = Some(predictedVsActual)
 
   override def getLoss(): Option[Double] = Some(loss)
-
-  /**
-    * Get the hyperparameters used to train this model
-    *
-    * @return hypers set for model
-    */
-  override def getHypers(): Map[String, Any] = hypers
 }
 
 /**

@@ -12,8 +12,6 @@ import io.citrine.lolo._
   */
 case class Standardizer(baseLearner: Learner) extends Learner {
 
-  override def getHypers(): Map[String, Any] = baseLearner.getHypers()
-
   /**
     * Create affine transformations for continuous features and labels; pass data through to learner
     *
@@ -33,15 +31,11 @@ case class Standardizer(baseLearner: Learner) extends Learner {
     val standardTrainingData = Standardizer.applyStandardization(inputs, inputTrans).zip(Standardizer.applyStandardization(labels, outputTrans))
     val baseTrainingResult = baseLearner.train(standardTrainingData, weights)
 
-    new StandardizerTrainingResult(baseTrainingResult, Seq(outputTrans) ++ inputTrans, getHypers())
+    new StandardizerTrainingResult(baseTrainingResult, Seq(outputTrans) ++ inputTrans)
   }
 }
 
 class MultiTaskStandardizer(baseLearner: MultiTaskLearner) extends MultiTaskLearner {
-
-  override def getHypers(): Map[String, Any] = {
-    baseLearner.getHypers()
-  }
 
   /**
     * Train a model
@@ -68,7 +62,7 @@ class MultiTaskStandardizer(baseLearner: MultiTaskLearner) extends MultiTaskLear
     val baseTrainingResult = baseLearner.train(standardInputs, standardLabels, weights)
 
     baseTrainingResult.zip(outputTrans).map { case (base, trans) =>
-      new StandardizerTrainingResult(base, Seq(trans) ++ inputTrans, getHypers())
+      new StandardizerTrainingResult(base, Seq(trans) ++ inputTrans)
     }
   }
 }
@@ -78,12 +72,10 @@ class MultiTaskStandardizer(baseLearner: MultiTaskLearner) extends MultiTaskLear
   *
   * @param baseTrainingResult
   * @param trans
-  * @param hypers
   */
 class StandardizerTrainingResult(
                                   baseTrainingResult: TrainingResult,
-                                  trans: Seq[Option[(Double, Double)]],
-                                  hypers: Map[String, Any]
+                                  trans: Seq[Option[(Double, Double)]]
                                 ) extends TrainingResult {
   /**
     * Get the model contained in the training result
@@ -91,13 +83,6 @@ class StandardizerTrainingResult(
     * @return the model
     */
   override def getModel(): Model[PredictionResult[Any]] = new StandardizerModel(baseTrainingResult.getModel(), trans)
-
-  /**
-    * Get the hyperparameters used to train this model
-    *
-    * @return hypers set for model
-    */
-  override def getHypers(): Map[String, Any] = hypers
 
   override def getFeatureImportance(): Option[Vector[Double]] = baseTrainingResult.getFeatureImportance()
 }

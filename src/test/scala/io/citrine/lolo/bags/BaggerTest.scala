@@ -40,8 +40,6 @@ class BaggerTest {
 
     assert(results.getGradient().isEmpty, "Returned a gradient when there shouldn't be one")
 
-    assert(RFMeta.getHypers().contains("maxDepth"))
-
     /* The first feature should be the most important */
     val importances = RFMeta.getFeatureImportance().get
     assert(importances(1) == importances.max)
@@ -74,8 +72,6 @@ class BaggerTest {
       maxProb > 0.5 && maxProb < 1.0 && Math.abs(classProbabilities.values.sum - 1.0) < 1.0e-6
     })
     assert(results.getGradient().isEmpty, "Returned a gradient when there shouldn't be one")
-
-    assert(RFMeta.getHypers().contains("maxDepth"))
 
     /* The first feature should be the most important */
     val importances = RFMeta.getFeatureImportance().get
