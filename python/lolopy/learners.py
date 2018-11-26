@@ -133,8 +133,11 @@ class BaseRandomForest(BaseLoloLearner):
     def _make_learner(self):
         """Instantiate the learner used by Lolo to train a model
 
-        Ret"""
+        Returns:
+            (JavaObject) A lolo "Learner" object, which can be used to train a model
+        """
         #  TODO: Figure our a more succinct way of dealing with optional arguments/Option values
+        #  TODO: Do not hard-code use of RandomForest
         learner = self.gateway.jvm.io.citrine.lolo.learners.RandomForest(
             self.num_trees, self.useJackknife,
             getattr(self.gateway.jvm.io.citrine.lolo.learners.RandomForest,
