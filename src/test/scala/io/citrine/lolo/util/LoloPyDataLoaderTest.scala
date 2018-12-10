@@ -11,7 +11,7 @@ class LoloPyDataLoaderTest {
   }
 
   @Test
-  def testFeatureArray() = {
+  def testFeatureArray(): Unit = {
     val data = LoloPyDataLoader.getFeatureArray(getData, 4, false)
     assert(data.length == 4)
     assert(data.head.length == 4)
@@ -19,7 +19,7 @@ class LoloPyDataLoaderTest {
   }
 
   @Test
-  def test1DArrayDouble() = {
+  def test1DArrayDouble(): Unit = {
     val temp = getData
     val data = LoloPyDataLoader.get1DArray(getData, true, false).asInstanceOf[Seq[Double]]
     assert(data.length == 16)
@@ -27,7 +27,7 @@ class LoloPyDataLoaderTest {
   }
 
   @Test
-  def test1DArrayInteger() = {
+  def test1DArrayInteger(): Unit = {
     val data = LoloPyDataLoader.get1DArray(getData, false, false).asInstanceOf[Seq[Int]]
     assert(data.length == 32)
     assert(data.take(3).sum == 0) // First 3 values are all 0
