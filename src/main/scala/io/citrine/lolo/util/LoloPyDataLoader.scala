@@ -17,7 +17,7 @@ object LoloPyDataLoader {
     * @param bigEndian Whether the numbers are is big-endian or not
     * @return The array as a Scala array
     */
-  def getFeatureArray(input: Array[Byte], numAttributes : Integer, bigEndian: Boolean) : Seq[Array[Double]] = {
+  def getFeatureArray(input: Array[Byte], numAttributes : Integer, bigEndian: Boolean) : Seq[Vector[Double]] = {
     // Get ordering
     val ordering = if (bigEndian) ByteOrder.BIG_ENDIAN else ByteOrder.LITTLE_ENDIAN
 
@@ -25,7 +25,7 @@ object LoloPyDataLoader {
     val digits = input.grouped(8)
 
     // Generate digits
-    digits.map(ByteBuffer.wrap(_).order(ordering).getDouble).grouped(numAttributes).map(_.toArray).toSeq
+    digits.map(ByteBuffer.wrap(_).order(ordering).getDouble).grouped(numAttributes).map(_.toVector).toSeq
   }
 
 
@@ -45,5 +45,9 @@ object LoloPyDataLoader {
     } else {
       input.grouped(4).map(ByteBuffer.wrap(_).order(ordering).getInt).toSeq
     }
+  }
+
+  def zipTrainingData(X: Seq[Vector[Double]], y: Seq[Any]) : Seq[(Vector[Double], Any)] = {
+    X.zip(y)
   }
 }
