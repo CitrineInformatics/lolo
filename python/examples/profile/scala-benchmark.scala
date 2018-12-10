@@ -8,16 +8,17 @@ import java.io.FileInputStream
 * @param trainingData which is used both to train and then later apply the models to
 * @return the training and application time, in seconds
 */
-def timedTest(trainingData: Seq[(Vector[Any], Any)], evalData: Seq[(Vector[Any], Any)]): (Double, Double) = {
+def timedTest(trainingData: Seq[(Vector[Any], Any)], evalData: Seq[(Vector[Any], Any)]): (Double, Double, Double) = {
     val inputs = runData.map(_._1)
     val baggedLearner = new RandomForest(trainingData.size)
 
     val timeTraining = Stopwatch.time({baggedLearner.train(data).getModel()}, benchmark = "None", minRun = 4, targetError = 0.1, maxRun = 32)
     val model = baggedLearner.train(trainingData).getModel()
 
-    val timePredicting = Stopwatch.time({model.transform(inputs).getUncertainty()}, benchmark = "None", minRun = 4, targetError = 0.1, maxRun = 32)
+    val timePredicting = Stopwatch.time({model.transform(inputs).getExpected()}, benchmark = "None", minRun = 4, targetError = 0.1, maxRun = 32)
+    val timeUncertainty = Stopwatch.time({model.transform(inputs).getUncertainty()}, benchmark = "None", minRun = 4, targetError = 0.1, maxRun = 32)
 
-    (timeTraining, timePredicting)
+    (timeTraining, timePredicting, timeUncertainty)
 }
 
 def readCsv(name: String): Seq[Vector[Any]] = {
@@ -49,6 +50,6 @@ def getTrainingDataFromCsv(name: String): Vector[(Vector[Double], Double)] = {
 
 val data = getTrainingDataFromCsv(args(0))
 val runData = getTrainingDataFromCsv(args(1))
-val (train, test) = timedTest(data, runData)
-println(s"${train},${test}")
+val (train, expect, uncert) = timedTest(data, runData)
+println(s"${train},${expect},${uncert}")
 
