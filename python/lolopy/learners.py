@@ -2,7 +2,6 @@ from abc import abstractmethod, ABCMeta
 
 import numpy as np
 from lolopy.loloserver import get_java_gateway
-from py4j.java_collections import ListConverter
 from sklearn.base import BaseEstimator, RegressorMixin, ClassifierMixin, is_regressor
 
 
@@ -23,10 +22,10 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
         learner = self._make_learner()
 
         # Convert all of the training data to Java arrays
-        train_data = self._convert_train_data(X, y, weights)
+        train_data, weights_java = self._convert_train_data(X, y, weights)
 
         # Train the model
-        result = learner.train(train_data)
+        result = learner.train(train_data, self.gateway.jvm.scala.Some(weights_java))
 
         # Get the model out
         self.model_ = result.getModel()
@@ -57,27 +56,11 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
             weights = [1.] * len(y)
 
         # Convert X and y to Java Objects
-        train_data = self.gateway.jvm.java.util.ArrayList(len(y))
-        for x_i, y_i, w_i in zip(X, y, weights):
-            # Copy the X into an array
-            x_i_java = ListConverter().convert(x_i, self.gateway._gateway_client)
-            x_i_java = self.gateway.jvm.scala.collection.JavaConverters.asScalaBuffer(
-                x_i_java).toVector()
+        X_java = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getFeatureArray(X.tobytes(), X.shape[1], False)
+        y_java = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.get1DArray(y.tobytes(), is_regressor(self), False)
+        w_java = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.get1DArray(y.tobytes(), True, False)
 
-            # If a regression problem, make sure y_i is a float
-            if is_regressor(self):
-                y_i = float(y_i)
-            else:
-                y_i = int(y_i)
-
-            # Make the data row
-            row = self.gateway.jvm.scala.Tuple3(x_i_java, y_i, w_i)
-
-            # Append to training data list
-            train_data.append(row)
-        train_data = self.gateway.jvm.scala.collection.JavaConverters.asScalaBuffer(train_data)
-
-        return train_data
+        return self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.zipTrainingData(X_java, y_java), w_java
 
     def _convert_run_data(self, X):
         """Convert the data to be run by the model
@@ -88,15 +71,7 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
             (JavaObject): Pointer to run data in Java
         """
 
-        # Convert X to an array
-        X_java = self.gateway.jvm.java.util.ArrayList(len(X))
-        for x_i in X:
-            x_i_java = ListConverter().convert(x_i, self.gateway._gateway_client)
-            x_i_java = self.gateway.jvm.scala.collection.JavaConverters.asScalaBuffer(
-                x_i_java).toVector()
-            X_java.append(x_i_java)
-        X_java = self.gateway.jvm.scala.collection.JavaConverters.asScalaBuffer(X_java)
-        return X_java
+        return self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getFeatureArray(X.tobytes(), X.shape[1], False)
 
 
 class BaseRandomForest(BaseLoloLearner):
