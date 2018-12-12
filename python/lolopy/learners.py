@@ -23,6 +23,9 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
 
         # Convert all of the training data to Java arrays
         train_data, weights_java = self._convert_train_data(X, y, weights)
+        assert train_data.length() == len(X), "Array copy failed"
+        assert train_data.head()._1().length() == len(X[0]), "Wrong number of features"
+        assert weights_java.length() == len(X), "Weights copy failed"
 
         # Train the model
         result = learner.train(train_data, self.gateway.jvm.scala.Some(weights_java))
@@ -53,12 +56,14 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
 
         # Make some default weights
         if weights is None:
-            weights = [1.] * len(y)
+            weights = np.ones(len(y))
 
         # Convert X and y to Java Objects
         X_java = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getFeatureArray(X.tobytes(), X.shape[1], False)
         y_java = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.get1DArray(y.tobytes(), is_regressor(self), False)
-        w_java = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.get1DArray(y.tobytes(), True, False)
+        assert y_java.length() == len(y) == len(X)
+        w_java = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.get1DArray(weights.tobytes(), True, False)
+        assert w_java.length() == len(weights)
 
         return self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.zipTrainingData(X_java, y_java), w_java
 
