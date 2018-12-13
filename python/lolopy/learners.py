@@ -118,17 +118,15 @@ class BaseRandomForest(BaseLoloLearner):
         pred_result = self.model_.transform(X_java)
 
         # Pull out the expected values
-        exp_values = pred_result.getExpected()
-        y_pred = [exp_values.apply(i) for i in range(len(X))]
+        y_pred = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getRegressionExpected(pred_result)
+        y_pred = np.frombuffer(y_pred, dtype='float')  # Lolo gives a byte array back
 
         # If desired, return the uncertainty too
         if return_std:
             # TODO: This part fails on Windows because the NativeSystemBLAS is not found. Fix that
             # TODO: This is only valid for regression models. Perhaps make a "LoloRegressor" class
-            uncertain = pred_result.getUncertainty().get()
-            y_std = np.zeros_like(y_pred)
-            for i in range(len(X)):
-                y_std[i] = uncertain.apply(i)
+            y_std = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getRegressionUncertainty(pred_result)
+            y_std = np.frombuffer(y_std, 'float')
             return y_pred, y_std
 
         # Get the expected values
@@ -149,7 +147,17 @@ class RandomForestClassifier(BaseRandomForest, ClassifierMixin):
         return super(RandomForestClassifier, self).fit(X, y, weights)
 
     def predict(self, X):
-        return super(RandomForestClassifier, self).predict(X, False)
+        # Convert the data to Java
+        X_java = self._convert_run_data(X)
+
+        # Get the PredictionResult
+        pred_result = self.model_.transform(X_java)
+
+        # Pull out the expected values
+        y_pred = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getClassifierExpected(pred_result)
+        y_pred = np.frombuffer(y_pred, dtype='int')  # Lolo gives a byte array back
+
+        return y_pred
 
     def predict_proba(self, X):
         # Convert the data to Java
@@ -159,11 +167,7 @@ class RandomForestClassifier(BaseRandomForest, ClassifierMixin):
         pred_result = self.model_.transform(X_java)
 
         # Copy over the class probabilities
-        output = np.zeros((len(X), self.n_classes_))
-        prob_array = pred_result.getUncertainty().get()
-        for i, prob in enumerate(self.gateway.jvm.scala.collection.JavaConverters
-                                         .asJavaCollection(prob_array).toArray()):
-            prob = self.gateway.jvm.scala.collection.JavaConverters.mapAsJavaMap(prob)
-            for j in range(self.n_classes_):
-                output[i, j] = prob.getOrDefault(j, 0)
+        output = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getClassifierProbabilities(pred_result,
+                                                                                                   self.n_classes_)
+        output = np.frombuffer(output, dtype='float').reshape(-1, self.n_classes_)
         return output
