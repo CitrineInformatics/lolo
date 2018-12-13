@@ -1,4 +1,7 @@
 package io.citrine.lolo.util
+import io.citrine.lolo.TestUtils
+import io.citrine.lolo.learners.RandomForest
+import io.citrine.lolo.stats.functions.Friedman
 import org.junit.Test
 
 class LoloPyDataLoaderTest {
@@ -43,5 +46,68 @@ class LoloPyDataLoaderTest {
     assert(x_i.length == 4)
     assert(Math.abs(x_i(1) - 1) < 1e-6)
     assert(Math.abs(y_i - 0) < 1e-6)
+  }
+
+  @Test
+  def testGetRegression(): Unit = {
+    // Generate an RF model
+    val trainingData = TestUtils.binTrainingData(
+      TestUtils.generateTrainingData(32, 12, noise = 0.1, function = Friedman.friedmanSilverman),
+      inputBins = Seq((0, 8))
+    )
+
+    val RFMeta = new RandomForest()
+      .setHyper("numFeatures", 3)
+      .train(trainingData)
+    val RF = RFMeta.getModel()
+
+    // Generate the prediction results object
+    val results = RF.transform(trainingData.map(_._1))
+
+    // Get the expected results
+    val means = results.getExpected().asInstanceOf[Seq[Double]]
+    val sigma = results.getUncertainty().get.asInstanceOf[Seq[Double]]
+
+    // Get the results as a byte array, and convert them back
+    val reproMeans = LoloPyDataLoader.get1DArray(
+      LoloPyDataLoader.getRegressionExpected(results), getFloat = true, bigEndian = false).asInstanceOf[Seq[Double]]
+    assert(reproMeans.zip(means).map(x => Math.abs(x._1 - x._2)).sum < 1e-6)
+
+    // Get the uncertainty as a byte array, and convert them back
+    val reproSigma = LoloPyDataLoader.get1DArray(
+      LoloPyDataLoader.getRegressionUncertainty(results), getFloat = true, bigEndian = false).asInstanceOf[Seq[Double]]
+    assert(reproSigma.zip(sigma).map(x => Math.abs(x._1 - x._2)).sum < 1e-6)
+  }
+
+  @Test
+  def testGetClassification(): Unit = {
+    // Make a classification model
+    val trainingData = TestUtils.binTrainingData(
+      TestUtils.generateTrainingData(32, 12, noise = 0.1, function = Friedman.friedmanSilverman),
+      inputBins = Seq((0, 8)), responseBins = Some(8)
+    )
+    val RFMeta = new RandomForest()
+      .setHyper("numTrees", trainingData.size * 2)
+      .train(trainingData.map(x => (x._1, Integer.parseInt(x._2.toString))))
+    val RF = RFMeta.getModel()
+    val nClasses : Int = trainingData.map(x => Integer.parseInt(x._2.toString)).max + 1
+
+    // Get the base results
+    val results = RF.transform(trainingData.map(_._1))
+    val means = results.getExpected().asInstanceOf[Seq[Int]]
+    val probs : Seq[Double] = results.getUncertainty().get.asInstanceOf[Seq[Map[Int, Double]]].flatMap(
+      x => 0.until(nClasses).map(i => x.getOrElse(i, 0.0)))
+    assert(Math.abs(probs.sum - trainingData.length) < 1e-6)
+
+    // Get the expected class via the utility
+    val reproExp = LoloPyDataLoader.get1DArray(
+      LoloPyDataLoader.getClassifierExpected(results), getFloat = false, bigEndian = false).asInstanceOf[Seq[Int]]
+    assert(reproExp.zip(means).map(x => Math.abs(x._1 - x._2)).sum < 1e-6)
+
+    // Get the probs via the utility
+    val reproProbs = LoloPyDataLoader.get1DArray(
+      LoloPyDataLoader.getClassifierProbabilities(results, nClasses), getFloat = true, bigEndian = false).asInstanceOf[Seq[Double]]
+    assert(reproProbs.length == 32 * nClasses)
+    assert(probs.zip(reproProbs).map(x => Math.abs(x._1 - x._2)).sum < 1e-6)
   }
 }
