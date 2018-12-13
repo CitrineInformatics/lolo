@@ -1,5 +1,6 @@
 from abc import abstractmethod, ABCMeta
 
+import sys
 import numpy as np
 from lolopy.loloserver import get_java_gateway
 from sklearn.base import BaseEstimator, RegressorMixin, ClassifierMixin, is_regressor
@@ -58,11 +59,17 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
         if weights is None:
             weights = np.ones(len(y))
 
+        # Convert x, y, and w to float64 and int8 with native ordering
+        X = np.array(X, dtype=np.float64)
+        y = np.array(y, dtype=np.float64 if is_regressor(self) else np.int32)
+        weights = np.array(weights, dtype=np.float64)
+        big_end = sys.byteorder == "big"
+
         # Convert X and y to Java Objects
-        X_java = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getFeatureArray(X.tobytes(), X.shape[1], False)
-        y_java = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.get1DArray(y.tobytes(), is_regressor(self), False)
+        X_java = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getFeatureArray(X.tobytes(), X.shape[1], big_end)
+        y_java = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.get1DArray(y.tobytes(), is_regressor(self), big_end)
         assert y_java.length() == len(y) == len(X)
-        w_java = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.get1DArray(weights.tobytes(), True, False)
+        w_java = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.get1DArray(np.array(weights).tobytes(), True, big_end)
         assert w_java.length() == len(weights)
 
         return self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.zipTrainingData(X_java, y_java), w_java
@@ -155,7 +162,7 @@ class RandomForestClassifier(BaseRandomForest, ClassifierMixin):
 
         # Pull out the expected values
         y_pred = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getClassifierExpected(pred_result)
-        y_pred = np.frombuffer(y_pred, dtype='int')  # Lolo gives a byte array back
+        y_pred = np.frombuffer(y_pred, dtype=np.int32)  # Lolo gives a byte array back
 
         return y_pred
 
