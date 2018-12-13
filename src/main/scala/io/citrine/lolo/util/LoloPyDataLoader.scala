@@ -23,11 +23,12 @@ object LoloPyDataLoader {
     // Get ordering
     val ordering = if (bigEndian) ByteOrder.BIG_ENDIAN else ByteOrder.LITTLE_ENDIAN
 
-    // Group the array into digits
-    val digits = input.grouped(8)
+    // Wrap the input as a buffer
+    val buffer = ByteBuffer.wrap(input).order(ordering)
 
     // Generate digits
-    digits.map(ByteBuffer.wrap(_).order(ordering).getDouble).grouped(numAttributes).map(_.toVector).toSeq
+    val nDigits = input.length / 8
+    (0 until nDigits).map(x => buffer.getDouble(x * 8)).grouped(numAttributes).map(_.toVector).toVector
   }
 
 
@@ -41,11 +42,16 @@ object LoloPyDataLoader {
     // Get ordering
     val ordering = if (bigEndian) ByteOrder.BIG_ENDIAN else ByteOrder.LITTLE_ENDIAN
 
-    // Convert integer or
+    // Make the buffer
+    val buffer = ByteBuffer.wrap(input).order(ordering)
+
+    // Convert to integer or float
     if (getFloat) {
-      input.grouped(8).map(ByteBuffer.wrap(_).order(ordering).getDouble).toSeq
+      val nDigits = input.length / 8
+      (0 until nDigits).map(x => buffer.getDouble(x * 8)).toVector
     } else {
-      input.grouped(4).map(ByteBuffer.wrap(_).order(ordering).getInt).toSeq
+      val nDigits = input.length / 4
+      (0 until nDigits).map(x => buffer.getInt(x * 4)).toVector
     }
   }
 
