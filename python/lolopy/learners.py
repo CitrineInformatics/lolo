@@ -89,7 +89,7 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
 class BaseRandomForest(BaseLoloLearner):
     """Random Forest """
 
-    def __init__(self, num_trees=-1, useJackknife=True, subsetStrategy=4):
+    def __init__(self, num_trees=-1, useJackknife=True, subsetStrategy="auto"):
         """Initialize the RandomForest
 
         Args:
