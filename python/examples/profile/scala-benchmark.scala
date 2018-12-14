@@ -9,7 +9,7 @@ import java.io.FileInputStream
 * @return the training and application time, in seconds
 */
 def timedTest(trainingData: Seq[(Vector[Any], Any)], evalData: Seq[(Vector[Any], Any)]): (Double, Double, Double) = {
-    val inputs = runData.map(_._1)
+    val inputs = runData.map(_._1).toVector
     val baggedLearner = new RandomForest(trainingData.length)
 
     val timeTraining = Stopwatch.time({baggedLearner.train(data).getModel()}, benchmark = "None", minRun = 16, targetError = 0.1, maxRun = 32)
@@ -36,7 +36,7 @@ def readCsv(name: String): Seq[Vector[Any]] = {
       res.append(cols)
     }
     bs.close()
-    res
+    res.toVector
 }
 
 def getTrainingDataFromCsv(name: String): Vector[(Vector[Double], Double)] = {
