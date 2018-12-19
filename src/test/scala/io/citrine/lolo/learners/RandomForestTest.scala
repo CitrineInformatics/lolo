@@ -70,18 +70,20 @@ class RandomForestTest {
     */
   @Test
   def testTreeConvergence(): Unit = {
-    val nRow = 1024
+    val nRow = 256
     val (trainingData, testData) = TestUtils.binTrainingData(
       TestUtils.generateTrainingData(nRow * 2, 12, noise = 0.1, function = Friedman.friedmanSilverman),
       inputBins = Seq((0, 8))
     ).splitAt(nRow)
 
-    val (ucurve, ecurve) = Seq(2 * nRow, nRow, nRow / 2, nRow / 4).map{nTree =>
+    println(Runtime.getRuntime.totalMemory() / Math.pow(2, 20))
+
+    val (ucurve, ecurve) = Seq.tabulate(13){idx => (nRow * Math.pow(2, 7 - idx)).toInt}.map{nTree =>
       val RFMeta = RandomForest(numTrees = nTree).train(trainingData)
       val RF = RFMeta.getModel()
       val results = RF.transform(testData.map(_._1))
       val sigma: Seq[Double] = results.getUncertainty().get.asInstanceOf[Seq[Double]]
-      assert(sigma.forall(_ >= 0.0))
+      // assert(sigma.forall(_ >= 0.0))
       assert(results.getGradient().isEmpty, "Returned a gradient when there shouldn't be one")
 
       /* The first feature should be the most important */
@@ -90,11 +92,17 @@ class RandomForestTest {
 
       val totalUncertainty = sigma.sum
       val totalError = results.getExpected().zip(testData.map(_._2)).map{case (x: Double, y: Double) => Math.abs(x - y)}.sum
+      println(nTree, totalUncertainty)
       ((nTree, totalUncertainty), (nTree, totalError))
     }.unzip
     println(ecurve)
     println(ucurve)
-    println(ucurve.map{case (idx, u) => (idx, u / ucurve.head._2)})
+    val adjusted = ucurve.tail.map{case (idx, u) => (Math.log(idx), Math.log(u - ucurve.head._2))}
+    println(adjusted.map{x => f"(${x._1}%4.2f, ${x._2}%4.2f)"}.foldLeft(""){case (x: String, y: String) => s"${x}, ${y}"})
+    val slopes = adjusted.indices.tail.map{idx =>
+      (adjusted(idx)._2 - adjusted(idx - 1)._2) / (adjusted(idx)._1 - adjusted(idx - 1)._1)
+    }
+    println(slopes.toVector)
   }
 
 }
