@@ -41,7 +41,7 @@ class ClassificationTreeTest {
         function = Friedman.friedmanSilverman),
       responseBins = Some(2)
     )
-    val DTLearner = new ClassificationTreeLearner()
+    val DTLearner = ClassificationTreeLearner()
     val DTMeta = DTLearner.train(trainingData)
     val DT = DTMeta.getModel()
 
@@ -69,7 +69,7 @@ class ClassificationTreeTest {
       TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman),
       responseBins = Some(16)
     )
-    val DTLearner = new ClassificationTreeLearner()
+    val DTLearner = ClassificationTreeLearner()
     val N = 100
     val start = System.nanoTime()
     val DTMeta = DTLearner.train(trainingData)
@@ -107,7 +107,7 @@ class ClassificationTreeTest {
       TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman),
       inputBins = Seq((0, 8)), responseBins = Some(16)
     )
-    val DTLearner = new ClassificationTreeLearner()
+    val DTLearner = ClassificationTreeLearner()
     val N = 100
     val start = System.nanoTime()
     val DT = DTLearner.train(trainingData).getModel()
