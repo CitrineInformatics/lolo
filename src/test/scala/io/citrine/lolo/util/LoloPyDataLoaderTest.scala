@@ -56,8 +56,7 @@ class LoloPyDataLoaderTest {
       inputBins = Seq((0, 8))
     )
 
-    val RFMeta = new RandomForest()
-      .setHyper("numFeatures", 3)
+    val RFMeta = RandomForest.apply(numTrees = trainingData.length * 2)
       .train(trainingData)
     val RF = RFMeta.getModel()
 
@@ -86,8 +85,7 @@ class LoloPyDataLoaderTest {
       TestUtils.generateTrainingData(32, 12, noise = 0.1, function = Friedman.friedmanSilverman),
       inputBins = Seq((0, 8)), responseBins = Some(8)
     )
-    val RFMeta = new RandomForest()
-      .setHyper("numTrees", trainingData.size * 2)
+    val RFMeta = new RandomForest(numTrees = trainingData.length * 2)
       .train(trainingData.map(x => (x._1, Integer.parseInt(x._2.toString))))
     val RF = RFMeta.getModel()
     val nClasses : Int = trainingData.map(x => Integer.parseInt(x._2.toString)).max + 1

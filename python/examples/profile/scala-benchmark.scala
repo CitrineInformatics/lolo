@@ -10,7 +10,7 @@ import java.io.FileInputStream
 */
 def timedTest(trainingData: Seq[(Vector[Any], Any)], evalData: Seq[(Vector[Any], Any)]): (Double, Double, Double) = {
     val inputs = runData.map(_._1).toVector
-    val baggedLearner = new RandomForest(trainingData.length)
+    val baggedLearner = RandomForest.apply(numTrees = trainingData.length)
 
     val timeTraining = Stopwatch.time({baggedLearner.train(data).getModel()}, benchmark = "None", minRun = 16, targetError = 0.1, maxRun = 32)
     val model = baggedLearner.train(trainingData).getModel()

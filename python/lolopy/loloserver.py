@@ -1,10 +1,15 @@
 """Methods related to starting and stopping the Java Gateway"""
 from py4j.java_gateway import JavaGateway
+from subprocess import STDOUT
 import sys
 import os
 
 
-def _find_lolo_jar():
+# TODO: Auto-detect the version of lolo? [Requires lolo installation (not compatible with PyPi) and/or internet connection to check Maven, and causes a maintenance burden]
+_lolo_version = '1.0.3'
+
+
+def find_lolo_jar():
     """Attempt to automatically find a jar file for Lolo
 
     Returns:
@@ -12,7 +17,8 @@ def _find_lolo_jar():
     """
 
     # TODO: Make this not hardcoded -lw
-    return os.path.join(os.path.dirname(__file__), '..', '..', 'target', 'lolo-1.0.2.jar')
+    return os.path.join(os.path.dirname(__file__), '..', '..', 'target',
+                        'lolo-{}-jar-with-dependencies.jar'.format(_lolo_version))
 
 
 def get_java_gateway(reuse=True):
@@ -23,10 +29,9 @@ def get_java_gateway(reuse=True):
     Returns:
         (JavaGateway) A launched JavaGateway instance
     """
-    # TODO: Implement a way to prevent having to launch a new JVM every time
-    lolo_path = _find_lolo_jar()
+    lolo_path = find_lolo_jar()
+    assert os.path.isfile(lolo_path), 'Lolo jar not found'
 
-    # TODO: Find a way to get the path to scala (might just detect if on Windows vs Linux
     _gateway = JavaGateway.launch_gateway(classpath=os.path.pathsep.join([
         os.path.abspath(lolo_path)]), die_on_exit=True)
     return _gateway
