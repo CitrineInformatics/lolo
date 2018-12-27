@@ -45,7 +45,7 @@ object ClassificationSplitterTest {
   )
 
   val encoder = CategoricalEncoder.buildEncoder(testData.map(_._2))
-  val encodedData = testData.map{case (f, l) =>
+  val encodedData = testData.map { case (f, l) =>
     (f.asInstanceOf[Vector[AnyVal]], encoder.encode(l), 1.0)
   }
 
@@ -53,6 +53,7 @@ object ClassificationSplitterTest {
 
   /**
     * Run the tests
+    *
     * @param args foo
     */
   def main(args: Array[String]): Unit = {

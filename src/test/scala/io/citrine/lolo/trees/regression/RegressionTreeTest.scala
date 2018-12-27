@@ -26,7 +26,7 @@ class RegressionTreeTest {
       (input, 2.0)
     }
 
-    val DTLearner = new RegressionTreeLearner()
+    val DTLearner = RegressionTreeLearner()
     val DTMeta = DTLearner.train(X)
     val DT = DTMeta.getModel()
     assert(DTMeta.getFeatureImportance()
@@ -40,7 +40,7 @@ class RegressionTreeTest {
   def testSimpleTree(): Unit = {
     val csv = TestUtils.readCsv("double_example.csv")
     val trainingData = csv.map(vec => (vec.init, vec.last.asInstanceOf[Double]))
-    val DTLearner = new RegressionTreeLearner()
+    val DTLearner = RegressionTreeLearner()
     val DT = DTLearner.train(trainingData).getModel()
 
     /* We should be able to memorize the inputs */
@@ -57,8 +57,8 @@ class RegressionTreeTest {
     */
   @Test
   def longerTest(): Unit = {
-    val trainingData =TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman)
-    val DTLearner = new RegressionTreeLearner()
+    val trainingData = TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman)
+    val DTLearner = RegressionTreeLearner()
     val N = 100
     val start = System.nanoTime()
     val DTMeta = DTLearner.train(trainingData)
@@ -95,7 +95,7 @@ class RegressionTreeTest {
       inputBins = Seq((0, 8))
     ).asInstanceOf[Seq[(Vector[Any], Double)]]
 
-    val DTLearner = new RegressionTreeLearner()
+    val DTLearner = RegressionTreeLearner()
     val N = 100
     val start = System.nanoTime()
     val DTMeta = DTLearner.train(trainingData)
@@ -128,8 +128,8 @@ class RegressionTreeTest {
   def testLinearLeaves(): Unit = {
     val trainingData = TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman)
 
-    val linearLearner = new LinearRegressionLearner().setHyper("regParam", 0.0)
-    val DTLearner = new RegressionTreeLearner(leafLearner = Some(linearLearner)).setHyper("minLeafInstances", 2)
+    val linearLearner = LinearRegressionLearner(regParam = Some(0.0))
+    val DTLearner = RegressionTreeLearner(leafLearner = Some(linearLearner), minLeafInstances = 2)
     val DTMeta = DTLearner.train(trainingData)
     val DT = DTMeta.getModel()
 
@@ -162,8 +162,8 @@ class RegressionTreeTest {
       inputBins = Seq((11, 8))
     ).asInstanceOf[Seq[(Vector[Any], Double)]]
 
-    val linearLearner = new LinearRegressionLearner().setHyper("regParam", 1.0)
-    val DTLearner = new RegressionTreeLearner(leafLearner = Some(linearLearner), maxDepth = 0)
+    val linearLearner = LinearRegressionLearner(regParam = Some(1.0))
+    val DTLearner = RegressionTreeLearner(leafLearner = Some(linearLearner), maxDepth = 0)
     val DTMeta = DTLearner.train(trainingData)
     val DT = DTMeta.getModel()
 
@@ -176,7 +176,7 @@ class RegressionTreeTest {
     /* They should all be non-zero */
     assert(importances.last == 0.0)
 
-    assert(linearImportance.zip(importances).map{case (x, y) => x-y}.forall(d => Math.abs(d) < 1.0e-9),
+    assert(linearImportance.zip(importances).map { case (x, y) => x - y }.forall(d => Math.abs(d) < 1.0e-9),
       s"Expected linear and maxDepth=0 importances to align"
     )
 
@@ -191,9 +191,11 @@ class RegressionTreeTest {
   def testWeights(): Unit = {
     val trainingData = TestUtils.generateTrainingData(32, 12, noise = 100.0, function = Friedman.friedmanSilverman, seed = 3L)
 
-    val linearLearner = new LinearRegressionLearner().setHyper("regParam", 1.0)
-    val DTLearner = new RegressionTreeLearner(leafLearner = Some(linearLearner), maxDepth = 1)
-    val DTMeta = DTLearner.train(trainingData, weights = Some(Seq.fill(trainingData.size){Random.nextInt(8)}))
+    val linearLearner = LinearRegressionLearner(regParam = Some(1.0))
+    val DTLearner = RegressionTreeLearner(leafLearner = Some(linearLearner), maxDepth = 1)
+    val DTMeta = DTLearner.train(trainingData, weights = Some(Seq.fill(trainingData.size) {
+      Random.nextInt(8)
+    }))
     val DT = DTMeta.getModel()
 
     /* The first feature should be the most important */

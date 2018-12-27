@@ -3,7 +3,6 @@ package io.citrine.lolo
 /**
   * Created by maxhutch on 11/14/16.
   */
-@SerialVersionUID(1000L)
 trait Model[+T <: PredictionResult[Any]] extends Serializable {
 
   /**
