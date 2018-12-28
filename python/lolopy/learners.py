@@ -47,6 +47,10 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
         # Train the model
         result = learner.train(train_data, self.gateway.jvm.scala.Some(weights_java))
 
+        # Unlink the training data, which is no longer needed (to save memory)
+        self.gateway.detach(train_data)
+        self.gateway.detach(weights_java)
+
         # Get the model out
         self.model_ = result.getModel()
 
@@ -59,6 +63,13 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
         Returns:
             (JavaObject) A lolo "Learner" object, which can be used to train a model"""
         pass
+
+    def clear_model(self):
+        """Utility operation for deleting model from JVM when no longer needed"""
+
+        if self.model_ is not None:
+            self.gateway.detach(self.model_)
+            self.model_ = None
 
     def _convert_train_data(self, X, y, weights=None):
         """Convert the training data to a form accepted by Lolo
@@ -114,6 +125,9 @@ class BaseLoloRegressor(BaseLoloLearner, RegressorMixin):
         # Get the PredictionResult
         pred_result = self.model_.transform(X_java)
 
+        # Unlink the run data, which is no longer needed (to save memory)
+        self.gateway.detach(X_java)
+
         # Pull out the expected values
         y_pred = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getRegressionExpected(pred_result)
         y_pred = np.frombuffer(y_pred, dtype='float')  # Lolo gives a byte array back
@@ -149,6 +163,9 @@ class BaseLoloClassifier(BaseLoloLearner, ClassifierMixin):
         # Get the PredictionResult
         pred_result = self.model_.transform(X_java)
 
+        # Unlink the run data, which is no longer needed (to save memory)
+        self.gateway.detach(X_java)
+
         # Pull out the expected values
         y_pred = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getClassifierExpected(pred_result)
         y_pred = np.frombuffer(y_pred, dtype=np.int32)  # Lolo gives a byte array back
@@ -161,6 +178,9 @@ class BaseLoloClassifier(BaseLoloLearner, ClassifierMixin):
 
         # Get the PredictionResult
         pred_result = self.model_.transform(X_java)
+
+        # Unlink the run data, which is no longer needed (to save memory)
+        self.gateway.detach(X_java)
 
         # Copy over the class probabilities
         output = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getClassifierProbabilities(pred_result,

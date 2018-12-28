@@ -31,6 +31,10 @@ class TestRF(TestCase):
         self.assertEqual(len(y_pred), len(y_std))
         self.assertTrue((y_std >= 0).all())
 
+        # Make sure the detach operation functions
+        rf.clear_model()
+        self.assertIsNone(rf.model_)
+
     def test_classifier(self):
         rf = RandomForestClassifier()
 
