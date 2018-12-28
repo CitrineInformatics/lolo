@@ -5,7 +5,6 @@ import io.citrine.lolo.trees.classification.ClassificationTreeLearner
 import io.citrine.lolo.trees.multitask.MultiTaskTreeLearner
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
 import io.citrine.theta.Stopwatch
-import org.junit.Test
 
 /**
   * Performance tests
@@ -20,11 +19,12 @@ class PerformanceTest {
 
   /**
     * Time training and application of models
+    *
     * @param trainingData which is used both to train and then later apply the models to
-    * @param n number of training rows to take
-    * @param k number of features to consider per split
-    * @param b number of trees in the forest
-    * @param quiet whether to print messages to the screen
+    * @param n            number of training rows to take
+    * @param k            number of features to consider per split
+    * @param b            number of trees in the forest
+    * @param quiet        whether to print messages to the screen
     * @return the training and application time, in seconds
     */
   def timedTest(trainingData: Seq[(Vector[Any], Any)], n: Int, k: Int, b: Int, quiet: Boolean = true): (Double, Double) = {
@@ -37,10 +37,14 @@ class PerformanceTest {
     }
     val baggedLearner = new Bagger(DTLearner, numBags = b)
 
-    val timeTraining = Stopwatch.time({baggedLearner.train(data).getModel()}, benchmark = "None", minRun = 4, targetError = 0.1, maxRun = 32)
+    val timeTraining = Stopwatch.time({
+      baggedLearner.train(data).getModel()
+    }, benchmark = "None", minRun = 4, targetError = 0.1, maxRun = 32)
     val model = baggedLearner.train(data).getModel()
 
-    val timePredicting = Stopwatch.time({model.transform(inputs).getUncertainty()}, benchmark = "None", minRun = 4, targetError = 0.1, maxRun = 32)
+    val timePredicting = Stopwatch.time({
+      model.transform(inputs).getUncertainty()
+    }, benchmark = "None", minRun = 4, targetError = 0.1, maxRun = 32)
 
     if (!quiet) println(f"${timeTraining}%10.4f, ${timePredicting}%10.4f, ${n}%6d, ${k}%6d, ${b}%6d")
     (timeTraining, timePredicting)
@@ -58,12 +62,12 @@ class PerformanceTest {
     val (kTrain, kApply) = (bTrain.zip(bApply).take(1) ++ Ks.tail.map(k => timedTest(trainingData, Ns.head, k, Bs.head, quiet))).unzip
     val (nTrain, nApply) = (bTrain.zip(bApply).take(1) ++ Ns.tail.map(n => timedTest(trainingData, n, Ks.head, Bs.head, quiet))).unzip
 
-    val bTrainScale = (1 until bTrain.size).map(i => bTrain(i)/bTrain(i-1))
-    val nTrainScale = (1 until nTrain.size).map(i => nTrain(i)/nTrain(i-1))
-    val kTrainScale = (1 until kTrain.size).map(i => kTrain(i)/kTrain(i-1))
-    val bApplyScale = (1 until bApply.size).map(i => bApply(i)/bApply(i-1))
-    val nApplyScale = (1 until nApply.size).map(i => nApply(i)/nApply(i-1))
-    val kApplyScale = (1 until kApply.size).map(i => kApply(i)/kApply(i-1))
+    val bTrainScale = (1 until bTrain.size).map(i => bTrain(i) / bTrain(i - 1))
+    val nTrainScale = (1 until nTrain.size).map(i => nTrain(i) / nTrain(i - 1))
+    val kTrainScale = (1 until kTrain.size).map(i => kTrain(i) / kTrain(i - 1))
+    val bApplyScale = (1 until bApply.size).map(i => bApply(i) / bApply(i - 1))
+    val nApplyScale = (1 until nApply.size).map(i => nApply(i) / nApply(i - 1))
+    val kApplyScale = (1 until kApply.size).map(i => kApply(i) / kApply(i - 1))
 
     assert(bTrainScale.forall(s => s < Math.sqrt(8.0) && s > Math.sqrt(2.0)), bTrainScale)
     assert(kTrainScale.forall(s => s < Math.sqrt(8.0) && s > Math.sqrt(0.5)), kTrainScale)

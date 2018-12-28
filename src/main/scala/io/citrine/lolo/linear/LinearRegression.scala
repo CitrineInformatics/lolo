@@ -1,6 +1,6 @@
 package io.citrine.lolo.linear
 
-import breeze.linalg.{DenseMatrix, DenseVector, diag, inv, norm, pinv, sum, trace}
+import breeze.linalg.{DenseMatrix, DenseVector, diag, pinv, sum}
 import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
 
 /**
@@ -10,9 +10,10 @@ import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
   *
   * @param fitIntercept whether to fit an intercept or not
   */
-class LinearRegressionLearner(fitIntercept: Boolean = true) extends Learner {
-
-  setHypers(Map("regParam" -> 0.0, "fitIntercept" -> fitIntercept))
+case class LinearRegressionLearner(
+                                    regParam: Option[Double] = None,
+                                    fitIntercept: Boolean = true
+                                  ) extends Learner {
 
   /**
     * Train a linear model via direct inversion.
@@ -30,15 +31,15 @@ class LinearRegressionLearner(fitIntercept: Boolean = true) extends Learner {
       .filterNot(_._1.asInstanceOf[Double].isNaN)
       .map(_._2)
       .filterNot(i => trainingData.exists(_._1(i).asInstanceOf[Double].isNaN))
-      .filterNot{i =>
-        val unregularized = !hypers.get("regParam").exists(_.asInstanceOf[Double] > 0.0)
+      .filterNot { i =>
+        val unregularized = !regParam.exists(_.asInstanceOf[Double] > 0.0)
         lazy val constant = trainingData.forall(_._1(i) == trainingData.head._1(i))
         unregularized && constant // remove constant features if there's no regularization
       }
 
 
     /* If we are fitting the intercept, add a row of 1s */
-    val At = if (hypers("fitIntercept").asInstanceOf[Boolean]) {
+    val At = if (fitIntercept) {
       new DenseMatrix(indices.size + 1, n, trainingData.map(r => indices.map(r._1(_).asInstanceOf[Double]) :+ 1.0).flatten.toArray)
     } else {
       new DenseMatrix(indices.size, n, trainingData.map(r => indices.map(r._1(_).asInstanceOf[Double])).flatten.toArray)
@@ -60,10 +61,10 @@ class LinearRegressionLearner(fitIntercept: Boolean = true) extends Learner {
       new DenseVector(trainingData.map(_._2.asInstanceOf[Double]).toArray)
     }
 
-    val beta = if (hypers("regParam").asInstanceOf[Double] > 0 || n >= k) {
+    val beta = if (regParam.exists(_ > 0) || n >= k) {
       /* Construct the regularized problem and solve it */
-      val regVector = Math.pow(hypers("regParam").asInstanceOf[Double], 2) * DenseVector.ones[Double](k)
-      if (hypers("fitIntercept").asInstanceOf[Boolean]) regVector(-1) = 0.0
+      val regVector = Math.pow(regParam.getOrElse(0.0), 2) * DenseVector.ones[Double](k)
+      if (fitIntercept) regVector(-1) = 0.0
       val M = At * A + diag(regVector)
       try {
         val Mi = pinv(M)
@@ -71,7 +72,7 @@ class LinearRegressionLearner(fitIntercept: Boolean = true) extends Learner {
         Mi * At * b
       } catch {
         case x: Throwable =>
-          val mean = if (weightsMatrix.isDefined) sum(b)/weights.get.sum else sum(b) / b.length
+          val mean = if (weightsMatrix.isDefined) sum(b) / weights.get.sum else sum(b) / b.length
           val res = DenseVector.zeros[Double](k)
           res(-1) = mean
           res
@@ -87,13 +88,13 @@ class LinearRegressionLearner(fitIntercept: Boolean = true) extends Learner {
     }
 
     /* If we fit the intercept, take it off the end of the coefficients */
-    val model = if (hypers("fitIntercept").asInstanceOf[Boolean]) {
+    val model = if (fitIntercept) {
       new LinearRegressionModel(beta(0 to -2), beta(-1), indices = indicesToModel)
     } else {
       new LinearRegressionModel(beta, 0.0, indices = indicesToModel)
     }
 
-    new LinearRegressionTrainingResult(model, getHypers())
+    new LinearRegressionTrainingResult(model)
   }
 }
 
@@ -102,14 +103,7 @@ class LinearRegressionLearner(fitIntercept: Boolean = true) extends Learner {
   *
   * @param model contained
   */
-@SerialVersionUID(999L)
-class LinearRegressionTrainingResult(model: LinearRegressionModel, hypers: Map[String, Any]) extends TrainingResult {
-  /**
-    * Get the hyperparameters used to train this model
-    *
-    * @return hypers set for model
-    */
-  override def getHypers(): Map[String, Any] = hypers
+class LinearRegressionTrainingResult(model: LinearRegressionModel) extends TrainingResult {
 
   override def getModel(): LinearRegressionModel = model
 
@@ -119,8 +113,8 @@ class LinearRegressionTrainingResult(model: LinearRegressionModel, hypers: Map[S
     * @return feature influences as an array of doubles
     */
   override def getFeatureImportance(): Option[Vector[Double]] = {
-    val beta = model.getBeta().map(Math.abs)
-    val renorm = 1.0 / beta.sum
+    val beta: Vector[Double] = model.getBeta().map(Math.abs)
+    val renorm: Double = 1.0 / beta.sum
     Some(beta.map(_ * renorm))
   }
 }
@@ -132,7 +126,6 @@ class LinearRegressionTrainingResult(model: LinearRegressionModel, hypers: Map[S
   * @param intercept intercept
   * @param indices   optional indices from which to extract real features
   */
-@SerialVersionUID(1000L)
 class LinearRegressionModel(
                              beta: DenseVector[Double],
                              intercept: Double,
@@ -146,7 +139,7 @@ class LinearRegressionModel(
     * @return a predictionresult which includes, at least, the expected outputs
     */
   override def transform(inputs: Seq[Vector[Any]]): LinearRegressionResult = {
-    val filteredInputs = indices.map{case (ind, size) => inputs.map(inp => ind.map(inp(_)))}.getOrElse(inputs).flatten.asInstanceOf[Seq[Double]]
+    val filteredInputs = indices.map { case (ind, size) => inputs.map(inp => ind.map(inp(_))) }.getOrElse(inputs).flatten.asInstanceOf[Seq[Double]]
     val inputMatrix = new DenseMatrix(filteredInputs.size / inputs.size, inputs.size,
       filteredInputs.toArray
     )
@@ -157,6 +150,7 @@ class LinearRegressionModel(
   }
 
   /**
+    *
     * Get the beta from the linear model \beta^T X = y
     * @return beta as a vector of double
     */

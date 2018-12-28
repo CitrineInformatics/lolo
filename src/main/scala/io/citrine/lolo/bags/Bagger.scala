@@ -18,24 +18,12 @@ import scala.collection.parallel.immutable.ParSeq
   * @param method  learner to train each model in the ensemble
   * @param numBags number of models in the ensemble
   */
-class Bagger(
-              method: Learner,
-              numBags: Int = -1,
-              useJackknife: Boolean = true,
-              biasLearner: Option[Learner] = None
-            ) extends Learner {
-
-  setHypers(Map("useJackknife" -> useJackknife, "numBags" -> numBags))
-
-  override def setHypers(moreHypers: Map[String, Any]): Bagger.this.type = {
-    method.setHypers(moreHypers)
-    super.setHypers(moreHypers)
-  }
-
-  override def getHypers(): Map[String, Any] = {
-    method.getHypers() ++ hypers
-  }
-
+case class Bagger(
+                   method: Learner,
+                   numBags: Int = -1,
+                   useJackknife: Boolean = true,
+                   biasLearner: Option[Learner] = None
+                 ) extends Learner {
 
   private def combineImportance(v1: Option[Vector[Double]], v2: Option[Vector[Double]]): Option[Vector[Double]] = {
     (v1, v2) match {
@@ -61,8 +49,8 @@ class Bagger(
     val weightsActual = weights.getOrElse(Seq.fill(trainingData.size)(1.0))
 
     /* Set default number of bags */
-    val actualBags = if (hypers("numBags").asInstanceOf[Int] > 0) {
-      hypers("numBags").asInstanceOf[Int]
+    val actualBags = if (numBags > 0) {
+      numBags
     } else {
       trainingData.size
     }
@@ -86,15 +74,17 @@ class Bagger(
     }.unzip
 
     // Average the feature importances
-    val averageImportance: Option[Vector[Double]] = importances.reduce{combineImportance}.map(_.map(_ / importances.size))
+    val averageImportance: Option[Vector[Double]] = importances.reduce {
+      combineImportance
+    }.map(_.map(_ / importances.size))
 
     /* Wrap the models in a BaggedModel object */
     if (biasLearner.isEmpty) {
       Async.canStop()
-      new BaggedTrainingResult(models, getHypers(), averageImportance, Nib, trainingData, hypers("useJackknife").asInstanceOf[Boolean])
+      new BaggedTrainingResult(models, averageImportance, Nib, trainingData, useJackknife)
     } else {
       Async.canStop()
-      val baggedModel = new BaggedModel(models, Nib, hypers("useJackknife").asInstanceOf[Boolean])
+      val baggedModel = new BaggedModel(models, Nib, useJackknife)
       Async.canStop()
       val baggedRes = baggedModel.transform(trainingData.map(_._1))
       Async.canStop()
@@ -110,15 +100,13 @@ class Bagger(
       val biasModel = biasLearner.get.train(biasTraining).getModel()
       Async.canStop()
 
-      new BaggedTrainingResult(models, getHypers(), averageImportance, Nib, trainingData, hypers("useJackknife").asInstanceOf[Boolean], Some(biasModel))
+      new BaggedTrainingResult(models, averageImportance, Nib, trainingData, useJackknife, Some(biasModel))
     }
   }
 }
 
-@SerialVersionUID(999L)
 class BaggedTrainingResult(
                             models: ParSeq[Model[PredictionResult[Any]]],
-                            hypers: Map[String, Any],
                             featureImportance: Option[Vector[Double]],
                             Nib: Vector[Vector[Int]],
                             trainingData: Seq[(Vector[Any], Any)],
@@ -131,7 +119,7 @@ class BaggedTrainingResult(
   lazy val rep = trainingData.find(_._2 != null).get._2
   lazy val predictedVsActual = trainingData.zip(NibT).flatMap { case ((f, l), nb) =>
     val oob = models.zip(nb).filter(_._2 == 0)
-    if (oob.isEmpty || l == null || (l.isInstanceOf[Double] && l.asInstanceOf[Double].isNaN) ) {
+    if (oob.isEmpty || l == null || (l.isInstanceOf[Double] && l.asInstanceOf[Double].isNaN)) {
       Seq()
     } else {
       val predicted = l match {
@@ -161,13 +149,6 @@ class BaggedTrainingResult(
   override def getPredictedVsActual(): Option[Seq[(Vector[Any], Any, Any)]] = Some(predictedVsActual)
 
   override def getLoss(): Option[Double] = Some(loss)
-
-  /**
-    * Get the hyperparameters used to train this model
-    *
-    * @return hypers set for model
-    */
-  override def getHypers(): Map[String, Any] = hypers
 }
 
 /**
@@ -176,7 +157,6 @@ class BaggedTrainingResult(
   * @param models in this bagged model
   * @param Nib    training sample counts
   */
-@SerialVersionUID(1000L)
 class BaggedModel(
                    models: ParSeq[Model[PredictionResult[Any]]],
                    Nib: Vector[Vector[Int]],

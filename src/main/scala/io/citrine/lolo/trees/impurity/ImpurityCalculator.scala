@@ -2,13 +2,15 @@ package io.citrine.lolo.trees.impurity
 
 /**
   * Interface for an impurity calculator, which computes an impurity metric to drive a splitter
+  *
   * @tparam T
   */
 trait ImpurityCalculator[T] {
 
   /**
     * Add a value to the left partition
-    * @param value to add
+    *
+    * @param value  to add
     * @param weight of the value
     * @return the impurity after adding
     */
@@ -16,7 +18,8 @@ trait ImpurityCalculator[T] {
 
   /**
     * Remove a value from the left partition
-    * @param value to remove
+    *
+    * @param value  to remove
     * @param weight of the value
     * @return the impurity after removing
     */
@@ -29,6 +32,7 @@ trait ImpurityCalculator[T] {
 
   /**
     * Get the impurity at the current state of the calculator
+    *
     * @return impurity
     */
   def getImpurity: Double

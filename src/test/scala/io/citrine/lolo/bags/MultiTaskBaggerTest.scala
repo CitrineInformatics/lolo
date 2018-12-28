@@ -29,8 +29,8 @@ class MultiTaskBaggerTest {
     )
     val inputs = trainingData.map(_._1)
     val labels = trainingData.map(_._2)
-    val DTLearner = new MultiTaskTreeLearner()
-    val baggedLearner = new MultiTaskBagger(DTLearner, numBags = trainingData.size)
+    val DTLearner = MultiTaskTreeLearner()
+    val baggedLearner = MultiTaskBagger(DTLearner, numBags = trainingData.size)
     val RFMeta = baggedLearner.train(inputs, Seq(labels)).head
     val RF = RFMeta.getModel()
 
@@ -55,8 +55,8 @@ class MultiTaskBaggerTest {
     )
     val inputs = trainingData.map(_._1)
     val labels = trainingData.map(_._2)
-    val DTLearner = new MultiTaskTreeLearner()
-    val baggedLearner = new MultiTaskBagger(DTLearner, numBags = trainingData.size)
+    val DTLearner = MultiTaskTreeLearner()
+    val baggedLearner = MultiTaskBagger(DTLearner, numBags = trainingData.size)
     val RFMeta = baggedLearner.train(inputs, Seq(labels)).head
     val RF = RFMeta.getModel()
 
@@ -67,11 +67,13 @@ class MultiTaskBaggerTest {
 
     val uncertainty = results.getUncertainty()
     assert(uncertainty.isDefined)
-    assert(trainingData.map(_._2).zip(uncertainty.get).forall { case (a, probs) =>
+    trainingData.map(_._2).zip(uncertainty.get).foreach { case (a, probs) =>
       val classProbabilities = probs.asInstanceOf[Map[Any, Double]]
       val maxProb = classProbabilities(a)
-      maxProb > 0.5 && maxProb < 1.0 && Math.abs(classProbabilities.values.sum - 1.0) < 1.0e-6
-    })
+      assert(maxProb >= 0.5)
+      assert(maxProb < 1.0)
+      assert(Math.abs(classProbabilities.values.sum - 1.0) < 1.0e-6)
+    }
     assert(results.getGradient().isEmpty, "Returned a gradient when there shouldn't be one")
   }
 
@@ -85,8 +87,8 @@ class MultiTaskBaggerTest {
     val inputs: Seq[Vector[Double]] = raw.map(_._1)
     val realLabel: Seq[Double] = raw.map(_._2)
     val catLabel: Seq[Boolean] = raw.map(_._2 > realLabel.max / 2.0)
-    val DTLearner = new MultiTaskTreeLearner()
-    val baggedLearner = new MultiTaskBagger(DTLearner, numBags = inputs.size, biasLearner = Some(new RegressionTreeLearner(maxDepth = 2)))
+    val DTLearner = MultiTaskTreeLearner()
+    val baggedLearner = MultiTaskBagger(DTLearner, numBags = inputs.size, biasLearner = Some(new RegressionTreeLearner(maxDepth = 2)))
     val RFMeta = baggedLearner.train(inputs, Seq(realLabel, catLabel)).last
     val RF = RFMeta.getModel()
 
@@ -120,8 +122,8 @@ class MultiTaskBaggerTest {
       }
     )
 
-    val DTLearner = new MultiTaskTreeLearner()
-    val baggedLearner = new MultiTaskBagger(DTLearner, numBags = inputs.size, biasLearner = Some(new GuessTheMeanLearner))
+    val DTLearner = MultiTaskTreeLearner()
+    val baggedLearner = MultiTaskBagger(DTLearner, numBags = inputs.size, biasLearner = Some(new GuessTheMeanLearner))
     val trainingResult = baggedLearner.train(inputs, Seq(sparseReal, sparseCat))
     val RFMeta = trainingResult.last
     val RF = RFMeta.getModel()
@@ -130,7 +132,7 @@ class MultiTaskBaggerTest {
     val realUncertainty = trainingResult.head.getModel().transform(inputs).getUncertainty().get
     assert(realUncertainty.forall(!_.asInstanceOf[Double].isNaN), s"Some uncertainty values were NaN")
 
-    val referenceModel = new Bagger(new ClassificationTreeLearner(), numBags = inputs.size)
+    val referenceModel = Bagger(ClassificationTreeLearner(), numBags = inputs.size)
       .train(inputs.zip(sparseCat).filterNot(_._2 == null))
     val reference = referenceModel
       .getModel()
@@ -142,7 +144,7 @@ class MultiTaskBaggerTest {
 
     // Make sure we can grab the loss without issue
     val singleLoss = referenceModel.getLoss().get
-    val multiLoss  = RFMeta.getLoss().get
+    val multiLoss = RFMeta.getLoss().get
     val regressionLoss = trainingResult.head.getLoss().get
     assert(!singleLoss.isNaN, "Single task classification loss was NaN")
     assert(!multiLoss.isNaN, "Sparse multitask classification loss was NaN")

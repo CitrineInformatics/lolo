@@ -30,7 +30,7 @@ class LinearRegressionTest {
       (data.t(::, i).toDenseVector.toArray.toVector, result(i))
     }
 
-    val lr = new LinearRegressionLearner(fitIntercept = false)
+    val lr = LinearRegressionLearner(fitIntercept = false)
     val lrm = lr.train(trainingData)
     val model = lrm.getModel()
     val output = model.transform(trainingData.map(_._1))
@@ -53,7 +53,7 @@ class LinearRegressionTest {
       (data.t(::, i).toDenseVector.toArray.toVector, result(i))
     }
 
-    val lr = new LinearRegressionLearner()
+    val lr = LinearRegressionLearner()
     val lrm = lr.train(trainingData)
     val model = lrm.getModel()
     val output = model.transform(trainingData.map(_._1))
@@ -138,7 +138,7 @@ class LinearRegressionTest {
 
     /* Make sure that feature importance matches the gradient */
     val betaScale = beta.map(Math.abs).sum
-    beta.zip(importance).foreach{case (b, i) =>
+    beta.zip(importance).foreach { case (b, i) =>
       val diff = Math.abs(Math.abs(b / betaScale) - i)
       assert(diff < Double.MinPositiveValue || diff / i < 1.0e-9,
         s"Beta and feature importance disagree: ${b / betaScale} vs ${i}")

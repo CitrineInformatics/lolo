@@ -11,7 +11,7 @@ import io.citrine.lolo.PredictionResult
   * @param trainingData which is used both to train and then later apply the models to
   * @return the training and application time, in seconds
   */
-def timedTest(trainingData: Seq[(Vector[Any], Double)], evalData: Seq[(Vector[Any], Double)]): (Double, Double, Double, Double, Integer) = {
+def timedTest(trainingData: Seq[(Vector[Any], Double)], evalData: Seq[(Vector[Any], Double)]): (Double, Double, Double) = {
   val inputs = evalData.map(_._1).toVector
   val baggedLearner = new RandomForest(trainingData.length)
 
@@ -25,13 +25,7 @@ def timedTest(trainingData: Seq[(Vector[Any], Double)], evalData: Seq[(Vector[An
   val timePredicting = Stopwatch.time({model.transform(inputs).getExpected()}, benchmark = "None", minRun = 16, targetError = 0.1, maxRun = 32)
   val timeUncertainty = Stopwatch.time({model.transform(inputs).getUncertainty()}, benchmark = "None", minRun = 16, targetError = 0.1, maxRun = 32)
 
-  // Compute the RMSE and fraction inside 1 std
-  val predResult = model.transform(inputs).asInstanceOf[PredictionResult[Double]]
-  val error = evalData.map(_._2).zip(predResult.getExpected()).map(x => x._1 - x._2)
-  val rmse = Math.sqrt(error.map(x => x * x).sum / error.length)
-  val num_below = error.zip(predResult.getUncertainty().get.asInstanceOf[Seq[Double]]).map(x => Math.abs(x._1) < x._2).map(if (_) 1 else 0).sum
-
-  (timeTraining, timePredicting, timeUncertainty, rmse, num_below)
+  (timeTraining, timePredicting, timeUncertainty)
 }
 
 def readCsv(name: String): Seq[Vector[Any]] = {
@@ -63,5 +57,5 @@ def getTrainingDataFromCsv(name: String): Vector[(Vector[Double], Double)] = {
 
 val data = getTrainingDataFromCsv(args(0))
 val runData = getTrainingDataFromCsv(args(1))
-val (train, expect, uncert, rmse, n_below) = timedTest(data, runData)
-println(s"${train},${expect},${uncert},${rmse},${n_below}")
+val (train, expect, uncert) = timedTest(data, runData)
+println(s"${train},${expect},${uncert}")
