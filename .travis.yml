@@ -19,8 +19,6 @@ matrix:
         - make
         - pip install --only-binary=numpy,scipy -r requirements.txt
       script:
-        - pip install -e lolopy
-        - pip install
         - nosetests
 env:
   global:
