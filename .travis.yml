@@ -17,11 +17,12 @@ matrix:
     - language: "python"
       python:
         - 3.6
-      before_script: cd python
       install:
+        - cd python
         - make
         - pip install --only-binary=numpy,scipy -r requirements.txt
       script:
+        - cd python
         - pip install -e lolopy
         - pip install
         - nosetests
