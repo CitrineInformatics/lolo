@@ -16,3 +16,11 @@ class TestLoloGateway(TestCase):
         # Make sure importing Lolo works
         java_import(gate.jvm, "io.citrine.lolo.learners.*")
         self.assertIsInstance(gate.jvm.RandomForest, JavaClass)
+
+        # Make sure requsting a gateway againt returns the same gateway
+        gate2 = get_java_gateway()
+        self.assertIs(gate, gate2)
+
+        # Test getting a new gateway if needed
+        gate3 = get_java_gateway(reuse=False)
+        self.assertIsNot(gate, gate3)
