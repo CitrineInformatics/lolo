@@ -129,8 +129,8 @@ class BaseLoloRegressor(BaseLoloLearner, RegressorMixin):
         self.gateway.detach(X_java)
 
         # Pull out the expected values
-        y_pred = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getRegressionExpected(pred_result)
-        y_pred = np.frombuffer(y_pred, dtype='float')  # Lolo gives a byte array back
+        y_pred_byte = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getRegressionExpected(pred_result)
+        y_pred = np.frombuffer(y_pred_byte, dtype='float')  # Lolo gives a byte array back
 
         # If desired, return the uncertainty too
         if return_std:
@@ -167,8 +167,8 @@ class BaseLoloClassifier(BaseLoloLearner, ClassifierMixin):
         self.gateway.detach(X_java)
 
         # Pull out the expected values
-        y_pred = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getClassifierExpected(pred_result)
-        y_pred = np.frombuffer(y_pred, dtype=np.int32)  # Lolo gives a byte array back
+        y_pred_byte = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getClassifierExpected(pred_result)
+        y_pred = np.frombuffer(y_pred_byte, dtype=np.int32)  # Lolo gives a byte array back
 
         return y_pred
 
@@ -183,10 +183,10 @@ class BaseLoloClassifier(BaseLoloLearner, ClassifierMixin):
         self.gateway.detach(X_java)
 
         # Copy over the class probabilities
-        output = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getClassifierProbabilities(pred_result,
+        probs_byte = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getClassifierProbabilities(pred_result,
                                                                                                    self.n_classes_)
-        output = np.frombuffer(output, dtype='float').reshape(-1, self.n_classes_)
-        return output
+        probs = np.frombuffer(probs_byte, dtype='float').reshape(-1, self.n_classes_)
+        return probs
 
 
 class RandomForestMixin(BaseLoloLearner):
