@@ -29,11 +29,18 @@ class TestRF(TestCase):
         # Run predictions with std dev
         y_pred, y_std = rf.predict(X, return_std=True)
         self.assertEqual(len(y_pred), len(y_std))
-        self.assertTrue((y_std >= 0).all())
+        self.assertTrue((y_std >= 0).all())  # They must be positive
+        self.assertGreater(np.std(y_std), 0)  # Must have a variety of values
 
         # Make sure the detach operation functions
         rf.clear_model()
         self.assertIsNone(rf.model_)
+
+        # Test removing Jackknife, which should produce equal uncertainties for all entries
+        rf.useJackknife = False
+        rf.fit(X, y)
+        y_pred, y_std = rf.predict(X, return_std=True)
+        self.assertAlmostEqual(np.std(y_std), 0)
 
     def test_classifier(self):
         rf = RandomForestClassifier()
