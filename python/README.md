@@ -35,13 +35,13 @@ See the [`examples`](./examples) folder for more examples and details.
 ## Implementation and Performance
 
 `lolopy` is built using the [Py4J](https://www.py4j.org/) library to interface with the Lolo scala library.
-Py4J provides the ability to easily managing a JVM server, create Java objects in that JVM, and calling Java methods from Python. 
+Py4J provides the ability to easily managing a JVM server, create Java objects in that JVM, and call Java methods from Python. 
 However, Py4J  [has slow performance in transfering large arrays](https://github.com/bartdag/py4j/issues/159).
 To transfer arrays of features (e.g., training data) to the JVM before model training or evaluation, we transform the data to/from Byte arrays on the Java and Python sides. 
 Transfering data as byte arrays does allow for quickly moving data between the JVM and Python but requires holding 3 copies of the data in memory at once (Python, Java Byte array, and Java numerical array).
 We could reduce memory usage by passing the byte array in chunks, but this is currently not implemented.
 
-Our performance for modeling training is comparable to scikit-learn, as shown in the figure below. 
+Our performance for model training is comparable to scikit-learn, as shown in the figure below. 
 The blue-shaded region in the figure represents the time required to pass training data to the JVM.
 We note that training times are equivalent between using the Scala interface to Lolo and `lolopy` for training set sizes above 100.
 
