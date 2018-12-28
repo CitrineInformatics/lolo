@@ -29,6 +29,7 @@ class TestRF(TestCase):
         # Run predictions with std dev
         y_pred, y_std = rf.predict(X, return_std=True)
         self.assertEqual(len(y_pred), len(y_std))
+        self.assertTrue((y_std >= 0).all())
 
     def test_classifier(self):
         rf = RandomForestClassifier()

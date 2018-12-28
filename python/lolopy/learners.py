@@ -5,12 +5,28 @@ import numpy as np
 from lolopy.loloserver import get_java_gateway
 from sklearn.base import BaseEstimator, RegressorMixin, ClassifierMixin, is_regressor
 
+__all__ = ['RandomForestRegressor', 'RandomForestClassifier']
+
 
 class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
     """Base object for all leaners that use Lolo.
 
     Contains logic for starting the JVM gateway, and the fit operations.
-    It is only necessary to implement the `_make_learner` object for """
+    It is only necessary to implement the `_make_learner` object and create an `__init__` function
+    to adapt a learner from the Lolo library for use in lolopy.
+
+    The logic for making predictions (i.e., `predict` and `predict_proba`) is specific to whether the learner
+    is a classification or regression model.
+    In lolo, learners are not specific to a regression or classification problem and the type of problem is determined
+    when fitting data is provided to the algorithm.
+    In contrast, Scikit-learn learners for regression or classification problems are different classes.
+    We have implemented `BaseLoloRegressor` and `BaseLoloClassifier` abstract classes to make it easier for creating
+    a classification or regression version of a Lolo base class.
+    The pattern for creating a scikit-learn compatible learner is to first implement the `_make_learner` and `__init__`
+    operations in a special "Mixin" class that inherits from `BaseLoloLearner`, and then create a regression- or
+    classification-specific class that inherits from both `BaseClassifier` or `BaseRegressor` and your new "Mixin".
+    See the RandomForest models as an example for this approach.
+    """
 
     def __init__(self):
         self.gateway = get_java_gateway()
@@ -86,36 +102,10 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
         return self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getFeatureArray(X.tobytes(), X.shape[1], False)
 
 
-class BaseRandomForest(BaseLoloLearner):
-    """Random Forest """
+class BaseLoloRegressor(BaseLoloLearner, RegressorMixin):
+    """Abstract class for models that produce regression models.
 
-    def __init__(self, num_trees=-1, useJackknife=True, subsetStrategy="auto"):
-        """Initialize the RandomForest
-
-        Args:
-            num_trees (int): Number of trees to use in the forest
-        """
-        super(BaseRandomForest, self).__init__()
-
-        # Get JVM for this object
-
-        # Store the variables
-        self.num_trees = num_trees
-        self.useJackknife = useJackknife
-        self.subsetStrategy = subsetStrategy
-
-    def _make_learner(self):
-        #  TODO: Figure our a more succinct way of dealing with optional arguments/Option values
-        #  TODO: Do not hard-code use of RandomForest
-        learner = self.gateway.jvm.io.citrine.lolo.learners.RandomForest(
-            self.num_trees, self.useJackknife,
-            getattr(self.gateway.jvm.io.citrine.lolo.learners.RandomForest,
-                    "$lessinit$greater$default$3")(),
-            getattr(self.gateway.jvm.io.citrine.lolo.learners.RandomForest,
-                    "$lessinit$greater$default$4")(),
-            self.subsetStrategy
-        )
-        return learner
+    Implements the predict operation"""
 
     def predict(self, X, return_std=False):
         # Convert the data to Java
@@ -140,18 +130,17 @@ class BaseRandomForest(BaseLoloLearner):
         return y_pred
 
 
-class RandomForestRegressor(BaseRandomForest, RegressorMixin):
-    """Random Forest for regression"""
-    pass
+class BaseLoloClassifier(BaseLoloLearner, ClassifierMixin):
+    """Base class for classification models
 
-
-class RandomForestClassifier(BaseRandomForest, ClassifierMixin):
+    Implements a modification to the fit operation that stores the number of classes
+    and the predict/predict_proba methods"""
 
     def fit(self, X, y, weights=None):
         # Get the number of classes
         self.n_classes_ = len(set(y))
 
-        return super(RandomForestClassifier, self).fit(X, y, weights)
+        return super(BaseLoloClassifier, self).fit(X, y, weights)
 
     def predict(self, X):
         # Convert the data to Java
@@ -178,3 +167,46 @@ class RandomForestClassifier(BaseRandomForest, ClassifierMixin):
                                                                                                    self.n_classes_)
         output = np.frombuffer(output, dtype='float').reshape(-1, self.n_classes_)
         return output
+
+
+class RandomForestMixin(BaseLoloLearner):
+    """Random Forest base class
+
+    Implements the _make_learner operation and the __init__ function with options specific to the RandomForest
+    class in Lolo"""
+
+    def __init__(self, num_trees=-1, useJackknife=True, subsetStrategy="auto"):
+        """Initialize the RandomForest
+
+        Args:
+            num_trees (int): Number of trees to use in the forest
+        """
+        super(RandomForestMixin, self).__init__()
+
+        # Get JVM for this object
+
+        # Store the variables
+        self.num_trees = num_trees
+        self.useJackknife = useJackknife
+        self.subsetStrategy = subsetStrategy
+
+    def _make_learner(self):
+        #  TODO: Figure our a more succinct way of dealing with optional arguments/Option values
+        #  TODO: Do not hard-code use of RandomForest
+        learner = self.gateway.jvm.io.citrine.lolo.learners.RandomForest(
+            self.num_trees, self.useJackknife,
+            getattr(self.gateway.jvm.io.citrine.lolo.learners.RandomForest,
+                    "$lessinit$greater$default$3")(),
+            getattr(self.gateway.jvm.io.citrine.lolo.learners.RandomForest,
+                    "$lessinit$greater$default$4")(),
+            self.subsetStrategy
+        )
+        return learner
+
+
+class RandomForestRegressor(BaseLoloRegressor, RandomForestMixin):
+    """Random Forest model used for regression"""
+
+
+class RandomForestClassifier(BaseLoloClassifier, RandomForestMixin):
+    """Random Forest model used for classiciation"""
