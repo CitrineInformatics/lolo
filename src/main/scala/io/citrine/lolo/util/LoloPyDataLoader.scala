@@ -33,12 +33,12 @@ object LoloPyDataLoader {
 
 
   /**
-    * Receive a class or weight array
+    * Receive a 1D array of floats or integers
     * @param input Input byte array
-    * @param getFloat Whether to read doubles (or integers)
+    * @param getDouble Whether to read doubles (or integers)
     * @param bigEndian Whether the file
     */
-  def get1DArray(input: Array[Byte], getFloat: Boolean, bigEndian: Boolean) : Seq[Any] = {
+  def get1DArray(input: Array[Byte], getDouble: Boolean, bigEndian: Boolean) : Seq[Any] = {
     // Get ordering
     val ordering = if (bigEndian) ByteOrder.BIG_ENDIAN else ByteOrder.LITTLE_ENDIAN
 
@@ -46,7 +46,7 @@ object LoloPyDataLoader {
     val buffer = ByteBuffer.wrap(input).order(ordering)
 
     // Convert to integer or float
-    if (getFloat) {
+    if (getDouble) {
       val nDigits = input.length / 8
       (0 until nDigits).map(x => buffer.getDouble(x * 8)).toVector
     } else {

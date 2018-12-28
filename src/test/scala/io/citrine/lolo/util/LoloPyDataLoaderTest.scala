@@ -19,18 +19,19 @@ class LoloPyDataLoaderTest {
     assert(data.length == 4)
     assert(data.head.length == 4)
     assert(Math.abs(data.head(1) - 1) < 1e-6, "Array read in wrong order")
+    assert(Math.abs((4 until 8).zip(data(1)).map(x => Math.abs(x._1 - x._2)).sum) < 1e-6)
   }
 
   @Test
   def test1DArrayDouble(): Unit = {
-    val data = LoloPyDataLoader.get1DArray(getData, getFloat = true, bigEndian = false).asInstanceOf[Seq[Double]]
+    val data = LoloPyDataLoader.get1DArray(getData, getDouble = true, bigEndian = false).asInstanceOf[Seq[Double]]
     assert(data.length == 16)
     assert(Math.abs(data(1) - 1) < 1e-6, "Array read badly")
   }
 
   @Test
   def test1DArrayInteger(): Unit = {
-    val data = LoloPyDataLoader.get1DArray(getData, getFloat = false, bigEndian = false).asInstanceOf[Seq[Int]]
+    val data = LoloPyDataLoader.get1DArray(getData, getDouble = false, bigEndian = false).asInstanceOf[Seq[Int]]
     assert(data.length == 32)
     assert(data.take(3).sum == 0) // First 3 values are all 0
     assert(data(3) == 1072693248) // Fourth is a big one
@@ -39,7 +40,7 @@ class LoloPyDataLoaderTest {
   @Test
   def testZipping(): Unit = {
     val X = LoloPyDataLoader.getFeatureArray(getData, 4, bigEndian = false)
-    val y = LoloPyDataLoader.get1DArray(getData, getFloat = true, bigEndian = false).asInstanceOf[Seq[Double]]
+    val y = LoloPyDataLoader.get1DArray(getData, getDouble = true, bigEndian = false).asInstanceOf[Seq[Double]]
     val trainData = LoloPyDataLoader.zipTrainingData(X, y)
     assert(trainData.length == 4)
     val (x_i, y_i: Double) = trainData.head
@@ -69,12 +70,12 @@ class LoloPyDataLoaderTest {
 
     // Get the results as a byte array, and convert them back
     val reproMeans = LoloPyDataLoader.get1DArray(
-      LoloPyDataLoader.getRegressionExpected(results), getFloat = true, bigEndian = false).asInstanceOf[Seq[Double]]
+      LoloPyDataLoader.getRegressionExpected(results), getDouble = true, bigEndian = false).asInstanceOf[Seq[Double]]
     assert(reproMeans.zip(means).map(x => Math.abs(x._1 - x._2)).sum < 1e-6)
 
     // Get the uncertainty as a byte array, and convert them back
     val reproSigma = LoloPyDataLoader.get1DArray(
-      LoloPyDataLoader.getRegressionUncertainty(results), getFloat = true, bigEndian = false).asInstanceOf[Seq[Double]]
+      LoloPyDataLoader.getRegressionUncertainty(results), getDouble = true, bigEndian = false).asInstanceOf[Seq[Double]]
     assert(reproSigma.zip(sigma).map(x => Math.abs(x._1 - x._2)).sum < 1e-6)
   }
 
@@ -99,12 +100,12 @@ class LoloPyDataLoaderTest {
 
     // Get the expected class via the utility
     val reproExp = LoloPyDataLoader.get1DArray(
-      LoloPyDataLoader.getClassifierExpected(results), getFloat = false, bigEndian = false).asInstanceOf[Seq[Int]]
+      LoloPyDataLoader.getClassifierExpected(results), getDouble = false, bigEndian = false).asInstanceOf[Seq[Int]]
     assert(reproExp.zip(means).map(x => Math.abs(x._1 - x._2)).sum < 1e-6)
 
     // Get the probs via the utility
     val reproProbs = LoloPyDataLoader.get1DArray(
-      LoloPyDataLoader.getClassifierProbabilities(results, nClasses), getFloat = true, bigEndian = false).asInstanceOf[Seq[Double]]
+      LoloPyDataLoader.getClassifierProbabilities(results, nClasses), getDouble = true, bigEndian = false).asInstanceOf[Seq[Double]]
     assert(reproProbs.length == 32 * nClasses)
     assert(probs.zip(reproProbs).map(x => Math.abs(x._1 - x._2)).sum < 1e-6)
   }
