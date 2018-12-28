@@ -3,14 +3,14 @@ scala:
   - 2.12.4
 jdk:
   - oraclejdk8
+cache:
+  directories:
+    - "~/.m2/repository"
 matrix:
   include:
     - install: mvn install -P !build-extras -DskipTests=true -Dmaven.javadoc.skip=true -B
         -V
       script: mvn test -P !build-extras -B
-      cache:
-        directories:
-        - "~/.m2/repository"
       after_success:
         - "./cd/before-deploy.sh"
         - "./cd/deploy.sh"
