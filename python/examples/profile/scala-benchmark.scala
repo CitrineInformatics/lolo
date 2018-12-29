@@ -15,11 +15,12 @@ def timedTest(trainingData: Seq[(Vector[Any], Double)], evalData: Seq[(Vector[An
   val inputs = evalData.map(_._1).toVector
   val baggedLearner = new RandomForest(trainingData.length)
 
-  // Do a dry run 
+  // Do dry timining run with 8 runs
   val model = baggedLearner.train(trainingData).getModel()
-  model.transform(inputs).getExpected().toVector
-  model.transform(inputs).getUncertainty().toVector
-
+  Stopwatch.time({baggedLearner.train(trainingData).getModel()}, benchmark = "None", minRun = 8, maxRun = 8)
+  Stopwatch.time({model.transform(inputs).getExpected()}, benchmark = "None", minRun = 8, maxRun = 8)
+  Stopwatch.time({model.transform(inputs).getUncertainty()}, benchmark = "None", minRun = 8, maxRun = 8)
+    
   // Time it for real
   val timeTraining = Stopwatch.time({baggedLearner.train(trainingData).getModel()}, benchmark = "None", minRun = 16, targetError = 0.1, maxRun = 32)
   val timePredicting = Stopwatch.time({model.transform(inputs).getExpected()}, benchmark = "None", minRun = 16, targetError = 0.1, maxRun = 32)
