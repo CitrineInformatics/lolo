@@ -136,8 +136,8 @@ class BaseLoloRegressor(BaseLoloLearner, RegressorMixin):
         if return_std:
             # TODO: This part fails on Windows because the NativeSystemBLAS is not found. Fix that
             # TODO: This is only valid for regression models. Perhaps make a "LoloRegressor" class
-            y_std = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getRegressionUncertainty(pred_result)
-            y_std = np.frombuffer(y_std, 'float')
+            y_std_bytes = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getRegressionUncertainty(pred_result)
+            y_std = np.frombuffer(y_std_bytes, 'float')
             return y_pred, y_std
 
         # Get the expected values
