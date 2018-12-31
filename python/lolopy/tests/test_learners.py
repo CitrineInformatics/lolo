@@ -2,6 +2,7 @@ from lolopy.learners import RandomForestRegressor, RandomForestClassifier
 from sklearn.metrics import r2_score, accuracy_score, log_loss
 from sklearn.datasets import load_boston, load_iris
 from unittest import TestCase, main
+import pickle as pkl
 import numpy as np
 
 
@@ -64,6 +65,26 @@ class TestRF(TestCase):
         acc = accuracy_score(y, y_pred)
         print('Accuracy:', acc)
         self.assertAlmostEqual(acc, 1)  # Given default settings, we should get perfect fittness to training data
+
+    def test_serialization(self):
+        rf = RandomForestClassifier()
+
+        # Make sure this doesn't error without a model training
+        data = pkl.dumps(rf)
+        rf2 = pkl.loads(data)
+
+        # Load in the iris dataset and train model
+        X, y = load_iris(True)
+        rf.fit(X, y)
+
+        # Try saving and loading the model
+        data = pkl.dumps(rf)
+        rf2 = pkl.loads(data)
+
+        # Make sure it yields the same predictions as the first model
+        probs1 = rf.predict_proba(X)
+        probs2 = rf2.predict_proba(X)
+        self.assertTrue(np.isclose(probs1, probs2).all())
 
 if __name__ == "__main__":
     main()

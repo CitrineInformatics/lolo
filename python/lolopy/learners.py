@@ -33,6 +33,35 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
 
         # Create a placeholder for the model
         self.model_ = None
+        self._compress_level = 9
+        
+    def __getstate__(self):
+        # Get the current state
+        try:
+            state = super(BaseLoloLearner, self).__getstate__()
+        except AttributeError:
+            state = self.__dict__.copy()
+
+        # Delete the gateway data
+        del state['gateway']
+
+        # If there is a model set, replace it with the JVM copy
+        if self.model_ is not None:
+            state['model_'] = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.serializeObject(self.model_,
+                                                                                                     self._compress_level)
+        return state
+
+    def __setstate__(self, state):
+        # Unpickle the object
+        super(BaseLoloLearner, self).__setstate__(state)
+
+        # Get a pointer to the gateway
+        self.gateway = get_java_gateway()
+
+        # If needed, load the model into memory
+        if state['model_'] is not None:
+            bytes = state.pop('model_')
+            self.model_ = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.deserializeObject(bytes)
 
     def fit(self, X, y, weights=None):
         # Instantiate the JVM object
