@@ -1,17 +1,28 @@
 language: scala
 scala:
-- 2.11.2
+  - 2.12.4
 jdk:
-- oraclejdk8
-install: mvn install -P !build-extras -DskipTests=true -Dmaven.javadoc.skip=true -B
-  -V
-script: mvn test -P !build-extras -B
+  - oraclejdk8
 cache:
   directories:
-  - "~/.m2/repository"
-after_success:
-- "./cd/before-deploy.sh"
-- "./cd/deploy.sh"
+    - "~/.m2/repository"
+matrix:
+  include:
+    - install: mvn install -P !build-extras -DskipTests=true -Dmaven.javadoc.skip=true -B
+        -V
+      script: mvn test -P !build-extras -B
+      after_success:
+        - "./cd/before-deploy.sh"
+        - "./cd/deploy.sh"
+    - language: "python"
+      python:
+        - 3.6
+      install:
+        - cd python
+        - make
+        - pip install --only-binary=numpy,scipy -r requirements.txt
+      script:
+        - nosetests
 env:
   global:
   - secure: FrHaublJMcjvXrLETTXYt3Ii9qxeXP+1tLGN7pvR1c2OHN8gL2ski8oEpNF7UhbLyW2nF/7Z+T64ORyxExeeWeVjor7Iw043GqADYb+ChIF1cj0hCKQebe60LVqzoV5cAyaKc4bDq3wLckoWSniE2YYSV3Lt1wnahNa2LVS6OAptYKq8EoTy75bQ+o9PV22yJM6Z/NCZRi6GE9zCxH+zM/PXd3k+aJTs2zud44cX9uARruS68gcvdx3BCmgQVhBV47L1UQyZIX7907B6CG8WRFn9Z5o1rikS6OH6vXChYEO4XxO+7HLJusFPF+oxOLJZTffShK6fiBeL7085cl8TDxl1uqJjb6DFnaP1IsZW+8Q5HZ3uVegwsdFtR2aHmXDfHHymFFl+7LtMPPZf+oewt1GpA8dRfdPorKXSCkQg9hfT+AWwO5EtW1872u61nkFRiU33qe/2d3mYmEG39GrR0Ci0iDLP0Ey/fnC4nEfgjO9AACKssHUD/81bCVtm7uYLNI4vrAsZfTfHVvjOKaIktKXaN6IRJJ+J1/ba3EQvuY2R7ee4PyU4LNig/7qnXBovKHVGSZMRXgrGGFfTX6oN0THP0RKKmlVX7MQsDL6ocOjWxAZdFvdhzMJDnPQw3gTgwS0a8R8bs18AafQu5PoKPoQMfR150fc56msR/Urm+Bs=

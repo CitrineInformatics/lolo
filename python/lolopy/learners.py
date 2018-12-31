@@ -1,16 +1,32 @@
 from abc import abstractmethod, ABCMeta
 
+import sys
 import numpy as np
 from lolopy.loloserver import get_java_gateway
-from py4j.java_collections import ListConverter
 from sklearn.base import BaseEstimator, RegressorMixin, ClassifierMixin, is_regressor
+
+__all__ = ['RandomForestRegressor', 'RandomForestClassifier']
 
 
 class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
     """Base object for all leaners that use Lolo.
 
     Contains logic for starting the JVM gateway, and the fit operations.
-    It is only necessary to implement the `_make_learner` object for """
+    It is only necessary to implement the `_make_learner` object and create an `__init__` function
+    to adapt a learner from the Lolo library for use in lolopy.
+
+    The logic for making predictions (i.e., `predict` and `predict_proba`) is specific to whether the learner
+    is a classification or regression model.
+    In lolo, learners are not specific to a regression or classification problem and the type of problem is determined
+    when fitting data is provided to the algorithm.
+    In contrast, Scikit-learn learners for regression or classification problems are different classes.
+    We have implemented `BaseLoloRegressor` and `BaseLoloClassifier` abstract classes to make it easier for creating
+    a classification or regression version of a Lolo base class.
+    The pattern for creating a scikit-learn compatible learner is to first implement the `_make_learner` and `__init__`
+    operations in a special "Mixin" class that inherits from `BaseLoloLearner`, and then create a regression- or
+    classification-specific class that inherits from both `BaseClassifier` or `BaseRegressor` and your new "Mixin".
+    See the RandomForest models as an example for this approach.
+    """
 
     def __init__(self):
         self.gateway = get_java_gateway()
@@ -23,10 +39,17 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
         learner = self._make_learner()
 
         # Convert all of the training data to Java arrays
-        train_data = self._convert_train_data(X, y, weights)
+        train_data, weights_java = self._convert_train_data(X, y, weights)
+        assert train_data.length() == len(X), "Array copy failed"
+        assert train_data.head()._1().length() == len(X[0]), "Wrong number of features"
+        assert weights_java.length() == len(X), "Weights copy failed"
 
         # Train the model
-        result = learner.train(train_data)
+        result = learner.train(train_data, self.gateway.jvm.scala.Some(weights_java))
+
+        # Unlink the training data, which is no longer needed (to save memory)
+        self.gateway.detach(train_data)
+        self.gateway.detach(weights_java)
 
         # Get the model out
         self.model_ = result.getModel()
@@ -41,6 +64,13 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
             (JavaObject) A lolo "Learner" object, which can be used to train a model"""
         pass
 
+    def clear_model(self):
+        """Utility operation for deleting model from JVM when no longer needed"""
+
+        if self.model_ is not None:
+            self.gateway.detach(self.model_)
+            self.model_ = None
+
     def _convert_train_data(self, X, y, weights=None):
         """Convert the training data to a form accepted by Lolo
 
@@ -54,30 +84,22 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
 
         # Make some default weights
         if weights is None:
-            weights = [1.] * len(y)
+            weights = np.ones(len(y))
+
+        # Convert x, y, and w to float64 and int8 with native ordering
+        X = np.array(X, dtype=np.float64)
+        y = np.array(y, dtype=np.float64 if is_regressor(self) else np.int32)
+        weights = np.array(weights, dtype=np.float64)
+        big_end = sys.byteorder == "big"
 
         # Convert X and y to Java Objects
-        train_data = self.gateway.jvm.java.util.ArrayList(len(y))
-        for x_i, y_i, w_i in zip(X, y, weights):
-            # Copy the X into an array
-            x_i_java = ListConverter().convert(x_i, self.gateway._gateway_client)
-            x_i_java = self.gateway.jvm.scala.collection.JavaConverters.asScalaBuffer(
-                x_i_java).toVector()
+        X_java = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getFeatureArray(X.tobytes(), X.shape[1], big_end)
+        y_java = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.get1DArray(y.tobytes(), is_regressor(self), big_end)
+        assert y_java.length() == len(y) == len(X)
+        w_java = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.get1DArray(np.array(weights).tobytes(), True, big_end)
+        assert w_java.length() == len(weights)
 
-            # If a regression problem, make sure y_i is a float
-            if is_regressor(self):
-                y_i = float(y_i)
-            else:
-                y_i = int(y_i)
-
-            # Make the data row
-            row = self.gateway.jvm.scala.Tuple3(x_i_java, y_i, w_i)
-
-            # Append to training data list
-            train_data.append(row)
-        train_data = self.gateway.jvm.scala.collection.JavaConverters.asScalaBuffer(train_data)
-
-        return train_data
+        return self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.zipTrainingData(X_java, y_java), w_java
 
     def _convert_run_data(self, X):
         """Convert the data to be run by the model
@@ -88,27 +110,98 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
             (JavaObject): Pointer to run data in Java
         """
 
-        # Convert X to an array
-        X_java = self.gateway.jvm.java.util.ArrayList(len(X))
-        for x_i in X:
-            x_i_java = ListConverter().convert(x_i, self.gateway._gateway_client)
-            x_i_java = self.gateway.jvm.scala.collection.JavaConverters.asScalaBuffer(
-                x_i_java).toVector()
-            X_java.append(x_i_java)
-        X_java = self.gateway.jvm.scala.collection.JavaConverters.asScalaBuffer(X_java)
-        return X_java
+        return self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getFeatureArray(X.tobytes(), X.shape[1], False)
 
 
-class BaseRandomForest(BaseLoloLearner):
-    """Random Forest """
+class BaseLoloRegressor(BaseLoloLearner, RegressorMixin):
+    """Abstract class for models that produce regression models.
 
-    def __init__(self, num_trees=-1, useJackknife=True, subsetStrategy=4):
+    Implements the predict operation"""
+
+    def predict(self, X, return_std=False):
+        # Convert the data to Java
+        X_java = self._convert_run_data(X)
+
+        # Get the PredictionResult
+        pred_result = self.model_.transform(X_java)
+
+        # Unlink the run data, which is no longer needed (to save memory)
+        self.gateway.detach(X_java)
+
+        # Pull out the expected values
+        y_pred_byte = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getRegressionExpected(pred_result)
+        y_pred = np.frombuffer(y_pred_byte, dtype='float')  # Lolo gives a byte array back
+
+        # If desired, return the uncertainty too
+        if return_std:
+            # TODO: This part fails on Windows because the NativeSystemBLAS is not found. Fix that
+            # TODO: This is only valid for regression models. Perhaps make a "LoloRegressor" class
+            y_std_bytes = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getRegressionUncertainty(pred_result)
+            y_std = np.frombuffer(y_std_bytes, 'float')
+            return y_pred, y_std
+
+        # Get the expected values
+        return y_pred
+
+
+class BaseLoloClassifier(BaseLoloLearner, ClassifierMixin):
+    """Base class for classification models
+
+    Implements a modification to the fit operation that stores the number of classes
+    and the predict/predict_proba methods"""
+
+    def fit(self, X, y, weights=None):
+        # Get the number of classes
+        self.n_classes_ = len(set(y))
+
+        return super(BaseLoloClassifier, self).fit(X, y, weights)
+
+    def predict(self, X):
+        # Convert the data to Java
+        X_java = self._convert_run_data(X)
+
+        # Get the PredictionResult
+        pred_result = self.model_.transform(X_java)
+
+        # Unlink the run data, which is no longer needed (to save memory)
+        self.gateway.detach(X_java)
+
+        # Pull out the expected values
+        y_pred_byte = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getClassifierExpected(pred_result)
+        y_pred = np.frombuffer(y_pred_byte, dtype=np.int32)  # Lolo gives a byte array back
+
+        return y_pred
+
+    def predict_proba(self, X):
+        # Convert the data to Java
+        X_java = self._convert_run_data(X)
+
+        # Get the PredictionResult
+        pred_result = self.model_.transform(X_java)
+
+        # Unlink the run data, which is no longer needed (to save memory)
+        self.gateway.detach(X_java)
+
+        # Copy over the class probabilities
+        probs_byte = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getClassifierProbabilities(pred_result,
+                                                                                                   self.n_classes_)
+        probs = np.frombuffer(probs_byte, dtype='float').reshape(-1, self.n_classes_)
+        return probs
+
+
+class RandomForestMixin(BaseLoloLearner):
+    """Random Forest base class
+
+    Implements the _make_learner operation and the __init__ function with options specific to the RandomForest
+    class in Lolo"""
+
+    def __init__(self, num_trees=-1, useJackknife=True, subsetStrategy="auto"):
         """Initialize the RandomForest
 
         Args:
             num_trees (int): Number of trees to use in the forest
         """
-        super(BaseRandomForest, self).__init__()
+        super(RandomForestMixin, self).__init__()
 
         # Get JVM for this object
 
@@ -130,60 +223,10 @@ class BaseRandomForest(BaseLoloLearner):
         )
         return learner
 
-    def predict(self, X, return_std=False):
-        # Convert the data to Java
-        X_java = self._convert_run_data(X)
 
-        # Get the PredictionResult
-        pred_result = self.model_.transform(X_java)
-
-        # Pull out the expected values
-        exp_values = pred_result.getExpected()
-        y_pred = [exp_values.apply(i) for i in range(len(X))]
-
-        # If desired, return the uncertainty too
-        if return_std:
-            # TODO: This part fails on Windows because the NativeSystemBLAS is not found. Fix that
-            # TODO: This is only valid for regression models. Perhaps make a "LoloRegressor" class
-            uncertain = pred_result.getUncertainty().get()
-            y_std = np.zeros_like(y_pred)
-            for i in range(len(X)):
-                y_std[i] = uncertain.apply(i)
-            return y_pred, y_std
-
-        # Get the expected values
-        return y_pred
+class RandomForestRegressor(BaseLoloRegressor, RandomForestMixin):
+    """Random Forest model used for regression"""
 
 
-class RandomForestRegressor(BaseRandomForest, RegressorMixin):
-    """Random Forest for regression"""
-    pass
-
-
-class RandomForestClassifier(BaseRandomForest, ClassifierMixin):
-
-    def fit(self, X, y, weights=None):
-        # Get the number of classes
-        self.n_classes_ = len(set(y))
-
-        return super(RandomForestClassifier, self).fit(X, y, weights)
-
-    def predict(self, X):
-        return super(RandomForestClassifier, self).predict(X, False)
-
-    def predict_proba(self, X):
-        # Convert the data to Java
-        X_java = self._convert_run_data(X)
-
-        # Get the PredictionResult
-        pred_result = self.model_.transform(X_java)
-
-        # Copy over the class probabilities
-        output = np.zeros((len(X), self.n_classes_))
-        prob_array = pred_result.getUncertainty().get()
-        for i, prob in enumerate(self.gateway.jvm.scala.collection.JavaConverters
-                                         .asJavaCollection(prob_array).toArray()):
-            prob = self.gateway.jvm.scala.collection.JavaConverters.mapAsJavaMap(prob)
-            for j in range(self.n_classes_):
-                output[i, j] = prob.getOrDefault(j, 0)
-        return output
+class RandomForestClassifier(BaseLoloClassifier, RandomForestMixin):
+    """Random Forest model used for classiciation"""
