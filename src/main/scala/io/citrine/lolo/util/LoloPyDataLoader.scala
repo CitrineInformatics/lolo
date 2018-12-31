@@ -1,7 +1,9 @@
 package io.citrine.lolo.util
 
+import java.io.{ByteArrayInputStream, ByteArrayOutputStream, ObjectInputStream, ObjectOutputStream}
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.util.zip._
 
 import io.citrine.lolo.PredictionResult
 
@@ -127,5 +129,38 @@ object LoloPyDataLoader {
     val buffer = ByteBuffer.allocate(nClasses * probs.length * 8).order(ByteOrder.nativeOrder())
     probs.flatten.foreach(buffer.putDouble)
     buffer.array
+  }
+
+  /**
+    * Convert a JVM object to a byte array
+    *
+    * Used for saving a model in lolopy inside of a pickle file.
+    *
+    * @param obj Object to be saved
+    * @param compressLevel Compression level used to condense the serialized representation
+    * @return Object as a serialized byte array
+    */
+  def serializeObject(obj : Any, compressLevel: Int) : Array[Byte] = {
+    // Thanks to: https://stackoverflow.com/questions/39369319/convert-any-type-in-scala-to-arraybyte-and-back
+    val stream: ByteArrayOutputStream = new ByteArrayOutputStream()
+    val compressedStream: DeflaterOutputStream = new DeflaterOutputStream(stream, new Deflater(compressLevel))
+    val oos = new ObjectOutputStream(compressedStream)
+    oos.writeObject(obj)
+    oos.close()
+    compressedStream.close()
+    stream.toByteArray
+  }
+
+  /**
+    * Deserialize a JVM object from a byte array
+    *
+    * @param bytes Bytes to be unserialized
+    * @return The object
+    */
+  def deserializeObject(bytes: Array[Byte]) : Any = {
+    val stream = new ObjectInputStream(new InflaterInputStream(new ByteArrayInputStream(bytes)))
+    val obj = stream.readObject()
+    stream.close()
+    obj
   }
 }
