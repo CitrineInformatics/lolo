@@ -57,6 +57,11 @@ object LoloPyDataLoader {
 
   /**
     * Zips the features and labels together
+    *
+    * This function was created to provide the ability to easily Zip training and testing data when using Lolo
+    * from lolopy. Py4J does not support generic methods well, and this function is a workaround for being able
+    * to call zip when needed generate a training set.
+    *
     * @param X Feature array
     * @param y Label array
     * @return Zipped arrays
