@@ -39,21 +39,18 @@ class LoloPyDataLoaderTest {
 
   @Test
   def testGetRegression(): Unit = {
-    // Generate an RF model
-    val trainingData = TestUtils.binTrainingData(
-      TestUtils.generateTrainingData(32, 12, noise = 0.1, function = Friedman.friedmanSilverman),
-      inputBins = Seq((0, 8))
-    )
+    val results = new PredictionResult[Double] {
+      override def getExpected(): Seq[Double] = {
+        1.0 :: 2.0 :: 3.0 :: Nil
+      }
 
-    val RFMeta = RandomForest.apply(numTrees = trainingData.length * 2)
-      .train(trainingData)
-    val RF = RFMeta.getModel()
-
-    // Generate the prediction results object
-    val results = RF.transform(trainingData.map(_._1))
+      override def getUncertainty(): Option[Seq[Any]] = {
+        Some(0.1 :: 0.2 :: 0.3 :: Nil)
+      }
+    }
 
     // Get the expected results
-    val means = results.getExpected().asInstanceOf[Seq[Double]]
+    val means = results.getExpected()
     val sigma = results.getUncertainty().get.asInstanceOf[Seq[Double]]
 
     // Get the results as a byte array, and convert them back
@@ -69,22 +66,20 @@ class LoloPyDataLoaderTest {
 
   @Test
   def testGetClassification(): Unit = {
-    // Make a classification model
-    val trainingData = TestUtils.binTrainingData(
-      TestUtils.generateTrainingData(32, 12, noise = 0.1, function = Friedman.friedmanSilverman),
-      inputBins = Seq((0, 8)), responseBins = Some(8)
-    )
-    val RFMeta = new RandomForest(numTrees = trainingData.length * 2)
-      .train(trainingData.map(x => (x._1, Integer.parseInt(x._2.toString))))
-    val RF = RFMeta.getModel()
-    val nClasses : Int = trainingData.map(x => Integer.parseInt(x._2.toString)).max + 1
-
     // Get the base results
-    val results = RF.transform(trainingData.map(_._1))
-    val means = results.getExpected().asInstanceOf[Seq[Int]]
+    val results = new PredictionResult[Int] {
+      override def getExpected(): Seq[Int] = {
+        0 :: 1 :: 0 :: 1 :: Nil
+      }
+
+      override def getUncertainty(): Option[Seq[Any]] = {
+        Some(Map(0 -> 1.0) :: Map(1 -> 0.5, 0 -> 0.2, 2 -> 0.3) :: Map(0 -> 1.0) :: Map(1 -> 1.0) :: Nil)
+      }
+    }
+    val means = results.getExpected()
     val probs : Seq[Double] = results.getUncertainty().get.asInstanceOf[Seq[Map[Int, Double]]].flatMap(
-      x => 0.until(nClasses).map(i => x.getOrElse(i, 0.0)))
-    assert(Math.abs(probs.sum - trainingData.length) < 1e-6)
+      x => 0.until(3).map(i => x.getOrElse(i, 0.0)))
+    assert(Math.abs(probs.sum - 4) < 1e-6)
 
     // Get the expected class via the utility
     val reproExp = LoloPyDataLoader.get1DArray(
@@ -93,8 +88,8 @@ class LoloPyDataLoaderTest {
 
     // Get the probs via the utility
     val reproProbs = LoloPyDataLoader.get1DArray(
-      LoloPyDataLoader.getClassifierProbabilities(results, nClasses), getDouble = true, bigEndian = false).asInstanceOf[Seq[Double]]
-    assert(reproProbs.length == 32 * nClasses)
+      LoloPyDataLoader.getClassifierProbabilities(results, 3), getDouble = true, bigEndian = false).asInstanceOf[Seq[Double]]
+    assert(reproProbs.length == 4 * 3)
     assert(probs.zip(reproProbs).map(x => Math.abs(x._1 - x._2)).sum < 1e-6)
   }
 }
