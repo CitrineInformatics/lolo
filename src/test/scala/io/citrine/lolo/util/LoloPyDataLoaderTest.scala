@@ -92,4 +92,12 @@ class LoloPyDataLoaderTest {
     assert(reproProbs.length == 4 * 3)
     assert(probs.zip(reproProbs).map(x => Math.abs(x._1 - x._2)).sum < 1e-6)
   }
+
+  @Test
+  def testSerialization(): Unit = {
+    val model = new RandomForest(numTrees = 256)
+    val bytes = LoloPyDataLoader.serializeObject(model, 9)
+    val model2 = LoloPyDataLoader.deserializeObject(bytes).asInstanceOf[RandomForest]
+    assert(model.numTrees == model2.numTrees)
+  }
 }
