@@ -31,7 +31,7 @@ Lolo is on the central repository, and can be used by simply adding the followin
 <dependency>
     <groupId>io.citrine</groupId>
     <artifactId>lolo</artifactId>
-    <version>0.2.11</version>
+    <version>2.0.0</version>
 </dependency>
 ```
 Lolo provides higher level wrappers for common learner combinations.
@@ -62,6 +62,7 @@ We welcome bug reports, feature requests, and pull requests.  Pull requests shou
 # Authors
  * [Max Hutchinson](https://github.com/maxhutch/)
  * [Sean Paradiso](https://github.com/sparadiso)
+ * [Logan Ward](https://github.com/WardLT)
  
 # Related projects
  * [randomForestCI](https://github.com/swager/randomForestCI) is an R-based implementation of jackknife variance estimates by S. Wager
