@@ -20,7 +20,7 @@ class DistanceCorrelationTest {
     val Y: Seq[Double] = Seq.tabulate(N)(i => Random.nextGaussian())
     val dcorr = DistanceCorrelation.distanceCorrelation(X, Y, dist)
 
-    assert(dcorr < 0.15, s"dCorr for independent vars is ${dcorr}" )
+    assert(dcorr < 0.15, s"dCorr for independent vars is ${dcorr}")
   }
 
 

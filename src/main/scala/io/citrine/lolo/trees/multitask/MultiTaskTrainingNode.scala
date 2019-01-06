@@ -57,7 +57,7 @@ class MultiTaskTrainingNode(inputs: Seq[(Vector[AnyVal], Array[AnyVal], Double)]
       leftChild.get.getNode(index)
     } else if (rightChild.isDefined && right.nonEmpty) {
       rightChild.get.getNode(index)
-    } else{
+    } else {
       // If there are no children or the children don't have valid data for this label, emit a leaf (with GTM)
       if (label.isInstanceOf[Double]) {
         new TrainingLeaf[Double](reducedData.asInstanceOf[Seq[(Vector[AnyVal], Double, Double)]], new GuessTheMeanLearner(), 1).getNode()

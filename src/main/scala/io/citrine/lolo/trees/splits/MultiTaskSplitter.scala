@@ -123,7 +123,7 @@ object MultiTaskSplitter {
     var leftNum = 0
     calculator.reset()
     val pivots = (0 until orderedNames.size).flatMap { j =>
-      thinData.filter(r => orderedNames(j) == r._1).map{r =>
+      thinData.filter(r => orderedNames(j) == r._1).map { r =>
         calculator.add(r._2, r._3)
         leftNum = leftNum + 1
       }
