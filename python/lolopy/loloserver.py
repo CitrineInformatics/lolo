@@ -8,7 +8,7 @@ import os
 _lolopy_gateway = None
 
 # TODO: Auto-detect the version of lolo? [Requires lolo installation (not compatible with PyPi) and/or internet connection to check Maven, and causes a maintenance burden]
-_lolo_version = '1.0.3'
+_lolo_version = '2.0.0'
 
 
 def find_lolo_jar():
@@ -36,6 +36,7 @@ def get_java_gateway(reuse=True):
 
     if _lolopy_gateway is None or not reuse:
         lolo_path = find_lolo_jar()
+        print(lolo_path)
         assert os.path.isfile(lolo_path), 'Lolo jar not found'
 
         _lolopy_gateway = JavaGateway.launch_gateway(classpath=os.path.pathsep.join([
