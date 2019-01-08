@@ -7,7 +7,19 @@ Lolo is a Scala library that contains a variety of machine learning algorithms, 
 
 ## Installation
 
-Lolopy requires Python >= 3.6 and Scala >= 2.12. 
+`lolopy` is available on PyPi. Install it by calling:
+ 
+ ```
+ pip install lolopy
+ ```
+ 
+ To use `lolopy`, you will also need to install Java JRE >= 1.8 on your system.
+ The `lolopy` PyPi package contains the compiled `lolo` library, so it is ready to use after installation.
+
+
+### Development 
+
+Lolopy requires Python >= 3.6, Java JDK >= 1.8, and Maven to be installed on your system when developing lolopy.  
 
 During the development stage, you must compile `lolo` on your system using Maven before using `lolopy`.
 We have provided a `Makefile` that contains the needed operations.
