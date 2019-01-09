@@ -2,7 +2,7 @@ package io.citrine.lolo.validation
 
 import io.citrine.lolo.TestUtils
 import io.citrine.lolo.learners.RandomForest
-import io.citrine.lolo.stats.functions.Linear
+import io.citrine.lolo.stats.functions.{Friedman, Linear}
 import org.junit.Test
 import org.knowm.xchart.BitmapEncoder
 import org.knowm.xchart.BitmapEncoder.BitmapFormat
@@ -15,7 +15,9 @@ class StatisticalValidationTest {
   def testCalibration(): Unit = {
     val nFeature = 2
 
+    // val data = TestUtils.iterateTrainingData(nFeature, Linear.offDiagonal(nFeature).apply, seed = Random.nextLong())
     val data = TestUtils.iterateTrainingData(nFeature, Linear(Seq(1.0)).apply, seed = Random.nextLong())
+    // val data = TestUtils.iterateTrainingData(nFeature, Friedman.friedmanSilverman, seed = Random.nextLong())
     // val data = TestUtils.generateTrainingData(nRow, nFeature, Linear.offDiagonal(nFeature).apply)
     // val data = TestUtils.generateTrainingData(nRow, nFeature, Linear.randomDirection(nFeature).apply)
     // val data = TestUtils.generateTrainingData(nRow, nFeature, Friedman.friedmanSilverman)
@@ -33,8 +35,8 @@ class StatisticalValidationTest {
         println(f"$name%15s: $mean%6.4f +/- $sigma%6.4f")
       }
     } else {
-      Seq(256).foreach { nTrain =>
-        Seq(256, 512, 1024).foreach { nTree =>
+      Seq(16, 32, 64, 128, 256, 512, 1024, 2048).foreach { nTrain =>
+        Seq(nTrain).foreach { nTree =>
           val learner = RandomForest(numTrees = nTree)
           val chart = StatisticalValidation.generativeHistogram(
             data,
@@ -43,7 +45,7 @@ class StatisticalValidationTest {
             nTest = 512,
             nRound = 64
           )
-          BitmapEncoder.saveBitmap(chart, s"./stderr_${nTrain}_${nTree}", BitmapFormat.PNG)
+          BitmapEncoder.saveBitmap(chart, s"./stderr_sweep_${nTrain}_${nTree}", BitmapFormat.PNG)
         }
       }
     }
