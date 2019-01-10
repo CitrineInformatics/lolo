@@ -6,6 +6,7 @@ jdk:
 cache:
   directories:
     - "~/.m2/repository"
+    - "~/.cache/pip"
 matrix:
   include:
     - install: mvn install -P !build-extras -DskipTests=true -Dmaven.javadoc.skip=true -B
