@@ -24,3 +24,8 @@ class TestLoloGateway(TestCase):
         # Test getting a new gateway if needed
         gate3 = get_java_gateway(reuse=False)
         self.assertIsNot(gate, gate3)
+
+        # Make the server using the package version of lolo
+        gate4 = get_java_gateway(reuse=False, skip_devel_version=True)
+        java_import(gate4.jvm, "io.citrine.lolo.learners.*")
+        self.assertIsInstance(gate4.jvm.RandomForest, JavaClass)
