@@ -11,8 +11,10 @@ jobs:
         - 2.12.4
       jdk:
         - oraclejdk8
-      install: mvn install -P !build-extras -DskipTests=true -Dmaven.javadoc.skip=true -B
-      script: mvn test -P !build-extras -B
+      install: 
+        - mvn install -P !build-extras -DskipTests=true -Dmaven.javadoc.skip=true -B
+      script: 
+        - mvn test -P !build-extras -B
 
     - stage: test
       language: python
