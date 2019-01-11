@@ -36,7 +36,9 @@ class StatisticalValidationTest {
       }
     } else {
       Seq(16, 32, 64, 128, 256, 512, 1024, 2048).foreach { nTrain =>
-        Seq(nTrain).foreach { nTree =>
+        Seq(2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048).foreach { nTree =>
+//      Seq(64).foreach { nTrain =>
+//        Seq(64).foreach { nTree =>
           val learner = RandomForest(numTrees = nTree)
           val chart = StatisticalValidation.generativeHistogram(
             data,

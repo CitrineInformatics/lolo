@@ -1,10 +1,13 @@
 package io.citrine.lolo.validation
 
+import java.util
+
 import io.citrine.lolo.{Learner, PredictionResult}
 import org.apache.commons.math3.distribution.{CauchyDistribution, MultivariateNormalDistribution}
 import org.knowm.xchart.{CategoryChart, CategoryChartBuilder}
 
 import scala.util.Random
+import scala.collection.JavaConverters._
 
 object StatisticalValidation {
 
@@ -31,7 +34,7 @@ object StatisticalValidation {
   }
 
   private def computeVariances(error: Seq[Double], sigma: Seq[Double]): (Double, Double, Double) = {
-    require(sigma.forall(_ > 0.0), sigma.min)
+    require(sigma.forall(_ >= 0.0), sigma.min)
     val xRec: Seq[Double] = error.map(Math.abs)
     val xBar = xRec.sum / error.size
     val yBar = sigma.sum / sigma.size
@@ -116,22 +119,26 @@ object StatisticalValidation {
     val chart: CategoryChart = new CategoryChartBuilder().build()
     chart.addSeries("data", counts.map(_._1).toArray, counts.map(_._2.toDouble).toArray)
     val normalSeries = counts.map(_._1).map(x => Math.exp(-x*x / (2 * normalVar) )/Math.sqrt(2 * Math.PI * normalVar))
-    chart.addSeries(f"sigma=${Math.sqrt(normalVar)}%6.3f", counts.map(_._1).toArray, normalSeries.toArray)
+    // chart.addSeries(f"sigma=${Math.sqrt(normalVar)}%6.3f", counts.map(_._1).toArray, normalSeries.toArray)
     // val tdist = new TDistribution(1)
     //c hart.addSeries("t=1", counts.map(_._1).toArray, counts.map(_._1).map(x => tdist.density(x)).toArray)
     val gamma = halfWidth //  Math.sqrt(standardErrors.map(Math.pow(_, 2.0)).sum / standardErrors.size)
     val cauchy1 = new CauchyDistribution(0.0, gamma)
     val cauchySeries = counts.map(_._1).map(x => cauchy1.density(x))
-    chart.addSeries(f"gamma=${gamma}%6.3f", counts.map(_._1).toArray, cauchySeries.toArray)
+    // chart.addSeries(f"gamma=${gamma}%6.3f", counts.map(_._1).toArray, cauchySeries.toArray)
     // chart.addSeries("synth", fakeCounts.map(_._1).toArray, fakeCounts.map(_._2.toDouble).toArray)
     val correlationCoefficient = sigmaCorr / Math.sqrt(varSigma * varError)
-    chart.addSeries("mixture", fakeCounts.map(_._1).toArray, normalSeries.zip(cauchySeries).map{case (n, c) =>
+    val mixtureSeries = normalSeries.zip(cauchySeries).map{case (n, c) =>
       n * correlationCoefficient + (1 - correlationCoefficient) * c
-    }.toArray)
+    }
+    chart.addSeries("mixture", fakeCounts.map(_._1).toArray, mixtureSeries.toArray)
     val gamma3 = Math.sqrt(varError / varSigma)
     // val cauchy3 = new CauchyDistribution(0.0, gamma3)
     // chart.addSeries(s"gamma=${gamma3}", counts.map(_._1).toArray, counts.map(_._1).map(x => cauchy3.density(x)).toArray)
 
+    chart.setTitle("(predicted - actual) / (predicted uncertainty)")
+    chart.setXAxisLabelOverrideMap(Map[java.lang.Double, AnyRef]().asJava)
+    chart.setYAxisTitle("probability density")
     chart
   }
 
