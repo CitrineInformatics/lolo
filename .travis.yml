@@ -6,17 +6,15 @@ cache:
 jobs:
   include:
     - stage: test
-      name: scala
       language: scala
       scala:
         - 2.12.4
       jdk:
         - oraclejdk8
-      install: mvn install -P !build-extras -DskipTests=true -Dmaven.javadoc.skip=true -B -V
+      install: mvn install -P !build-extras -DskipTests=true -Dmaven.javadoc.skip=true -B
       script: mvn test -P !build-extras -B
 
     - stage: test
-      name: python
       language: python
       python:
         - 3.6
@@ -26,6 +24,7 @@ jobs:
         - pip install --only-binary=numpy,scipy -r requirements.txt
       script:
         - nosetests
+
     - stage: deploy
       name: "maven central"
       deploy:
