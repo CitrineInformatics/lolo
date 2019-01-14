@@ -29,6 +29,15 @@ case object RootMeanSquareError extends Metric[Double] {
   }
 }
 
+case object CoefficientOfDetermination extends Metric[Double] {
+  override def evaluate(predictionResult: PredictionResult[Double], actual: Seq[Double]): Double = {
+    val averageActual = actual.sum / actual.size
+    val sumOfSquares = actual.map(x => Math.pow(x - averageActual, 2)).sum
+    val sumOfResiduals = predictionResult.getExpected().zip(actual).map{case (x, y) => Math.pow(x - y, 2.0)}.sum
+    1.0 - sumOfResiduals / sumOfSquares
+  }
+}
+
 case object StandardConfidence extends Metric[Double] {
   override def evaluate(predictionResult: PredictionResult[Double], actual: Seq[Double]): Double = {
     if (predictionResult.getUncertainty().isEmpty) return 0.0

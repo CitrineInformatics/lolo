@@ -1,8 +1,11 @@
 package io.citrine.lolo.validation
 
 import io.citrine.lolo.TestUtils
+import io.citrine.lolo.bags.Bagger
 import io.citrine.lolo.learners.RandomForest
+import io.citrine.lolo.linear.GuessTheMeanLearner
 import io.citrine.lolo.stats.functions.{Friedman, Linear}
+import io.citrine.lolo.trees.regression.RegressionTreeLearner
 import org.junit.Test
 import org.knowm.xchart.BitmapEncoder
 import org.knowm.xchart.BitmapEncoder.BitmapFormat
@@ -13,7 +16,7 @@ class StatisticalValidationTest {
 
   @Test
   def testCalibration(): Unit = {
-    val nFeature = 2
+    val nFeature = 8
 
     // val data = TestUtils.iterateTrainingData(nFeature, Linear.offDiagonal(nFeature).apply, seed = Random.nextLong())
     val data = TestUtils.iterateTrainingData(nFeature, Linear(Seq(1.0)).apply, seed = Random.nextLong())
@@ -23,21 +26,28 @@ class StatisticalValidationTest {
     // val data = TestUtils.generateTrainingData(nRow, nFeature, Friedman.friedmanSilverman)
 
     if (true) {
-      val nTrain = 16
+      val nTrain = 32
 
       val chart = Metric.scanMetrics(
         "Number of Trees",
-        Seq(2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096),
-        Map("rmse" -> RootMeanSquareError, "confidence" -> StandardConfidence, "error" -> StandardError),
+        Seq(2, 4, 8, 16, 32, 64, 128, 256, 512, 1024),
+        Map("R2" -> CoefficientOfDetermination, "confidence" -> StandardConfidence, "error" -> StandardError),
         logScale = true
       ){ nTrees: Double =>
-        val learner = RandomForest(numTrees = nTrees.toInt)
+        val learner = Bagger(
+          RegressionTreeLearner(
+            numFeatures = 8
+          ),
+          numBags = nTrees.toInt,
+          useJackknife = false,
+          biasLearner = Some(GuessTheMeanLearner())
+        )
         StatisticalValidation.generativeValidation[Double](
         data,
         learner,
         nTrain = nTrain,
         nTest = nTrain,
-        nRound = 64)
+        nRound = 128)
       }
       BitmapEncoder.saveBitmap(chart, s"./metric_scan_${nTrain}", BitmapFormat.PNG)
     } else {
