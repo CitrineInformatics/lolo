@@ -22,31 +22,38 @@ class StatisticalValidationTest {
     // val data = TestUtils.generateTrainingData(nRow, nFeature, Linear.randomDirection(nFeature).apply)
     // val data = TestUtils.generateTrainingData(nRow, nFeature, Friedman.friedmanSilverman)
 
-    if (false) {
-      val learner = RandomForest(numTrees = 1024)
-      val metrics = StatisticalValidation.generativeValidation[Double](
+    if (true) {
+      val nTrain = 16
+
+      val chart = Metric.scanMetrics(
+        "Number of Trees",
+        Seq(2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096),
+        Map("rmse" -> RootMeanSquareError, "confidence" -> StandardConfidence, "error" -> StandardError),
+        logScale = true
+      ){ nTrees: Double =>
+        val learner = RandomForest(numTrees = nTrees.toInt)
+        StatisticalValidation.generativeValidation[Double](
         data,
         learner,
-        nTrain = 32,
-        nTest = 1024,
-        nRound = 1,
-        Map("rmse" -> RootMeanSquareError, "confidence" -> StandardConfidence, "error" -> StandardError))
-      metrics.foreach { case (name, (mean, sigma)) =>
-        println(f"$name%15s: $mean%6.4f +/- $sigma%6.4f")
+        nTrain = nTrain,
+        nTest = nTrain,
+        nRound = 64)
       }
+      BitmapEncoder.saveBitmap(chart, s"./metric_scan_${nTrain}", BitmapFormat.PNG)
     } else {
-      Seq(16, 32, 64, 128, 256, 512, 1024, 2048).foreach { nTrain =>
-        Seq(2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048).foreach { nTree =>
-//      Seq(64).foreach { nTrain =>
-//        Seq(64).foreach { nTree =>
+//      Seq(16, 32, 64, 128, 256, 512, 1024, 2048).foreach { nTrain =>
+//        Seq(2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048).foreach { nTree =>
+      Seq(64).foreach { nTrain =>
+        Seq(64).foreach { nTree =>
           val learner = RandomForest(numTrees = nTree)
-          val chart = StatisticalValidation.generativeHistogram(
+          val pva = StatisticalValidation.generativeValidation(
             data,
             learner,
             nTrain = nTrain,
             nTest = 512,
             nRound = 64
           )
+          val chart = StandardResidualHistogram().visualize(pva)
           BitmapEncoder.saveBitmap(chart, s"./stderr_sweep_${nTrain}_${nTree}", BitmapFormat.PNG)
         }
       }

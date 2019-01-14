@@ -1,7 +1,5 @@
 package io.citrine.lolo.validation
 
-import java.util
-
 import io.citrine.lolo.{Learner, PredictionResult}
 import org.apache.commons.math3.distribution.{CauchyDistribution, MultivariateNormalDistribution}
 import org.knowm.xchart.{CategoryChart, CategoryChartBuilder}
@@ -16,20 +14,14 @@ object StatisticalValidation {
                                learner: Learner,
                                nTrain: Int,
                                nTest: Int,
-                               nRound: Int,
-                               metrics: Map[String, Metric[T]]
-                             ): Map[String, (Double, Double)] = {
-    (0 until nRound).flatMap{_ =>
+                               nRound: Int
+                             ): Iterable[(PredictionResult[T], Seq[T])] = {
+    (0 until nRound).map { _ =>
       val trainingData: Seq[(Vector[Any], T)] = source.take(nTrain).toSeq
       val model = learner.train(trainingData).getModel()
       val testData: Seq[(Vector[Any], T)] = source.take(nTest).toSeq
       val predictions: PredictionResult[T] = model.transform(testData.map(_._1)).asInstanceOf[PredictionResult[T]]
-      metrics.mapValues(f => f.evaluate(predictions, testData.map(_._2))).toSeq
-    }.groupBy(_._1).mapValues{x =>
-      val metricResults = x.map(_._2)
-      val mean = metricResults.sum / metricResults.size
-      val variance = metricResults.map(y => Math.pow(y - mean, 2)).sum / metricResults.size
-      (mean, Math.sqrt(variance / metricResults.size))
+      (predictions, testData.map(_._2))
     }
   }
 
