@@ -1,9 +1,10 @@
 package io.citrine.lolo.validation
 
 import java.util
-import scala.collection.JavaConverters._
 
+import scala.collection.JavaConverters._
 import io.citrine.lolo.PredictionResult
+import org.apache.commons.math3.stat.correlation.PearsonsCorrelation
 import org.knowm.xchart.BitmapEncoder.BitmapFormat
 import org.knowm.xchart.{BitmapEncoder, CategoryChart, CategoryChartBuilder, QuickChart, SwingWrapper, XYChart}
 
@@ -49,13 +50,28 @@ case object StandardConfidence extends Metric[Double] {
 }
 
 case object StandardError extends Metric[Double] {
-   override def evaluate(predictionResult: PredictionResult[Double], actual: Seq[Double]): Double = {
-     if (predictionResult.getUncertainty().isEmpty) return Double.PositiveInfinity
-     val standardized = (predictionResult.getExpected(), predictionResult.getUncertainty().get, actual).zipped.map{
-        case (x, sigma: Double, y) => (x - y) / sigma
-     }
-     Math.sqrt(standardized.map(Math.pow(_,2.0)).sum / standardized.size)
-   }
+  override def evaluate(predictionResult: PredictionResult[Double], actual: Seq[Double]): Double = {
+    if (predictionResult.getUncertainty().isEmpty) return Double.PositiveInfinity
+    val standardized = (predictionResult.getExpected(), predictionResult.getUncertainty().get, actual).zipped.map{
+       case (x, sigma: Double, y) => (x - y) / sigma
+    }
+    Math.sqrt(standardized.map(Math.pow(_,2.0)).sum / standardized.size)
+  }
+}
+
+case object UncertaintyCorrelation extends Metric[Double] {
+  override def evaluate(predictionResult: PredictionResult[Double], actual: Seq[Double]): Double = {
+    val error = predictionResult.getExpected().zip(actual).map{case (x, y) => Math.abs(x - y)}
+    val sigma = predictionResult.getUncertainty().get.asInstanceOf[Seq[Double]]
+
+    val meanError = error.sum / error.size
+    val varError = error.map(x => Math.pow(x - meanError, 2.0)).sum / error.size
+    val meanSigma = sigma.sum / sigma.size
+    val varSigma = sigma.map(x => Math.pow(x - meanSigma, 2.0)).sum / sigma.size
+
+    val covar = error.zip(sigma).map{case (x, y) => (x - meanError) * (y - meanSigma)}.sum / sigma.size
+    covar / Math.sqrt(varError * varSigma)
+  }
 }
 
 object Metric {

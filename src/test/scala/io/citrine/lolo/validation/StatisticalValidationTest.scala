@@ -16,16 +16,16 @@ class StatisticalValidationTest {
 
   @Test
   def testCalibration(): Unit = {
-    val nFeature = 8
+    val nFeature = 2
 
     // val data = TestUtils.iterateTrainingData(nFeature, Linear.offDiagonal(nFeature).apply, seed = Random.nextLong())
     val data = TestUtils.iterateTrainingData(nFeature, Linear(Seq(1.0)).apply, seed = Random.nextLong())
     // val data = TestUtils.iterateTrainingData(nFeature, Friedman.friedmanSilverman, seed = Random.nextLong())
     // val data = TestUtils.generateTrainingData(nRow, nFeature, Linear.offDiagonal(nFeature).apply)
     // val data = TestUtils.generateTrainingData(nRow, nFeature, Linear.randomDirection(nFeature).apply)
-    // val data = TestUtils.generateTrainingData(nRow, nFeature, Friedman.friedmanSilverman)
+    // val data = TestUtils.iterateTrainingData(nFeature, Friedman.friedmanSilverman)
 
-    if (true) {
+    if (false) {
       val nTrain = 32
 
       val chart = Metric.scanMetrics(
@@ -39,8 +39,8 @@ class StatisticalValidationTest {
             numFeatures = 8
           ),
           numBags = nTrees.toInt,
-          useJackknife = false,
-          biasLearner = Some(GuessTheMeanLearner())
+          useJackknife = true,
+          biasLearner = Some(RegressionTreeLearner(maxDepth = 2))
         )
         StatisticalValidation.generativeValidation[Double](
         data,
@@ -53,18 +53,23 @@ class StatisticalValidationTest {
     } else {
 //      Seq(16, 32, 64, 128, 256, 512, 1024, 2048).foreach { nTrain =>
 //        Seq(2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048).foreach { nTree =>
-      Seq(64).foreach { nTrain =>
-        Seq(64).foreach { nTree =>
+      Seq(32).foreach { nTrain =>
+        Seq(4096).foreach { nTree =>
           val learner = RandomForest(numTrees = nTree)
           val pva = StatisticalValidation.generativeValidation(
             data,
             learner,
             nTrain = nTrain,
-            nTest = 512,
-            nRound = 64
+            nTest = 16,
+            nRound = 512
           )
+          println(s"CorrelationCoeff is ${UncertaintyCorrelation.estimate(pva)}")
           val chart = StandardResidualHistogram().visualize(pva)
           BitmapEncoder.saveBitmap(chart, s"./stderr_sweep_${nTrain}_${nTree}", BitmapFormat.PNG)
+          val pvaChart = PredictedVsActual().visualize(pva)
+          BitmapEncoder.saveBitmap(pvaChart, s"./pva_sweep_${nTrain}_${nTree}", BitmapFormat.PNG)
+          val errorChart = ErrorvsUncertainty().visualize(pva)
+          BitmapEncoder.saveBitmap(errorChart, s"./errcor_sweep_${nTrain}_${nTree}", BitmapFormat.PNG)
         }
       }
     }
