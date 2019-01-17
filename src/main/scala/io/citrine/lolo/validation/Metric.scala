@@ -8,6 +8,8 @@ import org.apache.commons.math3.stat.correlation.PearsonsCorrelation
 import org.knowm.xchart.BitmapEncoder.BitmapFormat
 import org.knowm.xchart.{BitmapEncoder, CategoryChart, CategoryChartBuilder, QuickChart, SwingWrapper, XYChart}
 
+import scala.util.Random
+
 trait Metric[T] {
 
   def evaluate(predictionResult: PredictionResult[T], actual: Seq[T]): Double
@@ -62,7 +64,11 @@ case object StandardError extends Metric[Double] {
 case object UncertaintyCorrelation extends Metric[Double] {
   override def evaluate(predictionResult: PredictionResult[Double], actual: Seq[Double]): Double = {
     val pua = (predictionResult.getExpected(), predictionResult.getUncertainty().get.asInstanceOf[Seq[Double]], actual).zipped.toSeq
-    computeFromPredictedUncertaintyActual(pua)
+    val baseline = pua.map{case (_, u, a) =>
+        val error = Random.nextGaussian() * u
+      (a + error, u, a)
+    }
+    computeFromPredictedUncertaintyActual(pua) / computeFromPredictedUncertaintyActual(baseline)
   }
 
   def computeFromPredictedUncertaintyActual(pua: Seq[(Double, Double, Double)]): Double = {
@@ -73,7 +79,6 @@ case object UncertaintyCorrelation extends Metric[Double] {
     val varError = error.map(x => Math.pow(x - meanError, 2.0)).sum / error.size
     val meanSigma = sigma.sum / sigma.size
     val varSigma = sigma.map(x => Math.pow(x - meanSigma, 2.0)).sum / sigma.size
-    println(meanSigma, meanError)
 
     val covar = error.zip(sigma).map{case (x, y) => (x - meanError) * (y - meanSigma)}.sum / sigma.size
     covar / Math.sqrt(varError * varSigma)
