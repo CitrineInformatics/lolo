@@ -25,15 +25,17 @@ class StatisticalValidationTest {
     // val data = TestUtils.generateTrainingData(nRow, nFeature, Linear.randomDirection(nFeature).apply)
     // val data = TestUtils.iterateTrainingData(nFeature, Friedman.friedmanSilverman)
 
-    if (false) {
+    if (true) {
       val nTrain = 32
 
       val chart = Metric.scanMetrics(
         "Number of Trees",
-        Seq(2, 4, 8, 16, 32, 64, 128, 256, 512, 1024),
-        Map("R2" -> CoefficientOfDetermination, "confidence" -> StandardConfidence, "error" -> StandardError),
+        Seq(16, 32, 64, 128, 256),
+        // Seq(2, 4, 8, 16, 32, 64, 128, 256, 512, 1024),
+        Map("R2" -> CoefficientOfDetermination, "confidence" -> StandardConfidence, "error" -> StandardError, "sigmaCorr" -> UncertaintyCorrelation),
         logScale = true
       ){ nTrees: Double =>
+        val nTrain = nTrees.toInt
         val learner = Bagger(
           RegressionTreeLearner(
             numFeatures = 8
@@ -49,7 +51,7 @@ class StatisticalValidationTest {
         nTest = nTrain,
         nRound = 128)
       }
-      BitmapEncoder.saveBitmap(chart, s"./metric_scan_${nTrain}", BitmapFormat.PNG)
+      BitmapEncoder.saveBitmap(chart, s"./metric_scan2_${nTrain}", BitmapFormat.PNG)
     } else {
 //      Seq(16, 32, 64, 128, 256, 512, 1024, 2048).foreach { nTrain =>
 //        Seq(2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048).foreach { nTree =>

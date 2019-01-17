@@ -25,14 +25,9 @@ class InterruptibleExecutionContext(executionContext: ExecutionContext) extends 
   * Provide default InterruptibleExecutionContext based on the global EC
   */
 object InterruptibleExecutionContext {
-  private val foo = if (true) {
-    ExecutionContext.fromExecutor(
-      Executors.newFixedThreadPool(2)
-    )
-  } else {
+  private val default = new InterruptibleExecutionContext(
     ExecutionContext.global
-  }
-  private val default = new InterruptibleExecutionContext(foo)
+  )
 
   def apply(): InterruptibleExecutionContext = default
 }

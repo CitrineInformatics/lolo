@@ -61,13 +61,19 @@ case object StandardError extends Metric[Double] {
 
 case object UncertaintyCorrelation extends Metric[Double] {
   override def evaluate(predictionResult: PredictionResult[Double], actual: Seq[Double]): Double = {
-    val error = predictionResult.getExpected().zip(actual).map{case (x, y) => Math.abs(x - y)}
-    val sigma = predictionResult.getUncertainty().get.asInstanceOf[Seq[Double]]
+    val pua = (predictionResult.getExpected(), predictionResult.getUncertainty().get.asInstanceOf[Seq[Double]], actual).zipped.toSeq
+    computeFromPredictedUncertaintyActual(pua)
+  }
+
+  def computeFromPredictedUncertaintyActual(pua: Seq[(Double, Double, Double)]): Double = {
+    val error = pua.map{case (p, u, a) => Math.abs(p - a)}
+    val sigma = pua.map(_._2)
 
     val meanError = error.sum / error.size
     val varError = error.map(x => Math.pow(x - meanError, 2.0)).sum / error.size
     val meanSigma = sigma.sum / sigma.size
     val varSigma = sigma.map(x => Math.pow(x - meanSigma, 2.0)).sum / sigma.size
+    println(meanSigma, meanError)
 
     val covar = error.zip(sigma).map{case (x, y) => (x - meanError) * (y - meanSigma)}.sum / sigma.size
     covar / Math.sqrt(varError * varSigma)
