@@ -173,7 +173,7 @@ object Metric {
     * @param pvaBuilder function that takes the parameter to predicted-vs-actual data
     * @return an [[XYChart]] that plots the metrics vs the parameter value
     */
-  def scanMetrics[T](
+  def plotMetricScan[T](
                       parameterName: String,
                       parameterValues: Seq[Double],
                       metrics: Map[String, Metric[T]],
