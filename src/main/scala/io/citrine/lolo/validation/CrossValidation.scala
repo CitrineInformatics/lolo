@@ -4,7 +4,9 @@ import io.citrine.lolo.{Learner, PredictionResult}
 
 import scala.util.Random
 
-
+/**
+  * Methods tha use cross-validation to calculate predicted-vs-actual data and metric estimates
+  */
 object CrossValidation {
 
   /**

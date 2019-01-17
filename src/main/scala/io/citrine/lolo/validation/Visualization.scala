@@ -5,12 +5,22 @@ import org.apache.commons.math3.distribution.CauchyDistribution
 import org.knowm.xchart.XYSeries.XYSeriesRenderStyle
 import org.knowm.xchart._
 import org.knowm.xchart.internal.chartpart.Chart
-import org.knowm.xchart.internal.series.Series
 
+/**
+  * Visualization on predicted vs actual data of type T
+  */
 trait Visualization[T] {
+  /**
+    * Produce a visualization, as a [[Chart]], from predicted-vs-actual data
+    */
   def visualize(data: Iterable[(PredictionResult[T], Seq[T])]): Chart[_, _]
 }
 
+/**
+  * Histogram of the error divided by the predicted uncertainty
+  * @param nBins number of bins in the histogram
+  * @param range of the horizontal axis, e.g. x \in [-range/2, range/2]
+  */
 case class StandardResidualHistogram(nBins: Int = 128, range: Double = 8.0) extends Visualization[Double] {
 
   override def visualize(data: Iterable[(PredictionResult[Double], Seq[Double])]): CategoryChart = {
@@ -39,20 +49,22 @@ case class StandardResidualHistogram(nBins: Int = 128, range: Double = 8.0) exte
     chart.addSeries(f"gamma=${gamma}%6.3f", counts.map(_._1).toArray, cauchySeries.toArray)
 
     chart.setTitle("(predicted - actual) / (predicted uncertainty)")
-    // chart.setXAxisLabelOverrideMap(Map[java.lang.Double, AnyRef]().asJava)
     chart.setYAxisTitle("probability density")
 
     chart
   }
 }
 
+/**
+  * Plot the predicted value vs the actual value, with predicted uncertainty as error bars
+  */
 case class PredictedVsActual() extends Visualization[Double] {
 
   override def visualize(data: Iterable[(PredictionResult[Double], Seq[Double])]): XYChart = {
     val chart = new XYChart(500, 500)
 
     val flattened: Iterable[(Double, Double, Double)] = data.flatMap{case (pred, actual: Seq[Double]) =>
-      val foo: Seq[(Double, Double, Double)] = (actual, pred.getExpected(), pred.getUncertainty().get.asInstanceOf[Seq[Double]]).zipped.toSeq.toSeq.toSeq.toSeq
+      val foo: Seq[(Double, Double, Double)] = (actual, pred.getExpected(), pred.getUncertainty().get.asInstanceOf[Seq[Double]]).zipped.toSeq
       foo
     }
 
@@ -72,19 +84,26 @@ case class PredictedVsActual() extends Visualization[Double] {
     chart.setXAxisTitle("Actual")
     chart.setYAxisTitle("Predicted")
 
-    // chart.getStyler.setDefaultSeriesRenderStyle(XYSeriesRenderStyle.Scatter)
-
     chart
   }
 }
 
-case class ErrorvsUncertainty() extends Visualization[Double] {
+/** Visualization of the error compared to the predicted uncertainty
+  *
+  * @param magnitude whether to plot the error or the magnitude (abs) of the error
+  */
+case class ErrorVsUncertainty(magnitude: Boolean = true) extends Visualization[Double] {
 
   override def visualize(data: Iterable[(PredictionResult[Double], Seq[Double])]): XYChart = {
     val chart = new XYChart(500, 500)
 
     val flattened: Iterable[(Double, Double)] = data.flatMap{case (pred, actual: Seq[Double]) =>
-      (pred.getUncertainty().get.asInstanceOf[Seq[Double]], actual.zip(pred.getExpected()).map{case (x, y) => Math.abs(x - y)}).zipped.toSeq
+      val sigmas = pred.getUncertainty().get.asInstanceOf[Seq[Double]]
+      val errors = actual.zip(pred.getExpected()).map{
+        case (x, y) if magnitude => Math.abs(x - y)
+        case (x, y) => y - x
+      }
+      (sigmas, errors).zipped.toSeq
     }
 
     val sigma = flattened.map(_._1).toArray
@@ -94,14 +113,20 @@ case class ErrorvsUncertainty() extends Visualization[Double] {
     chart.addSeries("data", sigma, error)
     chart.getSeriesMap.get("data").setXYSeriesRenderStyle(XYSeriesRenderStyle.Scatter)
 
-    val max = Math.max(sigma.max, error.max)
-    chart.addSeries("ideal", Array(0.0, max), Array(0.0, max))
+    val max = Math.max(sigma.max, error.map(Math.abs).max)
+    if (magnitude) {
+      chart.addSeries("ideal", Array(0.0, max), Array(0.0, max))
+    } else {
+      chart.addSeries("ideal", Array(max, 0.0, max), Array(-max, 0.0, max))
+    }
 
     chart.setTitle("Error vs Uncertainty")
     chart.setXAxisTitle("Predicted uncertainty")
-    chart.setYAxisTitle("Magnitude of error")
-
-    // chart.getStyler.setDefaultSeriesRenderStyle(XYSeriesRenderStyle.Scatter)
+    if (magnitude) {
+      chart.setYAxisTitle("Magnitude of error")
+    } else {
+      chart.setYAxisTitle("Error (predicted - actual)")
+    }
 
     chart
   }

@@ -4,16 +4,26 @@ import java.util
 
 import scala.collection.JavaConverters._
 import io.citrine.lolo.PredictionResult
-import org.apache.commons.math3.stat.correlation.PearsonsCorrelation
-import org.knowm.xchart.BitmapEncoder.BitmapFormat
-import org.knowm.xchart.{BitmapEncoder, CategoryChart, CategoryChartBuilder, QuickChart, SwingWrapper, XYChart}
+import org.knowm.xchart.XYChart
 
 import scala.util.Random
 
+/**
+  * Real-valued metric on predictions of type T
+  */
 trait Metric[T] {
 
+  /**
+    * Apply the metric to a prediction result and set of ground-truth values
+    * @return the value of the metric
+    */
   def evaluate(predictionResult: PredictionResult[T], actual: Seq[T]): Double
 
+  /**
+    * Estimate the metric and the uncertainty in the metric over batches of predicted and ground-truth values
+    * @param pva predicted-vs-actual data as an iterable over [[PredictionResult]] and ground-truth tuples
+    * @return the estimate of the metric value and the uncertainty in that estimate
+    */
   def estimate(pva: Iterable[(PredictionResult[T], Seq[T])]): (Double, Double) = {
     val samples = pva.map{case (prediction, actual) => evaluate(prediction, actual)}
     val mean: Double = samples.sum / samples.size
@@ -22,6 +32,9 @@ trait Metric[T] {
   }
 }
 
+/**
+  * SSIA
+  */
 case object RootMeanSquareError extends Metric[Double] {
   override def evaluate(predictionResult: PredictionResult[Double], actual: Seq[Double]): Double = {
     Math.sqrt(
@@ -32,6 +45,9 @@ case object RootMeanSquareError extends Metric[Double] {
   }
 }
 
+/**
+  * R^2 = 1 - MSE(y) / Var(y), where y is the predicted variable
+  */
 case object CoefficientOfDetermination extends Metric[Double] {
   override def evaluate(predictionResult: PredictionResult[Double], actual: Seq[Double]): Double = {
     val averageActual = actual.sum / actual.size
@@ -41,6 +57,9 @@ case object CoefficientOfDetermination extends Metric[Double] {
   }
 }
 
+/**
+  * The fraction of predictions that fall within the predicted uncertainty
+  */
 case object StandardConfidence extends Metric[Double] {
   override def evaluate(predictionResult: PredictionResult[Double], actual: Seq[Double]): Double = {
     if (predictionResult.getUncertainty().isEmpty) return 0.0
@@ -51,6 +70,9 @@ case object StandardConfidence extends Metric[Double] {
   }
 }
 
+/**
+  * Root mean square of (the error divided by the predicted uncertainty)
+  */
 case object StandardError extends Metric[Double] {
   override def evaluate(predictionResult: PredictionResult[Double], actual: Seq[Double]): Double = {
     if (predictionResult.getUncertainty().isEmpty) return Double.PositiveInfinity
@@ -61,18 +83,48 @@ case object StandardError extends Metric[Double] {
   }
 }
 
+/**
+  * Measure of the correlation between the predicted uncertainty and error magnitude
+  *
+  * This is expressed as a ratio of correlation coefficients.  The numerator is the correlation coefficient of the
+  * predicted uncertainty and the actual error magnitude.  The denominator is the correlation coefficient of the
+  * predicted uncertainty and the ideal error distribution.  That is:
+  *   let X be the predicted uncertainty and Y := N(0, x) be the ideal error distribution about each
+  *   predicted uncertainty x.  It is the correlation coefficient between X and Y
+  * In the absense of a closed form for that coefficient, it is model empirically by drawing from N(0, x) to produce
+  * an "ideal" error series from which the correlation coefficient can be estimated.
+  */
 case object UncertaintyCorrelation extends Metric[Double] {
   override def evaluate(predictionResult: PredictionResult[Double], actual: Seq[Double]): Double = {
-    val pua = (predictionResult.getExpected(), predictionResult.getUncertainty().get.asInstanceOf[Seq[Double]], actual).zipped.toSeq
-    val baseline = pua.map{case (_, u, a) =>
-        val error = Random.nextGaussian() * u
-      (a + error, u, a)
+    val predictedUncertaintyActual: Seq[(Double, Double, Double)] = (
+      predictionResult.getExpected(),
+      predictionResult.getUncertainty().get.asInstanceOf[Seq[Double]],
+      actual
+    ).zipped.toSeq
+
+    val ideal = predictedUncertaintyActual.map{case (_, uncertainty, actual) =>
+        val error = Random.nextGaussian() * uncertainty
+      (actual + error, uncertainty, actual)
     }
-    computeFromPredictedUncertaintyActual(pua) / computeFromPredictedUncertaintyActual(baseline)
+
+    /*
+    val sigmaMean = pua.map(_._2).sum / pua.size
+    val sigmaVar = pua.map(x => Math.pow(x._2 - sigmaMean, 2)).sum / pua.size
+    val model = Math.sqrt(2 / (Math.PI - 2)) * Math.sqrt(sigmaVar) / sigmaMean
+    val estimate = computeFromPredictedUncertaintyActual(baseline)
+    // println(model, estimate)
+    */
+
+    computeFromPredictedUncertaintyActual(predictedUncertaintyActual) / computeFromPredictedUncertaintyActual(ideal)
   }
 
-  def computeFromPredictedUncertaintyActual(pua: Seq[(Double, Double, Double)]): Double = {
-    val error = pua.map{case (p, u, a) => Math.abs(p - a)}
+  /**
+    * Covariance(X, Y) / Sqrt(Var(X) * Var(Y)), where X is predicted uncertainty and Y is magnitude of error
+    */
+  def computeFromPredictedUncertaintyActual(
+                                             pua: Seq[(Double, Double, Double)]
+                                           ): Double = {
+    val error = pua.map{case (p, _, a) => Math.abs(p - a)}
     val sigma = pua.map(_._2)
 
     val meanError = error.sum / error.size
@@ -87,10 +139,20 @@ case object UncertaintyCorrelation extends Metric[Double] {
 
 object Metric {
 
+  /**
+    * Estimate a set of named metrics by applying them to multiple sets of predictions and actual values
+    *
+    * The uncertainty in the estimate of each metric is calculated by looking at the variance across the batches
+    *
+    * @param pva predicted-vs-actual data in a series of batches
+    * @param metrics to apply to the predicted-vs-actual data
+    * @return map from the metric name to its (value, uncertainty)
+    */
   def estimateMetrics[T](
                           pva: Iterable[(PredictionResult[T], Seq[T])],
                           metrics: Map[String, Metric[T]]
                         ): Map[String, (Double, Double)] = {
+
     pva.flatMap{ case (predictions, actual) =>
       // apply all the metrics to the batch at the same time so the batch can fall out of memory
       metrics.mapValues(f => f.evaluate(predictions, actual)).toSeq
@@ -102,6 +164,15 @@ object Metric {
     }
   }
 
+  /**
+    * Compute metrics as a function of a parameter, given a builder that takes the parameter to predicted-vs-actual data
+    * @param parameterName name of the parameter that's being scanned over
+    * @param parameterValues values of the parameter to try
+    * @param metrics to apply at each parameter value
+    * @param logScale whether the parameters should be plotted on a log scale
+    * @param pvaBuilder function that takes the parameter to predicted-vs-actual data
+    * @return an [[XYChart]] that plots the metrics vs the parameter value
+    */
   def scanMetrics[T](
                       parameterName: String,
                       parameterValues: Seq[Double],
