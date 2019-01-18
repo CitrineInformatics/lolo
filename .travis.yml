@@ -49,6 +49,7 @@ jobs:
       script: true
       deploy:
         provider: pypi
+        skip_cleanup: true
         user: CitrineInformatics
         password: 
           secure: "sVPUuavPBK7tdkUYUAGA7oxF/B9aKAKmXRVQJ2iOi0HUE6YUXfyYSYNQiCYfXvbqyzTlNUF0KcBa0PGPwZCu3nyM2CiQ0MULH4gKgyJIRBtPqbg/ppnNNnJw1fKRcEfATyymf9e7yHY1DYN6InatGRK6vvfax61/a9FW/X8/K3TDVlbcILGxjG9+JjI5vfsD9z6kWG0HwgnguwjZHfDKmvmvf47uuzefs0zTjhOwdna0eQy1O62bHhND5Cfi7O7VRpaWfb3B6kM5tX/fivWQK3VY76XdJdjyHNHE7mxm4adub/+YHGaj6tDB+ZmBfeDC1gVLyB229gfDUbGvcP95n8PIjUL6nSEV/bJZSBBVnIzTJL+XX7Rn5ZiiXTlzgeM2S/FajcE8qDgs2/4fMWouOLir2pvVPgES0mh8m3CuiF/j3NgL7xQPyVuBFXDXH5OKSXFcVy7zpN4va3yJFk8H7P/Avdmls7re7TS+IC2vH14f3CCxgkUeixMnWwknrqxzDV90guzp/RBJgCP/fPDPuCVrnwN6WKSf0x4oBWhwIN64vopgPjm7IeinrRli9pleSF7+Vsyka3YOcvRwEsNRmGBhSiPGQvpWX9tXYZUBp4TPJzgaLrZJGyUYczk/wIcNHIKTW2EgQc6ysB0tR+3pEo1bN6cAW5r2brFiKzA+vEQ="
