@@ -15,10 +15,10 @@ class MetricTest {
     * Uncertainty estimates are also produced.  The degree of correlation between the uncertainty estimate and the
     * error is configurable.
     *
-    * @param noiseScale the scale of the errors added to the responses
+    * @param noiseScale             the scale of the errors added to the responses
     * @param uncertaintyCorrelation the degree of correlation between the predicted uncertainty and the local error scale
-    * @param batchSize the number of predictions per result
-    * @param numBatch the number of prediction results produced
+    * @param batchSize              the number of predictions per result
+    * @param numBatch               the number of prediction results produced
     * @return predicted-vs-actual data in the format expected by Metric.estimate
     */
   private def getNormalPVA(
@@ -36,7 +36,7 @@ class MetricTest {
       Array(Array(noiseVariance, noiseUncertaintyCovariance), Array(noiseUncertaintyCovariance, noiseVariance))
     )
 
-    Seq.fill(numBatch){
+    Seq.fill(numBatch) {
       val pua = Seq.fill(batchSize) {
         val y = Random.nextDouble()
         val draw = errorDistribution.sample().toSeq
@@ -50,6 +50,7 @@ class MetricTest {
       }
       val predictionResult = new PredictionResult[Double] {
         override def getExpected(): Seq[Double] = pua.map(_._1)
+
         override def getUncertainty(): Option[Seq[Any]] = Some(pua.map(_._2))
       }
       (predictionResult, pua.map(_._3))
@@ -144,10 +145,10 @@ class MetricTest {
 object MetricTest {
   /**
     * Driver to test tolerance calibration so the false negative rate is low
-   */
+    */
   def main(args: Array[String]): Unit = {
     val N = 1024
-    val failures = Seq.fill(N){
+    val failures = Seq.fill(N) {
       Try(
         new MetricTest().testZeroUncertaintyCorrelation() // place test here
       ).isSuccess

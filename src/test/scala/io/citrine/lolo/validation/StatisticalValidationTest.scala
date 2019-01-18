@@ -1,17 +1,17 @@
 package io.citrine.lolo.validation
 
-import io.citrine.lolo.{Learner, PredictionResult, TestUtils}
 import io.citrine.lolo.bags.Bagger
 import io.citrine.lolo.learners.RandomForest
-import io.citrine.lolo.stats.functions.{Friedman}
+import io.citrine.lolo.stats.functions.Friedman
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
+import io.citrine.lolo.{Learner, PredictionResult, TestUtils}
 import org.apache.commons.math3.distribution.{CauchyDistribution, MultivariateNormalDistribution}
 import org.junit.Test
-import org.knowm.xchart.{BitmapEncoder, CategoryChart, CategoryChartBuilder}
 import org.knowm.xchart.BitmapEncoder.BitmapFormat
+import org.knowm.xchart.{BitmapEncoder, CategoryChart, CategoryChartBuilder}
 
-import scala.util.{Random}
 import scala.collection.JavaConverters._
+import scala.util.Random
 
 class StatisticalValidationTest {
 
@@ -66,7 +66,7 @@ class StatisticalValidationTest {
         // Seq(2, 4, 8, 16, 32, 64, 128, 256, 512),
         Map("R2" -> CoefficientOfDetermination, "confidence" -> StandardConfidence, "error" -> StandardError, "sigmaCorr" -> UncertaintyCorrelation),
         logScale = true
-      ){ nTrain: Double =>
+      ) { nTrain: Double =>
         // val nTrain = nTrees.toInt
         val learner = Bagger(
           RegressionTreeLearner(
@@ -77,16 +77,16 @@ class StatisticalValidationTest {
           biasLearner = Some(RegressionTreeLearner(maxDepth = 2))
         )
         StatisticalValidation.generativeValidation[Double](
-        data,
-        learner,
-        nTrain = nTrain.toInt,
-        nTest = 256,
-        nRound = 32)
+          data,
+          learner,
+          nTrain = nTrain.toInt,
+          nTest = 256,
+          nRound = 32)
       }
       BitmapEncoder.saveBitmap(chart, s"./metric_scan3_${nTrain}", BitmapFormat.PNG)
     } else {
-//      Seq(16, 32, 64, 128, 256, 512, 1024, 2048).foreach { nTrain =>
-//        Seq(2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048).foreach { nTree =>
+      //      Seq(16, 32, 64, 128, 256, 512, 1024, 2048).foreach { nTrain =>
+      //        Seq(2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048).foreach { nTree =>
       Seq(32).foreach { nTrain =>
         Seq(4096).foreach { nTree =>
           val learner = RandomForest(numTrees = nTree)
@@ -116,18 +116,18 @@ class StatisticalValidationTest {
     val yBar = sigma.sum / sigma.size
     val varX = xRec.map(x => Math.pow(x - xBar, 2.0)).sum / error.size + xBar * xBar
     val varY = sigma.map(y => Math.pow(y - yBar, 2.0)).sum / sigma.size + yBar * yBar
-    val varXY = xRec.zip(sigma).map{case (x, y) => (x - xBar) * (y - yBar)}.sum / error.size + yBar * xBar
+    val varXY = xRec.zip(sigma).map { case (x, y) => (x - xBar) * (y - yBar) }.sum / error.size + yBar * xBar
 
     (varX, varY, varXY)
   }
 
   def generativeHistogram(
-                               source: Iterator[(Vector[Any], Double)],
-                               learner: Learner,
-                               nTrain: Int,
-                               nTest: Int,
-                               nRound: Int
-                             ): CategoryChart = {
+                           source: Iterator[(Vector[Any], Double)],
+                           learner: Learner,
+                           nTrain: Int,
+                           nTest: Int,
+                           nRound: Int
+                         ): CategoryChart = {
     val data: Seq[(Double, Double, Double)] = (0 until nRound).flatMap { _ =>
       val trainingData: Seq[(Vector[Any], Double)] = source.take(nTrain).toSeq
       val model = learner.train(trainingData).getModel()
@@ -178,14 +178,14 @@ class StatisticalValidationTest {
     println(f"Empirical vs model cross-correlation: ${sigmaCorr}%7.4f vs ${fakeCorr}%7.4f")
 
     val fakeData: Seq[Double] = if (true) {
-      fakeRaw.map{case (x, y) =>
+      fakeRaw.map { case (x, y) =>
         x / y
       }
     } else {
       data.map(_._2 / Math.sqrt(varSigma))
     }
 
-    val fakeCounts = bins.map{case (min, max) =>
+    val fakeCounts = bins.map { case (min, max) =>
       ((min + max) / 2.0, fakeData.count(x => x >= min && x < max) / (standardErrors.size * (max - min)))
     }
 
@@ -194,17 +194,17 @@ class StatisticalValidationTest {
 
     val chart: CategoryChart = new CategoryChartBuilder().build()
     chart.addSeries("data", counts.map(_._1).toArray, counts.map(_._2.toDouble).toArray)
-    val normalSeries = counts.map(_._1).map(x => Math.exp(-x*x / (2 * normalVar) )/Math.sqrt(2 * Math.PI * normalVar))
+    val normalSeries = counts.map(_._1).map(x => Math.exp(-x * x / (2 * normalVar)) / Math.sqrt(2 * Math.PI * normalVar))
     // chart.addSeries(f"sigma=${Math.sqrt(normalVar)}%6.3f", counts.map(_._1).toArray, normalSeries.toArray)
     // val tdist = new TDistribution(1)
-    //c hart.addSeries("t=1", counts.map(_._1).toArray, counts.map(_._1).map(x => tdist.density(x)).toArray)
+    // chart.addSeries("t=1", counts.map(_._1).toArray, counts.map(_._1).map(x => tdist.density(x)).toArray)
     val gamma = halfWidth //  Math.sqrt(standardErrors.map(Math.pow(_, 2.0)).sum / standardErrors.size)
     val cauchy1 = new CauchyDistribution(0.0, gamma)
     val cauchySeries = counts.map(_._1).map(x => cauchy1.density(x))
     // chart.addSeries(f"gamma=${gamma}%6.3f", counts.map(_._1).toArray, cauchySeries.toArray)
     // chart.addSeries("synth", fakeCounts.map(_._1).toArray, fakeCounts.map(_._2.toDouble).toArray)
     val correlationCoefficient = sigmaCorr / Math.sqrt(varSigma * varError)
-    val mixtureSeries = normalSeries.zip(cauchySeries).map{case (n, c) =>
+    val mixtureSeries = normalSeries.zip(cauchySeries).map { case (n, c) =>
       n * correlationCoefficient + (1 - correlationCoefficient) * c
     }
     chart.addSeries("mixture", fakeCounts.map(_._1).toArray, mixtureSeries.toArray)

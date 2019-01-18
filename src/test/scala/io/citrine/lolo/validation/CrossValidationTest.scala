@@ -2,10 +2,8 @@ package io.citrine.lolo.validation
 
 import io.citrine.lolo.TestUtils
 import io.citrine.lolo.learners.RandomForest
-import io.citrine.lolo.stats.functions.{Friedman, Linear}
+import io.citrine.lolo.stats.functions.Friedman
 import org.junit.Test
-
-import scala.util.Random
 
 class CrossValidationTest {
 

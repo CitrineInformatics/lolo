@@ -22,10 +22,11 @@ trait Visualization[T] {
   * Gaussian and Cauchy fits are preformed via quantiles:
   *  - standard deviation is taken as the 68th percentile standard error
   *  - gamma is taken as the 50th percentile standard error
-  * @param nBins number of bins in the histogram
-  * @param range of the horizontal axis, e.g. x \in [-range/2, range/2]
+  *
+  * @param nBins       number of bins in the histogram
+  * @param range       of the horizontal axis, e.g. x \in [-range/2, range/2]
   * @param fitGaussian whether to fit and plot a Gaussian distribution
-  * @param fitCauchy whether to fit and plot a Cauchy distribution
+  * @param fitCauchy   whether to fit and plot a Cauchy distribution
   */
 case class StandardResidualHistogram(
                                       nBins: Int = 128,
@@ -79,7 +80,7 @@ case class PredictedVsActual() extends Visualization[Double] {
   override def visualize(data: Iterable[(PredictionResult[Double], Seq[Double])]): XYChart = {
     val chart = new XYChart(500, 500)
 
-    val flattened: Iterable[(Double, Double, Double)] = data.flatMap{case (pred, actual: Seq[Double]) =>
+    val flattened: Iterable[(Double, Double, Double)] = data.flatMap { case (pred, actual: Seq[Double]) =>
       val foo: Seq[(Double, Double, Double)] = (actual, pred.getExpected(), pred.getUncertainty().get.asInstanceOf[Seq[Double]]).zipped.toSeq
       foo
     }
@@ -113,9 +114,9 @@ case class ErrorVsUncertainty(magnitude: Boolean = true) extends Visualization[D
   override def visualize(data: Iterable[(PredictionResult[Double], Seq[Double])]): XYChart = {
     val chart = new XYChart(500, 500)
 
-    val flattened: Iterable[(Double, Double)] = data.flatMap{case (pred, actual: Seq[Double]) =>
+    val flattened: Iterable[(Double, Double)] = data.flatMap { case (pred, actual: Seq[Double]) =>
       val sigmas = pred.getUncertainty().get.asInstanceOf[Seq[Double]]
-      val errors = actual.zip(pred.getExpected()).map{
+      val errors = actual.zip(pred.getExpected()).map {
         case (x, y) if magnitude => Math.abs(x - y)
         case (x, y) => y - x
       }
