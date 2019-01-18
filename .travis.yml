@@ -1,17 +1,21 @@
-language: scala
-scala:
-  - 2.12.4
-jdk:
-  - oraclejdk8
 cache:
   directories:
     - "~/.m2/repository"
-matrix:
+    - "~/.cache/pip"
+
+jobs:
   include:
-    - install: mvn install -P !build-extras -DskipTests=true -Dmaven.javadoc.skip=true -B
-        -V
-      script: mvn test -P !build-extras -B
-    - language: "python"
+    - stage: test
+      language: scala
+      scala: 2.12.4
+      jdk: oraclejdk8
+      install: 
+        - mvn install -P !build-extras -DskipTests=true -Dmaven.javadoc.skip=true -B
+      script: 
+        - mvn test -P !build-extras -B
+
+    - stage: test
+      language: python
       python:
         - 3.6
       install:
@@ -20,11 +24,35 @@ matrix:
         - pip install --only-binary=numpy,scipy -r requirements.txt
       script:
         - nosetests
-deploy:
-  provider: script
-  script: bash cd/deploy.sh
-  on:
-    branch: master
+
+    - stage: deploy
+      name: "maven central"
+      language: scala
+      scala: 2.12.4
+      jdk: oraclejdk8
+      script: true
+      deploy:
+        provider: script
+        script: bash cd/deploy.sh
+        on:
+          branch: master
+
+    - stage: "second deploy"
+      name: "pypi"
+      language: python
+      python: 3.6
+      before_install: 
+        - cd python
+      script: true
+      deploy:
+        provider: pypi
+        user: CitrineInformatics
+        password: 
+          secure: "sVPUuavPBK7tdkUYUAGA7oxF/B9aKAKmXRVQJ2iOi0HUE6YUXfyYSYNQiCYfXvbqyzTlNUF0KcBa0PGPwZCu3nyM2CiQ0MULH4gKgyJIRBtPqbg/ppnNNnJw1fKRcEfATyymf9e7yHY1DYN6InatGRK6vvfax61/a9FW/X8/K3TDVlbcILGxjG9+JjI5vfsD9z6kWG0HwgnguwjZHfDKmvmvf47uuzefs0zTjhOwdna0eQy1O62bHhND5Cfi7O7VRpaWfb3B6kM5tX/fivWQK3VY76XdJdjyHNHE7mxm4adub/+YHGaj6tDB+ZmBfeDC1gVLyB229gfDUbGvcP95n8PIjUL6nSEV/bJZSBBVnIzTJL+XX7Rn5ZiiXTlzgeM2S/FajcE8qDgs2/4fMWouOLir2pvVPgES0mh8m3CuiF/j3NgL7xQPyVuBFXDXH5OKSXFcVy7zpN4va3yJFk8H7P/Avdmls7re7TS+IC2vH14f3CCxgkUeixMnWwknrqxzDV90guzp/RBJgCP/fPDPuCVrnwN6WKSf0x4oBWhwIN64vopgPjm7IeinrRli9pleSF7+Vsyka3YOcvRwEsNRmGBhSiPGQvpWX9tXYZUBp4TPJzgaLrZJGyUYczk/wIcNHIKTW2EgQc6ysB0tR+3pEo1bN6cAW5r2brFiKzA+vEQ="
+        distributions: "sdist bdist_wheel"
+        on:
+          branch: master   
+
 env:
   global:
   - secure: FrHaublJMcjvXrLETTXYt3Ii9qxeXP+1tLGN7pvR1c2OHN8gL2ski8oEpNF7UhbLyW2nF/7Z+T64ORyxExeeWeVjor7Iw043GqADYb+ChIF1cj0hCKQebe60LVqzoV5cAyaKc4bDq3wLckoWSniE2YYSV3Lt1wnahNa2LVS6OAptYKq8EoTy75bQ+o9PV22yJM6Z/NCZRi6GE9zCxH+zM/PXd3k+aJTs2zud44cX9uARruS68gcvdx3BCmgQVhBV47L1UQyZIX7907B6CG8WRFn9Z5o1rikS6OH6vXChYEO4XxO+7HLJusFPF+oxOLJZTffShK6fiBeL7085cl8TDxl1uqJjb6DFnaP1IsZW+8Q5HZ3uVegwsdFtR2aHmXDfHHymFFl+7LtMPPZf+oewt1GpA8dRfdPorKXSCkQg9hfT+AWwO5EtW1872u61nkFRiU33qe/2d3mYmEG39GrR0Ci0iDLP0Ey/fnC4nEfgjO9AACKssHUD/81bCVtm7uYLNI4vrAsZfTfHVvjOKaIktKXaN6IRJJ+J1/ba3EQvuY2R7ee4PyU4LNig/7qnXBovKHVGSZMRXgrGGFfTX6oN0THP0RKKmlVX7MQsDL6ocOjWxAZdFvdhzMJDnPQw3gTgwS0a8R8bs18AafQu5PoKPoQMfR150fc56msR/Urm+Bs=
