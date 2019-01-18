@@ -30,6 +30,7 @@ jobs:
       language: scala
       scala: 2.12.4
       jdk: oraclejdk8
+      script: true
       deploy:
         provider: script
         script: bash cd/deploy.sh
@@ -40,6 +41,9 @@ jobs:
       name: "pypi"
       language: python
       python: 3.6
+      before_install: 
+        - cd python
+      script: true
       deploy:
         provider: pypi
         user: CitrineInformatics
