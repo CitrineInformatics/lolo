@@ -79,29 +79,24 @@ case class Bagger(
     }.map(_.map(_ / importances.size))
 
     /* Wrap the models in a BaggedModel object */
-    if (biasLearner.isEmpty) {
       Async.canStop()
-      new BaggedTrainingResult(models, averageImportance, Nib, trainingData, useJackknife)
-    } else {
-      Async.canStop()
-      val baggedModel = new BaggedModel(models, Nib, useJackknife)
-      Async.canStop()
-      val baggedRes = baggedModel.transform(trainingData.map(_._1))
-      Async.canStop()
-      val biasTraining = trainingData.zip(
-        baggedRes.getExpected().zip(baggedRes.getUncertainty().get)
-      ).map { case ((f, a), (p, u)) =>
-        // Math.E is only statistically correct.  It should be actualBags / Nib.transpose(i).count(_ == 0)
-        // Or, better yet, filter the bags that don't include the training example
-        val bias = Math.E * Math.max(Math.abs(p.asInstanceOf[Double] - a.asInstanceOf[Double]) - u.asInstanceOf[Double], 0.0)
-        (f, bias)
+      val oobErrors: Seq[Double] = trainingData.indices.flatMap{idx =>
+        val oobModels = models.zip(Nib.map(_(idx))).filter(_._2 == 0).map(_._1)
+        if (oobModels.size < 2) {
+          None
+        } else {
+          val model = new BaggedModel(oobModels, Nib.filter {
+            _ (idx) == 0
+          }, useJackknife)
+          val predicted = model.transform(Seq(trainingData(idx)._1))
+          val error = predicted.expected.head.asInstanceOf[Double] - trainingData(idx)._2.asInstanceOf[Double]
+          val uncertainty = predicted.getUncertainty().get.head.asInstanceOf[Double]
+          Some(error / uncertainty)
+        }
       }
-      Async.canStop()
-      val biasModel = biasLearner.get.train(biasTraining).getModel()
-      Async.canStop()
+      val ratio = oobErrors.map(Math.abs).sorted.drop((oobErrors.size * 0.68).toInt).head
 
-      new BaggedTrainingResult(models, averageImportance, Nib, trainingData, useJackknife, Some(biasModel))
-    }
+      new BaggedTrainingResult(models, averageImportance, Nib, trainingData, useJackknife, None, ratio) // Some(biasModel))
   }
 }
 
@@ -111,11 +106,12 @@ class BaggedTrainingResult(
                             Nib: Vector[Vector[Int]],
                             trainingData: Seq[(Vector[Any], Any)],
                             useJackknife: Boolean,
-                            biasModel: Option[Model[PredictionResult[Any]]] = None
+                            biasModel: Option[Model[PredictionResult[Any]]] = None,
+                            rescale: Double = 1.0
                           )
   extends TrainingResult {
   lazy val NibT = Nib.transpose
-  lazy val model = new BaggedModel(models, Nib, useJackknife, biasModel)
+  lazy val model = new BaggedModel(models, Nib, useJackknife, biasModel, rescale)
   lazy val rep = trainingData.find(_._2 != null).get._2
   lazy val predictedVsActual = trainingData.zip(NibT).flatMap { case ((f, l), nb) =>
     val oob = models.zip(nb).filter(_._2 == 0)
@@ -161,7 +157,8 @@ class BaggedModel(
                    models: ParSeq[Model[PredictionResult[Any]]],
                    Nib: Vector[Vector[Int]],
                    useJackknife: Boolean,
-                   biasModel: Option[Model[PredictionResult[Any]]] = None
+                   biasModel: Option[Model[PredictionResult[Any]]] = None,
+                   rescale: Double = 1.0
                  ) extends Model[BaggedResult] {
 
   /**
@@ -178,7 +175,7 @@ class BaggedModel(
     } else {
       None
     }
-    new BaggedResult(models.map(model => model.transform(inputs)).seq, Nib, useJackknife, bias, inputs.head)
+    new BaggedResult(models.map(model => model.transform(inputs)).seq, Nib, useJackknife, bias, inputs.head, rescale)
   }
 }
 
@@ -196,7 +193,8 @@ class BaggedResult(
                     NibIn: Vector[Vector[Int]],
                     useJackknife: Boolean,
                     bias: Option[Seq[Double]] = None,
-                    repInput: Vector[Any]
+                    repInput: Vector[Any],
+                    rescale: Double = 1.0
                   ) extends PredictionResult[Any] {
 
   /**
@@ -275,7 +273,7 @@ class BaggedResult(
       } else {
         Seq.fill(expected.size)(0.0)
       }
-      sigma2.zip(bias.getOrElse(Seq.fill(expected.size)(0.0))).map(p => Math.sqrt(p._2 * p._2 + p._1))
+      sigma2.zip(bias.getOrElse(Seq.fill(expected.size)(0.0))).map(p => Math.sqrt(p._2 * p._2 + p._1)).map(_ * rescale)
     case x: Any =>
       expectedMatrix.map(ps => ps.groupBy(identity).mapValues(_.size.toDouble / ps.size))
   }
@@ -382,7 +380,7 @@ class BaggedResult(
 
     (0 until modelPredictions.size).map { i =>
       /* Compute the first order bias correction for the variance estimators */
-      val correction = 0.0 // inverseSize * norm(predMat(::, i) - meanPrediction(i))
+      val correction = inverseSize * norm(predMat(::, i) - meanPrediction(i))
 
       /* The correction is prediction dependent, so we need to operate on vectors */
       val influencePerRow: DenseVector[Double] = Math.signum(actualPrediction(i) - meanPrediction(i)) * 0.5 * (arg(::, i) - Math.E * correction)
