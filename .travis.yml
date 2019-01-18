@@ -52,7 +52,7 @@ jobs:
         skip_cleanup: true
         user: CitrineInformatics
         password: 
-          secure: "sVPUuavPBK7tdkUYUAGA7oxF/B9aKAKmXRVQJ2iOi0HUE6YUXfyYSYNQiCYfXvbqyzTlNUF0KcBa0PGPwZCu3nyM2CiQ0MULH4gKgyJIRBtPqbg/ppnNNnJw1fKRcEfATyymf9e7yHY1DYN6InatGRK6vvfax61/a9FW/X8/K3TDVlbcILGxjG9+JjI5vfsD9z6kWG0HwgnguwjZHfDKmvmvf47uuzefs0zTjhOwdna0eQy1O62bHhND5Cfi7O7VRpaWfb3B6kM5tX/fivWQK3VY76XdJdjyHNHE7mxm4adub/+YHGaj6tDB+ZmBfeDC1gVLyB229gfDUbGvcP95n8PIjUL6nSEV/bJZSBBVnIzTJL+XX7Rn5ZiiXTlzgeM2S/FajcE8qDgs2/4fMWouOLir2pvVPgES0mh8m3CuiF/j3NgL7xQPyVuBFXDXH5OKSXFcVy7zpN4va3yJFk8H7P/Avdmls7re7TS+IC2vH14f3CCxgkUeixMnWwknrqxzDV90guzp/RBJgCP/fPDPuCVrnwN6WKSf0x4oBWhwIN64vopgPjm7IeinrRli9pleSF7+Vsyka3YOcvRwEsNRmGBhSiPGQvpWX9tXYZUBp4TPJzgaLrZJGyUYczk/wIcNHIKTW2EgQc6ysB0tR+3pEo1bN6cAW5r2brFiKzA+vEQ="
+          secure: "fb/NiAH7E1zA2iRUT+NMywH7dh0HF3qLM/JhjWLQWQ8l/pxOy7HPgk1CDEkZip/4emH2ur5+bGAD0pm0ewfDWfvjTPA+woV5IEebK2KL3Gm4Oam4fZP27NZ5zfYs6Q1dx3YPjRUgI3gtJ+0Y1tVKvZrUaZHityDMJDuEsYjdmPnFsA6s6U/5GYeQfWaYjZcflqYd01H8K9kbCeBsRBlOUm1lCXmt13R4uBOoMNAkuR7knYUOE1VM6VJWTN2T0iKphS9agxPHh/9/B9gjCQExhynOWSs5E2WhhDnWUoAJgyaZdxZQOxT2jJKA4dJGMCtyQScWItjsglcpthd+DsNtx/0vF1fDV3tvdjRVfegnhcF9fMUeI30O5jGTqNhimkiQsV1L+Sn6LFVAJKZ2yGzjqyS+8wn/uGOLQ04R46aw7KcfDJthzPU+dx0W78scTnkOnOx0R6eLH/HBn619h415JSsYpQ/D4A2VzODhHfScgzEe9xoL61ArhYz/wAqEAvit8WbFs4D7ZVnBc/98wsBD2NKUlmTZfkjPDAZQr49S1Na6UKlK6p4gLkXE6hfwgkFwxLiaQxOMfg0u/7VbbJzfrB2568HerS/oilDq+Bp+jNKUwyo08P0qD+8a4Gif1uk1UcipixDWbCvNlfr1H7+2FrN0+b92Xmfjd+CTMKmfv7o="
         distributions: "sdist bdist_wheel"
         on:
           branch: master   
