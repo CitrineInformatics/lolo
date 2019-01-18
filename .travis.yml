@@ -43,6 +43,9 @@ jobs:
       python: 3.6
       before_install: 
         - cd python
+      install:
+        - make
+        - pip install --only-binary=numpy,scipy -r requirements.txt
       script: true
       deploy:
         provider: pypi
