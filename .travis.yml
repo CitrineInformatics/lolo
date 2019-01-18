@@ -27,6 +27,9 @@ jobs:
 
     - stage: deploy
       name: "maven central"
+      language: scala
+      scala: 2.12.4
+      jdk: oraclejdk8
       deploy:
         provider: script
         script: bash cd/deploy.sh
@@ -35,6 +38,8 @@ jobs:
 
     - stage: "second deploy"
       name: "pypi"
+      language: python
+      python: 3.6
       deploy:
         provider: pypi
         user: CitrineInformatics
