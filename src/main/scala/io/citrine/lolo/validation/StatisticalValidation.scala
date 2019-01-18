@@ -1,11 +1,6 @@
 package io.citrine.lolo.validation
 
 import io.citrine.lolo.{Learner, PredictionResult}
-import org.apache.commons.math3.distribution.{CauchyDistribution, MultivariateNormalDistribution}
-import org.knowm.xchart.{CategoryChart, CategoryChartBuilder}
-
-import scala.util.Random
-import scala.collection.JavaConverters._
 
 /**
   * Methods that draw data from a distribution and compute predicted-vs-actual data
@@ -27,7 +22,5 @@ object StatisticalValidation {
       (predictions, testData.map(_._2))
     }
   }
-
-
 
 }

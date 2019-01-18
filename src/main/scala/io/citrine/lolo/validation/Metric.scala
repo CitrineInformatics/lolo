@@ -27,7 +27,7 @@ trait Metric[T] {
   def estimate(pva: Iterable[(PredictionResult[T], Seq[T])]): (Double, Double) = {
     val samples = pva.map{case (prediction, actual) => evaluate(prediction, actual)}
     val mean: Double = samples.sum / samples.size
-    val variance: Double = samples.map(x => Math.pow(x - mean, 2)).sum / samples.size
+    val variance: Double = (samples.size / (samples.size - 1)) * samples.map(x => Math.pow(x - mean, 2)).sum / samples.size
     (mean, Math.sqrt(variance / samples.size))
   }
 }
@@ -46,7 +46,7 @@ case object RootMeanSquareError extends Metric[Double] {
 }
 
 /**
-  * R^2 = 1 - MSE(y) / Var(y), where y is the predicted variable
+  * R2 = 1 - MSE(y) / Var(y), where y is the predicted variable
   */
 case object CoefficientOfDetermination extends Metric[Double] {
   override def evaluate(predictionResult: PredictionResult[Double], actual: Seq[Double]): Double = {
