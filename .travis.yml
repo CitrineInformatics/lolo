@@ -37,7 +37,7 @@ jobs:
         on:
           branch: master
 
-    - stage: "second deploy"
+    - stage: deploy 
       name: "pypi"
       language: python
       python: 3.6
@@ -45,6 +45,7 @@ jobs:
         - cd python
       install:
         - make
+        - pip install pandoc
         - pip install --only-binary=numpy,scipy -r requirements.txt
       script: true
       deploy:
