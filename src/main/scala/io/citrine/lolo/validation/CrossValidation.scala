@@ -23,11 +23,11 @@ object CrossValidation {
   def kFoldCrossvalidation[T](
                                trainingData: Seq[(Vector[Any], T)],
                                learner: Learner,
-                               metrics: Map[String, Metric[T]],
+                               metrics: Map[String, Merit[T]],
                                k: Int = 8,
                                nTrial: Int = 1
                              ): Map[String, (Double, Double)] = {
-    Metric.estimateMetrics(
+    Merit.estimateMerits(
       kFoldPvA(trainingData, learner, k, nTrial),
       metrics
     )

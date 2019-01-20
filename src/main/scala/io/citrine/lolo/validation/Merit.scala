@@ -11,7 +11,7 @@ import scala.util.Random
 /**
   * Real-valued metric on predictions of type T
   */
-trait Metric[T] {
+trait Merit[T] {
 
   /**
     * Apply the metric to a prediction result and set of ground-truth values
@@ -37,7 +37,7 @@ trait Metric[T] {
 /**
   * SSIA
   */
-case object RootMeanSquareError extends Metric[Double] {
+case object RootMeanSquareError extends Merit[Double] {
   override def evaluate(predictionResult: PredictionResult[Double], actual: Seq[Double]): Double = {
     Math.sqrt(
       (predictionResult.getExpected(), actual).zipped.map {
@@ -50,7 +50,7 @@ case object RootMeanSquareError extends Metric[Double] {
 /**
   * R2 = 1 - MSE(y) / Var(y), where y is the predicted variable
   */
-case object CoefficientOfDetermination extends Metric[Double] {
+case object CoefficientOfDetermination extends Merit[Double] {
   override def evaluate(predictionResult: PredictionResult[Double], actual: Seq[Double]): Double = {
     val averageActual = actual.sum / actual.size
     val sumOfSquares = actual.map(x => Math.pow(x - averageActual, 2)).sum
@@ -62,7 +62,7 @@ case object CoefficientOfDetermination extends Metric[Double] {
 /**
   * The fraction of predictions that fall within the predicted uncertainty
   */
-case object StandardConfidence extends Metric[Double] {
+case object StandardConfidence extends Merit[Double] {
   override def evaluate(predictionResult: PredictionResult[Double], actual: Seq[Double]): Double = {
     if (predictionResult.getUncertainty().isEmpty) return 0.0
 
@@ -75,7 +75,7 @@ case object StandardConfidence extends Metric[Double] {
 /**
   * Root mean square of (the error divided by the predicted uncertainty)
   */
-case object StandardError extends Metric[Double] {
+case object StandardError extends Merit[Double] {
   override def evaluate(predictionResult: PredictionResult[Double], actual: Seq[Double]): Double = {
     if (predictionResult.getUncertainty().isEmpty) return Double.PositiveInfinity
     val standardized = (predictionResult.getExpected(), predictionResult.getUncertainty().get, actual).zipped.map {
@@ -96,7 +96,7 @@ case object StandardError extends Metric[Double] {
   * In the absence of a closed form for that coefficient, it is model empirically by drawing from N(0, x) to produce
   * an "ideal" error series from which the correlation coefficient can be estimated.
   */
-case object UncertaintyCorrelation extends Metric[Double] {
+case object UncertaintyCorrelation extends Merit[Double] {
   override def evaluate(predictionResult: PredictionResult[Double], actual: Seq[Double]): Double = {
     val predictedUncertaintyActual: Seq[(Double, Double, Double)] = (
       predictionResult.getExpected(),
@@ -139,9 +139,7 @@ case object UncertaintyCorrelation extends Metric[Double] {
   }
 }
 
-
-// scalastyle:off
-object Metric {
+object Merit {
 
   /**
     * Estimate a set of named metrics by applying them to multiple sets of predictions and actual values
@@ -152,9 +150,9 @@ object Metric {
     * @param metrics to apply to the predicted-vs-actual data
     * @return map from the metric name to its (value, uncertainty)
     */
-  def estimateMetrics[T](
+  def estimateMerits[T](
                           pva: Iterable[(PredictionResult[T], Seq[T])],
-                          metrics: Map[String, Metric[T]]
+                          metrics: Map[String, Merit[T]]
                         ): Map[String, (Double, Double)] = {
 
     pva.flatMap { case (predictions, actual) =>
@@ -178,10 +176,10 @@ object Metric {
     * @param pvaBuilder      function that takes the parameter to predicted-vs-actual data
     * @return an [[XYChart]] that plots the metrics vs the parameter value
     */
-  def plotMetricScan[T](
+  def plotMeritScan[T](
                          parameterName: String,
                          parameterValues: Seq[Double],
-                         metrics: Map[String, Metric[T]],
+                         metrics: Map[String, Merit[T]],
                          logScale: Boolean = false
                        )(
                          pvaBuilder: Double => Iterable[(PredictionResult[T], Seq[T])]
@@ -196,7 +194,7 @@ object Metric {
 
     parameterValues.foreach { param =>
       val pva = pvaBuilder(param)
-      val metricResults = Metric.estimateMetrics(pva, metrics)
+      val metricResults = Merit.estimateMerits(pva, metrics)
       metricResults.foreach { case (name, (mean, err)) =>
         seriesData(name).add(mean)
         seriesData(s"${name}_err").add(err)
@@ -215,5 +213,3 @@ object Metric {
     chart
   }
 }
-
-// scalastyle:on

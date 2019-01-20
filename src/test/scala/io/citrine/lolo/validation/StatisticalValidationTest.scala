@@ -21,7 +21,7 @@ class StatisticalValidationTest {
     val metrics = Map("rmse" -> RootMeanSquareError)
     val (rmseFromCV, uncertaintyFromCV) = CrossValidation.kFoldCrossvalidation(dataSet, learner, metrics, k = 4, nTrial = 4)("rmse")
 
-    val (rmseFromStats, uncertaintyFromStats) = Metric.estimateMetrics(
+    val (rmseFromStats, uncertaintyFromStats) = Merit.estimateMerits(
       StatisticalValidation.generativeValidation(dataGenerator, learner, 96, 32, 16),
       metrics
     )("rmse")

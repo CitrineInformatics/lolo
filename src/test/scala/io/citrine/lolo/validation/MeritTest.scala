@@ -7,7 +7,7 @@ import org.scalatest.Assertions._
 
 import scala.util.{Random, Try}
 
-class MetricTest {
+class MeritTest {
 
   /**
     * Generate test data by adding Gaussian noise to a uniformly distributed response
@@ -142,7 +142,7 @@ class MetricTest {
   }
 }
 
-object MetricTest {
+object MeritTest {
   /**
     * Driver to test tolerance calibration so the false negative rate is low
     */
@@ -150,7 +150,7 @@ object MetricTest {
     val N = 1024
     val failures = Seq.fill(N) {
       Try(
-        new MetricTest().testZeroUncertaintyCorrelation() // place test here
+        new MeritTest().testZeroUncertaintyCorrelation() // place test here
       ).isSuccess
     }.count(!_)
     println(s"Failure rate is ${failures.toDouble / N}")
