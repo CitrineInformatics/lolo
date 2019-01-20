@@ -41,6 +41,10 @@ jobs:
       name: "pypi"
       language: python
       python: 3.6
+      addons:
+        apt:
+          packages:
+            - pandoc
       before_install: 
         - cd python
       install:
