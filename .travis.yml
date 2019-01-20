@@ -45,7 +45,7 @@ jobs:
         - cd python
       install:
         - make
-        - pip install pandoc
+        - pip install pypandoc
         - pip install --only-binary=numpy,scipy -r requirements.txt
       script: true
       deploy:
