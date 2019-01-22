@@ -41,7 +41,7 @@ case class RandomForest(
           case x: String =>
             x match {
               case "auto" => (trainingData.head._1.size / 3.0).toInt
-              case "sqrt" => Math.sqrt(trainingData.head._1.size).toInt
+              case "sqrt" => Math.ceil(Math.sqrt(trainingData.head._1.size)).toInt
               case x: String =>
                 println(s"Unrecognized subsetStrategy ${x}; using auto")
                 (trainingData.head._1.size / 3.0).toInt
@@ -64,8 +64,8 @@ case class RandomForest(
         val numFeatures: Int = subsetStrategy match {
           case x: String =>
             x match {
-              case "auto" => Math.sqrt(trainingData.head._1.size).toInt
-              case "sqrt" => Math.sqrt(trainingData.head._1.size).toInt
+              case "auto" => Math.ceil(Math.sqrt(trainingData.head._1.size)).toInt
+              case "sqrt" => Math.ceil(Math.sqrt(trainingData.head._1.size)).toInt
               case x: String =>
                 println(s"Unrecognized subsetStrategy ${x}; using auto")
                 Math.sqrt(trainingData.head._1.size).toInt
