@@ -35,7 +35,7 @@ trait Merit[T] {
 }
 
 /**
-  * SSIA
+  * Square root of the mean square error. For an unbiased estimator, this is equal to the standard deviation of the difference between predicted and actual values.
   */
 case object RootMeanSquareError extends Merit[Double] {
   override def evaluate(predictionResult: PredictionResult[Double], actual: Seq[Double]): Double = {
