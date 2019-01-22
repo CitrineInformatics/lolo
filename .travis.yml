@@ -1,23 +1,21 @@
-language: scala
-scala:
-  - 2.12.4
-jdk:
-  - oraclejdk8
 cache:
   directories:
     - "~/.m2/repository"
     - "~/.cache/pip"
-matrix:
+
+jobs:
   include:
-    - install: mvn install -P !build-extras -DskipTests=true -Dmaven.javadoc.skip=true -B
-        -V
-      script: mvn test -P !build-extras -B
-      deploy:
-        provider: script
-        script: bash cd/deploy.sh
-        on:
-          branch: master
-    - language: "python"
+    - stage: test
+      language: scala
+      scala: 2.12.4
+      jdk: oraclejdk8
+      install: 
+        - mvn install -P !build-extras -DskipTests=true -Dmaven.javadoc.skip=true -B
+      script: 
+        - mvn test -P !build-extras -B
+
+    - stage: test
+      language: python
       python:
         - 3.6
       install:
@@ -26,15 +24,44 @@ matrix:
         - pip install --only-binary=numpy,scipy -r requirements.txt
       script:
         - nosetests
+
+    - stage: deploy
+      name: "maven central"
+      language: scala
+      scala: 2.12.4
+      jdk: oraclejdk8
+      script: true
       deploy:
-        provider: pypi
-        user: TBD
-        password:
-          secure: TBD
-        distributions: "sdist bdist_wheel"
+        provider: script
+        script: bash cd/deploy.sh
         on:
           branch: master
-        skip_existing: true
+
+    - stage: deploy 
+      name: "pypi"
+      language: python
+      python: 3.6
+      addons:
+        apt:
+          packages:
+            - pandoc
+      before_install: 
+        - cd python
+      install:
+        - make
+        - pip install pypandoc
+        - pip install --only-binary=numpy,scipy -r requirements.txt
+      script: true
+      deploy:
+        provider: pypi
+        skip_cleanup: true
+        user: CitrineInformatics
+        password: 
+          secure: "fb/NiAH7E1zA2iRUT+NMywH7dh0HF3qLM/JhjWLQWQ8l/pxOy7HPgk1CDEkZip/4emH2ur5+bGAD0pm0ewfDWfvjTPA+woV5IEebK2KL3Gm4Oam4fZP27NZ5zfYs6Q1dx3YPjRUgI3gtJ+0Y1tVKvZrUaZHityDMJDuEsYjdmPnFsA6s6U/5GYeQfWaYjZcflqYd01H8K9kbCeBsRBlOUm1lCXmt13R4uBOoMNAkuR7knYUOE1VM6VJWTN2T0iKphS9agxPHh/9/B9gjCQExhynOWSs5E2WhhDnWUoAJgyaZdxZQOxT2jJKA4dJGMCtyQScWItjsglcpthd+DsNtx/0vF1fDV3tvdjRVfegnhcF9fMUeI30O5jGTqNhimkiQsV1L+Sn6LFVAJKZ2yGzjqyS+8wn/uGOLQ04R46aw7KcfDJthzPU+dx0W78scTnkOnOx0R6eLH/HBn619h415JSsYpQ/D4A2VzODhHfScgzEe9xoL61ArhYz/wAqEAvit8WbFs4D7ZVnBc/98wsBD2NKUlmTZfkjPDAZQr49S1Na6UKlK6p4gLkXE6hfwgkFwxLiaQxOMfg0u/7VbbJzfrB2568HerS/oilDq+Bp+jNKUwyo08P0qD+8a4Gif1uk1UcipixDWbCvNlfr1H7+2FrN0+b92Xmfjd+CTMKmfv7o="
+        distributions: "sdist bdist_wheel"
+        on:
+          branch: master   
+
 env:
   global:
   - secure: FrHaublJMcjvXrLETTXYt3Ii9qxeXP+1tLGN7pvR1c2OHN8gL2ski8oEpNF7UhbLyW2nF/7Z+T64ORyxExeeWeVjor7Iw043GqADYb+ChIF1cj0hCKQebe60LVqzoV5cAyaKc4bDq3wLckoWSniE2YYSV3Lt1wnahNa2LVS6OAptYKq8EoTy75bQ+o9PV22yJM6Z/NCZRi6GE9zCxH+zM/PXd3k+aJTs2zud44cX9uARruS68gcvdx3BCmgQVhBV47L1UQyZIX7907B6CG8WRFn9Z5o1rikS6OH6vXChYEO4XxO+7HLJusFPF+oxOLJZTffShK6fiBeL7085cl8TDxl1uqJjb6DFnaP1IsZW+8Q5HZ3uVegwsdFtR2aHmXDfHHymFFl+7LtMPPZf+oewt1GpA8dRfdPorKXSCkQg9hfT+AWwO5EtW1872u61nkFRiU33qe/2d3mYmEG39GrR0Ci0iDLP0Ey/fnC4nEfgjO9AACKssHUD/81bCVtm7uYLNI4vrAsZfTfHVvjOKaIktKXaN6IRJJ+J1/ba3EQvuY2R7ee4PyU4LNig/7qnXBovKHVGSZMRXgrGGFfTX6oN0THP0RKKmlVX7MQsDL6ocOjWxAZdFvdhzMJDnPQw3gTgwS0a8R8bs18AafQu5PoKPoQMfR150fc56msR/Urm+Bs=

@@ -3,7 +3,6 @@ package io.citrine.lolo.validation
 import io.citrine.lolo.{Learner, PredictionResult, TestUtils}
 import io.citrine.lolo.bags.Bagger
 import io.citrine.lolo.learners.RandomForest
-import io.citrine.lolo.linear.GuessTheMeanLearner
 import io.citrine.lolo.stats.functions.{Friedman, Linear}
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
 import org.apache.commons.math3.distribution.{CauchyDistribution, MultivariateNormalDistribution}
@@ -16,6 +15,11 @@ import scala.collection.JavaConverters._
 
 class StatisticalValidationTest {
 
+  /**
+    * Check that the generative validation is approximately consistent with k-fold cross-validation
+    *
+    * This test is not supposed to be statistically rigorous; just specific enough to detect bugs in the implementation
+    */
   @Test
   def testCalibration(): Unit = {
     val nFeature = 8
@@ -31,7 +35,7 @@ class StatisticalValidationTest {
       val nTrain = 32
       val nTree = 256
 
-      val chart = Metric.plotMetricScan(
+      val chart = Merit.plotMeritScan(
         "Number of Training points",
         Seq(16, 32, 64, 128, 256, 512),
         // Seq(2, 4, 8, 16, 32, 64, 128, 256, 512, 1024),
@@ -181,7 +185,7 @@ class StatisticalValidationTest {
     val normalSeries = counts.map(_._1).map(x => Math.exp(-x*x / (2 * normalVar) )/Math.sqrt(2 * Math.PI * normalVar))
     chart.addSeries(f"sigma=${Math.sqrt(normalVar)}%6.3f", counts.map(_._1).toArray, normalSeries.toArray)
     // val tdist = new TDistribution(1)
-    //c hart.addSeries("t=1", counts.map(_._1).toArray, counts.map(_._1).map(x => tdist.density(x)).toArray)
+    // chart.addSeries("t=1", counts.map(_._1).toArray, counts.map(_._1).map(x => tdist.density(x)).toArray)
     val gamma = halfWidth //  Math.sqrt(standardErrors.map(Math.pow(_, 2.0)).sum / standardErrors.size)
     val cauchy1 = new CauchyDistribution(0.0, gamma)
     val cauchySeries = counts.map(_._1).map(x => cauchy1.density(x))
@@ -202,4 +206,28 @@ class StatisticalValidationTest {
     chart
   }
 
+  @Test
+  def testCompareToKFolds(): Unit = {
+    val learner = RandomForest()
+    val dataSet = TestUtils.generateTrainingData(128, 8, Friedman.friedmanSilverman)
+    val dataGenerator = TestUtils.iterateTrainingData(8, Friedman.friedmanSilverman)
+
+    val metrics = Map("rmse" -> RootMeanSquareError)
+    val (rmseFromCV, uncertaintyFromCV) = CrossValidation.kFoldCrossvalidation(dataSet, learner, metrics, k = 4, nTrial = 4)("rmse")
+
+    val (rmseFromStats, uncertaintyFromStats) = Merit.estimateMerits(
+      StatisticalValidation.generativeValidation(dataGenerator, learner, 96, 32, 16),
+      metrics
+    )("rmse")
+
+    // These assertions have a false negative rate of 1/1000
+    assert(
+      uncertaintyFromCV + uncertaintyFromStats < (rmseFromCV + rmseFromStats) / 4.0,
+      s"The uncertainty is more than half the metric value; that's too uncertain to test"
+    )
+    assert(
+      Math.abs(rmseFromCV - rmseFromStats) < 2.0 * (uncertaintyFromCV + uncertaintyFromStats),
+      s"The CV and statistical validation methods disagree more than 2 sigma-sum"
+    )
+  }
 }
