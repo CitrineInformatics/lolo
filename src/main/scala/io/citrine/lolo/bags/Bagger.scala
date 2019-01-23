@@ -22,7 +22,8 @@ case class Bagger(
                    method: Learner,
                    numBags: Int = -1,
                    useJackknife: Boolean = true,
-                   biasLearner: Option[Learner] = None
+                   biasLearner: Option[Learner] = None,
+                   uncertaintyCalibration: Boolean = false
                  ) extends Learner {
 
   private def combineImportance(v1: Option[Vector[Double]], v2: Option[Vector[Double]]): Option[Vector[Double]] = {
@@ -79,9 +80,10 @@ case class Bagger(
     }.map(_.map(_ / importances.size))
 
     /* Wrap the models in a BaggedModel object */
+    val ratio = if (uncertaintyCalibration && trainingData.head._2.isInstanceOf[Double]) {
       Async.canStop()
-      val oobErrors: Seq[Double] = trainingData.indices.flatMap{idx =>
-        val oobModels = models.zip(Nib.map(_(idx))).filter(_._2 == 0).map(_._1)
+      val oobErrors: Seq[Double] = trainingData.indices.flatMap { idx =>
+        val oobModels = models.zip(Nib.map(_ (idx))).filter(_._2 == 0).map(_._1)
         if (oobModels.size < 2) {
           None
         } else {
@@ -94,9 +96,12 @@ case class Bagger(
           Some(error / uncertainty)
         }
       }
-      val ratio = oobErrors.map(Math.abs).sorted.drop((oobErrors.size * 0.68).toInt).head
+      oobErrors.map(Math.abs).sorted.drop((oobErrors.size * 0.68).toInt).head
+    } else {
+      1.0
+    }
 
-      new BaggedTrainingResult(models, averageImportance, Nib, trainingData, useJackknife, None, ratio) // Some(biasModel))
+    new BaggedTrainingResult(models, averageImportance, Nib, trainingData, useJackknife, None, ratio) // Some(biasModel))
   }
 }
 

@@ -25,8 +25,8 @@ class StatisticalValidationTest {
     val nFeature = 8
 
     // val data = TestUtils.iterateTrainingData(nFeature, Linear.offDiagonal(nFeature).apply, seed = Random.nextLong())
-    val data = TestUtils.iterateTrainingData(nFeature, Linear(Seq(1.0)).apply, seed = Random.nextLong())
-    // val data = TestUtils.iterateTrainingData(nFeature, Friedman.friedmanSilverman, seed = Random.nextLong())
+    // val data = TestUtils.iterateTrainingData(nFeature, Linear(Seq(1.0)).apply, seed = Random.nextLong())
+    val data = TestUtils.iterateTrainingData(nFeature, Friedman.friedmanSilverman, seed = Random.nextLong())
     // val data = TestUtils.generateTrainingData(nRow, nFeature, Linear.offDiagonal(nFeature).apply)
     // val data = TestUtils.generateTrainingData(nRow, nFeature, Linear.randomDirection(nFeature).apply)
     // val data = TestUtils.iterateTrainingData(nFeature, Friedman.friedmanSilverman)
@@ -36,18 +36,18 @@ class StatisticalValidationTest {
       val nTree = 256
 
       val chart = Merit.plotMeritScan(
-        "Number of Training points",
-        Seq(16, 32, 64, 128, 256, 512),
+        "Number of trees",
+        Seq(2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192),
         // Seq(2, 4, 8, 16, 32, 64, 128, 256, 512, 1024),
         Map("R2" -> CoefficientOfDetermination, "confidence" -> StandardConfidence, "error" -> StandardError, "sigmaCorr" -> UncertaintyCorrelation),
         logScale = true
-      ){ nTrain: Double =>
+      ){ nTree: Double =>
         // val nTrain = nTrees.toInt
         val learner = Bagger(
           RegressionTreeLearner(
             numFeatures = nFeature
           ),
-          numBags = nTrain.toInt,
+          numBags = nTree.toInt,
           useJackknife = true
         )
         StatisticalValidation.generativeValidation[Double](
@@ -57,7 +57,7 @@ class StatisticalValidationTest {
         nTest = 256,
         nRound = 32)
       }
-      BitmapEncoder.saveBitmap(chart, s"./metric_scan-corrected_${nTrain}", BitmapFormat.PNG)
+      BitmapEncoder.saveBitmap(chart, s"./metric_scan-uncorr_${nTrain}", BitmapFormat.PNG)
     } else {
 //      Seq(16, 32, 64, 128, 256, 512, 1024, 2048).foreach { nTrain =>
 //        Seq(2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048).foreach { nTree =>
