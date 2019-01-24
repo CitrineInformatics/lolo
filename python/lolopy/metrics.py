@@ -21,7 +21,7 @@ def _call_lolo_merit(metric_name, y_true, y_pred, y_std=None):
     """
 
     # If needed, set y_std to 1 for all entries
-    if y_std == 1:
+    if y_std is None:
         y_std = np.ones(len(y_std))
 
     # Get the metric object
