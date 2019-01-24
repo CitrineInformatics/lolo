@@ -163,4 +163,17 @@ object LoloPyDataLoader {
     stream.close()
     obj
   }
+
+  /**
+    * Create a PredictionResult object from the mean and uncertainty
+    * @param expected Mean of the predictions of a model
+    * @param uncertainty Uncertainty of the predictions
+    * @return Prediction result object
+    */
+  def makeRegressionPredictionResult(expected: Seq[Double], uncertainty: Seq[Double]) : PredictionResult[Double] = {
+    new PredictionResult[Double] {
+      override def getExpected(): Seq[Double] = expected
+      override def getUncertainty(): Option[Seq[Any]] = {new Some(uncertainty)}
+    }
+  }
 }
