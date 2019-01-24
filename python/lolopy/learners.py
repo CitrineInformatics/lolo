@@ -1,8 +1,8 @@
 from abc import abstractmethod, ABCMeta
 
-import sys
 import numpy as np
 from lolopy.loloserver import get_java_gateway
+from lolopy.utils import send_feature_array, send_1D_array
 from sklearn.base import BaseEstimator, RegressorMixin, ClassifierMixin, is_regressor
 
 __all__ = ['RandomForestRegressor', 'RandomForestClassifier']
@@ -116,16 +116,16 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
             weights = np.ones(len(y))
 
         # Convert x, y, and w to float64 and int8 with native ordering
-        X = np.array(X, dtype=np.float64)
+
         y = np.array(y, dtype=np.float64 if is_regressor(self) else np.int32)
         weights = np.array(weights, dtype=np.float64)
-        big_end = sys.byteorder == "big"
+
 
         # Convert X and y to Java Objects
-        X_java = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getFeatureArray(X.tobytes(), X.shape[1], big_end)
-        y_java = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.get1DArray(y.tobytes(), is_regressor(self), big_end)
+        X_java = send_feature_array(self.gateway, X)
+        y_java = send_1D_array(self.gateway, y, is_regressor(self))
         assert y_java.length() == len(y) == len(X)
-        w_java = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.get1DArray(np.array(weights).tobytes(), True, big_end)
+        w_java = send_1D_array(self.gateway, weights, True)
         assert w_java.length() == len(weights)
 
         return self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.zipTrainingData(X_java, y_java), w_java
