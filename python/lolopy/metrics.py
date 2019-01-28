@@ -22,7 +22,7 @@ def _call_lolo_merit(metric_name, y_true, y_pred, y_std=None):
 
     # If needed, set y_std to 1 for all entries
     if y_std is None:
-        y_std = np.ones(len(y_std))
+        y_std = np.ones(len(y_true))
 
     # Get the metric object
     gateway = get_java_gateway()
