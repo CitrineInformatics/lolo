@@ -75,13 +75,13 @@ case object StandardConfidence extends Merit[Double] {
 /**
   * Root mean square of (the error divided by the predicted uncertainty)
   */
-case object StandardError extends Merit[Double] {
+case class StandardError(rescale: Double = 1.0) extends Merit[Double] {
   override def evaluate(predictionResult: PredictionResult[Double], actual: Seq[Double]): Double = {
     if (predictionResult.getUncertainty().isEmpty) return Double.PositiveInfinity
     val standardized = (predictionResult.getExpected(), predictionResult.getUncertainty().get, actual).zipped.map {
       case (x, sigma: Double, y) => (x - y) / sigma
     }
-    Math.sqrt(standardized.map(Math.pow(_, 2.0)).sum / standardized.size)
+    rescale * Math.sqrt(standardized.map(Math.pow(_, 2.0)).sum / standardized.size)
   }
 }
 
@@ -180,7 +180,9 @@ object Merit {
                          parameterName: String,
                          parameterValues: Seq[Double],
                          metrics: Map[String, Merit[T]],
-                         logScale: Boolean = false
+                         logScale: Boolean = false,
+                         yMin: Option[Double] = None,
+                         yMax: Option[Double] = None
                        )(
                          pvaBuilder: Double => Iterable[(PredictionResult[T], Seq[T])]
                        ): XYChart = {
@@ -206,9 +208,13 @@ object Merit {
     metrics.map { case (name, _) =>
       chart.addSeries(name, parameterValues.toArray, seriesData(name).asScala.toArray, seriesData(s"${name}_err").asScala.toArray)
     }
+
     if (logScale) {
       chart.getStyler.setXAxisLogarithmic(true)
     }
+
+    yMin.foreach(min => chart.getStyler.setYAxisMin(min))
+    yMax.foreach(max => chart.getStyler.setYAxisMax(max))
 
     chart
   }

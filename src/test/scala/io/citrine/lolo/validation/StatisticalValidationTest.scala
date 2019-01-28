@@ -32,23 +32,24 @@ class StatisticalValidationTest {
     // val data = TestUtils.iterateTrainingData(nFeature, Friedman.friedmanSilverman)
 
     if (true) {
-      val nTrain = 32
       val nTree = 256
 
       val chart = Merit.plotMeritScan(
-        "Number of trees",
-        Seq(2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192),
-        // Seq(2, 4, 8, 16, 32, 64, 128, 256, 512, 1024),
-        Map("R2" -> CoefficientOfDetermination, "confidence" -> StandardConfidence, "error" -> StandardError, "sigmaCorr" -> UncertaintyCorrelation),
-        logScale = true
-      ){ nTree: Double =>
-        // val nTrain = nTrees.toInt
+        "Number of training points",
+        // Seq(2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192),
+        Seq(16, 32, 64, 128, 256, 512, 1024),
+        Map("R2" -> CoefficientOfDetermination, "confidence" -> StandardConfidence, "error / 4" -> StandardError(0.25), "sigmaCorr" -> UncertaintyCorrelation),
+        logScale = true,
+        yMin = Some(0.0),
+        yMax = Some(1.0)
+      ){ nTrain: Double =>
         val learner = Bagger(
           RegressionTreeLearner(
             numFeatures = nFeature
           ),
           numBags = nTree.toInt,
-          useJackknife = true
+          useJackknife = true,
+          uncertaintyCalibration = false
         )
         StatisticalValidation.generativeValidation[Double](
         data,
@@ -57,7 +58,7 @@ class StatisticalValidationTest {
         nTest = 256,
         nRound = 32)
       }
-      BitmapEncoder.saveBitmap(chart, s"./metric_scan-uncorr_${nTrain}", BitmapFormat.PNG)
+      BitmapEncoder.saveBitmap(chart, s"./scan-nTrain-nTree.${nTree}", BitmapFormat.PNG)
     } else {
 //      Seq(16, 32, 64, 128, 256, 512, 1024, 2048).foreach { nTrain =>
 //        Seq(2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048).foreach { nTree =>
