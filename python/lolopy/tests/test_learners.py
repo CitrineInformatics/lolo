@@ -27,6 +27,9 @@ class TestRF(TestCase):
         # Test with weights (make sure it doesn't crash)
         rf.fit(X, y, [1.0]*len(y))
 
+        # Make sure feature importances are stored
+        self.assertEqual(np.shape(rf.feature_importances_), (X.shape[1],))
+
         # Run predictions with std dev
         y_pred, y_std = rf.predict(X, return_std=True)
         self.assertEqual(len(y_pred), len(y_std))

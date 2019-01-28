@@ -34,6 +34,7 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
         # Create a placeholder for the model
         self.model_ = None
         self._compress_level = 9
+        self.feature_importances_ = None
         
     def __getstate__(self):
         # Get the current state
@@ -82,6 +83,11 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
 
         # Get the model out
         self.model_ = result.getModel()
+
+        # Store the feature importances
+        feature_importances_java = result.getFeatureImportance().get()
+        feature_importances_bytes = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.send1DArray(feature_importances_java)
+        self.feature_importances_ = np.frombuffer(feature_importances_bytes, 'float')
 
         return self
 

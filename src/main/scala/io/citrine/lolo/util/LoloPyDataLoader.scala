@@ -79,9 +79,7 @@ object LoloPyDataLoader {
     */
   def getRegressionExpected(predictionResult: PredictionResult[Any]) : Array[Byte] = {
     val predResults : Seq[Double] = predictionResult.getExpected().asInstanceOf[Seq[Double]]
-    val buffer : ByteBuffer = ByteBuffer.allocate(predResults.length * 8).order(ByteOrder.nativeOrder())
-    predResults.foreach(buffer.putDouble)
-    buffer.array()
+    send1DArray(predResults)
   }
 
   /**
@@ -91,8 +89,17 @@ object LoloPyDataLoader {
     */
   def getRegressionUncertainty(predictionResult: PredictionResult[Any]): Array[Byte] = {
     val predResults : Seq[Double] = predictionResult.getUncertainty().get.asInstanceOf[Seq[Double]]
-    val buffer : ByteBuffer = ByteBuffer.allocate(predResults.length * 8).order(ByteOrder.nativeOrder())
-    predResults.foreach(buffer.putDouble)
+    send1DArray(predResults)
+  }
+
+  /**
+    * Prepare to send a 1D array of Doubles by converting it to a byte array
+    * @param data Data to be sent
+    * @return Byte array with all the doubles in Seq ordered in system byte order
+    */
+  def send1DArray(data: Seq[Double]): Array[Byte] = {
+    val buffer: ByteBuffer = ByteBuffer.allocate(data.length * 8).order(ByteOrder.nativeOrder())
+    data.foreach(buffer.putDouble)
     buffer.array()
   }
 
