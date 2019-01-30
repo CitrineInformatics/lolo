@@ -25,14 +25,14 @@ class StatisticalValidationTest {
     val nFeature = 8
 
     // val data = TestUtils.iterateTrainingData(nFeature, Linear.offDiagonal(nFeature).apply, seed = Random.nextLong())
-    // val data = TestUtils.iterateTrainingData(nFeature, Linear(Seq(1.0)).apply, seed = Random.nextLong())
-    val data = TestUtils.iterateTrainingData(nFeature, Friedman.friedmanSilverman, seed = Random.nextLong())
+    val data = TestUtils.iterateTrainingData(nFeature, Linear(Seq(1.0)).apply, seed = Random.nextLong())
+    // val data = TestUtils.iterateTrainingData(nFeature, Friedman.friedmanSilverman, seed = Random.nextLong())
     // val data = TestUtils.generateTrainingData(nRow, nFeature, Linear.offDiagonal(nFeature).apply)
     // val data = TestUtils.generateTrainingData(nRow, nFeature, Linear.randomDirection(nFeature).apply)
     // val data = TestUtils.iterateTrainingData(nFeature, Friedman.friedmanSilverman)
 
     if (true) {
-      val nTree = 256
+      val nTree = 64
 
       val chart = Merit.plotMeritScan(
         "Number of training points",
@@ -49,7 +49,7 @@ class StatisticalValidationTest {
           ),
           numBags = nTree.toInt,
           useJackknife = true,
-          uncertaintyCalibration = false
+          uncertaintyCalibration = true
         )
         StatisticalValidation.generativeValidation[Double](
         data,
@@ -58,7 +58,7 @@ class StatisticalValidationTest {
         nTest = 256,
         nRound = 32)
       }
-      BitmapEncoder.saveBitmap(chart, s"./scan-nTrain-nTree.${nTree}", BitmapFormat.PNG)
+      BitmapEncoder.saveBitmap(chart, s"./scan-nTrain-nTree.${nTree}-cal", BitmapFormat.PNG)
     } else {
 //      Seq(16, 32, 64, 128, 256, 512, 1024, 2048).foreach { nTrain =>
 //        Seq(2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048).foreach { nTree =>
@@ -99,15 +99,41 @@ class StatisticalValidationTest {
   @Test
   def testHistogram(): Unit = {
     val nFeature = 8
-    val nTrain = 16
-    val nTree = 1024
-    // val data = TestUtils.iterateTrainingData(nFeature, Friedman.friedmanSilverman, seed = Random.nextLong())
-    val data = TestUtils.iterateTrainingData(nFeature, Linear(Seq(1.0)).apply, seed = Random.nextLong())
-    val learner = RandomForest(numTrees = nTree)
+    val nTrain = 64
+    val nTree = 16
+    val data = TestUtils.iterateTrainingData(nFeature, Friedman.friedmanSilverman, seed = Random.nextLong())
+    // val data = TestUtils.iterateTrainingData(nFeature, Linear(Seq(1.0)).apply, seed = Random.nextLong())
+    val learner = Bagger(
+          RegressionTreeLearner(
+            numFeatures = nFeature / 3
+          ),
+          numBags = nTree,
+          useJackknife = true,
+          uncertaintyCalibration = false
+        )
 
-    val chart = generativeHistogram(data, learner, nTrain, 32, 512)
+    val chart = generativeHistogram(data, learner, nTrain, 32, 512,
+      plotNormal = true,
+      plotCauchy = true,
+      calibrate = true
+    )
 
-    BitmapEncoder.saveBitmap(chart, s"./tmp", BitmapFormat.PNG)
+    BitmapEncoder.saveBitmap(chart, s"./linear_stdres", BitmapFormat.PNG)
+
+    val dataStream = StatisticalValidation.generativeValidation[Double](
+        data,
+        learner,
+        nTrain,
+        32, 2
+      )
+    val pva = PredictedVsActual().visualize(dataStream)
+    println(
+    Merit.estimateMerits(
+      dataStream,
+      Map("R2" -> CoefficientOfDetermination, "confidence" -> StandardConfidence, "error / 4" -> StandardError(0.25), "sigmaCorr" -> UncertaintyCorrelation)
+    )
+    )
+    BitmapEncoder.saveBitmap(pva, s"./linear_pva", BitmapFormat.PNG)
   }
 
   def generativeHistogram(
@@ -115,7 +141,10 @@ class StatisticalValidationTest {
                                learner: Learner,
                                nTrain: Int,
                                nTest: Int,
-                               nRound: Int
+                               nRound: Int,
+                               plotCauchy: Boolean = false,
+                               plotNormal: Boolean = false,
+                               calibrate: Boolean = true
                              ): CategoryChart = {
     val data: Seq[(Double, Double, Double)] = (0 until nRound).flatMap { _ =>
       val trainingData: Seq[(Vector[Any], Double)] = source.take(nTrain).toSeq
@@ -135,7 +164,7 @@ class StatisticalValidationTest {
 
     val standardErrors = data.map { case (predicted, sigma, actual) => (predicted - actual) / sigma }
 
-    val range = 8.0 // Math.ceil(standardErrors.map(Math.abs).max).toInt.toDouble
+    val range = 20.0 // Math.ceil(standardErrors.map(Math.abs).max).toInt.toDouble
     val nBins = 128
     val bins = (-nBins / 2 until nBins / 2).map { idx =>
       (range * idx.toDouble / nBins, range * (idx.toDouble + 1) / nBins)
@@ -178,19 +207,33 @@ class StatisticalValidationTest {
       ((min + max) / 2.0, fakeData.count(x => x >= min && x < max) / (standardErrors.size * (max - min)))
     }
 
-    val normalVar = Math.pow(standardErrors.map(Math.abs(_)).sorted.drop((0.68 * standardErrors.size).toInt).head, 2)
+    val normalVar = if (calibrate) {
+      Math.pow(standardErrors.map(Math.abs(_)).sorted.drop((0.68 * standardErrors.size).toInt).head, 2)
+    } else {
+      1.0
+    }//
     val halfWidth = standardErrors.map(Math.abs(_)).sorted.drop((0.5 * standardErrors.size).toInt).head
 
     val chart: CategoryChart = new CategoryChartBuilder().build()
     chart.addSeries("data", counts.map(_._1).toArray, counts.map(_._2.toDouble).toArray)
+
     val normalSeries = counts.map(_._1).map(x => Math.exp(-x*x / (2 * normalVar) )/Math.sqrt(2 * Math.PI * normalVar))
-    chart.addSeries(f"sigma=${Math.sqrt(normalVar)}%6.3f", counts.map(_._1).toArray, normalSeries.toArray)
+    if (plotNormal) {
+      chart.addSeries(f"Normal(0, ${Math.sqrt(normalVar)}%6.3f)", counts.map(_._1).toArray, normalSeries.toArray)
+    }
     // val tdist = new TDistribution(1)
     // chart.addSeries("t=1", counts.map(_._1).toArray, counts.map(_._1).map(x => tdist.density(x)).toArray)
-    val gamma = halfWidth //  Math.sqrt(standardErrors.map(Math.pow(_, 2.0)).sum / standardErrors.size)
+
+    val gamma: Double = if (calibrate) {
+      halfWidth
+    } else {
+      1.0
+    }
     val cauchy1 = new CauchyDistribution(0.0, gamma)
     val cauchySeries = counts.map(_._1).map(x => cauchy1.density(x))
-    chart.addSeries(f"gamma=${gamma}%6.3f", counts.map(_._1).toArray, cauchySeries.toArray)
+    if (plotCauchy) {
+      chart.addSeries(f"Cauchy(${gamma}%6.3f)", counts.map(_._1).toArray, cauchySeries.toArray)
+    }
     // chart.addSeries("synth", fakeCounts.map(_._1).toArray, fakeCounts.map(_._2.toDouble).toArray)
     val correlationCoefficient = sigmaCorr / Math.sqrt(varSigma * varError)
     val mixtureSeries = normalSeries.zip(cauchySeries).map{case (n, c) =>
