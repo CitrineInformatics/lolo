@@ -28,7 +28,7 @@ object CrossValidation {
                                nTrial: Int = 1
                              ): Map[String, (Double, Double)] = {
     Merit.estimateMerits(
-      kFoldPvA(trainingData, learner, k, nTrial),
+      kFoldPvA(trainingData, learner, k, nTrial).iterator,
       metrics
     )
   }

@@ -1,0 +1,248 @@
+package io.citrine.lolo.validation
+
+import io.citrine.lolo.bags.Bagger
+import io.citrine.lolo.stats.functions.{Friedman, Linear}
+import io.citrine.lolo.trees.regression.RegressionTreeLearner
+import io.citrine.lolo.{Learner, PredictionResult, TestUtils}
+import org.apache.commons.math3.distribution.CauchyDistribution
+import org.knowm.xchart.BitmapEncoder.BitmapFormat
+import org.knowm.xchart.{BitmapEncoder, CategoryChart, CategoryChartBuilder}
+
+import scala.collection.JavaConverters._
+import scala.util.Random
+
+object CalibrationStudy {
+
+  def main(args: Array[String]): Unit = {
+
+    generatePvaAndHistogram(Linear(Seq(1.0)).apply, "lin", nTrain = 64, nTree = 64)
+    println("Metrics for FS with 64 points and 64 trees:")
+    println(generatePvaAndHistogram(Friedman.friedmanSilverman, "fs", nTrain = 64, nTree = 64))
+    generatePvaAndHistogram(Friedman.friedmanSilverman, "fs", nTrain = 16, nTree = 64, range = 10)
+    println("Metrics for FS with 64 points and 16 trees:")
+    println(generatePvaAndHistogram(Friedman.friedmanSilverman, "fs", nTrain = 64, nTree = 16))
+    generateSweepAtFixedRatio()
+    generateSweepAtFixedTrainingSize(calibrated = false)
+    generateSweepAtFixedTrainingSize(calibrated = true)
+
+  }
+
+  def generateSweepAtFixedRatio(
+                                 ratios: Seq[Int] = Seq(1, 2, 4)
+                               ): Unit = {
+    val nFeature = 8
+    val data = TestUtils.iterateTrainingData(nFeature, Friedman.friedmanSilverman, seed = Random.nextLong())
+
+    ratios.foreach { ratio =>
+      val chart = Merit.plotMeritScan(
+        "Number of training rows",
+        Seq(16, 32, 64, 128, 256, 512),
+        Map("R2" -> CoefficientOfDetermination, "confidence" -> StandardConfidence, "standard error / 4" -> StandardError(0.25), "sigmaCorr" -> UncertaintyCorrelation),
+        logScale = true,
+        yMin = Some(0.0),
+        yMax = Some(1.0)
+      ) { nTrain: Double =>
+        val nTree = ratio * nTrain
+        val learner = Bagger(
+          RegressionTreeLearner(
+            numFeatures = nFeature
+          ),
+          numBags = nTree.toInt,
+          useJackknife = true,
+          uncertaintyCalibration = false
+        )
+        StatisticalValidation.generativeValidation[Double](
+          data,
+          learner,
+          nTrain = nTrain.toInt,
+          nTest = 256,
+          nRound = 32)
+      }
+      BitmapEncoder.saveBitmap(chart, s"./scan-ratio.${ratio}", BitmapFormat.PNG)
+    }
+  }
+
+  def generateSweepAtFixedTrainingSize(
+                                        sizes: Seq[Int] = Seq(16, 32, 64, 128, 256),
+                                        calibrated: Boolean = false
+                                      ): Unit = {
+    val nFeature = 8
+    val data = TestUtils.iterateTrainingData(nFeature, Friedman.friedmanSilverman, seed = Random.nextLong())
+    sizes.foreach { nTrain =>
+      val chart = Merit.plotMeritScan(
+        "Number of trees",
+        Seq(16, 32, 64, 128, 256, 512, 1024, 2048, 4096),
+        Map("R2" -> CoefficientOfDetermination, "confidence" -> StandardConfidence, "standard error / 4" -> StandardError(0.25), "sigmaCorr" -> UncertaintyCorrelation),
+        logScale = true,
+        yMin = Some(0.0),
+        yMax = Some(1.0)
+      ) { nTree: Double =>
+        val learner = Bagger(
+          RegressionTreeLearner(
+            numFeatures = nFeature
+          ),
+          numBags = nTree.toInt,
+          useJackknife = true,
+          uncertaintyCalibration = calibrated
+        )
+        StatisticalValidation.generativeValidation[Double](
+          data,
+          learner,
+          nTrain = nTrain.toInt,
+          nTest = 256,
+          nRound = 32)
+      }
+      val fname = if (calibrated) {
+        s"./scan-nTrain.${nTrain}-nTree-cal"
+      } else {
+        s"./scan-nTrain.${nTrain}-nTree"
+      }
+      BitmapEncoder.saveBitmap(chart, fname, BitmapFormat.PNG)
+    }
+  }
+
+  def generateSweepAtFixedTreeCount(
+                                     sizes: Seq[Int] = Seq(64, 128, 256),
+                                     calibrated: Boolean = false
+                                   ): Unit = {
+    val nFeature = 8
+    val data = TestUtils.iterateTrainingData(nFeature, Friedman.friedmanSilverman, seed = Random.nextLong())
+    sizes.foreach { nTree =>
+      val chart = Merit.plotMeritScan(
+        "Number of training points",
+        Seq(16, 32, 64, 128, 256, 512, 1024),
+        Map("R2" -> CoefficientOfDetermination, "confidence" -> StandardConfidence, "standard error / 4" -> StandardError(0.25), "sigmaCorr" -> UncertaintyCorrelation),
+        logScale = true,
+        yMin = Some(0.0),
+        yMax = Some(1.0)
+      ) { nTrain: Double =>
+        val learner = Bagger(
+          RegressionTreeLearner(
+            numFeatures = nFeature
+          ),
+          numBags = nTree.toInt,
+          useJackknife = true,
+          uncertaintyCalibration = calibrated
+        )
+        StatisticalValidation.generativeValidation[Double](
+          data,
+          learner,
+          nTrain = nTrain.toInt,
+          nTest = 256,
+          nRound = 32)
+      }
+      val fname = if (calibrated) {
+        s"./scan-nTrain-nTree.${nTree}-cal"
+      } else {
+        s"./scan-nTrain-nTree.${nTree}"
+      }
+      BitmapEncoder.saveBitmap(chart, fname, BitmapFormat.PNG)
+    }
+  }
+
+
+  def generatePvaAndHistogram(
+                               func: Seq[Double] => Double = Friedman.friedmanSilverman,
+                               funcName: String = "fs",
+                               nTrain: Int = 64,
+                               nTree: Int = 16,
+                               nFeature: Int = 8,
+                               range: Double = 4.0
+                             ): Map[String, (Double, Double)] = {
+
+    val data = TestUtils.iterateTrainingData(nFeature, func, seed = Random.nextLong())
+    val learner = Bagger(
+      RegressionTreeLearner(
+        numFeatures = nFeature / 3
+      ),
+      numBags = nTree,
+      useJackknife = true,
+      uncertaintyCalibration = false
+    )
+
+    val chart = generativeHistogram(data, learner, nTrain, 32, 512,
+      plotNormal = true,
+      plotCauchy = true,
+      calibrate = true,
+      range = range
+    )
+    BitmapEncoder.saveBitmap(chart, s"./stdres_${funcName}-nTrain.${nTrain}-nTree.${nTree}", BitmapFormat.PNG)
+
+    val dataStream = StatisticalValidation.generativeValidation[Double](
+      data,
+      learner,
+      nTrain,
+      32, 2
+    ).toIterable
+    val pva = PredictedVsActual().visualize(dataStream)
+    BitmapEncoder.saveBitmap(pva, s"./pva_${funcName}-nTrain.${nTrain}-nTree.${nTree}", BitmapFormat.PNG)
+    Merit.estimateMerits(
+      dataStream.iterator,
+      Map("R2" -> CoefficientOfDetermination, "confidence" -> StandardConfidence, "error / 4" -> StandardError(0.25), "sigmaCorr" -> UncertaintyCorrelation)
+    )
+  }
+
+  def generativeHistogram(
+                           source: Iterator[(Vector[Any], Double)],
+                           learner: Learner,
+                           nTrain: Int,
+                           nTest: Int,
+                           nRound: Int,
+                           plotCauchy: Boolean = false,
+                           plotNormal: Boolean = false,
+                           calibrate: Boolean = true,
+                           range: Double = 4.0
+                         ): CategoryChart = {
+    val data: Seq[(Double, Double, Double)] = (0 until nRound).flatMap { _ =>
+      val trainingData: Seq[(Vector[Any], Double)] = source.take(nTrain).toSeq
+      val model = learner.train(trainingData).getModel()
+      val testData: Seq[(Vector[Any], Double)] = source.take(nTest).toSeq
+      val predictions: PredictionResult[Double] = model.transform(testData.map(_._1)).asInstanceOf[PredictionResult[Double]]
+      (predictions.getExpected(), predictions.getUncertainty().get.asInstanceOf[Seq[Double]], testData.map(_._2)).zipped.toSeq
+    }
+
+    val standardErrors = data.map { case (predicted, sigma, actual) => (predicted - actual) / sigma }
+
+    val span = 2 * range // Math.ceil(standardErrors.map(Math.abs).max).toInt.toDouble
+    val nBins = 128
+    val bins = (-nBins / 2 until nBins / 2).map { idx =>
+      (span * idx.toDouble / nBins, span * (idx.toDouble + 1) / nBins)
+    }
+
+    val counts = bins.map { case (min, max) =>
+      ((min + max) / 2.0, standardErrors.count(x => x >= min && x < max) / (standardErrors.size * (max - min)))
+    }
+
+    val normalVar = if (calibrate) {
+      Math.pow(standardErrors.map(Math.abs(_)).sorted.drop((0.68 * standardErrors.size).toInt).head, 2)
+    } else {
+      1.0
+    }
+
+    val chart: CategoryChart = new CategoryChartBuilder().build()
+    chart.addSeries("data", counts.map(_._1).toArray, counts.map(_._2.toDouble).toArray)
+
+    val normalSeries = counts.map(_._1).map(x => Math.exp(-x * x / (2 * normalVar)) / Math.sqrt(2 * Math.PI * normalVar))
+    if (plotNormal) {
+      chart.addSeries(f"Normal(0, ${Math.sqrt(normalVar)}%6.3f)", counts.map(_._1).toArray, normalSeries.toArray)
+    }
+
+    val halfWidth = standardErrors.map(Math.abs(_)).sorted.drop((0.5 * standardErrors.size).toInt).head
+    val gamma: Double = if (calibrate) {
+      halfWidth
+    } else {
+      1.0
+    }
+    val cauchy1 = new CauchyDistribution(0.0, gamma)
+    val cauchySeries = counts.map(_._1).map(x => cauchy1.density(x))
+    if (plotCauchy) {
+      chart.addSeries(f"Cauchy(${gamma}%6.3f)", counts.map(_._1).toArray, cauchySeries.toArray)
+    }
+
+    chart.setTitle("(predicted - actual) / (predicted uncertainty)")
+    chart.setXAxisLabelOverrideMap(Map[java.lang.Double, AnyRef]().asJava)
+    chart.setYAxisTitle("probability density")
+    chart
+  }
+
+}

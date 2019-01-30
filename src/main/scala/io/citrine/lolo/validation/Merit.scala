@@ -151,14 +151,14 @@ object Merit {
     * @return map from the metric name to its (value, uncertainty)
     */
   def estimateMerits[T](
-                          pva: Iterable[(PredictionResult[T], Seq[T])],
+                          pva: Iterator[(PredictionResult[T], Seq[T])],
                           metrics: Map[String, Merit[T]]
                         ): Map[String, (Double, Double)] = {
 
     pva.flatMap { case (predictions, actual) =>
       // apply all the metrics to the batch at the same time so the batch can fall out of memory
       metrics.mapValues(f => f.evaluate(predictions, actual)).toSeq
-    }.groupBy(_._1).mapValues { x =>
+    }.toIterable.groupBy(_._1).mapValues { x =>
       val metricResults = x.map(_._2)
       val mean = metricResults.sum / metricResults.size
       val variance = metricResults.map(y => Math.pow(y - mean, 2)).sum / metricResults.size
@@ -184,7 +184,7 @@ object Merit {
                          yMin: Option[Double] = None,
                          yMax: Option[Double] = None
                        )(
-                         pvaBuilder: Double => Iterable[(PredictionResult[T], Seq[T])]
+                         pvaBuilder: Double => Iterator[(PredictionResult[T], Seq[T])]
                        ): XYChart = {
 
     val seriesData: Map[String, util.ArrayList[Double]] = metrics.flatMap { case (name, _) =>
@@ -202,7 +202,7 @@ object Merit {
         seriesData(s"${name}_err").add(err)
       }
     }
-    val chart = new XYChart(500, 500)
+    val chart = new XYChart(900, 600)
     chart.setTitle(s"Scan over $parameterName")
     chart.setXAxisTitle(parameterName)
     metrics.map { case (name, _) =>

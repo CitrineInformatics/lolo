@@ -31,8 +31,8 @@ object StatisticalValidation {
                                nTrain: Int,
                                nTest: Int,
                                nRound: Int
-                             ): Iterable[(PredictionResult[T], Seq[T])] = {
-    (0 until nRound).map { _ =>
+                             ): Iterator[(PredictionResult[T], Seq[T])] = {
+    Iterator.tabulate(nRound) { _ =>
       val trainingData: Seq[(Vector[Any], T)] = source.take(nTrain).toSeq
       val model = learner.train(trainingData).getModel()
       val testData: Seq[(Vector[Any], T)] = source.take(nTest).toSeq
