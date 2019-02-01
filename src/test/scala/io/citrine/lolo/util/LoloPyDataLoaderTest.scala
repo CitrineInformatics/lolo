@@ -75,6 +75,10 @@ class LoloPyDataLoaderTest {
       override def getUncertainty(): Option[Seq[Any]] = {
         Some(Map(0 -> 1.0) :: Map(1 -> 0.5, 0 -> 0.2, 2 -> 0.3) :: Map(0 -> 1.0) :: Map(1 -> 1.0) :: Nil)
       }
+
+      override def getImportanceScores(): Option[Seq[Seq[Double]]] = {
+        Some((0.1 :: 0.2 :: Nil) :: (0.4 :: 0.8 :: Nil) :: (0.1 :: 0.5 :: Nil) :: (0.8 :: 0.2 :: Nil) :: Nil)
+      }
     }
     val means = results.getExpected()
     val probs : Seq[Double] = results.getUncertainty().get.asInstanceOf[Seq[Map[Int, Double]]].flatMap(
@@ -91,6 +95,13 @@ class LoloPyDataLoaderTest {
       LoloPyDataLoader.getClassifierProbabilities(results, 3), getDouble = true, bigEndian = false).asInstanceOf[Seq[Double]]
     assert(reproProbs.length == 4 * 3)
     assert(probs.zip(reproProbs).map(x => Math.abs(x._1 - x._2)).sum < 1e-6)
+
+    // Get the importances via the utility
+    val reproImportances = LoloPyDataLoader.get1DArray(
+      LoloPyDataLoader.getImportanceScores(results), getDouble = true, bigEndian = false
+    ).grouped(2).toVector.asInstanceOf[Seq[Seq[Double]]]
+    assert(reproImportances.length == 4)
+    assert(reproImportances.head.zip(0.1 :: 0.2 :: Nil).map(x => Math.abs(x._1 - x._2)).sum < 1e-6)
   }
 
   @Test

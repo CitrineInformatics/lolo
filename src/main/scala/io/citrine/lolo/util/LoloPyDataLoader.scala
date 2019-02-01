@@ -83,6 +83,15 @@ object LoloPyDataLoader {
   }
 
   /**
+    * Send the training entry importance scores to the Python client
+    * @param predictionResult Prediction result object
+    * @return Byte of array of doubles in native system order
+    */
+  def getImportanceScores(predictionResult: PredictionResult[Any]) : Array[Byte] = {
+    send1DArray(predictionResult.getImportanceScores().get.flatten)
+  }
+
+  /**
     * Generate the uncertainties of a regression model, which are assumed to be doubles
     * @param predictionResult Prediction result object
     * @return Byte array of doubles in native system order
