@@ -2,8 +2,7 @@ package io.citrine.lolo
 
 import io.citrine.lolo.stats.functions.Friedman
 
-import scala.collection.mutable.ListBuffer
-import scala.util.Random
+import scala.util.{Random, Try}
 
 /**
   * Created by maxhutch on 11/28/16.
@@ -11,19 +10,18 @@ import scala.util.Random
 object TestUtils {
 
   def readCsv(name: String): Seq[Vector[Any]] = {
-    val res = new ListBuffer[Vector[Any]]
     val stream = getClass.getClassLoader.getResourceAsStream(name)
     val bs = scala.io.Source.fromInputStream(stream)
-    for (line <- bs.getLines()) {
-      val cols = line.split(",").map(_.trim).map { token =>
+    val res = bs.getLines().flatMap{line =>
+      Try(line.split(",").map(_.trim).map { token =>
         try {
           token.toDouble
         } catch {
-          case _: Throwable => token
+          case _: Throwable if token == "NaN" => Double.NaN
+          case _: Throwable if token.nonEmpty => token
         }
-      }.toVector
-      res.append(cols)
-    }
+      }.toVector).toOption
+    }.toVector
     bs.close()
     res
   }

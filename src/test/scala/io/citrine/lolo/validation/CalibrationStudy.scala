@@ -15,15 +15,29 @@ object CalibrationStudy {
 
   def main(args: Array[String]): Unit = {
 
-    generatePvaAndHistogram(Linear(Seq(1.0)).apply, "lin", nTrain = 64, nTree = 64)
-    println("Metrics for FS with 64 points and 64 trees:")
-    println(generatePvaAndHistogram(Friedman.friedmanSilverman, "fs", nTrain = 64, nTree = 64))
-    generatePvaAndHistogram(Friedman.friedmanSilverman, "fs", nTrain = 16, nTree = 64, range = 10)
-    println("Metrics for FS with 64 points and 16 trees:")
-    println(generatePvaAndHistogram(Friedman.friedmanSilverman, "fs", nTrain = 64, nTree = 16))
-    generateSweepAtFixedRatio()
-    generateSweepAtFixedTrainingSize(calibrated = false)
-    generateSweepAtFixedTrainingSize(calibrated = true)
+    val generateFollowUps = false
+    if (generateFollowUps) {
+      generateSweepAtFixedTreeCount(calibrated = false, func = Friedman.friedmanGrosseSilverman, funcName = "fgs")
+      generateSweepAtFixedTreeCount(calibrated = true, func = Friedman.friedmanGrosseSilverman, funcName = "fgs")
+      generateSweepForHCEP(calibrated = false)
+      generateSweepForHCEP(calibrated = true)
+      Seq(16, 32, 64, 128, 256, 512).foreach{nTrain =>
+        generatePvaAndHistogramHCEP(nTrain, nTree = 128)
+      }
+    }
+
+    val generateFiguresForPaper = false
+    if (generateFiguresForPaper) {
+      generatePvaAndHistogram(Linear(Seq(1.0)).apply, "lin", nTrain = 64, nTree = 64)
+      println("Metrics for FS with 64 points and 64 trees:")
+      println(generatePvaAndHistogram(Friedman.friedmanSilverman, "fs", nTrain = 64, nTree = 64))
+      generatePvaAndHistogram(Friedman.friedmanSilverman, "fs", nTrain = 16, nTree = 64, range = 10)
+      println("Metrics for FS with 64 points and 16 trees:")
+      println(generatePvaAndHistogram(Friedman.friedmanSilverman, "fs", nTrain = 64, nTree = 16))
+      generateSweepAtFixedRatio()
+      generateSweepAtFixedTrainingSize(calibrated = false)
+      generateSweepAtFixedTrainingSize(calibrated = true)
+    }
 
   }
 
@@ -103,10 +117,12 @@ object CalibrationStudy {
 
   def generateSweepAtFixedTreeCount(
                                      sizes: Seq[Int] = Seq(64, 128, 256),
-                                     calibrated: Boolean = false
+                                     calibrated: Boolean = false,
+                                     func: Seq[Double] => Double = Friedman.friedmanSilverman,
+                                     funcName: String = "fs"
                                    ): Unit = {
     val nFeature = 8
-    val data = TestUtils.iterateTrainingData(nFeature, Friedman.friedmanSilverman, seed = Random.nextLong())
+    val data = TestUtils.iterateTrainingData(nFeature, func, seed = Random.nextLong())
     sizes.foreach { nTree =>
       val chart = Merit.plotMeritScan(
         "Number of training points",
@@ -132,9 +148,9 @@ object CalibrationStudy {
           nRound = 32)
       }
       val fname = if (calibrated) {
-        s"./scan-nTrain-nTree.${nTree}-cal"
+        s"./scan-${funcName}-nTrain-nTree.${nTree}-cal"
       } else {
-        s"./scan-nTrain-nTree.${nTree}"
+        s"./scan-${funcName}-nTrain-nTree.${nTree}"
       }
       BitmapEncoder.saveBitmap(chart, fname, BitmapFormat.PNG)
     }
@@ -160,7 +176,15 @@ object CalibrationStudy {
       uncertaintyCalibration = false
     )
 
-    val chart = generativeHistogram(data, learner, nTrain, 32, 512,
+    val fullStream = StatisticalValidation.generativeValidation[Double](
+      data,
+      learner,
+      nTrain,
+      32,
+      512
+    ).toIterable
+
+    val chart = generativeHistogram(fullStream, learner,
       plotNormal = true,
       plotCauchy = true,
       calibrate = true,
@@ -183,23 +207,16 @@ object CalibrationStudy {
   }
 
   def generativeHistogram(
-                           source: Iterator[(Vector[Any], Double)],
+                           source: Iterable[(PredictionResult[Double], Seq[Double])],
                            learner: Learner,
-                           nTrain: Int,
-                           nTest: Int,
-                           nRound: Int,
                            plotCauchy: Boolean = false,
                            plotNormal: Boolean = false,
                            calibrate: Boolean = true,
                            range: Double = 4.0
                          ): CategoryChart = {
-    val data: Seq[(Double, Double, Double)] = (0 until nRound).flatMap { _ =>
-      val trainingData: Seq[(Vector[Any], Double)] = source.take(nTrain).toSeq
-      val model = learner.train(trainingData).getModel()
-      val testData: Seq[(Vector[Any], Double)] = source.take(nTest).toSeq
-      val predictions: PredictionResult[Double] = model.transform(testData.map(_._1)).asInstanceOf[PredictionResult[Double]]
-      (predictions.getExpected(), predictions.getUncertainty().get.asInstanceOf[Seq[Double]], testData.map(_._2)).zipped.toSeq
-    }
+    val data: Seq[(Double, Double, Double)] = source.flatMap{ case(predictions, actual) =>
+      (predictions.getExpected(), predictions.getUncertainty().get.asInstanceOf[Seq[Double]], actual).zipped.toSeq
+    }.toSeq
 
     val standardErrors = data.map { case (predicted, sigma, actual) => (predicted - actual) / sigma }
 
@@ -243,6 +260,94 @@ object CalibrationStudy {
     chart.setXAxisLabelOverrideMap(Map[java.lang.Double, AnyRef]().asJava)
     chart.setYAxisTitle("probability density")
     chart
+  }
+
+  def generateSweepForHCEP(
+                                sizes: Seq[Int] = Seq(64, 128, 256),
+                                calibrated: Boolean = false
+                          ): Unit = {
+    val csv = TestUtils.readCsv("hcep.csv")
+    val trainingData = csv.tail.map(vec => (vec.init, vec.last.asInstanceOf[Double]))
+    val nFeature = 8
+    sizes.foreach { nTree =>
+      val chart = Merit.plotMeritScan(
+        "Number of training points",
+        Seq(16, 32, 64, 128, 256, 512, 1024),
+        Map("R2" -> CoefficientOfDetermination, "confidence" -> StandardConfidence, "standard error / 4" -> StandardError(0.25), "sigmaCorr" -> UncertaintyCorrelation),
+        logScale = true,
+        yMin = Some(0.0),
+        yMax = Some(1.0)
+      ) { nTrain: Double =>
+        val learner = Bagger(
+          RegressionTreeLearner(
+            numFeatures = nFeature
+          ),
+          numBags = nTree.toInt,
+          useJackknife = true,
+          uncertaintyCalibration = calibrated
+        )
+        StatisticalValidation.generativeValidation[Double](
+          trainingData,
+          learner,
+          nTrain = nTrain.toInt,
+          nTest = 256,
+          nRound = 32)
+      }
+      val fname = if (calibrated) {
+        s"./scan-hcep-nTrain-nTree.${nTree}-cal"
+      } else {
+        s"./scan-hcep-nTrain-nTree.${nTree}"
+      }
+      BitmapEncoder.saveBitmap(chart, fname, BitmapFormat.PNG)
+    }
+  }
+
+  def generatePvaAndHistogramHCEP(
+                               nTrain: Int = 64,
+                               nTree: Int = 16,
+                               nFeature: Int = 8,
+                               range: Double = 4.0
+                             ): Map[String, (Double, Double)] = {
+
+    val csv = TestUtils.readCsv("hcep.csv")
+    val trainingData = csv.tail.map(vec => (vec.init, vec.last.asInstanceOf[Double]))
+
+    val learner = Bagger(
+      RegressionTreeLearner(
+        numFeatures = nFeature / 3
+      ),
+      numBags = nTree,
+      useJackknife = true,
+      uncertaintyCalibration = false
+    )
+
+    val fullStream = StatisticalValidation.generativeValidation[Double](
+      trainingData,
+      learner,
+      nTrain,
+      32, 512
+    ).toIterable
+
+    val chart = generativeHistogram(fullStream, learner,
+      plotNormal = true,
+      plotCauchy = true,
+      calibrate = true,
+      range = range
+    )
+    BitmapEncoder.saveBitmap(chart, s"./stdres_hcep-nTrain.${nTrain}-nTree.${nTree}", BitmapFormat.PNG)
+
+    val dataStream = StatisticalValidation.generativeValidation[Double](
+      trainingData,
+      learner,
+      nTrain,
+      32, 2
+    ).toIterable
+    val pva = PredictedVsActual().visualize(dataStream)
+    BitmapEncoder.saveBitmap(pva, s"./pva_hcep-nTrain.${nTrain}-nTree.${nTree}", BitmapFormat.PNG)
+    Merit.estimateMerits(
+      dataStream.iterator,
+      Map("R2" -> CoefficientOfDetermination, "confidence" -> StandardConfidence, "error / 4" -> StandardError(0.25), "sigmaCorr" -> UncertaintyCorrelation)
+    )
   }
 
 }
