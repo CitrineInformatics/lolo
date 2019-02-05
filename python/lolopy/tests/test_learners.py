@@ -1,4 +1,5 @@
 from lolopy.learners import RandomForestRegressor, RandomForestClassifier
+from sklearn.exceptions import NotFittedError
 from sklearn.metrics import r2_score, accuracy_score, log_loss
 from sklearn.datasets import load_boston, load_iris
 from unittest import TestCase, main
@@ -13,11 +14,21 @@ class TestRF(TestCase):
 
         # Train the model
         X, y = load_boston(True)
+
+        # Make sure we get a NotFittedError
+        with self.assertRaises(NotFittedError):
+            rf.predict(X)
+
+        # Fit the model
         rf.fit(X, y)
 
         # Run some predictions
         y_pred = rf.predict(X)
         self.assertEqual(len(y_pred), len(y))
+
+        # Test the ability to get importane scores
+        y_import = rf.get_importance_scores(X[:100, :])
+        self.assertEqual((100, len(X)), y_import.shape)
 
         # Basic test for functionality. R^2 above 0.98 was measured on 27Dec18
         score = r2_score(y_pred, y)

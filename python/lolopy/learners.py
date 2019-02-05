@@ -4,6 +4,7 @@ import numpy as np
 from lolopy.loloserver import get_java_gateway
 from lolopy.utils import send_feature_array, send_1D_array
 from sklearn.base import BaseEstimator, RegressorMixin, ClassifierMixin, is_regressor
+from sklearn.exceptions import NotFittedError
 
 __all__ = ['RandomForestRegressor', 'RandomForestClassifier']
 
@@ -147,13 +148,34 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
 
         return self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getFeatureArray(X.tobytes(), X.shape[1], False)
 
+    def get_importance_scores(self, X):
+        """Get the importance scores for each entry in the training set for each prediction
+        
+        Args:
+            X (ndarray): Inputs for each entry to be assessed
+        """
 
-class BaseLoloRegressor(BaseLoloLearner, RegressorMixin):
-    """Abstract class for models that produce regression models.
+        pred_result = self._get_prediction_result(X)
 
-    Implements the predict operation"""
+        y_import_bytes = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getImportanceScores(pred_result)
+        y_import = np.frombuffer(y_import_bytes, 'float').reshape(len(X), -1)
+        return y_import
 
-    def predict(self, X, return_std=False):
+    def _get_prediction_result(self, X):
+        """Get the PredictionResult from the lolo JVM
+        
+        The PredictionResult class holds methods that will generate the expected predictions, uncertainty intervals, etc
+        
+        Args:
+            X (ndarray): Input features for each entry
+        Returns:
+            (JavaObject): Prediction result produced by evaluating the model
+        """
+
+        # Check that the model is fitted
+        if self.model_ is None:
+            raise NotFittedError()
+
         # Convert the data to Java
         X_java = self._convert_run_data(X)
 
@@ -162,6 +184,17 @@ class BaseLoloRegressor(BaseLoloLearner, RegressorMixin):
 
         # Unlink the run data, which is no longer needed (to save memory)
         self.gateway.detach(X_java)
+        return pred_result
+
+
+class BaseLoloRegressor(BaseLoloLearner, RegressorMixin):
+    """Abstract class for models that produce regression models.
+
+    Implements the predict operation"""
+
+    def predict(self, X, return_std=False):
+        # Start the prediction process
+        pred_result = self._get_prediction_result(X)
 
         # Pull out the expected values
         y_pred_byte = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getRegressionExpected(pred_result)
@@ -192,14 +225,7 @@ class BaseLoloClassifier(BaseLoloLearner, ClassifierMixin):
         return super(BaseLoloClassifier, self).fit(X, y, weights)
 
     def predict(self, X):
-        # Convert the data to Java
-        X_java = self._convert_run_data(X)
-
-        # Get the PredictionResult
-        pred_result = self.model_.transform(X_java)
-
-        # Unlink the run data, which is no longer needed (to save memory)
-        self.gateway.detach(X_java)
+        pred_result = self._get_prediction_result(X)
 
         # Pull out the expected values
         y_pred_byte = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getClassifierExpected(pred_result)
@@ -208,14 +234,7 @@ class BaseLoloClassifier(BaseLoloLearner, ClassifierMixin):
         return y_pred
 
     def predict_proba(self, X):
-        # Convert the data to Java
-        X_java = self._convert_run_data(X)
-
-        # Get the PredictionResult
-        pred_result = self.model_.transform(X_java)
-
-        # Unlink the run data, which is no longer needed (to save memory)
-        self.gateway.detach(X_java)
+        pred_result = self._get_prediction_result(X)
 
         # Copy over the class probabilities
         probs_byte = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getClassifierProbabilities(pred_result,
