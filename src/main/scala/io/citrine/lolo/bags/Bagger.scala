@@ -101,7 +101,30 @@ case class Bagger(
       1.0
     }
 
-    new BaggedTrainingResult(models, averageImportance, Nib, trainingData, useJackknife, None, ratio) // Some(biasModel))
+    /* Wrap the models in a BaggedModel object */
+    if (biasLearner.isEmpty) {
+      Async.canStop()
+      new BaggedTrainingResult(models, averageImportance, Nib, trainingData, useJackknife, None, ratio)
+    } else {
+      Async.canStop()
+      val baggedModel: BaggedModel = new BaggedModel(models, Nib, useJackknife, rescale = ratio)
+      Async.canStop()
+      val baggedRes = baggedModel.transform(trainingData.map(_._1))
+      Async.canStop()
+      val biasTraining = trainingData.zip(
+        baggedRes.getExpected().zip(baggedRes.getUncertainty().get)
+      ).map { case ((f, a), (p, u)) =>
+        // Math.E is only statistically correct.  It should be actualBags / Nib.transpose(i).count(_ == 0)
+        // Or, better yet, filter the bags that don't include the training example
+        val bias = Math.E * Math.max(Math.abs(p.asInstanceOf[Double] - a.asInstanceOf[Double]) - u.asInstanceOf[Double], 0.0)
+        (f, bias)
+      }
+      Async.canStop()
+      val biasModel = biasLearner.get.train(biasTraining).getModel()
+      Async.canStop()
+
+      new BaggedTrainingResult(models, averageImportance, Nib, trainingData, useJackknife, Some(biasModel), ratio)
+    }
   }
 }
 

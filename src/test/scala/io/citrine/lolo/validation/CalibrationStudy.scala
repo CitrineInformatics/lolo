@@ -24,6 +24,7 @@ object CalibrationStudy {
       Seq(16, 32, 64, 128, 256, 512).foreach{nTrain =>
         generatePvaAndHistogramHCEP(nTrain, nTree = 128)
       }
+      generatePvaAndHistogram(Friedman.friedmanSilverman, "fs-trunc-bias", nTrain = 1024, nTree = 64, range = 2, ignoreDims = 1)
     }
 
     val generateFiguresForPaper = false
@@ -163,17 +164,20 @@ object CalibrationStudy {
                                nTrain: Int = 64,
                                nTree: Int = 16,
                                nFeature: Int = 8,
-                               range: Double = 4.0
+                               range: Double = 4.0,
+                               ignoreDims: Int = 0
                              ): Map[String, (Double, Double)] = {
 
     val data = TestUtils.iterateTrainingData(nFeature, func, seed = Random.nextLong())
+      .map{case (x, y) => (x.drop(ignoreDims), y)}
     val learner = Bagger(
       RegressionTreeLearner(
         numFeatures = nFeature / 3
       ),
       numBags = nTree,
       useJackknife = true,
-      uncertaintyCalibration = false
+      uncertaintyCalibration = false,
+      biasLearner = Some(RegressionTreeLearner(maxDepth = (Math.log(nTrain) / Math.log(2) / 2).toInt))
     )
 
     val fullStream = StatisticalValidation.generativeValidation[Double](
