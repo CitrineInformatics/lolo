@@ -136,6 +136,28 @@ class BaggerTest {
     )
   }
 
+  @Test
+  def calibrationTimeTest(): Unit = {
+    val trainingData = TestUtils.binTrainingData(
+      TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman),
+      inputBins = Seq((0, 8))
+    )
+    val DTLearner = RegressionTreeLearner(numFeatures = 3)
+    val start = System.nanoTime()
+    Bagger(DTLearner, numBags = trainingData.size)
+      .train(trainingData)
+      .getModel()
+    val unCalibratedTime = 1.0e-9 * (System.nanoTime() - start)
+
+    val startAgain = System.nanoTime()
+    Bagger(DTLearner, numBags = trainingData.size, uncertaintyCalibration = true)
+      .train(trainingData)
+      .getModel()
+    val calibratedTime = 1.0e-9 * (System.nanoTime() - startAgain)
+
+    println(calibratedTime, unCalibratedTime)
+  }
+
   /**
     * Test that the bagged learner can be interrupted
     */
