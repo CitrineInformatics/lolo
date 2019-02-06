@@ -191,7 +191,11 @@ class BaggedModel(
     } else {
       None
     }
-    new BaggedMultiResult(models.map(model => model.transform(inputs)).seq, Nib, useJackknife, bias, inputs.head, rescale)
+    if (inputs.size == 1) {
+      new BaggedSingleResult(models.map(model => model.transform(inputs)).seq, Nib, useJackknife, bias.map(_.head), inputs.head, rescale)
+    } else {
+      new BaggedMultiResult(models.map(model => model.transform(inputs)).seq, Nib, useJackknife, bias, inputs.head, rescale)
+    }
   }
 }
 
