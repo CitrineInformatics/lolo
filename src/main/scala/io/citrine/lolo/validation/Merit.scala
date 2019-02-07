@@ -9,22 +9,22 @@ import scala.collection.JavaConverters._
 import scala.util.Random
 
 /**
-  * Real-valued metric on predictions of type T
+  * Real-valued figure of merit on predictions of type T
   */
 trait Merit[T] {
 
   /**
-    * Apply the metric to a prediction result and set of ground-truth values
+    * Apply the figure of merti to a prediction result and set of ground-truth values
     *
-    * @return the value of the metric
+    * @return the value of the figure of merit
     */
   def evaluate(predictionResult: PredictionResult[T], actual: Seq[T]): Double
 
   /**
-    * Estimate the metric and the uncertainty in the metric over batches of predicted and ground-truth values
+    * Estimate the merit and the uncertainty in the merit over batches of predicted and ground-truth values
     *
     * @param pva predicted-vs-actual data as an iterable over [[PredictionResult]] and ground-truth tuples
-    * @return the estimate of the metric value and the uncertainty in that estimate
+    * @return the estimate of the merit value and the uncertainty in that estimate
     */
   def estimate(pva: Iterable[(PredictionResult[T], Seq[T])]): (Double, Double) = {
     val samples = pva.map { case (prediction, actual) => evaluate(prediction, actual) }
@@ -35,7 +35,7 @@ trait Merit[T] {
 }
 
 /**
-  * SSIA
+  * Square root of the mean square error. For an unbiased estimator, this is equal to the standard deviation of the difference between predicted and actual values.
   */
 case object RootMeanSquareError extends Merit[Double] {
   override def evaluate(predictionResult: PredictionResult[Double], actual: Seq[Double]): Double = {
@@ -109,19 +109,12 @@ case object UncertaintyCorrelation extends Merit[Double] {
       (actual + error, uncertainty, actual)
     }
 
-    /*
-    val sigmaMean = pua.map(_._2).sum / pua.size
-    val sigmaVar = pua.map(x => Math.pow(x._2 - sigmaMean, 2)).sum / pua.size
-    val model = Math.sqrt(2 / (Math.PI - 2)) * Math.sqrt(sigmaVar) / sigmaMean
-    val estimate = computeFromPredictedUncertaintyActual(baseline)
-    // println(model, estimate)
-    */
-
     computeFromPredictedUncertaintyActual(predictedUncertaintyActual) / computeFromPredictedUncertaintyActual(ideal)
   }
 
   /**
     * Covariance(X, Y) / Sqrt(Var(X) * Var(Y)), where X is predicted uncertainty and Y is magnitude of error
+    * @param pua  predicted, uncertainty, and actual
     */
   def computeFromPredictedUncertaintyActual(
                                              pua: Seq[(Double, Double, Double)]
@@ -142,44 +135,44 @@ case object UncertaintyCorrelation extends Merit[Double] {
 object Merit {
 
   /**
-    * Estimate a set of named metrics by applying them to multiple sets of predictions and actual values
+    * Estimate a set of named merits by applying them to multiple sets of predictions and actual values
     *
-    * The uncertainty in the estimate of each metric is calculated by looking at the variance across the batches
+    * The uncertainty in the estimate of each merit is calculated by looking at the variance across the batches
     *
     * @param pva     predicted-vs-actual data in a series of batches
-    * @param metrics to apply to the predicted-vs-actual data
-    * @return map from the metric name to its (value, uncertainty)
+    * @param merits  to apply to the predicted-vs-actual data
+    * @return map from the merit name to its (value, uncertainty)
     */
   def estimateMerits[T](
                           pva: Iterator[(PredictionResult[T], Seq[T])],
-                          metrics: Map[String, Merit[T]]
+                          merits: Map[String, Merit[T]]
                         ): Map[String, (Double, Double)] = {
 
     pva.flatMap { case (predictions, actual) =>
-      // apply all the metrics to the batch at the same time so the batch can fall out of memory
-      metrics.mapValues(f => f.evaluate(predictions, actual)).toSeq
+      // apply all the merits to the batch at the same time so the batch can fall out of memory
+      merits.mapValues(f => f.evaluate(predictions, actual)).toSeq
     }.toIterable.groupBy(_._1).mapValues { x =>
-      val metricResults = x.map(_._2)
-      val mean = metricResults.sum / metricResults.size
-      val variance = metricResults.map(y => Math.pow(y - mean, 2)).sum / metricResults.size
-      (mean, Math.sqrt(variance / metricResults.size))
+      val meritResults = x.map(_._2)
+      val mean = meritResults.sum / meritResults.size
+      val variance = meritResults.map(y => Math.pow(y - mean, 2)).sum / meritResults.size
+      (mean, Math.sqrt(variance / meritResults.size))
     }
   }
 
   /**
-    * Compute metrics as a function of a parameter, given a builder that takes the parameter to predicted-vs-actual data
+    * Compute merits as a function of a parameter, given a builder that takes the parameter to predicted-vs-actual data
     *
     * @param parameterName   name of the parameter that's being scanned over
     * @param parameterValues values of the parameter to try
-    * @param metrics         to apply at each parameter value
+    * @param merits          to apply at each parameter value
     * @param logScale        whether the parameters should be plotted on a log scale
     * @param pvaBuilder      function that takes the parameter to predicted-vs-actual data
-    * @return an [[XYChart]] that plots the metrics vs the parameter value
+    * @return an [[XYChart]] that plots the merits vs the parameter value
     */
   def plotMeritScan[T](
                          parameterName: String,
                          parameterValues: Seq[Double],
-                         metrics: Map[String, Merit[T]],
+                         merits: Map[String, Merit[T]],
                          logScale: Boolean = false,
                          yMin: Option[Double] = None,
                          yMax: Option[Double] = None
@@ -187,7 +180,7 @@ object Merit {
                          pvaBuilder: Double => Iterator[(PredictionResult[T], Seq[T])]
                        ): XYChart = {
 
-    val seriesData: Map[String, util.ArrayList[Double]] = metrics.flatMap { case (name, _) =>
+    val seriesData: Map[String, util.ArrayList[Double]] = merits.flatMap { case (name, _) =>
       Seq(
         name -> new util.ArrayList[Double](),
         s"${name}_err" -> new util.ArrayList[Double]()
@@ -196,8 +189,8 @@ object Merit {
 
     parameterValues.foreach { param =>
       val pva = pvaBuilder(param)
-      val metricResults = Merit.estimateMerits(pva, metrics)
-      metricResults.foreach { case (name, (mean, err)) =>
+      val meritResults = Merit.estimateMerits(pva, merits)
+      meritResults.foreach { case (name, (mean, err)) =>
         seriesData(name).add(mean)
         seriesData(s"${name}_err").add(err)
       }
@@ -205,7 +198,7 @@ object Merit {
     val chart = new XYChart(900, 600)
     chart.setTitle(s"Scan over $parameterName")
     chart.setXAxisTitle(parameterName)
-    metrics.map { case (name, _) =>
+    merits.map { case (name, _) =>
       chart.addSeries(name, parameterValues.toArray, seriesData(name).asScala.toArray, seriesData(s"${name}_err").asScala.toArray)
     }
 
