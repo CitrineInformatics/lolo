@@ -36,7 +36,7 @@ class BaggerTest {
     val results = RF.transform(trainingData.map(_._1))
     val means = results.getExpected()
     val sigma: Seq[Double] = results.getUncertainty().get.asInstanceOf[Seq[Double]]
-    assert(sigma.forall(_ >= 0.0))
+    assert(sigma.forall(_ > 0.0))
 
     assert(results.getGradient().isEmpty, "Returned a gradient when there shouldn't be one")
 
@@ -180,6 +180,24 @@ class BaggerTest {
     // Did it halt fast enough?
     val totalTime = (System.currentTimeMillis() - start) * 1.0e-3
     assert(totalTime < 2.0, "Thread took too long to terminate")
+  }
+
+
+  /**
+    * Test the fit performance of the regression bagger
+    */
+  @Test
+  def testUncertaintyFloor(): Unit = {
+    (0 until 16384).foreach { idx =>
+      val trainingData = TestUtils.generateTrainingData(16, 5, noise = 0.0, function = Friedman.friedmanSilverman, seed = Random.nextLong())
+      val DTLearner = RegressionTreeLearner(numFeatures = 2)
+      val sigma = Bagger(DTLearner, numBags = 4)
+        .train(trainingData)
+        .getModel()
+        .transform(trainingData.map(_._1))
+        .getUncertainty().get.asInstanceOf[Seq[Double]]
+      assert(sigma.forall(_ > 0.0), s"Found an predicted uncertainty of ${sigma.min} after $idx trials")
+    }
   }
 }
 
