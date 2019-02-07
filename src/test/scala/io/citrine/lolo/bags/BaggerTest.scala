@@ -136,6 +136,9 @@ class BaggerTest {
     )
   }
 
+  /**
+    * Test the relative training time of a calibrated vs an uncalibrated forest
+    */
   @Test
   def calibrationTimeTest(): Unit = {
     val trainingData = TestUtils.binTrainingData(
@@ -144,18 +147,18 @@ class BaggerTest {
     )
     val DTLearner = RegressionTreeLearner(numFeatures = 3)
     val start = System.nanoTime()
-    Bagger(DTLearner, numBags = trainingData.size)
+    Bagger(DTLearner, numBags = trainingData.size, uncertaintyCalibration = false)
       .train(trainingData)
       .getModel()
     val unCalibratedTime = 1.0e-9 * (System.nanoTime() - start)
 
     val startAgain = System.nanoTime()
-    Bagger(DTLearner, numBags = trainingData.size, uncertaintyCalibration = true)
+    Bagger(DTLearner, numBags = 64, uncertaintyCalibration = true)
       .train(trainingData)
       .getModel()
     val calibratedTime = 1.0e-9 * (System.nanoTime() - startAgain)
 
-    println(calibratedTime, unCalibratedTime)
+    assert(calibratedTime < unCalibratedTime, s"The calibration scheme has experienced a dramatic slowdown")
   }
 
   /**

@@ -185,16 +185,18 @@ class BaggedModel(
     */
   override def transform(inputs: Seq[Vector[Any]]): BaggedResult = {
     assert(inputs.forall(_.size == inputs.head.size))
-    // println(s"Applying model on ${inputs.size} inputs of length ${inputs.head.size}")
     val bias = if (biasModel.isDefined) {
       Some(biasModel.get.transform(inputs).getExpected().asInstanceOf[Seq[Double]])
     } else {
       None
     }
-    if (inputs.size == 1) {
-      new BaggedSingleResult(models.map(model => model.transform(inputs)).seq, Nib, useJackknife, bias.map(_.head), inputs.head, rescale)
+
+    val ensemblePredictions = models.map(model => model.transform(inputs)).seq
+    if (inputs.size == 1 && ensemblePredictions.head.getExpected().head.isInstanceOf[Double]) {
+      // In the special case of a single prediction on a real value, emit an optimized BaggedSingleResult
+      BaggedSingleResult(ensemblePredictions, Nib, useJackknife, bias.map(_.head), inputs.head, rescale)
     } else {
-      new BaggedMultiResult(models.map(model => model.transform(inputs)).seq, Nib, useJackknife, bias, inputs.head, rescale)
+      new BaggedMultiResult(ensemblePredictions, Nib, useJackknife, bias, inputs.head, rescale)
     }
   }
 }
