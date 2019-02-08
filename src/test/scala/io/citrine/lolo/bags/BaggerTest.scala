@@ -184,7 +184,11 @@ class BaggerTest {
 
 
   /**
-    * Test the fit performance of the regression bagger
+    * Test that the uncertainty is always positive (and non-zero)
+    *
+    * This happens randomly, so let's repeat a test many times to make sure we catch it.  On my machine, this fails
+    * in the first couple thousand times and takes runs for 13 seconds once its resolved, so I don't think
+    * that's too much overhead.
     */
   @Test
   def testUncertaintyFloor(): Unit = {
