@@ -347,7 +347,7 @@ class BaggedResult(
       val variancePerRow: DenseVector[Double] = 0.5 * (arg(::, i) - Math.E * correction)
 
       /* Impose a floor in case any of the variances are negative (hacked to work in breeze) */
-      val floor: Double = Math.min(0, -min(variancePerRow))
+      val floor: Double = Math.max(0, -min(variancePerRow))
       val rezero: DenseVector[Double] = variancePerRow - floor
       0.5 * (rezero + abs(rezero)) + floor
     }.map(_.toScalaVector())
