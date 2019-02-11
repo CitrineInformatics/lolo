@@ -36,7 +36,7 @@ class BaggerTest {
     val results = RF.transform(trainingData.map(_._1))
     val means = results.getExpected()
     val sigma: Seq[Double] = results.getUncertainty().get.asInstanceOf[Seq[Double]]
-    assert(sigma.forall(_ >= 0.0))
+    assert(sigma.forall(_ > 0.0))
 
     assert(results.getGradient().isEmpty, "Returned a gradient when there shouldn't be one")
 
@@ -205,6 +205,28 @@ class BaggerTest {
     // Did it halt fast enough?
     val totalTime = (System.currentTimeMillis() - start) * 1.0e-3
     assert(totalTime < 2.0, "Thread took too long to terminate")
+  }
+
+
+  /**
+    * Test that the uncertainty is always positive (and non-zero)
+    *
+    * This happens randomly, so let's repeat a test many times to make sure we catch it.  On my machine, this fails
+    * in the first couple thousand times and takes runs for 13 seconds once its resolved, so I don't think
+    * that's too much overhead.
+    */
+  @Test
+  def testUncertaintyFloor(): Unit = {
+    (0 until 16384).foreach { idx =>
+      val trainingData = TestUtils.generateTrainingData(16, 5, noise = 0.0, function = Friedman.friedmanSilverman, seed = Random.nextLong())
+      val DTLearner = RegressionTreeLearner(numFeatures = 2)
+      val sigma = Bagger(DTLearner, numBags = 4)
+        .train(trainingData)
+        .getModel()
+        .transform(trainingData.map(_._1))
+        .getUncertainty().get.asInstanceOf[Seq[Double]]
+      assert(sigma.forall(_ > 0.0), s"Found an predicted uncertainty of ${sigma.min} after $idx trials")
+    }
   }
 }
 
