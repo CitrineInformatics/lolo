@@ -2,8 +2,7 @@ package io.citrine.lolo
 
 import io.citrine.lolo.stats.functions.Friedman
 
-import scala.collection.mutable.ListBuffer
-import scala.util.Random
+import scala.util.{Random, Try}
 
 /**
   * Created by maxhutch on 11/28/16.
@@ -11,19 +10,18 @@ import scala.util.Random
 object TestUtils {
 
   def readCsv(name: String): Seq[Vector[Any]] = {
-    val res = new ListBuffer[Vector[Any]]
     val stream = getClass.getClassLoader.getResourceAsStream(name)
     val bs = scala.io.Source.fromInputStream(stream)
-    for (line <- bs.getLines()) {
-      val cols = line.split(",").map(_.trim).map { token =>
+    val res = bs.getLines().flatMap{line =>
+      Try(line.split(",").map(_.trim).map { token =>
         try {
           token.toDouble
         } catch {
-          case _: Throwable => token
+          case _: Throwable if token == "NaN" => Double.NaN
+          case _: Throwable if token.nonEmpty => token
         }
-      }.toVector
-      res.append(cols)
-    }
+      }.toVector).toOption
+    }.toVector
     bs.close()
     res
   }
@@ -39,6 +37,21 @@ object TestUtils {
                           ): Vector[(Vector[Double], Double)] = {
     val rnd = new Random(seed)
     Vector.fill(rows) {
+      val input = Vector.fill(cols)(xscale * rnd.nextDouble() + xoff)
+      (input, function(input) + noise * rnd.nextGaussian())
+    }
+  }
+
+  def iterateTrainingData(
+                           cols: Int,
+                           function: (Seq[Double] => Double) = Friedman.friedmanGrosseSilverman,
+                           xscale: Double = 1.0,
+                           xoff: Double = 0.0,
+                           noise: Double = 0.0,
+                           seed: Long = 0L
+                          ): Iterator[(Vector[Double], Double)] = {
+    val rnd = new Random(seed)
+    Iterator.continually {
       val input = Vector.fill(cols)(xscale * rnd.nextDouble() + xoff)
       (input, function(input) + noise * rnd.nextGaussian())
     }

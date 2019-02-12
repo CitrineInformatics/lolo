@@ -6,7 +6,7 @@
 
     <groupId>io.citrine</groupId>
     <artifactId>lolo</artifactId>
-    <version>2.0.8</version>
+    <version>2.1.0</version>
     <packaging>jar</packaging>
 
     <name>${project.groupId}:${project.artifactId}</name>
@@ -62,6 +62,11 @@
             <groupId>org.scalanlp</groupId>
             <artifactId>breeze_2.12</artifactId> <!-- or 2.11 -->
             <version>0.13.2</version>
+        </dependency>
+        <dependency>
+            <groupId>org.knowm.xchart</groupId>
+            <artifactId>xchart</artifactId>
+            <version>3.5.2</version>
         </dependency>
         <dependency>
             <groupId>org.scalactic</groupId>
