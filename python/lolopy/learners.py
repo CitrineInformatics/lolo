@@ -266,7 +266,6 @@ class RandomForestMixin(BaseLoloLearner):
 
     def _make_learner(self):
         #  TODO: Figure our a more succinct way of dealing with optional arguments/Option values
-        #  TODO: Do not hard-code use of RandomForest
         learner = self.gateway.jvm.io.citrine.lolo.learners.RandomForest(
             self.num_trees, self.useJackknife,
             getattr(self.gateway.jvm.io.citrine.lolo.learners.RandomForest,
@@ -283,4 +282,30 @@ class RandomForestRegressor(BaseLoloRegressor, RandomForestMixin):
 
 
 class RandomForestClassifier(BaseLoloClassifier, RandomForestMixin):
-    """Random Forest model used for classiciation"""
+    """Random Forest model used for classification"""
+
+
+class RegressionTreeLearner(BaseLoloRegressor):
+    """Regression tree learner, based on the RandomTree algorithm."""
+
+    def __init__(self, num_features=-1, max_depth=30, min_leaf_instances=1):
+        """Initialize the learner
+
+        Args:
+            num_features (int): Number of features to consider at each split (-1 to consider all features)
+            max_depth (int): Maximum depth of the regression tree
+            min_leaf_instances (int): Minimum number instances per leaf
+        """
+        super(RegressionTreeLearner, self).__init__()
+        self.num_features = num_features
+        self.max_depth = max_depth
+        self.min_leaf_instances = min_leaf_instances
+
+    def _make_learner(self):
+        return self.gateway.jvm.io.citrine.lolo.trees.regression.RegressionTreeLearner(
+            self.num_features, self.max_depth, self.min_leaf_instances,
+            getattr(self.gateway.jvm.io.citrine.lolo.trees.regression.RegressionTreeLearner,
+                    "$lessinit$greater$default$4")()
+        )
+
+

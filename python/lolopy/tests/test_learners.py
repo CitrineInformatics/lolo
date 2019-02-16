@@ -1,4 +1,4 @@
-from lolopy.learners import RandomForestRegressor, RandomForestClassifier
+from lolopy.learners import RandomForestRegressor, RandomForestClassifier, RegressionTreeLearner
 from sklearn.exceptions import NotFittedError
 from sklearn.metrics import r2_score, accuracy_score, log_loss
 from sklearn.datasets import load_boston, load_iris
@@ -99,6 +99,31 @@ class TestRF(TestCase):
         probs1 = rf.predict_proba(X)
         probs2 = rf2.predict_proba(X)
         self.assertTrue(np.isclose(probs1, probs2).all())
+
+    def test_regression_tree(self):
+        tree = RegressionTreeLearner()
+
+        # Make sure it trains and predicts properly
+        X, y = load_boston(True)
+        tree.fit(X, y)
+
+        # Make sure the prediction works
+        y_pred = tree.predict(X)
+
+        # Full depth tree should yield perfect accuracy
+        self.assertAlmostEqual(1, r2_score(y, y_pred))
+
+        # Constrain tree depth severely
+        tree.max_depth = 2
+        tree.fit(X, y)
+        y_pred = tree.predict(X)
+        self.assertAlmostEqual(0.695574477, r2_score(y, y_pred))  # Result is deterministic
+
+        # Constrain the tree to a single node, using minimum count per split
+        tree = RegressionTreeLearner(min_leaf_instances=1000)
+        tree.fit(X, y)
+        self.assertAlmostEqual(0, r2_score(y, tree.predict(X)))
+
 
 if __name__ == "__main__":
     main()
