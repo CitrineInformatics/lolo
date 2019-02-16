@@ -107,7 +107,7 @@ class MeritTest {
   def testStandardError(): Unit = {
     val pva = getNormalPVA(noiseScale = 0.01, uncertaintyCorrelation = 1.0, batchSize = 256, numBatch = 32)
     val expected = 1.0
-    val (error, uncertainty) = StandardError.estimate(pva)
+    val (error, uncertainty) = StandardError().estimate(pva)
     assert(Math.abs(error - expected) < 3 * uncertainty, "Standard error estimate was not accurate enough")
     assert(uncertainty < 0.05, s"Standard error estimate was not precise enough")
   }

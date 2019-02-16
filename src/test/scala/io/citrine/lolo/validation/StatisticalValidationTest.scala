@@ -7,11 +7,6 @@ import org.junit.Test
 
 class StatisticalValidationTest {
 
-  /**
-    * Check that the generative validation is approximately consistent with k-fold cross-validation
-    *
-    * This test is not supposed to be statistically rigorous; just specific enough to detect bugs in the implementation
-    */
   @Test
   def testCompareToKFolds(): Unit = {
     val learner = RandomForest()

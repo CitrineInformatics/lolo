@@ -75,13 +75,13 @@ case object StandardConfidence extends Merit[Double] {
 /**
   * Root mean square of (the error divided by the predicted uncertainty)
   */
-case object StandardError extends Merit[Double] {
+case class StandardError(rescale: Double = 1.0) extends Merit[Double] {
   override def evaluate(predictionResult: PredictionResult[Double], actual: Seq[Double]): Double = {
     if (predictionResult.getUncertainty().isEmpty) return Double.PositiveInfinity
     val standardized = (predictionResult.getExpected(), predictionResult.getUncertainty().get, actual).zipped.map {
       case (x, sigma: Double, y) => (x - y) / sigma
     }
-    Math.sqrt(standardized.map(Math.pow(_, 2.0)).sum / standardized.size)
+    rescale * Math.sqrt(standardized.map(Math.pow(_, 2.0)).sum / standardized.size)
   }
 }
 
@@ -144,14 +144,14 @@ object Merit {
     * @return map from the merit name to its (value, uncertainty)
     */
   def estimateMerits[T](
-                          pva: Iterable[(PredictionResult[T], Seq[T])],
+                          pva: Iterator[(PredictionResult[T], Seq[T])],
                           merits: Map[String, Merit[T]]
                         ): Map[String, (Double, Double)] = {
 
     pva.flatMap { case (predictions, actual) =>
       // apply all the merits to the batch at the same time so the batch can fall out of memory
       merits.mapValues(f => f.evaluate(predictions, actual)).toSeq
-    }.groupBy(_._1).mapValues { x =>
+    }.toIterable.groupBy(_._1).mapValues { x =>
       val meritResults = x.map(_._2)
       val mean = meritResults.sum / meritResults.size
       val variance = meritResults.map(y => Math.pow(y - mean, 2)).sum / meritResults.size
@@ -173,9 +173,11 @@ object Merit {
                          parameterName: String,
                          parameterValues: Seq[Double],
                          merits: Map[String, Merit[T]],
-                         logScale: Boolean = false
+                         logScale: Boolean = false,
+                         yMin: Option[Double] = None,
+                         yMax: Option[Double] = None
                        )(
-                         pvaBuilder: Double => Iterable[(PredictionResult[T], Seq[T])]
+                         pvaBuilder: Double => Iterator[(PredictionResult[T], Seq[T])]
                        ): XYChart = {
 
     val seriesData: Map[String, util.ArrayList[Double]] = merits.flatMap { case (name, _) =>
@@ -193,15 +195,19 @@ object Merit {
         seriesData(s"${name}_err").add(err)
       }
     }
-    val chart = new XYChart(500, 500)
+    val chart = new XYChart(900, 600)
     chart.setTitle(s"Scan over $parameterName")
     chart.setXAxisTitle(parameterName)
     merits.map { case (name, _) =>
       chart.addSeries(name, parameterValues.toArray, seriesData(name).asScala.toArray, seriesData(s"${name}_err").asScala.toArray)
     }
+
     if (logScale) {
       chart.getStyler.setXAxisLogarithmic(true)
     }
+
+    yMin.foreach(min => chart.getStyler.setYAxisMin(min))
+    yMax.foreach(max => chart.getStyler.setYAxisMax(max))
 
     chart
   }
