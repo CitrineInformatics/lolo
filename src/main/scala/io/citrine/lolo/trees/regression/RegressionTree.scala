@@ -15,6 +15,7 @@ import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
   * @param numFeatures to randomly select from at each split (default: all)
   * @param maxDepth    to grow the tree to
   * @param leafLearner learner to train the leaves with
+  * @param minLeafInstances minimum number of instances per leaf
   */
 case class RegressionTreeLearner(
                                   numFeatures: Int = -1,

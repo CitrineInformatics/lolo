@@ -15,15 +15,16 @@ import io.citrine.lolo.{Learner, TrainingResult}
   * @param leafLearner    learner to use at the leaves of the trees
   * @param subsetStrategy for random feature selection at each split
   *                       (auto => 1/3 for regression, sqrt for classification)
+  * @param minLeafInstances minimum number of instances per leave in each tree
   */
 case class RandomForest(
                          numTrees: Int = -1,
                          useJackknife: Boolean = true,
                          biasLearner: Option[Learner] = None,
                          leafLearner: Option[Learner] = None,
-                         subsetStrategy: Any = "auto"
+                         subsetStrategy: Any = "auto",
+                         minLeafInstances: Int = 1
                        ) extends Learner {
-
   /**
     * Train a random forest model
     *
@@ -53,7 +54,9 @@ case class RandomForest(
         }
         val DTLearner = RegressionTreeLearner(
           leafLearner = leafLearner,
-          numFeatures = numFeatures)
+          numFeatures = numFeatures,
+          minLeafInstances = minLeafInstances
+        )
         val bagger = Bagger(DTLearner,
           numBags = numTrees,
           useJackknife = useJackknife,
