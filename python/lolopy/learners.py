@@ -145,7 +145,8 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
         Returns:
             (JavaObject): Pointer to run data in Java
         """
-
+        if not isinstance(X, np.ndarray):
+            X = np.array(X)
         return self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getFeatureArray(X.tobytes(), X.shape[1], False)
 
     def get_importance_scores(self, X):
@@ -249,30 +250,41 @@ class RandomForestMixin(BaseLoloLearner):
     Implements the _make_learner operation and the __init__ function with options specific to the RandomForest
     class in Lolo"""
 
-    def __init__(self, num_trees=-1, useJackknife=True, subsetStrategy="auto"):
+    def __init__(self, num_trees=-1, use_jackknife=True, bias_learner=None,
+                 leaf_learner=None, subset_strategy="auto", min_leaf_instances=1):
         """Initialize the RandomForest
 
         Args:
             num_trees (int): Number of trees to use in the forest
+            use_jackknife (bool): Whether to use jackknife based variance estimates
+            bias_learner (BaseLoloLearner): Algorithm used to model bias (default: no model)
+            leaf_learner (BaseLoloLearner): Learner used at each leaf of the random forest (default: GuessTheMean)
+            subset_strategy (Union[string,int,float]): Strategy used to determine number of features used at each split in decision
+                trees. Can be "sqrt" for the square root of the number of features, an int to specify the number
+                of features, or a float to set the fraction of the total feature count. "auto" uses "sqrt" for
+                classification problems and 1/3 for regression problems.
+            min_leaf_instances (int): Minimum number of features used at each leaf
         """
         super(RandomForestMixin, self).__init__()
 
-        # Get JVM for this object
-
         # Store the variables
         self.num_trees = num_trees
-        self.useJackknife = useJackknife
-        self.subsetStrategy = subsetStrategy
+        self.use_jackknife = use_jackknife
+        self.subset_strategy = subset_strategy
+        self.bias_learner = bias_learner
+        self.leaf_learner = leaf_learner
+        self.min_leaf_instances = min_leaf_instances
 
     def _make_learner(self):
         #  TODO: Figure our a more succinct way of dealing with optional arguments/Option values
         learner = self.gateway.jvm.io.citrine.lolo.learners.RandomForest(
-            self.num_trees, self.useJackknife,
+            self.num_trees, self.use_jackknife,
             getattr(self.gateway.jvm.io.citrine.lolo.learners.RandomForest,
                     "$lessinit$greater$default$3")(),
             getattr(self.gateway.jvm.io.citrine.lolo.learners.RandomForest,
                     "$lessinit$greater$default$4")(),
-            self.subsetStrategy
+            self.subset_strategy,
+            self.min_leaf_instances
         )
         return learner
 
@@ -308,4 +320,21 @@ class RegressionTreeLearner(BaseLoloRegressor):
                     "$lessinit$greater$default$4")()
         )
 
+class LinearRegression(BaseLoloRegressor):
+    """Linear ridge regression with an :math:`L_2` penalty"""
 
+    def __init__(self, reg_param=None, fit_intercept=True):
+        """Initialize the regressor"""
+
+        super(LinearRegression, self).__init__()
+
+        self.reg_param = reg_param
+        self.fit_intercept = fit_intercept
+
+    def _make_learner(self):
+        return self.gateway.jvm.io.citrine.lolo.linear.LinearRegressionLearner(
+            getattr(self.gateway.jvm.io.citrine.lolo.linear.LinearRegressionLearner,
+                    "$lessinit$greater$default$1")() if self.reg_param is None
+            else self.gateway.jvm.scala.Some(float(self.reg_param)),
+            self.fit_intercept
+        )

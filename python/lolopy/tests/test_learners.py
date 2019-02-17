@@ -1,4 +1,4 @@
-from lolopy.learners import RandomForestRegressor, RandomForestClassifier, RegressionTreeLearner
+from lolopy.learners import RandomForestRegressor, RandomForestClassifier, RegressionTreeLearner, LinearRegression
 from sklearn.exceptions import NotFittedError
 from sklearn.metrics import r2_score, accuracy_score, log_loss
 from sklearn.datasets import load_boston, load_iris
@@ -52,7 +52,7 @@ class TestRF(TestCase):
         self.assertIsNone(rf.model_)
 
         # Test removing Jackknife, which should produce equal uncertainties for all entries
-        rf.useJackknife = False
+        rf.use_jackknife = False
         rf.fit(X, y)
         y_pred, y_std = rf.predict(X, return_std=True)
         self.assertAlmostEqual(np.std(y_std), 0)
@@ -123,6 +123,29 @@ class TestRF(TestCase):
         tree = RegressionTreeLearner(min_leaf_instances=1000)
         tree.fit(X, y)
         self.assertAlmostEqual(0, r2_score(y, tree.predict(X)))
+
+    def test_linear_regression(self):
+        lr = LinearRegression()
+
+        # Make y = x + 1
+        X = np.linspace(0, 1, 32)
+        y = X + 1
+
+        # Make X a 2D array
+        X = X[:, None]
+
+        # Fit a linear regression model
+        lr.fit(X, y)
+        self.assertEqual(1, r2_score(y, lr.predict(X)))
+
+        # Not fitting an intercept
+        lr.fit_intercept = False
+        lr.fit(X, y)
+        self.assertAlmostEqual(0, lr.predict([[0]])[0])
+
+        # Add a regularization parameter, make sure the model fits
+        lr.reg_param = 1
+        lr.fit(X, y)
 
 
 if __name__ == "__main__":
