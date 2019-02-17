@@ -8,14 +8,15 @@ from lolopy.utils import send_1D_array
 import numpy as np
 
 
-def _call_lolo_merit(metric_name, y_true, y_pred, y_std=None):
+def _call_lolo_merit(metric_name, y_true, y_pred, y_std=None, *args):
     """Call a metric from lolopy
     
     Args:
-        metric_name (str): Name of a Metric class (e.g., UncertaintyCorrelation)
+        metric_name (str): Name of a Merit class (e.g., UncertaintyCorrelation)
         y_true ([double]): True value
         y_pred ([double]): Predicted values
         y_uncert ([double]): Prediction uncertainties
+        *args (list): Any paramters to the constructor of the Metric
     Returns:
         (double): Metric score
     """
@@ -27,6 +28,8 @@ def _call_lolo_merit(metric_name, y_true, y_pred, y_std=None):
     # Get the metric object
     gateway = get_java_gateway()
     metric = getattr(gateway.jvm.io.citrine.lolo.validation, metric_name)
+    if len(args) > 0:
+        metric = metric(*args)
 
     # Convert the data arrays to Java
     y_true_java = send_1D_array(gateway, y_true, True)
@@ -67,18 +70,19 @@ def standard_confidence(y_true, y_pred, y_std):
     return _call_lolo_merit('StandardConfidence', y_true, y_pred, y_std)
 
 
-def standard_error(y_true, y_pred, y_std):
+def standard_error(y_true, y_pred, y_std, rescale=1.0):
     """Root mean square of the error divided by the predicted uncertainty 
     
     Args:
         y_true ([double]): True value
         y_pred ([double]): Predicted values
         y_std ([double]): Predicted uncertainty
+        rescale (double): Multiplicative factor with which to rescale error
     Returns:
         (double): standard error
     """
 
-    return _call_lolo_merit('StandardError', y_true, y_pred, y_std)
+    return _call_lolo_merit('StandardError', y_true, y_pred, y_std, float(rescale))
 
 
 def uncertainty_correlation(y_true, y_pred, y_std):
