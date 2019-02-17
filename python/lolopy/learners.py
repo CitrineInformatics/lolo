@@ -280,9 +280,11 @@ class RandomForestMixin(BaseLoloLearner):
         learner = self.gateway.jvm.io.citrine.lolo.learners.RandomForest(
             self.num_trees, self.use_jackknife,
             getattr(self.gateway.jvm.io.citrine.lolo.learners.RandomForest,
-                    "$lessinit$greater$default$3")(),
+                    "$lessinit$greater$default$3")() if self.bias_learner is None
+            else self.gateway.jvm.scala.Some(self.bias_learner._make_learner()),
             getattr(self.gateway.jvm.io.citrine.lolo.learners.RandomForest,
-                    "$lessinit$greater$default$4")(),
+                    "$lessinit$greater$default$4")() if self.leaf_learner is None
+            else self.gateway.jvm.scala.Some(self.leaf_learner._make_learner()),
             self.subset_strategy,
             self.min_leaf_instances
         )
@@ -300,24 +302,27 @@ class RandomForestClassifier(BaseLoloClassifier, RandomForestMixin):
 class RegressionTreeLearner(BaseLoloRegressor):
     """Regression tree learner, based on the RandomTree algorithm."""
 
-    def __init__(self, num_features=-1, max_depth=30, min_leaf_instances=1):
+    def __init__(self, num_features=-1, max_depth=30, min_leaf_instances=1, leaf_learner=None):
         """Initialize the learner
 
         Args:
             num_features (int): Number of features to consider at each split (-1 to consider all features)
             max_depth (int): Maximum depth of the regression tree
             min_leaf_instances (int): Minimum number instances per leaf
+            leaf_learner (BaseLoloLearner): Learner to use on the leaves
         """
         super(RegressionTreeLearner, self).__init__()
         self.num_features = num_features
         self.max_depth = max_depth
         self.min_leaf_instances = min_leaf_instances
+        self.leaf_learner = leaf_learner
 
     def _make_learner(self):
         return self.gateway.jvm.io.citrine.lolo.trees.regression.RegressionTreeLearner(
             self.num_features, self.max_depth, self.min_leaf_instances,
             getattr(self.gateway.jvm.io.citrine.lolo.trees.regression.RegressionTreeLearner,
-                    "$lessinit$greater$default$4")()
+                    "$lessinit$greater$default$4")() if self.leaf_learner is None
+            else self.gateway.jvm.scala.Some(self.leaf_learner._make_learner())
         )
 
 class LinearRegression(BaseLoloRegressor):

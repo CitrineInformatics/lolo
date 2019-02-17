@@ -7,6 +7,21 @@ import pickle as pkl
 import numpy as np
 
 
+def _make_linear_data():
+    """Make data corresponding to y = x + 1
+
+    Returns:
+        np.ndarray: X
+        np.ndarray: y
+    """
+    # Make y = x + 1
+    X = np.linspace(0, 1, 32)
+    y = X + 1
+    # Make X a 2D array
+    X = X[:, None]
+    return X, y
+
+
 class TestRF(TestCase):
 
     def test_rf_regressor(self):
@@ -128,11 +143,7 @@ class TestRF(TestCase):
         lr = LinearRegression()
 
         # Make y = x + 1
-        X = np.linspace(0, 1, 32)
-        y = X + 1
-
-        # Make X a 2D array
-        X = X[:, None]
+        X, y = _make_linear_data()
 
         # Fit a linear regression model
         lr.fit(X, y)
@@ -146,6 +157,30 @@ class TestRF(TestCase):
         # Add a regularization parameter, make sure the model fits
         lr.reg_param = 1
         lr.fit(X, y)
+
+    def test_adjust_rtree_leaners(self):
+        """Test modifying the bias and leaf learners of decision trees"""
+
+        # Make a tree learner that will make only 1 split on 32 data points
+        tree = RegressionTreeLearner(min_leaf_instances=16)
+
+        # Make y = x + 1
+        X, y = _make_linear_data()
+
+        # Fit the model
+        tree.fit(X, y)
+        self.assertEqual(2, len(set(tree.predict(X))))  # Only one split
+
+        # Use linear regression on the splits
+        tree.leaf_learner = LinearRegression()
+        tree.fit(X, y)
+        self.assertAlmostEqual(1.0, r2_score(y, tree.predict(X)))  # Linear leaves means perfect fit
+
+        # Add many modifications to RandomForest to make sure it runs
+        rf = RandomForestRegressor(leaf_learner=LinearRegression(), bias_learner=LinearRegression(),
+                                   min_leaf_instances=16)
+        rf.fit(X, y)
+        self.assertAlmostEqual(1.0, r2_score(y, rf.predict(X)))  # Should also fit perfectly
 
 
 if __name__ == "__main__":
