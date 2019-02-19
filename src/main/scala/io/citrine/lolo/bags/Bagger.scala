@@ -45,6 +45,11 @@ case class Bagger(
     } else {
       trainingData.size
     }
+
+    // We need enough bags such that the probability that the poisson draw is "valid" is at least 50%
+    // Valid here means that for each training point, there is at least one tree that doesn't include it
+    // The probability that the weights are valid is:
+    // (1 - [(1 - 1/e)^{number of trees}])^{number of training points}
     val minBags = Math.log(1 - Math.pow(2, -1.0 / trainingData.size)) / Math.log((Math.E - 1) / Math.E)
     require(
       !useJackknife || actualBags >= minBags,
