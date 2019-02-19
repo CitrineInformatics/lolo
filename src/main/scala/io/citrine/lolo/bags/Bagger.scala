@@ -34,7 +34,7 @@ case class Bagger(
   override def train(trainingData: Seq[(Vector[Any], Any)], weights: Option[Seq[Double]] = None): BaggedTrainingResult = {
     /* Make sure the training data is the same size */
     assert(trainingData.forall(trainingData.head._1.size == _._1.size))
-    assert(trainingData.size > 8, s"We need to have at least 8 rows, only ${trainingData.size} given")
+    require(trainingData.size > 8, s"We need to have at least 8 rows, only ${trainingData.size} given")
 
     /* Use unit weights if none are specified */
     val weightsActual = weights.getOrElse(Seq.fill(trainingData.size)(1.0))
@@ -45,12 +45,23 @@ case class Bagger(
     } else {
       trainingData.size
     }
+    val minBags = Math.log(1 - Math.pow(2, -1.0 / trainingData.size)) / Math.log((Math.E - 1) / Math.E)
+    require(
+      !useJackknife || actualBags >= minBags,
+      s"Jackknife requires ${minBags} bags for ${trainingData.size} training rows, but only ${actualBags} given."
+    )
 
     /* Compute the number of instances of each training row in each training sample */
     val dist = new Poisson(1.0)
-    val Nib = Vector.fill(actualBags, trainingData.size) {
-      dist.draw()
-    }
+    val Nib: Vector[Vector[Int]] = Iterator.continually{
+      Vector.fill(actualBags, trainingData.size) {
+        dist.draw()
+      }
+    }.filter{nMat =>
+      // Make sure that at least one learner is missing each training point
+      // This prevents a divide-by-zero error in the jackknife-after-bootstrap calcualtion
+      !useJackknife || nMat.transpose.forall{vec => vec.contains(0)}
+    }.next()
 
     /* Learn the actual models in parallel */
     val parIterator = (0 until actualBags).par
@@ -97,7 +108,7 @@ case class Bagger(
     }
 
     /* Wrap the models in a BaggedModel object */
-    if (biasLearner.isEmpty) {
+    if (biasLearner.isEmpty || oobErrors.isEmpty) {
       Async.canStop()
       new BaggedTrainingResult(models, averageImportance, Nib, trainingData, useJackknife, None, ratio)
     } else {
