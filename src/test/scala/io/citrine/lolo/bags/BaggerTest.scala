@@ -217,33 +217,35 @@ class BaggerTest {
     */
   @Test
   def testUncertaintyFloor(): Unit = {
-    val trainingData = TestUtils.generateTrainingData(16, 5, noise = 0.0, function = Friedman.friedmanSilverman, seed = Random.nextLong())
-    val DTLearner = RegressionTreeLearner(numFeatures = 2)
-    val sigma = Bagger(DTLearner, numBags = 7)
-      .train(trainingData)
-      .getModel()
-      .transform(trainingData.map(_._1))
-      .getUncertainty().get.asInstanceOf[Seq[Double]]
-    assert(sigma.forall(_ > 0.0), s"Found an predicted uncertainty of ${sigma.min}")
+    (0 until 16384).foreach{ idx =>
+      val trainingData = TestUtils.generateTrainingData(16, 5, noise = 0.0, function = Friedman.friedmanSilverman, seed = Random.nextLong())
+      val DTLearner = RegressionTreeLearner(numFeatures = 2)
+      val sigma = Bagger(DTLearner, numBags = 7)
+        .train(trainingData)
+        .getModel()
+        .transform(trainingData.map(_._1))
+        .getUncertainty().get.asInstanceOf[Seq[Double]]
+      assert(sigma.forall(_ > 0.0), s"Found an predicted uncertainty of ${sigma.min} during trial $idx")
+    }
   }
 
   /**
-    * Test that the uncertainty is always positive (and non-zero)
+    * Test that the uncertainty is always positive (and non-zero) when a bias model is used
     *
-    * This happens randomly, so let's repeat a test many times to make sure we catch it.  On my machine, this fails
-    * in the first couple thousand times and takes runs for 13 seconds once its resolved, so I don't think
-    * that's too much overhead.
+    * Most of the logic is covered by testUncertaintyFloor, and this test is heavier, so we'll run fewer iterations
     */
   @Test
   def testUncertaintyFloorWithBias(): Unit = {
-    val trainingData = TestUtils.generateTrainingData(16, 5, noise = 0.0, function = Friedman.friedmanSilverman, seed = Random.nextLong())
-    val DTLearner = RegressionTreeLearner(numFeatures = 2)
-    val sigma = Bagger(DTLearner, numBags = 7, biasLearner = Some(GuessTheMeanLearner()))
-      .train(trainingData)
-      .getModel()
-      .transform(trainingData.map(_._1))
-      .getUncertainty().get.asInstanceOf[Seq[Double]]
-    assert(sigma.forall(_ > 0.0), s"Found an predicted uncertainty of ${sigma.min}")
+    (0 until 1024).foreach { idx =>
+      val trainingData = TestUtils.generateTrainingData(16, 5, noise = 0.0, function = Friedman.friedmanSilverman, seed = Random.nextLong())
+      val DTLearner = RegressionTreeLearner(numFeatures = 2)
+      val sigma = Bagger(DTLearner, numBags = 7, biasLearner = Some(GuessTheMeanLearner()))
+        .train(trainingData)
+        .getModel()
+        .transform(trainingData.map(_._1))
+        .getUncertainty().get.asInstanceOf[Seq[Double]]
+      assert(sigma.forall(_ > 0.0), s"Found an predicted uncertainty of ${sigma.min} during trial $idx")
+    }
   }
 }
 
