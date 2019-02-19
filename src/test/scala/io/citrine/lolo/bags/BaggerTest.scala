@@ -3,6 +3,7 @@ package io.citrine.lolo.bags
 import java.util.concurrent.{Callable, CancellationException, Executors, Future, TimeUnit}
 
 import io.citrine.lolo.TestUtils
+import io.citrine.lolo.linear.GuessTheMeanLearner
 import io.citrine.lolo.stats.functions.Friedman
 import io.citrine.lolo.trees.classification.ClassificationTreeLearner
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
@@ -102,7 +103,6 @@ class BaggerTest {
 
     val interiorStandardRMSE = BaggerTest.getStandardRMSE(interiorTestSet, RF)
     val fullStandardRMSE = BaggerTest.getStandardRMSE(fullTestSet, RF)
-    println(s"Standard RMSE (int, full): ${interiorStandardRMSE} ${fullStandardRMSE}")
     assert(interiorStandardRMSE > 0.50, "Standard RMSE in the interior should be greater than 0.5")
     assert(interiorStandardRMSE < 1.50, "Standard RMSE in the interior should be less than 1.5")
 
@@ -217,16 +217,33 @@ class BaggerTest {
     */
   @Test
   def testUncertaintyFloor(): Unit = {
-    (0 until 16384).foreach { idx =>
-      val trainingData = TestUtils.generateTrainingData(16, 5, noise = 0.0, function = Friedman.friedmanSilverman, seed = Random.nextLong())
-      val DTLearner = RegressionTreeLearner(numFeatures = 2)
-      val sigma = Bagger(DTLearner, numBags = 4)
-        .train(trainingData)
-        .getModel()
-        .transform(trainingData.map(_._1))
-        .getUncertainty().get.asInstanceOf[Seq[Double]]
-      assert(sigma.forall(_ > 0.0), s"Found an predicted uncertainty of ${sigma.min} after $idx trials")
-    }
+    val trainingData = TestUtils.generateTrainingData(16, 5, noise = 0.0, function = Friedman.friedmanSilverman, seed = Random.nextLong())
+    val DTLearner = RegressionTreeLearner(numFeatures = 2)
+    val sigma = Bagger(DTLearner, numBags = 7)
+      .train(trainingData)
+      .getModel()
+      .transform(trainingData.map(_._1))
+      .getUncertainty().get.asInstanceOf[Seq[Double]]
+    assert(sigma.forall(_ > 0.0), s"Found an predicted uncertainty of ${sigma.min}")
+  }
+
+  /**
+    * Test that the uncertainty is always positive (and non-zero)
+    *
+    * This happens randomly, so let's repeat a test many times to make sure we catch it.  On my machine, this fails
+    * in the first couple thousand times and takes runs for 13 seconds once its resolved, so I don't think
+    * that's too much overhead.
+    */
+  @Test
+  def testUncertaintyFloorWithBias(): Unit = {
+    val trainingData = TestUtils.generateTrainingData(16, 5, noise = 0.0, function = Friedman.friedmanSilverman, seed = Random.nextLong())
+    val DTLearner = RegressionTreeLearner(numFeatures = 2)
+    val sigma = Bagger(DTLearner, numBags = 7, biasLearner = Some(GuessTheMeanLearner()))
+      .train(trainingData)
+      .getModel()
+      .transform(trainingData.map(_._1))
+      .getUncertainty().get.asInstanceOf[Seq[Double]]
+    assert(sigma.forall(_ > 0.0), s"Found an predicted uncertainty of ${sigma.min}")
   }
 }
 
