@@ -106,14 +106,20 @@ case class BaggedSingleResult(
       }
       // Compute the infinitessimal jackknife estimate
       val varIJ = Math.pow(cov / vecN.size, 2.0)
-      // Compute the Jackknife after bootstrap estimate
-      val varJ = Math.pow(tNot / tNotCount - expected, 2.0) * (nMat.size - 1) / nMat.size
 
-      // Compute the sum of the corrections to the IJ and J estimates
-      val correction = Math.E * varT
+      val res = if (tNotCount > 0) {
+        // Compute the Jackknife after bootstrap estimate
+        val varJ = Math.pow(tNot / tNotCount - expected, 2.0) * (nMat.size - 1) / nMat.size
+        // Compute the sum of the corrections to the IJ and J estimates
+        val correction = Math.E * varT
+        // Averaged the correct IJ and J estimates
+        0.5 * (varJ + varIJ - correction)
+      } else {
+        // We can't compute the Jackknife after bootstrap estimate, so just correct the IJ estimate
+        val correction = varT
+        varIJ - correction
+      }
 
-      // Put all the estimates together
-      val res = varJ + varIJ - correction
       // Keep track of the smallest estimated uncertainty, which may be negative
       minimumContribution = Math.min(minimumContribution, res)
       res
@@ -121,7 +127,7 @@ case class BaggedSingleResult(
     // The uncertainty must be positive, so anything smaller than zero is noise.  Make sure that no estimated
     // uncertainty is below that noise level
     val floor = Math.max(0, -minimumContribution)
-    trainingContributions.map{x => Math.max(x, floor) / 2}
+    trainingContributions.map{x => Math.max(x, floor)}
   }
 }
 
