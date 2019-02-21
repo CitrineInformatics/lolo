@@ -19,7 +19,7 @@ class TestMetrics(TestCase):
 
     def test_uncertainty_correlation(self):
         seed(1)
-        sample_size = 4096
+        sample_size = 2 ** 15
         for expected in [0, 0.75]:
             # Make the error distribution
             y_true = uniform(0, 1, sample_size)
@@ -32,7 +32,6 @@ class TestMetrics(TestCase):
             y_std = [abs(d[1]) for d in draw]
 
             # Test with a very large tolerance for now
-            self.assertTrue(abs(uncertainty_correlation(y_true, y_pred, y_std) - expected) < 0.5,
-                            'Error for {:.2f}: {:.2f}'.format(expected,
-                                                              abs(uncertainty_correlation(y_true, y_pred, y_std)
-                                                                  - expected)))
+            measured_corr = uncertainty_correlation(y_true, y_pred, y_std)
+            corr_error = abs(measured_corr - expected)
+            self.assertLess(corr_error, 0.25, 'Error for {:.2f}: {:.2f}'.format(expected, corr_error))
