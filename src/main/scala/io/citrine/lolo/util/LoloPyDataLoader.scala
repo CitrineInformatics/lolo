@@ -189,7 +189,7 @@ object LoloPyDataLoader {
   def makeRegressionPredictionResult(expected: Seq[Double], uncertainty: Seq[Double]) : PredictionResult[Double] = {
     new PredictionResult[Double] {
       override def getExpected(): Seq[Double] = expected
-      override def getUncertainty(): Option[Seq[Any]] = {new Some(uncertainty)}
+      override def getUncertainty(): Option[Seq[Any]] = Some(uncertainty)
     }
   }
 }
