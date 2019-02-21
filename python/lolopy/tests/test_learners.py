@@ -41,7 +41,7 @@ class TestRF(TestCase):
         y_pred = rf.predict(X)
         self.assertEqual(len(y_pred), len(y))
 
-        # Test the ability to get importane scores
+        # Test the ability to get importance scores
         y_import = rf.get_importance_scores(X[:100, :])
         self.assertEqual((100, len(X)), y_import.shape)
 
@@ -55,6 +55,7 @@ class TestRF(TestCase):
 
         # Make sure feature importances are stored
         self.assertEqual(np.shape(rf.feature_importances_), (X.shape[1],))
+        self.assertAlmostEqual(1.0, np.sum(rf.feature_importances_))
 
         # Run predictions with std dev
         y_pred, y_std = rf.predict(X, return_std=True)
@@ -158,7 +159,7 @@ class TestRF(TestCase):
         lr.reg_param = 1
         lr.fit(X, y)
 
-    def test_adjust_rtree_leaners(self):
+    def test_adjust_rtree_learners(self):
         """Test modifying the bias and leaf learners of decision trees"""
 
         # Make a tree learner that will make only 1 split on 32 data points
@@ -176,11 +177,24 @@ class TestRF(TestCase):
         tree.fit(X, y)
         self.assertAlmostEqual(1.0, r2_score(y, tree.predict(X)))  # Linear leaves means perfect fit
 
-        # Add many modifications to RandomForest to make sure it runs
-        rf = RandomForestRegressor(leaf_learner=LinearRegression(), bias_learner=LinearRegression(),
-                                   min_leaf_instances=16)
+        # Test whether changing leaf learner does something
+        rf = RandomForestRegressor(leaf_learner=LinearRegression(), min_leaf_instances=16)
+        rf.fit(X[:16, :], y[:16])  # Train only on a subset
+        self.assertAlmostEqual(1.0, r2_score(y, rf.predict(X)))  # Should fit perfectly on whole dataset
+
+        rf = RandomForestRegressor()
+        rf.fit(X[:16, :], y[:16])
+        self.assertLess(r2_score(y, rf.predict(X)), 1.0)  # Should not fit the whole dataset perfectly
+
+        # Make sure the bias learner does something
+        rf = RandomForestRegressor(use_jackknife=False)
         rf.fit(X, y)
-        self.assertAlmostEqual(1.0, r2_score(y, rf.predict(X)))  # Should also fit perfectly
+        y_pred, y_std = rf.predict(X, return_std=True)
+        self.assertAlmostEqual(0, max(y_std) - min(y_std))  # Should have same sigma for all predictions
+
+        rf = RandomForestRegressor(use_jackknife=False, bias_learner=LinearRegression())
+        y_pred, y_std = rf.fit(X, y).predict(X, return_std=True)
+        self.assertGreater(max(y_std) - min(y_std), 0)   # Should have different sigma for some predictions
 
 
 if __name__ == "__main__":
