@@ -79,9 +79,16 @@ object LoloPyDataLoader {
     */
   def getRegressionExpected(predictionResult: PredictionResult[Any]) : Array[Byte] = {
     val predResults : Seq[Double] = predictionResult.getExpected().asInstanceOf[Seq[Double]]
-    val buffer : ByteBuffer = ByteBuffer.allocate(predResults.length * 8).order(ByteOrder.nativeOrder())
-    predResults.foreach(buffer.putDouble)
-    buffer.array()
+    send1DArray(predResults)
+  }
+
+  /**
+    * Send the training entry importance scores to the Python client
+    * @param predictionResult Prediction result object
+    * @return Byte of array of doubles in native system order
+    */
+  def getImportanceScores(predictionResult: PredictionResult[Any]) : Array[Byte] = {
+    send1DArray(predictionResult.getImportanceScores().get.flatten)
   }
 
   /**
@@ -91,8 +98,17 @@ object LoloPyDataLoader {
     */
   def getRegressionUncertainty(predictionResult: PredictionResult[Any]): Array[Byte] = {
     val predResults : Seq[Double] = predictionResult.getUncertainty().get.asInstanceOf[Seq[Double]]
-    val buffer : ByteBuffer = ByteBuffer.allocate(predResults.length * 8).order(ByteOrder.nativeOrder())
-    predResults.foreach(buffer.putDouble)
+    send1DArray(predResults)
+  }
+
+  /**
+    * Prepare to send a 1D array of Doubles by converting it to a byte array
+    * @param data Data to be sent
+    * @return Byte array with all the doubles in Seq ordered in system byte order
+    */
+  def send1DArray(data: Seq[Double]): Array[Byte] = {
+    val buffer: ByteBuffer = ByteBuffer.allocate(data.length * 8).order(ByteOrder.nativeOrder())
+    data.foreach(buffer.putDouble)
     buffer.array()
   }
 
@@ -162,5 +178,18 @@ object LoloPyDataLoader {
     val obj = stream.readObject()
     stream.close()
     obj
+  }
+
+  /**
+    * Create a PredictionResult object from the mean and uncertainty
+    * @param expected Mean of the predictions of a model
+    * @param uncertainty Uncertainty of the predictions
+    * @return Prediction result object
+    */
+  def makeRegressionPredictionResult(expected: Seq[Double], uncertainty: Seq[Double]) : PredictionResult[Double] = {
+    new PredictionResult[Double] {
+      override def getExpected(): Seq[Double] = expected
+      override def getUncertainty(): Option[Seq[Any]] = Some(uncertainty)
+    }
   }
 }

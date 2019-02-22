@@ -1,9 +1,10 @@
 from abc import abstractmethod, ABCMeta
 
-import sys
 import numpy as np
 from lolopy.loloserver import get_java_gateway
+from lolopy.utils import send_feature_array, send_1D_array
 from sklearn.base import BaseEstimator, RegressorMixin, ClassifierMixin, is_regressor
+from sklearn.exceptions import NotFittedError
 
 __all__ = ['RandomForestRegressor', 'RandomForestClassifier']
 
@@ -34,6 +35,7 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
         # Create a placeholder for the model
         self.model_ = None
         self._compress_level = 9
+        self.feature_importances_ = None
         
     def __getstate__(self):
         # Get the current state
@@ -83,6 +85,11 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
         # Get the model out
         self.model_ = result.getModel()
 
+        # Store the feature importances
+        feature_importances_java = result.getFeatureImportance().get()
+        feature_importances_bytes = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.send1DArray(feature_importances_java)
+        self.feature_importances_ = np.frombuffer(feature_importances_bytes, 'float')
+
         return self
 
     @abstractmethod
@@ -116,16 +123,16 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
             weights = np.ones(len(y))
 
         # Convert x, y, and w to float64 and int8 with native ordering
-        X = np.array(X, dtype=np.float64)
+
         y = np.array(y, dtype=np.float64 if is_regressor(self) else np.int32)
         weights = np.array(weights, dtype=np.float64)
-        big_end = sys.byteorder == "big"
+
 
         # Convert X and y to Java Objects
-        X_java = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getFeatureArray(X.tobytes(), X.shape[1], big_end)
-        y_java = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.get1DArray(y.tobytes(), is_regressor(self), big_end)
+        X_java = send_feature_array(self.gateway, X)
+        y_java = send_1D_array(self.gateway, y, is_regressor(self))
         assert y_java.length() == len(y) == len(X)
-        w_java = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.get1DArray(np.array(weights).tobytes(), True, big_end)
+        w_java = send_1D_array(self.gateway, weights, True)
         assert w_java.length() == len(weights)
 
         return self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.zipTrainingData(X_java, y_java), w_java
@@ -138,16 +145,38 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
         Returns:
             (JavaObject): Pointer to run data in Java
         """
-
+        if not isinstance(X, np.ndarray):
+            X = np.array(X)
         return self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getFeatureArray(X.tobytes(), X.shape[1], False)
 
+    def get_importance_scores(self, X):
+        """Get the importance scores for each entry in the training set for each prediction
+        
+        Args:
+            X (ndarray): Inputs for each entry to be assessed
+        """
 
-class BaseLoloRegressor(BaseLoloLearner, RegressorMixin):
-    """Abstract class for models that produce regression models.
+        pred_result = self._get_prediction_result(X)
 
-    Implements the predict operation"""
+        y_import_bytes = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getImportanceScores(pred_result)
+        y_import = np.frombuffer(y_import_bytes, 'float').reshape(len(X), -1)
+        return y_import
 
-    def predict(self, X, return_std=False):
+    def _get_prediction_result(self, X):
+        """Get the PredictionResult from the lolo JVM
+        
+        The PredictionResult class holds methods that will generate the expected predictions, uncertainty intervals, etc
+        
+        Args:
+            X (ndarray): Input features for each entry
+        Returns:
+            (JavaObject): Prediction result produced by evaluating the model
+        """
+
+        # Check that the model is fitted
+        if self.model_ is None:
+            raise NotFittedError()
+
         # Convert the data to Java
         X_java = self._convert_run_data(X)
 
@@ -156,6 +185,17 @@ class BaseLoloRegressor(BaseLoloLearner, RegressorMixin):
 
         # Unlink the run data, which is no longer needed (to save memory)
         self.gateway.detach(X_java)
+        return pred_result
+
+
+class BaseLoloRegressor(BaseLoloLearner, RegressorMixin):
+    """Abstract class for models that produce regression models.
+
+    Implements the predict operation"""
+
+    def predict(self, X, return_std=False):
+        # Start the prediction process
+        pred_result = self._get_prediction_result(X)
 
         # Pull out the expected values
         y_pred_byte = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getRegressionExpected(pred_result)
@@ -186,14 +226,7 @@ class BaseLoloClassifier(BaseLoloLearner, ClassifierMixin):
         return super(BaseLoloClassifier, self).fit(X, y, weights)
 
     def predict(self, X):
-        # Convert the data to Java
-        X_java = self._convert_run_data(X)
-
-        # Get the PredictionResult
-        pred_result = self.model_.transform(X_java)
-
-        # Unlink the run data, which is no longer needed (to save memory)
-        self.gateway.detach(X_java)
+        pred_result = self._get_prediction_result(X)
 
         # Pull out the expected values
         y_pred_byte = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getClassifierExpected(pred_result)
@@ -202,14 +235,7 @@ class BaseLoloClassifier(BaseLoloLearner, ClassifierMixin):
         return y_pred
 
     def predict_proba(self, X):
-        # Convert the data to Java
-        X_java = self._convert_run_data(X)
-
-        # Get the PredictionResult
-        pred_result = self.model_.transform(X_java)
-
-        # Unlink the run data, which is no longer needed (to save memory)
-        self.gateway.detach(X_java)
+        pred_result = self._get_prediction_result(X)
 
         # Copy over the class probabilities
         probs_byte = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getClassifierProbabilities(pred_result,
@@ -224,31 +250,43 @@ class RandomForestMixin(BaseLoloLearner):
     Implements the _make_learner operation and the __init__ function with options specific to the RandomForest
     class in Lolo"""
 
-    def __init__(self, num_trees=-1, useJackknife=True, subsetStrategy="auto"):
+    def __init__(self, num_trees=-1, use_jackknife=True, bias_learner=None,
+                 leaf_learner=None, subset_strategy="auto", min_leaf_instances=1):
         """Initialize the RandomForest
 
         Args:
             num_trees (int): Number of trees to use in the forest
+            use_jackknife (bool): Whether to use jackknife based variance estimates
+            bias_learner (BaseLoloLearner): Algorithm used to model bias (default: no model)
+            leaf_learner (BaseLoloLearner): Learner used at each leaf of the random forest (default: GuessTheMean)
+            subset_strategy (Union[string,int,float]): Strategy used to determine number of features used at each split in decision
+                trees. Can be "sqrt" for the square root of the number of features, an int to specify the number
+                of features, or a float to set the fraction of the total feature count. "auto" uses "sqrt" for
+                classification problems and 1/3 for regression problems.
+            min_leaf_instances (int): Minimum number of features used at each leaf
         """
         super(RandomForestMixin, self).__init__()
 
-        # Get JVM for this object
-
         # Store the variables
         self.num_trees = num_trees
-        self.useJackknife = useJackknife
-        self.subsetStrategy = subsetStrategy
+        self.use_jackknife = use_jackknife
+        self.subset_strategy = subset_strategy
+        self.bias_learner = bias_learner
+        self.leaf_learner = leaf_learner
+        self.min_leaf_instances = min_leaf_instances
 
     def _make_learner(self):
         #  TODO: Figure our a more succinct way of dealing with optional arguments/Option values
-        #  TODO: Do not hard-code use of RandomForest
         learner = self.gateway.jvm.io.citrine.lolo.learners.RandomForest(
-            self.num_trees, self.useJackknife,
+            self.num_trees, self.use_jackknife,
             getattr(self.gateway.jvm.io.citrine.lolo.learners.RandomForest,
-                    "$lessinit$greater$default$3")(),
+                    "$lessinit$greater$default$3")() if self.bias_learner is None
+            else self.gateway.jvm.scala.Some(self.bias_learner._make_learner()),
             getattr(self.gateway.jvm.io.citrine.lolo.learners.RandomForest,
-                    "$lessinit$greater$default$4")(),
-            self.subsetStrategy
+                    "$lessinit$greater$default$4")() if self.leaf_learner is None
+            else self.gateway.jvm.scala.Some(self.leaf_learner._make_learner()),
+            self.subset_strategy,
+            self.min_leaf_instances
         )
         return learner
 
@@ -258,4 +296,50 @@ class RandomForestRegressor(BaseLoloRegressor, RandomForestMixin):
 
 
 class RandomForestClassifier(BaseLoloClassifier, RandomForestMixin):
-    """Random Forest model used for classiciation"""
+    """Random Forest model used for classification"""
+
+
+class RegressionTreeLearner(BaseLoloRegressor):
+    """Regression tree learner, based on the RandomTree algorithm."""
+
+    def __init__(self, num_features=-1, max_depth=30, min_leaf_instances=1, leaf_learner=None):
+        """Initialize the learner
+
+        Args:
+            num_features (int): Number of features to consider at each split (-1 to consider all features)
+            max_depth (int): Maximum depth of the regression tree
+            min_leaf_instances (int): Minimum number instances per leaf
+            leaf_learner (BaseLoloLearner): Learner to use on the leaves
+        """
+        super(RegressionTreeLearner, self).__init__()
+        self.num_features = num_features
+        self.max_depth = max_depth
+        self.min_leaf_instances = min_leaf_instances
+        self.leaf_learner = leaf_learner
+
+    def _make_learner(self):
+        return self.gateway.jvm.io.citrine.lolo.trees.regression.RegressionTreeLearner(
+            self.num_features, self.max_depth, self.min_leaf_instances,
+            getattr(self.gateway.jvm.io.citrine.lolo.trees.regression.RegressionTreeLearner,
+                    "$lessinit$greater$default$4")() if self.leaf_learner is None
+            else self.gateway.jvm.scala.Some(self.leaf_learner._make_learner())
+        )
+
+class LinearRegression(BaseLoloRegressor):
+    """Linear ridge regression with an :math:`L_2` penalty"""
+
+    def __init__(self, reg_param=None, fit_intercept=True):
+        """Initialize the regressor"""
+
+        super(LinearRegression, self).__init__()
+
+        self.reg_param = reg_param
+        self.fit_intercept = fit_intercept
+
+    def _make_learner(self):
+        return self.gateway.jvm.io.citrine.lolo.linear.LinearRegressionLearner(
+            getattr(self.gateway.jvm.io.citrine.lolo.linear.LinearRegressionLearner,
+                    "$lessinit$greater$default$1")() if self.reg_param is None
+            else self.gateway.jvm.scala.Some(float(self.reg_param)),
+            self.fit_intercept
+        )
