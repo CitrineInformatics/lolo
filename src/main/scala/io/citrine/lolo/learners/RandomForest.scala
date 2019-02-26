@@ -23,7 +23,9 @@ case class RandomForest(
                          biasLearner: Option[Learner] = None,
                          leafLearner: Option[Learner] = None,
                          subsetStrategy: Any = "auto",
-                         minLeafInstances: Int = 1
+                         minLeafInstances: Int = 1,
+                         maxDepth: Int = Integer.MAX_VALUE,
+                         uncertaintyCalibration: Boolean = false
                        ) extends Learner {
   /**
     * Train a random forest model
@@ -37,15 +39,16 @@ case class RandomForest(
     */
   override def train(trainingData: Seq[(Vector[Any], Any)], weights: Option[Seq[Double]]): TrainingResult = {
     trainingData.head._2 match {
-      case x: Double =>
+      case _: Double =>
         val numFeatures: Int = subsetStrategy match {
           case x: String =>
             x match {
-              case "auto" => (trainingData.head._1.size / 3.0).toInt
+              case "auto" => trainingData.head._1.size
               case "sqrt" => Math.ceil(Math.sqrt(trainingData.head._1.size)).toInt
+              case "log2" => Math.ceil(Math.log(trainingData.head._1.size) / Math.log(2)).toInt
               case x: String =>
                 println(s"Unrecognized subsetStrategy ${x}; using auto")
-                (trainingData.head._1.size / 3.0).toInt
+                trainingData.head._1.size
             }
           case x: Int =>
             x
@@ -55,20 +58,23 @@ case class RandomForest(
         val DTLearner = RegressionTreeLearner(
           leafLearner = leafLearner,
           numFeatures = numFeatures,
-          minLeafInstances = minLeafInstances
+          minLeafInstances = minLeafInstances,
+          maxDepth = maxDepth
         )
         val bagger = Bagger(DTLearner,
           numBags = numTrees,
           useJackknife = useJackknife,
-          biasLearner = biasLearner
+          biasLearner = biasLearner,
+          uncertaintyCalibration = uncertaintyCalibration
         )
         bagger.train(trainingData, weights)
-      case x: Any =>
+      case _: Any =>
         val numFeatures: Int = subsetStrategy match {
           case x: String =>
             x match {
               case "auto" => Math.ceil(Math.sqrt(trainingData.head._1.size)).toInt
               case "sqrt" => Math.ceil(Math.sqrt(trainingData.head._1.size)).toInt
+              case "log2" => Math.ceil(Math.log(trainingData.head._1.size) / Math.log(2)).toInt
               case x: String =>
                 println(s"Unrecognized subsetStrategy ${x}; using auto")
                 Math.sqrt(trainingData.head._1.size).toInt
@@ -78,7 +84,12 @@ case class RandomForest(
           case x: Double =>
             (trainingData.head._1.size * x).toInt
         }
-        val DTLearner = ClassificationTreeLearner(numFeatures = numFeatures)
+        val DTLearner = ClassificationTreeLearner(
+          leafLearner = leafLearner,
+          numFeatures = numFeatures,
+          minLeafInstances = minLeafInstances,
+          maxDepth = maxDepth
+        )
         val bagger = Bagger(DTLearner,
           numBags = numTrees
         )
