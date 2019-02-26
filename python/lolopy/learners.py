@@ -251,7 +251,8 @@ class RandomForestMixin(BaseLoloLearner):
     class in Lolo"""
 
     def __init__(self, num_trees=-1, use_jackknife=True, bias_learner=None,
-                 leaf_learner=None, subset_strategy="auto", min_leaf_instances=1):
+                 leaf_learner=None, subset_strategy="auto", min_leaf_instances=1,
+                 max_depth=2**30, uncertainty_calibration=False):
         """Initialize the RandomForest
 
         Args:
@@ -264,6 +265,8 @@ class RandomForestMixin(BaseLoloLearner):
                 of features, or a float to set the fraction of the total feature count. "auto" uses "sqrt" for
                 classification problems and 1/3 for regression problems.
             min_leaf_instances (int): Minimum number of features used at each leaf
+            max_depth (int): Maximum depth to which to allow the decision trees to grow
+            uncertainty_calibration (bool): whether to re-calibrate the predicted uncertainty based on out-of-bag residuals
         """
         super(RandomForestMixin, self).__init__()
 
@@ -274,6 +277,8 @@ class RandomForestMixin(BaseLoloLearner):
         self.bias_learner = bias_learner
         self.leaf_learner = leaf_learner
         self.min_leaf_instances = min_leaf_instances
+        self.max_depth = max_depth
+        self.uncertainty_calibration = uncertainty_calibration
 
     def _make_learner(self):
         #  TODO: Figure our a more succinct way of dealing with optional arguments/Option values
@@ -286,7 +291,9 @@ class RandomForestMixin(BaseLoloLearner):
                     "$lessinit$greater$default$4")() if self.leaf_learner is None
             else self.gateway.jvm.scala.Some(self.leaf_learner._make_learner()),
             self.subset_strategy,
-            self.min_leaf_instances
+            self.min_leaf_instances,
+            self.max_depth,
+            self.uncertainty_calibration
         )
         return learner
 
