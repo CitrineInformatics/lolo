@@ -40,6 +40,8 @@ object CalibrationStudy {
       generateSweepAtFixedTrainingSize(calibrated = true)
     }
 
+    generatePvaAndHistogram(Friedman.friedmanSilverman, "fs", nTrain = 250, nTree = 64, range = 10, nFeature = 5)
+
   }
 
   def generateSweepAtFixedRatio(
@@ -172,12 +174,12 @@ object CalibrationStudy {
       .map{case (x, y) => (x.drop(ignoreDims), y)}
     val learner = Bagger(
       RegressionTreeLearner(
-        numFeatures = nFeature / 3
+        numFeatures = nFeature
       ),
       numBags = nTree,
       useJackknife = true,
-      uncertaintyCalibration = false,
-      biasLearner = Some(RegressionTreeLearner(maxDepth = (Math.log(nTrain) / Math.log(2) / 2).toInt))
+      uncertaintyCalibration = true,
+      biasLearner = None // Some(RegressionTreeLearner(maxDepth = (Math.log(nTrain) / Math.log(2) / 2).toInt))
     )
 
     val fullStream = StatisticalValidation.generativeValidation[Double](

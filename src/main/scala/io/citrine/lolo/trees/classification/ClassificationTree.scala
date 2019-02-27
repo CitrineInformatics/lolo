@@ -16,7 +16,8 @@ case class ClassificationTreeLearner(
                                       numFeatures: Int = -1,
                                       maxDepth: Int = 30,
                                       minLeafInstances: Int = 1,
-                                      leafLearner: Option[Learner] = None
+                                      leafLearner: Option[Learner] = None,
+                                      randomizePivotLocation: Boolean = false
                                     ) extends Learner {
 
   @transient private lazy val myLeafLearner: Learner = leafLearner.getOrElse(new GuessTheMeanLearner)
@@ -61,7 +62,7 @@ case class ClassificationTreeLearner(
     }
 
     /* The tree is built of training nodes */
-    val (split, delta) = ClassificationSplitter.getBestSplit(finalTraining, numFeaturesActual, minLeafInstances)
+    val (split, delta) = ClassificationSplitter.getBestSplit(finalTraining, numFeaturesActual, minLeafInstances, randomizePivotLocation)
     val rootTrainingNode = if (split.isInstanceOf[NoSplit] || maxDepth == 0) {
       new TrainingLeaf(finalTraining, myLeafLearner, 0)
     } else {
@@ -73,7 +74,8 @@ case class ClassificationTreeLearner(
         numFeaturesActual,
         remainingDepth = maxDepth - 1,
         maxDepth = maxDepth,
-        minLeafInstances = minLeafInstances
+        minLeafInstances = minLeafInstances,
+        randomizePivotLocation = randomizePivotLocation
       )
     }
 
