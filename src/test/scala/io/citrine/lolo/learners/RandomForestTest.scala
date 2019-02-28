@@ -65,6 +65,33 @@ class RandomForestTest {
     })
   }
 
+  /**
+    * Randomized splits should do really well on linear signals when there are lots of trees.  Test that they
+    * outperform mid-point splits
+    */
+  @Test
+  def testRandomizedSplitLocations(): Unit = {
+    // Generate a linear signal in one dimension: 2 * x
+    val trainingData: Seq[(Vector[Double], Double)] = TestUtils.generateTrainingData(32, 1, function = {x =>
+      x.head * 2.0
+    })
+
+    // Create a consistent set of parameters
+    val baseForest = RandomForest(numTrees = 16384, useJackknife = false)
+
+    // Turn off split randomization and compute the loss (out-of-bag error)
+    val lossWithoutRandomization: Double = baseForest.copy(randomizePivotLocation = false)
+      .train(trainingData)
+      .getLoss().get
+
+    // Turn on split randomization and compute the loss (out-of-bag error)
+    val lossWithRandomization: Double = baseForest.copy(randomizePivotLocation = true)
+      .train(trainingData)
+      .getLoss().get
+
+    assert(lossWithRandomization < lossWithoutRandomization)
+  }
+
 }
 
 object RandomForestTest {

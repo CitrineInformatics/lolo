@@ -10,7 +10,9 @@ import io.citrine.lolo.{Model, MultiTaskLearner, PredictionResult, TrainingResul
   * Multi-task tree learner, which produces multiple decision trees with the same split structure
   *
   */
-case class MultiTaskTreeLearner() extends MultiTaskLearner {
+case class MultiTaskTreeLearner(
+                                 randomizePivotLocation: Boolean = false
+                               ) extends MultiTaskLearner {
 
   /**
     * Train a model
@@ -51,7 +53,7 @@ case class MultiTaskTreeLearner() extends MultiTaskLearner {
     }.filter(_._3 > 0.0)
 
     // Construct the training tree
-    val root = new MultiTaskTrainingNode(collectedData)
+    val root = new MultiTaskTrainingNode(collectedData, randomizePivotLocation)
 
     // Construct the model trees
     val nodes = labels.indices.map(root.getNode)

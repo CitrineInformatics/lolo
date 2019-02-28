@@ -1,6 +1,7 @@
 from lolopy.loloserver import get_java_gateway
 from py4j.java_gateway import java_import, JavaClass
 from unittest import TestCase
+import os
 
 
 class TestLoloGateway(TestCase):
@@ -29,3 +30,15 @@ class TestLoloGateway(TestCase):
         gate4 = get_java_gateway(reuse=False, skip_devel_version=True)
         java_import(gate4.jvm, "io.citrine.lolo.learners.*")
         self.assertIsInstance(gate4.jvm.RandomForest, JavaClass)
+
+    def test_memory(self):
+        # Set an environmental variable (local for this test)
+        os.environ['LOLOPY_JVM_MEMORY'] ='4g'
+
+        with self.assertLogs("py4j.java_gateway", level='DEBUG') as cm:
+            # Get a gateway
+            get_java_gateway(reuse=False)
+
+            # Make sure the memory amount appears in the logs
+            self.assertIn('Xmx4g', '\n'.join(cm.output))
+

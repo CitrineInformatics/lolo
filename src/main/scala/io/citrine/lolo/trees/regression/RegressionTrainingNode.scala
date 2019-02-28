@@ -15,7 +15,8 @@ class RegressionTrainingNode(
                               numFeatures: Int,
                               minLeafInstances: Int,
                               remainingDepth: Int,
-                              maxDepth: Int
+                              maxDepth: Int,
+                              randomizePivotLocation: Boolean = false
                             )
   extends TrainingNode(
     trainingData = trainingData,
@@ -29,9 +30,9 @@ class RegressionTrainingNode(
   lazy val (leftTrain, rightTrain) = trainingData.partition(r => split.turnLeft(r._1))
   assert(leftTrain.nonEmpty && rightTrain.nonEmpty, s"Split ${split} resulted in zero size: ${trainingData.map(_._1(split.getIndex()))}")
 
-  lazy val leftChild = RegressionTrainingNode.buildChild(leftTrain, leafLearner, minLeafInstances, remainingDepth, maxDepth, numFeatures)
+  lazy val leftChild = RegressionTrainingNode.buildChild(leftTrain, leafLearner, minLeafInstances, remainingDepth, maxDepth, numFeatures, randomizePivotLocation)
 
-  lazy val rightChild = RegressionTrainingNode.buildChild(rightTrain, leafLearner, minLeafInstances, remainingDepth, maxDepth, numFeatures)
+  lazy val rightChild = RegressionTrainingNode.buildChild(rightTrain, leafLearner, minLeafInstances, remainingDepth, maxDepth, numFeatures, randomizePivotLocation)
 
   /**
     * Get the lightweight prediction node for the output tree
@@ -82,12 +83,13 @@ object RegressionTrainingNode {
                   minLeafInstances: Int,
                   remainingDepth: Int,
                   maxDepth: Int,
-                  numFeatures: Int
+                  numFeatures: Int,
+                  randomizePivotLocation: Boolean = false
                 ): TrainingNode[AnyVal, Double] = {
     if (trainingData.size >= 2 * minLeafInstances && remainingDepth > 0 && trainingData.exists(_._2 != trainingData.head._2)) {
-      val (leftSplit, leftDelta) = RegressionSplitter.getBestSplit(trainingData, numFeatures, minLeafInstances)
+      val (leftSplit, leftDelta) = RegressionSplitter.getBestSplit(trainingData, numFeatures, minLeafInstances, randomizePivotLocation)
       if (!leftSplit.isInstanceOf[NoSplit]) {
-        new RegressionTrainingNode(trainingData, leafLearner, leftSplit, leftDelta, numFeatures, minLeafInstances, remainingDepth - 1, maxDepth)
+        new RegressionTrainingNode(trainingData, leafLearner, leftSplit, leftDelta, numFeatures, minLeafInstances, remainingDepth - 1, maxDepth, randomizePivotLocation)
       } else {
         new RegressionTrainingLeaf(trainingData, leafLearner, maxDepth - remainingDepth)
       }

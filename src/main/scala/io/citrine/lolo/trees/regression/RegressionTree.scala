@@ -15,12 +15,14 @@ import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
   * @param numFeatures to randomly select from at each split (default: all)
   * @param maxDepth    to grow the tree to
   * @param leafLearner learner to train the leaves with
+  * @param minLeafInstances minimum number of instances per leaf
   */
 case class RegressionTreeLearner(
                                   numFeatures: Int = -1,
                                   maxDepth: Int = 30,
                                   minLeafInstances: Int = 1,
-                                  leafLearner: Option[Learner] = None
+                                  leafLearner: Option[Learner] = None,
+                                  randomizePivotLocation: Boolean = false
                                 ) extends Learner {
   /** Learner to use for training the leaves */
   @transient private lazy val myLeafLearner = leafLearner.getOrElse(GuessTheMeanLearner())
@@ -65,7 +67,7 @@ case class RegressionTreeLearner(
     }
 
     /* The tree is built of training nodes */
-    val (split, delta) = RegressionSplitter.getBestSplit(finalTraining, numFeaturesActual, minLeafInstances)
+    val (split, delta) = RegressionSplitter.getBestSplit(finalTraining, numFeaturesActual, minLeafInstances, randomizePivotLocation)
     val rootTrainingNode: TrainingNode[AnyVal, Double] = if (split.isInstanceOf[NoSplit] || maxDepth == 0) {
       new RegressionTrainingLeaf(finalTraining, myLeafLearner, 0)
     } else {
@@ -77,7 +79,9 @@ case class RegressionTreeLearner(
         numFeaturesActual,
         minLeafInstances = minLeafInstances,
         remainingDepth = maxDepth - 1,
-        maxDepth)
+        maxDepth,
+        randomizePivotLocation
+      )
     }
 
     /* Wrap them up in a regression tree */

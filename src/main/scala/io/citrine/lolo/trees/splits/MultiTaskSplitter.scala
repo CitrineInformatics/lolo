@@ -17,7 +17,12 @@ object MultiTaskSplitter {
     * @param numFeatures to consider, randomly
     * @return a split object that optimally divides data
     */
-  def getBestSplit(data: Seq[(Vector[AnyVal], Array[AnyVal], Double)], numFeatures: Int, minInstances: Int): (Split, Double) = {
+  def getBestSplit(
+                    data: Seq[(Vector[AnyVal], Array[AnyVal], Double)],
+                    numFeatures: Int,
+                    minInstances: Int,
+                    randomizePivotLocation: Boolean = false
+                  ): (Split, Double) = {
     var bestSplit: Split = new NoSplit()
     var bestImpurity = Double.MaxValue
     val calculator = MultiImpurityCalculator.build(data.map(_._2), data.map(_._3))
@@ -32,7 +37,7 @@ object MultiTaskSplitter {
 
       /* Use different spliters for each type */
       val (possibleSplit, possibleImpurity) = rep._1(index) match {
-        case _: Double => getBestRealSplit(data, calculator, index, minInstances)
+        case _: Double => getBestRealSplit(data, calculator, index, minInstances, randomizePivotLocation)
         case _: Char => getBestCategoricalSplit(data, calculator, index, minInstances)
         case _: Any => throw new IllegalArgumentException("Trying to split unknown feature type")
       }
@@ -62,7 +67,8 @@ object MultiTaskSplitter {
                         data: Seq[(Vector[AnyVal], Array[AnyVal], Double)],
                         calculator: MultiImpurityCalculator,
                         index: Int,
-                        minCount: Int
+                        minCount: Int,
+                        randomizePivotLocation: Boolean = false
                       ): (Split, Double) = {
     /* Pull out the feature that's considered here and sort by it */
     val thinData = data.map(dat => (dat._1(index).asInstanceOf[Double], dat._2, dat._3)).sortBy(_._1)
@@ -73,7 +79,13 @@ object MultiTaskSplitter {
     val pivots = (0 until data.size - minCount).flatMap { j =>
       val totalImpurity = calculator.add(thinData(j)._2, thinData(j)._3)
       if (j + 1 >= minCount && Math.abs((features(j + 1) - features(j)) / features(j)) > 1.0e-9) {
-        val pivot = (features(j + 1) + features(j)) / 2.0
+        val left = features(j + 1)
+        val right = features(j)
+        val pivot = if (randomizePivotLocation) {
+          (left - right) * Random.nextDouble() + right
+        } else {
+          (left + right) / 2.0
+        }
         Some((pivot, totalImpurity))
       } else {
         None

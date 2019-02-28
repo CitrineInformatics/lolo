@@ -53,6 +53,26 @@ class RegressionTreeTest {
   }
 
   /**
+    * Test a simple tree with only real inputs
+    * Even with randomization, the training data should be memorized
+    */
+  @Test
+  def testrandomizePivotLocation(): Unit = {
+    val csv = TestUtils.readCsv("double_example.csv")
+    val trainingData = csv.map(vec => (vec.init, vec.last.asInstanceOf[Double]))
+    val DTLearner = RegressionTreeLearner(randomizePivotLocation = true)
+    val DT = DTLearner.train(trainingData).getModel()
+
+    /* We should be able to memorize the inputs */
+    val output = DT.transform(trainingData.map(_._1))
+    trainingData.zip(output.getExpected()).foreach { case ((x, a), p) =>
+      assert(Math.abs(a - p) < 1.0e-9)
+    }
+    assert(output.getGradient().isEmpty)
+    output.getDepth().foreach(d => assert(d > 3 && d < 9, s"Depth is ${d}"))
+  }
+
+  /**
     * Test a larger case and time it as a benchmark guideline
     */
   @Test
