@@ -10,17 +10,20 @@ import io.citrine.lolo.trees.{InternalModelNode, ModelNode, TrainingLeaf}
   *
   * @param inputs data on which to select splits and form models
   */
-class MultiTaskTrainingNode(inputs: Seq[(Vector[AnyVal], Array[AnyVal], Double)]) {
+class MultiTaskTrainingNode(
+                             inputs: Seq[(Vector[AnyVal], Array[AnyVal], Double)],
+                             randomizePivotLocation: Boolean = false
+                           ) {
 
   // Compute a split
-  val (split, _) = MultiTaskSplitter.getBestSplit(inputs, inputs.head._1.size, 1)
+  val (split, _) = MultiTaskSplitter.getBestSplit(inputs, inputs.head._1.size, 1, randomizePivotLocation)
 
   // Try to construct left and right children
   val (leftChild: Option[MultiTaskTrainingNode], rightChild: Option[MultiTaskTrainingNode]) = split match {
     case _: NoSplit => (None, None)
     case _: Any =>
       val (leftData, rightData) = inputs.partition(row => split.turnLeft(row._1))
-      (Some(new MultiTaskTrainingNode(leftData)), Some(new MultiTaskTrainingNode(rightData)))
+      (Some(new MultiTaskTrainingNode(leftData, randomizePivotLocation)), Some(new MultiTaskTrainingNode(rightData, randomizePivotLocation)))
   }
 
   // Construct the model node for the `index`th label

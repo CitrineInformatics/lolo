@@ -16,6 +16,9 @@ import io.citrine.lolo.{Learner, TrainingResult}
   * @param subsetStrategy for random feature selection at each split
   *                       (auto => 1/3 for regression, sqrt for classification)
   * @param minLeafInstances minimum number of instances per leave in each tree
+  * @param maxDepth       maximum depth of each tree in the forest (default: unlimited)
+  * @param uncertaintyCalibration whether to empirically recalibrate the predicted uncertainties (default: false)
+  * @param randomizePivotLocation whether generate splits randomly between the data points (default: false)
   */
 case class RandomForest(
                          numTrees: Int = -1,
@@ -25,7 +28,8 @@ case class RandomForest(
                          subsetStrategy: Any = "auto",
                          minLeafInstances: Int = 1,
                          maxDepth: Int = Integer.MAX_VALUE,
-                         uncertaintyCalibration: Boolean = false
+                         uncertaintyCalibration: Boolean = false,
+                         randomizePivotLocation: Boolean = false
                        ) extends Learner {
   /**
     * Train a random forest model
@@ -59,7 +63,8 @@ case class RandomForest(
           leafLearner = leafLearner,
           numFeatures = numFeatures,
           minLeafInstances = minLeafInstances,
-          maxDepth = maxDepth
+          maxDepth = maxDepth,
+          randomizePivotLocation = randomizePivotLocation
         )
         val bagger = Bagger(DTLearner,
           numBags = numTrees,
@@ -88,7 +93,8 @@ case class RandomForest(
           leafLearner = leafLearner,
           numFeatures = numFeatures,
           minLeafInstances = minLeafInstances,
-          maxDepth = maxDepth
+          maxDepth = maxDepth,
+          randomizePivotLocation = randomizePivotLocation
         )
         val bagger = Bagger(DTLearner,
           numBags = numTrees

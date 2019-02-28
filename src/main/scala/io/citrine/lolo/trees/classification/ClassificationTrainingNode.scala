@@ -15,7 +15,8 @@ class ClassificationTrainingNode(
                                   numFeatures: Int,
                                   minLeafInstances: Int,
                                   remainingDepth: Int,
-                                  maxDepth: Int
+                                  maxDepth: Int,
+                                  randomizePivotLocation: Boolean = false
                                 ) extends TrainingNode(trainingData, remainingDepth) {
 
   assert(trainingData.size > 1, "If we are going to split, we need at least 2 training rows")
@@ -24,9 +25,9 @@ class ClassificationTrainingNode(
   lazy val (leftTrain, rightTrain) = trainingData.partition(r => split.turnLeft(r._1))
   assert(leftTrain.size > 0 && rightTrain.size > 0, s"Split ${split} resulted in zero size: ${trainingData.map(_._1(split.getIndex()))}")
 
-  lazy val leftChild = ClassificationTrainingNode.buildChild(leftTrain, leafLearner, minLeafInstances, remainingDepth, maxDepth, numFeatures)
+  lazy val leftChild = ClassificationTrainingNode.buildChild(leftTrain, leafLearner, minLeafInstances, remainingDepth, maxDepth, numFeatures, randomizePivotLocation)
 
-  lazy val rightChild = ClassificationTrainingNode.buildChild(rightTrain, leafLearner, minLeafInstances, remainingDepth, maxDepth, numFeatures)
+  lazy val rightChild = ClassificationTrainingNode.buildChild(rightTrain, leafLearner, minLeafInstances, remainingDepth, maxDepth, numFeatures, randomizePivotLocation)
 
 
   /**
@@ -67,12 +68,13 @@ object ClassificationTrainingNode {
                   minLeafInstances: Int,
                   remainingDepth: Int,
                   maxDepth: Int,
-                  numFeatures: Int
+                  numFeatures: Int,
+                  randomizePivotLocation: Boolean = false
                 ): TrainingNode[AnyVal, Char] = {
     if (trainingData.size >= 2 * minLeafInstances && remainingDepth > 0 && trainingData.exists(_._2 != trainingData.head._2)) {
-      val (leftSplit, leftDelta) = ClassificationSplitter.getBestSplit(trainingData, numFeatures, minLeafInstances)
+      val (leftSplit, leftDelta) = ClassificationSplitter.getBestSplit(trainingData, numFeatures, minLeafInstances, randomizePivotLocation)
       if (!leftSplit.isInstanceOf[NoSplit]) {
-        new ClassificationTrainingNode(trainingData, leafLearner, leftSplit, leftDelta, numFeatures, minLeafInstances, remainingDepth - 1, maxDepth)
+        new ClassificationTrainingNode(trainingData, leafLearner, leftSplit, leftDelta, numFeatures, minLeafInstances, remainingDepth - 1, maxDepth, randomizePivotLocation)
       } else {
         new TrainingLeaf(trainingData, leafLearner, maxDepth - remainingDepth)
       }
