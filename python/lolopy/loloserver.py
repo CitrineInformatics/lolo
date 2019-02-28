@@ -58,8 +58,18 @@ def get_java_gateway(reuse=True, skip_devel_version=False):
 
     global _lolopy_gateway
 
+    # Set any default java options
+    java_options = []  # No default options for now
+
+    # Get an environmental variable set for the amount of heap memory
+    if 'LOLOPY_JVM_MEMORY' in os.environ:
+        java_options.append('-Xmx' + os.environ['LOLOPY_JVM_MEMORY'])
+
+    # Make the gateway if none already active or user requests a fresh JVM
     if _lolopy_gateway is None or not reuse:
         lolo_path = find_lolo_jar(skip_devel_version)
-        _lolopy_gateway = JavaGateway.launch_gateway(classpath=os.path.pathsep.join([
-            os.path.abspath(lolo_path)]), redirect_stdout=sys.stdout, die_on_exit=True)
+        _lolopy_gateway = JavaGateway.launch_gateway(
+            classpath=os.path.pathsep.join([os.path.abspath(lolo_path)]),
+            javaopts=java_options,
+            redirect_stdout=sys.stdout, die_on_exit=True)
     return _lolopy_gateway
