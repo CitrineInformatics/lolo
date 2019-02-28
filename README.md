@@ -33,7 +33,7 @@ Lolo is on the central repository, and can be used by simply adding the followin
 <dependency>
     <groupId>io.citrine</groupId>
     <artifactId>lolo</artifactId>
-    <version>2.1.0</version>
+    <version>2.2.0</version>
 </dependency>
 ```
 Lolo provides higher level wrappers for common learner combinations.
