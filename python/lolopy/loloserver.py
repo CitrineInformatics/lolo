@@ -1,6 +1,7 @@
 """Methods related to starting and stopping the Java Gateway"""
 from py4j.java_gateway import JavaGateway
 from xml.etree import ElementTree
+import sys
 import os
 
 # Directory where the lolo project root should be
@@ -60,5 +61,5 @@ def get_java_gateway(reuse=True, skip_devel_version=False):
     if _lolopy_gateway is None or not reuse:
         lolo_path = find_lolo_jar(skip_devel_version)
         _lolopy_gateway = JavaGateway.launch_gateway(classpath=os.path.pathsep.join([
-            os.path.abspath(lolo_path)]), die_on_exit=True)
+            os.path.abspath(lolo_path)]), redirect_stdout=sys.stdout, die_on_exit=True)
     return _lolopy_gateway

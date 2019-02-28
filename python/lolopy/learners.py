@@ -260,10 +260,13 @@ class RandomForestMixin(BaseLoloLearner):
             use_jackknife (bool): Whether to use jackknife based variance estimates
             bias_learner (BaseLoloLearner): Algorithm used to model bias (default: no model)
             leaf_learner (BaseLoloLearner): Learner used at each leaf of the random forest (default: GuessTheMean)
-            subset_strategy (Union[string,int,float]): Strategy used to determine number of features used at each split in decision
-                trees. Can be "sqrt" for the square root of the number of features, an int to specify the number
-                of features, or a float to set the fraction of the total feature count. "auto" uses "sqrt" for
-                classification problems and 1/3 for regression problems.
+            subset_strategy (Union[string,int,float]): Strategy used to determine number of features used at each split 
+                Available options:
+                    "auto": Use the default for lolo (all features for regression, sqrt for classification)
+                    "log2": Use the base 2 log of the number of features
+                    "sqrt": Use the square root of the number of features
+                    integer: Set the number of features explicitly
+                    float: Use a certain fraction of the features
             min_leaf_instances (int): Minimum number of features used at each leaf
             max_depth (int): Maximum depth to which to allow the decision trees to grow
             uncertainty_calibration (bool): whether to re-calibrate the predicted uncertainty based on out-of-bag residuals

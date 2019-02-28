@@ -192,7 +192,8 @@ class TestRF(TestCase):
         y_pred, y_std = rf.predict(X, return_std=True)
         self.assertAlmostEqual(0, max(y_std) - min(y_std))  # Should have same sigma for all predictions
 
-        rf = RandomForestRegressor(use_jackknife=False, bias_learner=LinearRegression())
+        rf = RandomForestRegressor(num_trees=16, use_jackknife=False, min_leaf_instances=8,
+                                   bias_learner=LinearRegression())
         y_pred, y_std = rf.fit(X, y).predict(X, return_std=True)
         self.assertGreater(max(y_std) - min(y_std), 0)   # Should have different sigma for some predictions
 
