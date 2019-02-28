@@ -44,6 +44,13 @@ The results of this code is to produce the predicted values (`y_pred`) and their
 
 See the [`examples`](./examples) folder for more examples and details.
 
+You may need to increase the amount of memory available to `lolopy` when using it on larger dataset sizes.
+Setting the maximum memory footprint for the JVM running the machine learning calculations can be
+ achieved by setting the `LOLOPY_JVM_MEMORY` environment variable.
+The value for `LOLOPY_JVM_MEMORY` is used to set the maximum heap size for the JVM 
+(see [Oracle's documentation for details](https://docs.oracle.com/cd/E21764_01/web.1111/e13814/jvm_tuning.htm#PERFM164)).
+For example, "4g" allows `lolo` to use 4GB of memory.
+
 ## Implementation and Performance
 
 `lolopy` is built using the [Py4J](https://www.py4j.org/) library to interface with the Lolo scala library.
