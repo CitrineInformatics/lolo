@@ -14,7 +14,7 @@ import io.citrine.lolo.{Learner, TrainingResult}
   * @param biasLearner    learner to model bias (absolute residual)
   * @param leafLearner    learner to use at the leaves of the trees
   * @param subsetStrategy for random feature selection at each split
-  *                       (auto => 1/3 for regression, sqrt for classification)
+  *                       (auto => all fetures for regression, sqrt for classification)
   * @param minLeafInstances minimum number of instances per leave in each tree
   * @param maxDepth       maximum depth of each tree in the forest (default: unlimited)
   * @param uncertaintyCalibration whether to empirically recalibrate the predicted uncertainties (default: false)

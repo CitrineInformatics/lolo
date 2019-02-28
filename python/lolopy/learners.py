@@ -262,7 +262,7 @@ class RandomForestMixin(BaseLoloLearner):
             leaf_learner (BaseLoloLearner): Learner used at each leaf of the random forest (default: GuessTheMean)
             subset_strategy (Union[string,int,float]): Strategy used to determine number of features used at each split 
                 Available options:
-                    "auto": Use the default for lolo (all features)
+                    "auto": Use the default for lolo (all features for regression, sqrt for classification)
                     "log2": Use the base 2 log of the number of features
                     "sqrt": Use the square root of the number of features
                     integer: Set the number of features explicitly
