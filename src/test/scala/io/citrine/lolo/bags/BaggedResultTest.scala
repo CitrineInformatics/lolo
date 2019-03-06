@@ -19,15 +19,12 @@ class BaggedResultTest {
     )
 
     val DTLearner = RegressionTreeLearner(numFeatures = 12)
+    val biasLearner = RegressionTreeLearner(maxDepth = 5, leafLearner = Some(GuessTheMeanLearner()))
 
     Array(
       Bagger(DTLearner, numBags = 64, biasLearner = None, uncertaintyCalibration = false, useJackknife = true),
-      Bagger(DTLearner, numBags = 64, biasLearner = Some(new RegressionTreeLearner(
-        maxDepth = 5,
-        leafLearner = Some(new GuessTheMeanLearner()))
-      ), uncertaintyCalibration = true, useJackknife = false),
-
-      Bagger(DTLearner, numBags = 64, biasLearner = None, uncertaintyCalibration = true, useJackknife = false),
+      Bagger(DTLearner, numBags = 64, biasLearner = Some(biasLearner), uncertaintyCalibration = true, useJackknife = false),
+      Bagger(DTLearner, numBags = 64, biasLearner = Some(biasLearner), uncertaintyCalibration = true, useJackknife = true),
       Bagger(DTLearner, numBags = 64, biasLearner = None, uncertaintyCalibration = false, useJackknife = false)
     ).foreach { bagger =>
       testConsistency(trainingData, bagger.train(trainingData).getModel())
