@@ -228,6 +228,8 @@ class BaggedMultiResult(
       } else {
         Seq.fill(expected.size)(0.0)
       }
+      println("bias: ", bias)
+      println("variance: ", sigma2)
       sigma2.zip(bias.getOrElse(Seq.fill(expected.size)(0.0))).map(p => Math.sqrt(p._2 * p._2 + p._1)).map(_ * rescale)
     case x: Any =>
       expectedMatrix.map(ps => ps.groupBy(identity).mapValues(_.size.toDouble / ps.size))

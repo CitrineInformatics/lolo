@@ -1,6 +1,7 @@
 package io.citrine.lolo.bags
 
 import io.citrine.lolo.TestUtils
+import io.citrine.lolo.linear.GuessTheMeanLearner
 import io.citrine.lolo.stats.functions.Friedman
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
 import org.junit.Test
@@ -17,13 +18,19 @@ class BaggedResultTest {
       inputBins = Seq((0, 8))
     )
 
-    val DTLearner = RegressionTreeLearner(numFeatures = 3)
+    val DTLearner = RegressionTreeLearner(numFeatures = 12)
 
     Array(
-      Bagger(DTLearner, numBags = 64, biasLearner = None, uncertaintyCalibration = false, useJackknife = false),
-      Bagger(DTLearner, numBags = 64, biasLearner = None, uncertaintyCalibration = true, useJackknife = false),
       Bagger(DTLearner, numBags = 64, biasLearner = None, uncertaintyCalibration = false, useJackknife = true),
+      Bagger(DTLearner, numBags = 64, biasLearner = Some(new RegressionTreeLearner(
+        maxDepth = 5,
+        leafLearner = Some(new GuessTheMeanLearner()))
+      ), uncertaintyCalibration = true, useJackknife = false),
+
+      Bagger(DTLearner, numBags = 64, biasLearner = None, uncertaintyCalibration = true, useJackknife = false),
+      Bagger(DTLearner, numBags = 64, biasLearner = None, uncertaintyCalibration = false, useJackknife = false)
     ).foreach { bagger =>
+      println(s"testing ${bagger}")
       testConsistency(trainingData, bagger.train(trainingData).getModel())
     }
   }
