@@ -66,7 +66,11 @@ case class BaggedSingleResult(
     * @return uncertainty of each prediction
     */
   override def getUncertainty(): Option[Seq[Any]] = Some(Seq(scalarUncertainty))
-  private lazy val scalarUncertainty = Math.sqrt(singleScores.sum) * rescale
+  private lazy val scalarUncertainty = if (useJackknife) {
+    Math.sqrt(singleScores.sum * Math.pow(rescale, 2.0) + Math.pow(bias.getOrElse(0.0), 2.0))
+  } else {
+    bias.getOrElse(0.0)
+  }
 
 
   /**
@@ -228,8 +232,6 @@ class BaggedMultiResult(
       } else {
         Seq.fill(expected.size)(0.0)
       }
-      println("bias: ", bias)
-      println("variance: ", sigma2)
       sigma2.zip(bias.getOrElse(Seq.fill(expected.size)(0.0))).map(p => Math.sqrt(p._2 * p._2 + p._1)).map(_ * rescale)
     case x: Any =>
       expectedMatrix.map(ps => ps.groupBy(identity).mapValues(_.size.toDouble / ps.size))

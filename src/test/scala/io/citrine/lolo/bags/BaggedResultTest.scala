@@ -30,7 +30,6 @@ class BaggedResultTest {
       Bagger(DTLearner, numBags = 64, biasLearner = None, uncertaintyCalibration = true, useJackknife = false),
       Bagger(DTLearner, numBags = 64, biasLearner = None, uncertaintyCalibration = false, useJackknife = false)
     ).foreach { bagger =>
-      println(s"testing ${bagger}")
       testConsistency(trainingData, bagger.train(trainingData).getModel())
     }
   }

@@ -105,7 +105,7 @@ case class Bagger(
     }
 
     /* Wrap the models in a BaggedModel object */
-    val ratio = if (uncertaintyCalibration && trainingData.head._2.isInstanceOf[Double]) {
+    val ratio = if (uncertaintyCalibration && trainingData.head._2.isInstanceOf[Double] && useJackknife) {
       Async.canStop()
       oobErrors.map{case (_, error, uncertainty) => Math.abs(error / uncertainty)}.sorted.drop((oobErrors.size * 0.68).toInt).head
     } else {
@@ -120,7 +120,7 @@ case class Bagger(
       val biasTraining = oobErrors.map { case (f, e, u) =>
         // Math.E is only statistically correct.  It should be actualBags / Nib.transpose(i).count(_ == 0)
         // Or, better yet, filter the bags that don't include the training example
-        val bias = Math.max(Math.abs(e) - u, 0)
+        val bias = Math.max(Math.abs(e) - u * ratio, 0)
         (f, bias)
       }
       Async.canStop()
