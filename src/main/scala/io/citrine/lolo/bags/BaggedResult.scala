@@ -20,6 +20,7 @@ trait BaggedResult extends PredictionResult[Any] {
     * @return the gradient of each prediction as a vector of doubles
     */
   override def getGradient(): Option[Seq[Vector[Double]]] = gradient
+
   private lazy val gradient = if (predictions.head.getGradient().isEmpty) {
     /* If the underlying model has no gradient, return None */
     None
@@ -42,13 +43,13 @@ trait BaggedResult extends PredictionResult[Any] {
   * @param repInput    representative input
   */
 case class BaggedSingleResult(
-                    predictions: Seq[PredictionResult[Any]],
-                    NibIn: Vector[Vector[Int]],
-                    useJackknife: Boolean,
-                    bias: Option[Double] = None,
-                    repInput: Vector[Any],
-                    rescale: Double = 1.0
-                  ) extends BaggedResult {
+                               predictions: Seq[PredictionResult[Any]],
+                               NibIn: Vector[Vector[Int]],
+                               useJackknife: Boolean,
+                               bias: Option[Double] = None,
+                               repInput: Vector[Any],
+                               rescale: Double = 1.0
+                             ) extends BaggedResult {
   assert(predictions.head.getExpected().head.isInstanceOf[Double])
   private lazy val treePredictions = predictions.map(_.getExpected().head.asInstanceOf[Double]).toArray
 
@@ -58,6 +59,7 @@ case class BaggedSingleResult(
     * @return expected value of each prediction
     */
   override def getExpected(): Seq[Any] = Seq(expected)
+
   private lazy val expected = treePredictions.sum / treePredictions.size
 
   /**
@@ -66,7 +68,12 @@ case class BaggedSingleResult(
     * @return uncertainty of each prediction
     */
   override def getUncertainty(): Option[Seq[Any]] = Some(Seq(scalarUncertainty))
-  private lazy val scalarUncertainty = Math.sqrt(singleScores.sum) * rescale
+
+  private lazy val scalarUncertainty = if (useJackknife) {
+    Math.sqrt(singleScores.sum * Math.pow(rescale, 2.0) + Math.pow(bias.getOrElse(0.0), 2.0))
+  } else {
+    bias.getOrElse(0.0)
+  }
 
 
   /**
@@ -76,6 +83,7 @@ case class BaggedSingleResult(
     * @return training row scores of each prediction
     */
   override def getImportanceScores(): Option[Seq[Seq[Double]]] = Some(Seq(singleScores))
+
   private lazy val singleScores: Vector[Double] = {
     // Compute the variance of the ensemble of predicted values and divide by the size of the ensemble an extra time
     val varT = 1.0 / (treePredictions.size * treePredictions.size) * treePredictions.map(y => Math.pow(y - expected, 2.0)).sum
@@ -127,7 +135,7 @@ case class BaggedSingleResult(
     // The uncertainty must be positive, so anything smaller than zero is noise.  Make sure that no estimated
     // uncertainty is below that noise level
     val floor = Math.max(0, -minimumContribution)
-    trainingContributions.map{x => Math.max(x, floor)}
+    trainingContributions.map { x => Math.max(x, floor) }
   }
 }
 
@@ -144,13 +152,13 @@ case class BaggedSingleResult(
   * @param repInput    representative input
   */
 class BaggedMultiResult(
-                    override protected val predictions: Seq[PredictionResult[Any]],
-                    NibIn: Vector[Vector[Int]],
-                    useJackknife: Boolean,
-                    bias: Option[Seq[Double]] = None,
-                    repInput: Vector[Any],
-                    rescale: Double = 1.0
-                  ) extends BaggedResult {
+                         override protected val predictions: Seq[PredictionResult[Any]],
+                         NibIn: Vector[Vector[Int]],
+                         useJackknife: Boolean,
+                         bias: Option[Seq[Double]] = None,
+                         repInput: Vector[Any],
+                         rescale: Double = 1.0
+                       ) extends BaggedResult {
 
   /**
     * Return the ensemble average or maximum vote
@@ -216,7 +224,7 @@ class BaggedMultiResult(
     Nib.flatMap { v =>
       val itot = 1.0 / v.size
       val vtot = v.sum.toDouble / (v.size * v.size)
-      v.map(n => (n * itot - vtot))
+      v.map(n => n * itot - vtot)
     }.toArray
   )
 
@@ -228,7 +236,8 @@ class BaggedMultiResult(
       } else {
         Seq.fill(expected.size)(0.0)
       }
-      sigma2.zip(bias.getOrElse(Seq.fill(expected.size)(0.0))).map(p => Math.sqrt(p._2 * p._2 + p._1)).map(_ * rescale)
+      val rescale2 = rescale * rescale
+      sigma2.zip(bias.getOrElse(Seq.fill(expected.size)(0.0))).map { case (variance, b) => Math.sqrt(b * b + variance * rescale2) }
     case x: Any =>
       expectedMatrix.map(ps => ps.groupBy(identity).mapValues(_.size.toDouble / ps.size))
   }
@@ -255,7 +264,7 @@ class BaggedMultiResult(
                 NibJ: DenseMatrix[Double],
                 NibIJ: DenseMatrix[Double]
               ): Seq[Double] = {
-    scores(meanPrediction, modelPredictions, NibJ, NibIJ).map{_.sum}
+    scores(meanPrediction, modelPredictions, NibJ, NibIJ).map(_.sum)
   }
 
   /**
@@ -291,7 +300,7 @@ class BaggedMultiResult(
     /* Avoid division in the loop */
     val inverseSize = 1.0 / modelPredictions.head.size
 
-    (0 until modelPredictions.size).map { i =>
+    modelPredictions.indices.map { i =>
       Async.canStop()
       /* Compute the first order bias correction for the variance estimators */
       val correction = Math.pow(inverseSize * norm(predMat(::, i) - meanPrediction(i)), 2)
@@ -333,7 +342,7 @@ class BaggedMultiResult(
     /* Avoid division in the loop */
     val inverseSize = 1.0 / modelPredictions.head.size
 
-    (0 until modelPredictions.size).map { i =>
+    modelPredictions.indices.map { i =>
       /* Compute the first order bias correction for the variance estimators */
       val correction = inverseSize * norm(predMat(::, i) - meanPrediction(i))
 
