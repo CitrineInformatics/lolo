@@ -34,7 +34,7 @@ case class Bagger(
   override def train(trainingData: Seq[(Vector[Any], Any)], weights: Option[Seq[Double]] = None): BaggedTrainingResult = {
     /* Make sure the training data is the same size */
     assert(trainingData.forall(trainingData.head._1.size == _._1.size))
-    require(trainingData.size > 8, s"We need to have at least 8 rows, only ${trainingData.size} given")
+    require(trainingData.size >= 8, s"We need to have at least 8 rows, only ${trainingData.size} given")
 
     /* Use unit weights if none are specified */
     val weightsActual = weights.getOrElse(Seq.fill(trainingData.size)(1.0))
