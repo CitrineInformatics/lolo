@@ -34,7 +34,7 @@ case class Bagger(
   override def train(trainingData: Seq[(Vector[Any], Any)], weights: Option[Seq[Double]] = None): BaggedTrainingResult = {
     /* Make sure the training data is the same size */
     assert(trainingData.forall(trainingData.head._1.size == _._1.size))
-    require(trainingData.size > 8, s"We need to have at least 8 rows, only ${trainingData.size} given")
+    require(trainingData.size >= 8, s"We need to have at least 8 rows, only ${trainingData.size} given")
 
     /* Use unit weights if none are specified */
     val weightsActual = weights.getOrElse(Seq.fill(trainingData.size)(1.0))
@@ -127,7 +127,7 @@ case class Bagger(
       val biasTraining = oobErrors.map { case (f, e, u) =>
         // Math.E is only statistically correct.  It should be actualBags / Nib.transpose(i).count(_ == 0)
         // Or, better yet, filter the bags that don't include the training example
-        val bias = Math.max(Math.abs(e) - u, 0)
+        val bias = Math.max(Math.abs(e) - u * ratio, 0)
         (f, bias)
       }
       Async.canStop()
