@@ -109,7 +109,11 @@ case class Bagger(
     for the training points. If a point has 0 uncertainty, the ratio is 1 if error is also 0, otherwise infinity */
     val ratio = if (uncertaintyCalibration && trainingData.head._2.isInstanceOf[Double] && useJackknife) {
       Async.canStop()
-      oobErrors.map{case (_, error, uncertainty) => Math.abs(error / uncertainty)}.sorted.drop((oobErrors.size * 0.68).toInt).head
+      oobErrors.map {
+        case (_, 0.0, 0.0) => 1.0
+        case (_, _, 0.0) => Double.PositiveInfinity
+        case (_, error, uncertainty) => Math.abs(error / uncertainty)
+      }.sorted.drop((oobErrors.size * 0.68).toInt).head
     } else {
       1.0
     }
