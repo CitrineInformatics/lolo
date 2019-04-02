@@ -110,6 +110,8 @@ class BaggerTest {
     assert(fullStandardRMSE > 1.0, "Standard RMSE over the full domain should be greater than 1.0")
   }
 
+
+
   /**
     * Test the scores on a smaller example, because computing them all can be expensive.
     *
@@ -207,6 +209,31 @@ class BaggerTest {
     assert(totalTime < 2.0, "Thread took too long to terminate")
   }
 
+  /**
+    * Test that uncertainty recalibration functions correctly with small amounts of data. In some cases,
+    * especially with a simple, binary function, it is possible to have every tree make the correct prediction, leading
+    * to uncertainty = 0, and if not handled correctly, an uncertainty rescaling ratio that is NaN.
+    *
+    * Note that this is an unusual case, and is not caught by testUncertaintyFloor()
+    */
+  @Test
+  def testSmallDataRecalibration(): Unit = {
+    // Define a simple, binary function and create training data
+    def stepFunction(x: Seq[Double]): Double = Math.floor(2 * x(0))
+    val trainingData = TestUtils.generateTrainingData(rows = 16, cols = 2, function = stepFunction)
+
+    /* Create a bagger out of GuessTheMean learners, and train the model.
+     * This model has a rescale field, which should be a real number. If it is not,
+     * then the model will fail to train
+     */
+    val DTLearner = new RegressionTreeLearner(leafLearner = Some(new GuessTheMeanLearner()),
+      numFeatures = 2, randomizePivotLocation = true
+    )
+    val trainedModel: BaggedModel = Bagger(DTLearner,
+      numBags = 16, useJackknife = true, uncertaintyCalibration = true)
+      .train(trainingData)
+      .getModel()
+  }
 
   /**
     * Test that the uncertainty is always positive (and non-zero)
