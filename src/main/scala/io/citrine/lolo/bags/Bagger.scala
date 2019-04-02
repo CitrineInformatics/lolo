@@ -116,6 +116,7 @@ case class Bagger(
     } else {
       1.0
     }
+    assert(!ratio.isNaN && !ratio.isInfinity, "Uncertainty calibration ratio is not real")
 
     /* Wrap the models in a BaggedModel object */
     if (biasLearner.isEmpty || oobErrors.isEmpty) {
