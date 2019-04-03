@@ -34,7 +34,7 @@ case class Bagger(
   override def train(trainingData: Seq[(Vector[Any], Any)], weights: Option[Seq[Double]] = None): BaggedTrainingResult = {
     /* Make sure the training data is the same size */
     assert(trainingData.forall(trainingData.head._1.size == _._1.size))
-    require(trainingData.size > 8, s"We need to have at least 8 rows, only ${trainingData.size} given")
+    require(trainingData.size >= 8, s"We need to have at least 8 rows, only ${trainingData.size} given")
 
     /* Use unit weights if none are specified */
     val weightsActual = weights.getOrElse(Seq.fill(trainingData.size)(1.0))
@@ -87,7 +87,8 @@ case class Bagger(
       .reduce(Bagger.combineImportance)
       .map(_.map(_ / importances.size))
 
-    // Define as lazy so we only compute them if they are needed for the ratio or bias learner calculation
+    /* Out-of-bag error and uncertainty for each point, calculating by combining the result of each tree.
+    Define as lazy so we only compute them if they are needed for the ratio or bias learner calculation */
     lazy val oobErrors: Seq[(Vector[Any], Double, Double)] = trainingData.indices.flatMap { idx =>
       val oobModels = models.zip(Nib.map(_ (idx))).filter(_._2 == 0).map(_._1)
       if (oobModels.size < 2) {
@@ -104,13 +105,19 @@ case class Bagger(
       }
     }
 
-    /* Wrap the models in a BaggedModel object */
+    /* Calculate the uncertainty calibration ratio, which is the 68th percentile of error/uncertainty
+    for the training points. If a point has 0 uncertainty, the ratio is 1 if error is also 0, otherwise infinity */
     val ratio = if (uncertaintyCalibration && trainingData.head._2.isInstanceOf[Double] && useJackknife) {
       Async.canStop()
-      oobErrors.map{case (_, error, uncertainty) => Math.abs(error / uncertainty)}.sorted.drop((oobErrors.size * 0.68).toInt).head
+      oobErrors.map {
+        case (_, 0.0, 0.0) => 1.0
+        case (_, _, 0.0) => Double.PositiveInfinity
+        case (_, error, uncertainty) => Math.abs(error / uncertainty)
+      }.sorted.drop((oobErrors.size * 0.68).toInt).head
     } else {
       1.0
     }
+    assert(!ratio.isNaN && !ratio.isInfinity, "Uncertainty calibration ratio is not real")
 
     /* Wrap the models in a BaggedModel object */
     if (biasLearner.isEmpty || oobErrors.isEmpty) {
