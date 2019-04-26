@@ -111,12 +111,17 @@ class BaggerTest {
     assert(fullStandardRMSE > 1.0, "Standard RMSE over the full domain should be greater than 1.0")
   }
 
+  /**
+    * Test the behavior of a random forest when the labels are constant
+    */
   @Test
   def testUncertaintyCalibrationWithConstantResponse(): Unit = {
+    // setup some training data with constant labels
     val nFeatures = 5
     val X: Vector[Vector[Any]] = TestUtils.generateTrainingData(128, nFeatures, xscale = 0.5, seed = Random.nextLong()).map(_._1)
     val y: Vector[Any] = X.map(_ => 0.0)
 
+    // setup a relatively complicated random forest (turn a bunch of stuff on)
     val DTLearner = RegressionTreeLearner(
       numFeatures = nFeatures,
       leafLearner = Some(GuessTheMeanLearner()),
@@ -136,8 +141,10 @@ class BaggerTest {
       uncertaintyCalibration = true
     )
 
+    // Make sure the model trains
     val model = bagger.train(X.zip(y)).getModel()
 
+    // Generate a new test set and make sure the predictions are 0 +/- 0
     val testX: Vector[Vector[Any]] = TestUtils.generateTrainingData(128, nFeatures, xscale = 0.5, seed = Random.nextLong()).map(_._1)
     val predictions = model.transform(testX)
     assert(predictions.getExpected().forall(_ == 0.0))

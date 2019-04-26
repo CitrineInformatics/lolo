@@ -184,6 +184,8 @@ object Standardizer {
   def getStandardization(values: Seq[Double]): (Double, Double) = {
     val mean = values.sum / values.size
     val scale = Math.sqrt(values.map(v => Math.pow(v - mean, 2)).sum / values.size)
+
+    // If there is zero variance, then the scaling doesn't matter; default to 1.0
     if (scale > 0) {
       (mean, 1.0 / scale)
     } else {
