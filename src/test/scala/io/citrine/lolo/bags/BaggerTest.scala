@@ -117,7 +117,7 @@ class BaggerTest {
     val X: Vector[Vector[Any]] = TestUtils.generateTrainingData(128, nFeatures, xscale = 0.5, seed = Random.nextLong()).map(_._1)
     val y: Vector[Any] = X.map(_ => 0.0)
 
-    val DTLearner = new RegressionTreeLearner(
+    val DTLearner = RegressionTreeLearner(
       numFeatures = nFeatures,
       leafLearner = Some(GuessTheMeanLearner()),
       maxDepth = 30,
@@ -128,15 +128,20 @@ class BaggerTest {
       new Standardizer(DTLearner),
       numBags = 64,
       useJackknife = true,
-      biasLearner = Some(new RegressionTreeLearner(
+      biasLearner = Some(RegressionTreeLearner(
         maxDepth = 3,
-        leafLearner = Some(new GuessTheMeanLearner()),
+        leafLearner = Some(GuessTheMeanLearner()),
         randomizePivotLocation = true)
       ),
       uncertaintyCalibration = true
     )
 
-    bagger.train(X.zip(y))
+    val model = bagger.train(X.zip(y)).getModel()
+
+    val testX: Vector[Vector[Any]] = TestUtils.generateTrainingData(128, nFeatures, xscale = 0.5, seed = Random.nextLong()).map(_._1)
+    val predictions = model.transform(testX)
+    assert(predictions.getExpected().forall(_ == 0.0))
+    assert(predictions.getUncertainty().get.forall(_ == 0.0))
   }
 
 
