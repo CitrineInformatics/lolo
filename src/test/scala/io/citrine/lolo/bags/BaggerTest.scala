@@ -5,6 +5,7 @@ import java.util.concurrent.{Callable, CancellationException, Executors, Future,
 import io.citrine.lolo.TestUtils
 import io.citrine.lolo.linear.GuessTheMeanLearner
 import io.citrine.lolo.stats.functions.Friedman
+import io.citrine.lolo.transformers.Standardizer
 import io.citrine.lolo.trees.classification.ClassificationTreeLearner
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
 import org.junit.Test
@@ -110,6 +111,45 @@ class BaggerTest {
     assert(fullStandardRMSE > 1.0, "Standard RMSE over the full domain should be greater than 1.0")
   }
 
+  /**
+    * Test the behavior of a random forest when the labels are constant
+    */
+  @Test
+  def testUncertaintyCalibrationWithConstantResponse(): Unit = {
+    // setup some training data with constant labels
+    val nFeatures = 5
+    val X: Vector[Vector[Any]] = TestUtils.generateTrainingData(128, nFeatures, xscale = 0.5, seed = Random.nextLong()).map(_._1)
+    val y: Vector[Any] = X.map(_ => 0.0)
+
+    // setup a relatively complicated random forest (turn a bunch of stuff on)
+    val DTLearner = RegressionTreeLearner(
+      numFeatures = nFeatures,
+      leafLearner = Some(GuessTheMeanLearner()),
+      maxDepth = 30,
+      randomizePivotLocation = true
+    )
+
+    val bagger = new Bagger(
+      new Standardizer(DTLearner),
+      numBags = 64,
+      useJackknife = true,
+      biasLearner = Some(RegressionTreeLearner(
+        maxDepth = 3,
+        leafLearner = Some(GuessTheMeanLearner()),
+        randomizePivotLocation = true)
+      ),
+      uncertaintyCalibration = true
+    )
+
+    // Make sure the model trains
+    val model = bagger.train(X.zip(y)).getModel()
+
+    // Generate a new test set and make sure the predictions are 0 +/- 0
+    val testX: Vector[Vector[Any]] = TestUtils.generateTrainingData(128, nFeatures, xscale = 0.5, seed = Random.nextLong()).map(_._1)
+    val predictions = model.transform(testX)
+    assert(predictions.getExpected().forall(_ == 0.0))
+    assert(predictions.getUncertainty().get.forall(_ == 0.0))
+  }
 
 
   /**
@@ -220,6 +260,7 @@ class BaggerTest {
   def testSmallDataRecalibration(): Unit = {
     // Define a simple, binary function and create training data
     def stepFunction(x: Seq[Double]): Double = Math.floor(2 * x(0))
+
     val trainingData = TestUtils.generateTrainingData(rows = 16, cols = 2, function = stepFunction)
 
     /* Create a bagger out of GuessTheMean learners, and train the model.
@@ -244,7 +285,7 @@ class BaggerTest {
     */
   @Test
   def testUncertaintyFloor(): Unit = {
-    (0 until 16384).foreach{ idx =>
+    (0 until 16384).foreach { idx =>
       val trainingData = TestUtils.generateTrainingData(16, 5, noise = 0.0, function = Friedman.friedmanSilverman, seed = Random.nextLong())
       val DTLearner = RegressionTreeLearner(numFeatures = 2)
       val sigma = Bagger(DTLearner, numBags = 7)
