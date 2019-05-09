@@ -6,7 +6,7 @@ from lolopy.utils import send_feature_array, send_1D_array
 from sklearn.base import BaseEstimator, RegressorMixin, ClassifierMixin, is_regressor
 from sklearn.exceptions import NotFittedError
 
-__all__ = ['RandomForestRegressor', 'RandomForestClassifier']
+__all__ = ['RandomForestRegressor', 'RandomForestClassifier', 'RegressionTreeLearner', 'LinearRegression']
 
 
 class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
@@ -36,7 +36,7 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
         self.model_ = None
         self._compress_level = 9
         self.feature_importances_ = None
-        
+
     def __getstate__(self):
         # Get the current state
         try:
@@ -123,10 +123,8 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
             weights = np.ones(len(y))
 
         # Convert x, y, and w to float64 and int8 with native ordering
-
         y = np.array(y, dtype=np.float64 if is_regressor(self) else np.int32)
         weights = np.array(weights, dtype=np.float64)
-
 
         # Convert X and y to Java Objects
         X_java = send_feature_array(self.gateway, X)
@@ -151,7 +149,7 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
 
     def get_importance_scores(self, X):
         """Get the importance scores for each entry in the training set for each prediction
-        
+
         Args:
             X (ndarray): Inputs for each entry to be assessed
         """
@@ -164,9 +162,9 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
 
     def _get_prediction_result(self, X):
         """Get the PredictionResult from the lolo JVM
-        
+
         The PredictionResult class holds methods that will generate the expected predictions, uncertainty intervals, etc
-        
+
         Args:
             X (ndarray): Input features for each entry
         Returns:
@@ -238,8 +236,8 @@ class BaseLoloClassifier(BaseLoloLearner, ClassifierMixin):
         pred_result = self._get_prediction_result(X)
 
         # Copy over the class probabilities
-        probs_byte = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getClassifierProbabilities(pred_result,
-                                                                                                   self.n_classes_)
+        probs_byte = self.gateway.jvm.io.citrine.lolo.util.\
+            LoloPyDataLoader.getClassifierProbabilities(pred_result, self.n_classes_)
         probs = np.frombuffer(probs_byte, dtype='float').reshape(-1, self.n_classes_)
         return probs
 
@@ -260,7 +258,7 @@ class RandomForestMixin(BaseLoloLearner):
             use_jackknife (bool): Whether to use jackknife based variance estimates
             bias_learner (BaseLoloLearner): Algorithm used to model bias (default: no model)
             leaf_learner (BaseLoloLearner): Learner used at each leaf of the random forest (default: GuessTheMean)
-            subset_strategy (Union[string,int,float]): Strategy used to determine number of features used at each split 
+            subset_strategy (Union[string,int,float]): Strategy used to determine number of features used at each split
                 Available options:
                     "auto": Use the default for lolo (all features for regression, sqrt for classification)
                     "log2": Use the base 2 log of the number of features
@@ -347,6 +345,7 @@ class RegressionTreeLearner(BaseLoloRegressor):
             leaf_learner,
             self.randomize_pivot_location
         )
+
 
 class LinearRegression(BaseLoloRegressor):
     """Linear ridge regression with an :math:`L_2` penalty"""

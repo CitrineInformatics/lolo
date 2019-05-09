@@ -33,7 +33,7 @@ class TestLoloGateway(TestCase):
 
     def test_memory(self):
         # Set an environmental variable (local for this test)
-        os.environ['LOLOPY_JVM_MEMORY'] ='4g'
+        os.environ['LOLOPY_JVM_MEMORY'] = '4g'
 
         with self.assertLogs("py4j.java_gateway", level='DEBUG') as cm:
             # Get a gateway
@@ -41,4 +41,3 @@ class TestLoloGateway(TestCase):
 
             # Make sure the memory amount appears in the logs
             self.assertIn('Xmx4g', '\n'.join(cm.output))
-

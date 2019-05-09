@@ -10,7 +10,7 @@ import numpy as np
 
 def _call_lolo_merit(metric_name, y_true, y_pred, y_std=None, *args):
     """Call a metric from lolopy
-    
+
     Args:
         metric_name (str): Name of a Merit class (e.g., UncertaintyCorrelation)
         y_true ([double]): True value
@@ -45,7 +45,7 @@ def _call_lolo_merit(metric_name, y_true, y_pred, y_std=None, *args):
 
 def root_mean_squared_error(y_true, y_pred):
     """Compute the root mean squared error
-    
+
     Args:
         y_true ([double]): True value
         y_pred ([double]): Predicted values
@@ -57,8 +57,8 @@ def root_mean_squared_error(y_true, y_pred):
 
 
 def standard_confidence(y_true, y_pred, y_std):
-    """Fraction of entries that have errors within the predicted confidence interval. 
-    
+    """Fraction of entries that have errors within the predicted confidence interval.
+
     Args:
         y_true ([double]): True value
         y_pred ([double]): Predicted values
@@ -71,8 +71,8 @@ def standard_confidence(y_true, y_pred, y_std):
 
 
 def standard_error(y_true, y_pred, y_std, rescale=1.0):
-    """Root mean square of the error divided by the predicted uncertainty 
-    
+    """Root mean square of the error divided by the predicted uncertainty
+
     Args:
         y_true ([double]): True value
         y_pred ([double]): Predicted values
@@ -87,7 +87,7 @@ def standard_error(y_true, y_pred, y_std, rescale=1.0):
 
 def uncertainty_correlation(y_true, y_pred, y_std):
     """Measure of the correlation between the predicted uncertainty and error magnitude
-    
+
     Args:
         y_true ([double]): True value
         y_pred ([double]): Predicted values
@@ -97,5 +97,3 @@ def uncertainty_correlation(y_true, y_pred, y_std):
     """
 
     return _call_lolo_merit('UncertaintyCorrelation', y_true, y_pred, y_std)
-
-
