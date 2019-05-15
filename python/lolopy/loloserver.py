@@ -1,7 +1,7 @@
 """Methods related to starting and stopping the Java Gateway"""
 from py4j.java_gateway import JavaGateway
+from subprocess import run, PIPE, STDOUT
 from xml.etree import ElementTree
-from subprocess import run, PIPE
 import sys
 import os
 
@@ -33,8 +33,9 @@ def _java_is_installed(ignore_env=False):
         return True
 
     # Route 2: Check the system python
-    proc = run(['java', '-version'], stdout=PIPE, stderr=PIPE)
-    return proc.stdout.startswith(b'java version') or proc.stderr.startswith(b'java version')
+    proc = run(['java', '-version'], stdout=PIPE, stderr=STDOUT)
+    java_version = proc.stdout
+    return b'version' in java_version
 
 
 def find_lolo_jar(skip_devel_version=False):
