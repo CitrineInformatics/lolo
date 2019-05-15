@@ -14,7 +14,7 @@ def send_feature_array(gateway, X):
     """
 
     # Convert X to a numpy array in system byte-ordering for floats and C array ordering for matrix
-    X = np.array(X, dtype=np.float64, order='C')
+    X = np.array(X, dtype=np.float64, order='C', copy=False)
     big_end = sys.byteorder == "big"
 
     # Send X to the JVM
