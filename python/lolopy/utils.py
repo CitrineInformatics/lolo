@@ -12,8 +12,9 @@ def send_feature_array(gateway, X):
     Returns:
         (Seq[Vector[Double]]) Reference to feature array in JVM
     """
-    # Convert X to a numpy array
-    X = np.array(X, dtype=np.float64)
+
+    # Convert X to a numpy array in system byte-ordering for floats and C array ordering for matrix
+    X = np.array(X, dtype=np.float64, order='C')
     big_end = sys.byteorder == "big"
 
     # Send X to the JVM
