@@ -66,7 +66,7 @@ case class Bagger(
       // of non-zero training weights
       Iterator.continually {
         Vector.fill(trainingData.size)(dist.draw())
-      }.filter(_.count(_ > 0) >= Bagger.minimumNonzeroWeightSize).take(numBags).toVector
+      }.filter(_.count(_ > 0) >= Bagger.minimumNonzeroWeightSize).take(actualBags).toVector
     }.filter{nMat =>
       lazy val noAlwaysPresentTrainingData = nMat.transpose.forall{vec => vec.contains(0)}
       // Make sure that at least one learner is missing each training point
