@@ -34,7 +34,10 @@ case class Bagger(
   override def train(trainingData: Seq[(Vector[Any], Any)], weights: Option[Seq[Double]] = None): BaggedTrainingResult = {
     /* Make sure the training data is the same size */
     assert(trainingData.forall(trainingData.head._1.size == _._1.size))
-    require(trainingData.size >= 8, s"We need to have at least 8 rows, only ${trainingData.size} given")
+    require(
+      trainingData.size >= Bagger.minimumTrainingSize,
+      s"We need to have at least ${Bagger.minimumTrainingSize} rows, only ${trainingData.size} given"
+    )
 
     /* Use unit weights if none are specified */
     val weightsActual = weights.getOrElse(Seq.fill(trainingData.size)(1.0))
@@ -59,13 +62,16 @@ case class Bagger(
     /* Compute the number of instances of each training row in each training sample */
     val dist = new Poisson(1.0)
     val Nib: Vector[Vector[Int]] = Iterator.continually{
-      Vector.fill(actualBags, trainingData.size) {
-        dist.draw()
-      }
+      // Generate Poisson distributed weights, filtering out any that don't have the minimum required number
+      // of non-zero training weights
+      Iterator.continually {
+        Vector.fill(trainingData.size)(dist.draw())
+      }.filter(_.count(_ > 0) >= Bagger.minimumNonzeroWeightSize).take(numBags).toVector
     }.filter{nMat =>
+      lazy val noAlwaysPresentTrainingData = nMat.transpose.forall{vec => vec.contains(0)}
       // Make sure that at least one learner is missing each training point
       // This prevents a divide-by-zero error in the jackknife-after-bootstrap calcualtion
-      !useJackknife || nMat.transpose.forall{vec => vec.contains(0)}
+      !useJackknife || noAlwaysPresentTrainingData
     }.next()
 
     /* Learn the actual models in parallel */
@@ -225,6 +231,18 @@ class BaggedModel(
 }
 
 object Bagger {
+
+  /**
+    * The minimum number of training rows in order to train a Bagger
+    */
+  val minimumTrainingSize: Int = 8
+
+  /**
+    * The minimum number of non-zero weighted training points that is based into the learner
+    *
+    * This requirement biases the poisson draws, but hopefully not too too much
+    */
+  val minimumNonzeroWeightSize: Int = 4
 
   private def combineImportance(v1: Option[Vector[Double]], v2: Option[Vector[Double]]): Option[Vector[Double]] = {
     (v1, v2) match {
