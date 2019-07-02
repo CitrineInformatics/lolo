@@ -92,6 +92,19 @@ class RandomForestTest {
     assert(lossWithRandomization < lossWithoutRandomization)
   }
 
+  /**
+    * Make sure that we can draw training weights consistently even when the training size is small
+    */
+  @Test
+  def testWeightsWithSmallData(): Unit = {
+    val trainingData = TestUtils.generateTrainingData(8, 1)
+    // the number of trees is the number of times we generate weights
+    // so this has the effect of creating lots of different sets of weights
+    val learner = RandomForest(numTrees = 16384)
+    // the test is that this training doesn't throw an exception
+    learner.train(trainingData).getModel()
+  }
+
 }
 
 object RandomForestTest {
