@@ -35,11 +35,10 @@ case class RegressionTreeLearner(
     * @return a RegressionTree
     */
   override def train(trainingData: Seq[(Vector[Any], Any)], weights: Option[Seq[Double]] = None): RegressionTreeTrainingResult = {
+    require(trainingData.nonEmpty, s"The input training data was empty")
     if (!trainingData.head._2.isInstanceOf[Double]) {
       throw new IllegalArgumentException(s"Tried to train regression on non-double labels, e.g.: ${trainingData.head._2}")
     }
-    assert(trainingData.size > 4, s"We need to have at least 4 rows, only ${trainingData.size} given")
-
     val repInput = trainingData.head._1
 
     /* Create encoders for any categorical features */
@@ -58,6 +57,11 @@ case class RegressionTreeLearner(
     val finalTraining = encodedTraining.zip(weights.getOrElse(Seq.fill(trainingData.size)(1.0))).map { case ((f, l), w) =>
       (f, l.asInstanceOf[Double], w)
     }.filter(_._3 > 0).toVector
+
+    require(
+      finalTraining.size >= 4,
+      s"We need to have at least 4 rows with non-zero weights, only ${finalTraining.size} given"
+    )
 
     /* If the number of features isn't specified, use all of them */
     val numFeaturesActual = if (numFeatures > 0) {
