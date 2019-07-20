@@ -1,5 +1,6 @@
 """Methods related to starting and stopping the Java Gateway"""
 from py4j.java_gateway import JavaGateway
+from subprocess import run, PIPE, STDOUT
 from xml.etree import ElementTree
 import sys
 import os
@@ -16,6 +17,25 @@ def _is_development_installation():
 
     # Look for the lolo scala source directory
     return os.path.isdir(os.path.join(_lolo_root, 'src', 'main', 'scala', 'io', 'citrine', 'lolo'))
+
+
+def _java_is_installed(ignore_env=False):
+    """Check whether Java is installed
+    
+    Args:
+        ignore_env (bool): Whether to ignore environmental variables
+    Returns:
+        (bool): Whether Java is installed and findable by py4j 
+    """
+    # Route 1: Check if there is a file in the right spot for JAVA_HOME (this is what Py4j does)
+    if not ignore_env and \
+            os.path.isfile(os.path.join(os.environ.get('JAVA_HOME', '.'), 'bin', 'java')):
+        return True
+
+    # Route 2: Check the system python
+    proc = run(['java', '-version'], stdout=PIPE, stderr=STDOUT)
+    java_version = proc.stdout
+    return b'version' in java_version
 
 
 def find_lolo_jar(skip_devel_version=False):
@@ -67,7 +87,14 @@ def get_java_gateway(reuse=True, skip_devel_version=False):
 
     # Make the gateway if none already active or user requests a fresh JVM
     if _lolopy_gateway is None or not reuse:
+        # Make sure lolo is installed
         lolo_path = find_lolo_jar(skip_devel_version)
+
+        # Check if Java is installed
+        if not _java_is_installed():
+            raise ValueError('Cannot find Java installation. Java must be installed and on your PATH')
+
+        # Launch the gateway
         _lolopy_gateway = JavaGateway.launch_gateway(
             classpath=os.path.pathsep.join([os.path.abspath(lolo_path)]),
             javaopts=java_options,

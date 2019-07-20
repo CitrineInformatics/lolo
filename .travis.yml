@@ -19,8 +19,10 @@ jobs:
     install:
     - cd python
     - make
+    - pip install flake
     - pip install --only-binary=numpy,scipy -r requirements.txt
     script:
+    - flake8
     - nosetests
   - stage: deploy
     name: maven central
