@@ -10,7 +10,7 @@ import scala.util.Random
   * Find a split for a regression problem
   *
   * The splits are picked with a probability that is related to the reduction in variance:
-  * P(split) ~ exp[ - {reduction in variance} / ({temperature} * {total variance} ]
+  * P(split) ~ exp[ - {reduction in variance} / ({temperature} * {total variance}) ]
   * recalling that the "variance" here is weighted by the sample size (so its really the sum of the square difference
   * from the mean).  This is akin to kinetic monte carlo and simulated annealing techniques.
   *
@@ -50,18 +50,21 @@ case class BoltzmannSplitter(temperature: Double) extends Splitter[Double] {
     }
 
     val totalProbability = possibleSplits.map(_._3).sum
-    assert(totalProbability > 0, s"None of the splits on ${data.size} items had non-zero probability")
-
-    val draw = Random.nextDouble() * totalProbability
-    var cumSum: Double = 0.0
-    possibleSplits.foreach { case (split, variance, probability) =>
-      cumSum = cumSum + probability
-      if (draw < cumSum) {
-        val deltaImpurity = initialVariance - variance
-        return (split, deltaImpurity)
+    if (totalProbability == 0) {
+      (new NoSplit(), 0.0)
+    } else {
+      val draw = Random.nextDouble() * totalProbability
+      var cumSum: Double = 0.0
+      possibleSplits.foreach { case (split, variance, probability) =>
+        cumSum = cumSum + probability
+        if (draw < cumSum) {
+          val deltaImpurity = initialVariance - variance
+          return (split, deltaImpurity)
+        }
       }
+      // This shouldn't ever be hit
+      throw new RuntimeException(s"Draw was beyond all the probabilities ${draw} ${totalProbability}")
     }
-    throw new RuntimeException("Draw was beyond all the probabilities")
   }
 }
 
@@ -85,7 +88,7 @@ object BoltzmannSplitter {
 
     /* Move the data from the right to the left partition one value at a time */
     calculator.reset()
-    val possibleSplits: Seq[(Double, Double, Double)] = (0 until data.size - minCount).map { j =>
+    val possibleSplits: Seq[(Double, Double, Double)] = (0 until data.size - minCount).flatMap { j =>
       val totalVariance = calculator.add(thinData(j)._2, thinData(j)._3)
 
       /* Keep track of the best split, avoiding splits in the middle of constant sets of feature values
@@ -95,13 +98,17 @@ object BoltzmannSplitter {
        */
       val left = thinData(j + 1)._1
       val right = thinData(j)._1
-      val score: Double = if (j + 1 >= minCount && Splitter.isDifferent(left, right)) {
-        Math.exp(-totalVariance * beta)
+      if (j + 1 >= minCount && Splitter.isDifferent(left, right)) {
+        val score = Math.exp(-totalVariance * beta)
+        val pivot = (left - right) * Random.nextDouble() + right
+        Some(score, pivot, totalVariance)
       } else {
-        0.0
+        None
       }
-      val pivot = (left - right) * Random.nextDouble() + right
-      (score, pivot, totalVariance)
+    }
+
+    if (possibleSplits.isEmpty) {
+      return (new RealSplit(index, 0.0), calculator.getImpurity, 0.0)
     }
 
     val totalScore = possibleSplits.map(_._1).sum
@@ -145,7 +152,7 @@ object BoltzmannSplitter {
     /* Make sure there is more than one member for most of the classes */
     val nonTrivial: Double = groupedData.filter(_._2._3 > 1).map(_._2._2).sum
     if (nonTrivial / totalWeight < 0.5) {
-      return (new CategoricalSplit(index, BitSet()), Double.MaxValue, 0.0)
+      return (new CategoricalSplit(index, BitSet()), 0.0, 0.0)
     }
 
     /* Compute the average label for each categorical value */
@@ -159,23 +166,30 @@ object BoltzmannSplitter {
 
     /* Add the categories one at a time in order of their average label */
     calculator.reset()
-    val possibleSplits: Seq[(Double, mutable.BitSet, Double)] = (0 until orderedNames.size - 1).map { j =>
+    val possibleSplits: Seq[(Double, mutable.BitSet, Double)] = (0 until orderedNames.size - 1).flatMap { j =>
       val dat = groupedData(orderedNames(j))
       val totalVariance = calculator.add(dat._1 / dat._2, dat._2)
       leftNum += dat._3
 
-      val score = if (leftNum >= minCount && (thinData.size - leftNum) >= minCount) {
-        Math.exp(-totalVariance * beta)
+      if (leftNum >= minCount && (thinData.size - leftNum) >= minCount) {
+        val score = Math.exp(- totalVariance * beta)
+        val includeSet: mutable.BitSet = new mutable.BitSet() ++ orderedNames.slice(0, j + 1).map(_.toInt)
+        Some((score, includeSet, totalVariance))
       } else {
-        0
+        None
       }
-
-      val includeSet: mutable.BitSet = new mutable.BitSet() ++ orderedNames.slice(0, j + 1).map(_.toInt)
-
-      (score, includeSet, totalVariance)
     }
 
-    val totalScore = possibleSplits.map(_._1).sum
+    if (possibleSplits.isEmpty) {
+      return (new CategoricalSplit(index, new mutable.BitSet()), 0.0, 0.0)
+    }
+
+    val totalScore = possibleSplits.map{_._1}.sum
+    // If none of the splits were valid, return a dummy split with no weight
+    if (totalScore == 0.0) {
+      return (new CategoricalSplit(index, new mutable.BitSet()), 0.0, 0.0)
+    }
+
     val draw = Random.nextDouble() * totalScore
     var cumSum: Double = 0.0
     possibleSplits.foreach{case (score, includeSet, variance) =>
@@ -184,7 +198,8 @@ object BoltzmannSplitter {
           return (new CategoricalSplit(index, includeSet), variance, totalScore)
         }
     }
-    throw new RuntimeException("Draw was beyond all the probabilities")
+    // This should never be hit
+    throw new RuntimeException(s"Draw was beyond all the probabilities: $draw > $cumSum")
   }
 
 }

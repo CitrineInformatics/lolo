@@ -78,13 +78,13 @@ case class RegressionTreeLearner(
       new RegressionTrainingNode(
         finalTraining,
         myLeafLearner,
+        splitter,
         split,
         delta,
         numFeaturesActual,
         minLeafInstances = minLeafInstances,
         remainingDepth = maxDepth - 1,
-        maxDepth,
-        splitter
+        maxDepth
       )
     }
 
