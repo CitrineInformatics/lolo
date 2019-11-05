@@ -5,7 +5,7 @@ import java.io.{File, FileOutputStream, ObjectOutputStream}
 import io.citrine.lolo.TestUtils
 import io.citrine.lolo.linear.LinearRegressionLearner
 import io.citrine.lolo.stats.functions.Friedman
-import io.citrine.lolo.trees.splits.{AnnealingSplitter, RegressionSplitter}
+import io.citrine.lolo.trees.splits.{BoltzmannSplitter, RegressionSplitter}
 import org.junit.Test
 import org.scalatest.Assertions._
 
@@ -228,10 +228,10 @@ class RegressionTreeTest {
     * Test a simple tree with only real inputs
     */
   @Test
-  def testSimpleAnnealingTree(): Unit = {
+  def testSimpleBoltzmannTree(): Unit = {
     val csv = TestUtils.readCsv("double_example.csv")
     val trainingData = csv.map(vec => (vec.init, vec.last.asInstanceOf[Double]))
-    val DTLearner = RegressionTreeLearner(splitter = AnnealingSplitter(0.002))
+    val DTLearner = RegressionTreeLearner(splitter = BoltzmannSplitter(0.002))
     val DT = DTLearner.train(trainingData).getModel()
 
     /* We should be able to memorize the inputs */
@@ -255,6 +255,6 @@ object RegressionTreeTest {
     * @param argv args
     */
   def main(argv: Array[String]): Unit = {
-    new RegressionTreeTest().testSimpleAnnealingTree()
+    new RegressionTreeTest().testSimpleBoltzmannTree()
   }
 }

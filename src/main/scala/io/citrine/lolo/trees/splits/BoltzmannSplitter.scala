@@ -16,7 +16,7 @@ import scala.util.Random
   *
   * Created by maxhutch on 11/29/16.
   */
-case class AnnealingSplitter(temperature: Double) extends Splitter[Double] {
+case class BoltzmannSplitter(temperature: Double) extends Splitter[Double] {
   val minimumSupportedTemperature: Double = -1.0 / Math.log(Double.MinPositiveValue)
   require(temperature > minimumSupportedTemperature, s"Temperature must be > $minimumSupportedTemperature to avoid underflow")
 
@@ -43,8 +43,8 @@ case class AnnealingSplitter(temperature: Double) extends Splitter[Double] {
     val possibleSplits: Seq[(Split, Double, Double)] = Random.shuffle(featureIndices).take(numFeatures).map { index =>
       /* Use different spliters for each type */
       rep._1(index) match {
-        case _: Double => AnnealingSplitter.getBestRealSplit(data, calculator, index, minInstances, beta)
-        case _: Char => AnnealingSplitter.getBestCategoricalSplit(data, calculator, index, minInstances, beta)
+        case _: Double => BoltzmannSplitter.getBestRealSplit(data, calculator, index, minInstances, beta)
+        case _: Char => BoltzmannSplitter.getBestCategoricalSplit(data, calculator, index, minInstances, beta)
         case _: Any => throw new IllegalArgumentException("Trying to split unknown feature type")
       }
     }
@@ -65,7 +65,7 @@ case class AnnealingSplitter(temperature: Double) extends Splitter[Double] {
   }
 }
 
-object AnnealingSplitter {
+object BoltzmannSplitter {
   /**
     * Find the best split on a continuous variable
     *
