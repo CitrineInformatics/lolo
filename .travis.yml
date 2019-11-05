@@ -7,7 +7,7 @@ jobs:
   - stage: test
     language: scala
     scala: 2.12.4
-    jdk: oraclejdk8
+    jdk: oraclejdk9
     install:
     - mvn install -P !build-extras -DskipTests=true -Dmaven.javadoc.skip=true -B
     script:
@@ -26,7 +26,7 @@ jobs:
     name: maven central
     language: scala
     scala: 2.12.4
-    jdk: oraclejdk8
+    jdk: oraclejdk9
     script: true
     deploy:
       provider: script
