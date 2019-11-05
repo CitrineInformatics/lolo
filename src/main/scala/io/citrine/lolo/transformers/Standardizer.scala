@@ -1,6 +1,6 @@
 package io.citrine.lolo.transformers
 
-import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
+import io.citrine.lolo._
 
 /**
   * Standardize the training data to zero mean and unit variance before feeding it into another learner
@@ -10,16 +10,7 @@ import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
   *
   * Created by maxhutch on 2/19/17.
   */
-class Standardizer(baseLearner: Learner) extends Learner {
-
-  override def setHypers(moreHypers: Map[String, Any]): this.type = {
-    baseLearner.setHypers(moreHypers)
-    super.setHypers(moreHypers)
-  }
-
-  override def getHypers(): Map[String, Any] = {
-    baseLearner.getHypers() ++ hypers
-  }
+case class Standardizer(baseLearner: Learner) extends Learner {
 
   /**
     * Create affine transformations for continuous features and labels; pass data through to learner
@@ -40,7 +31,39 @@ class Standardizer(baseLearner: Learner) extends Learner {
     val standardTrainingData = Standardizer.applyStandardization(inputs, inputTrans).zip(Standardizer.applyStandardization(labels, outputTrans))
     val baseTrainingResult = baseLearner.train(standardTrainingData, weights)
 
-    new StandardizerTrainingResult(baseTrainingResult, Seq(outputTrans) ++ inputTrans, getHypers())
+    new StandardizerTrainingResult(baseTrainingResult, Seq(outputTrans) ++ inputTrans)
+  }
+}
+
+class MultiTaskStandardizer(baseLearner: MultiTaskLearner) extends MultiTaskLearner {
+
+  /**
+    * Train a model
+    *
+    * @param inputs  to train on
+    * @param labels  sequence of sequences of labels
+    * @param weights for the training rows, if applicable
+    * @return a sequence of training results, one for each label
+    */
+  override def train(inputs: Seq[Vector[Any]], labels: Seq[Seq[Any]], weights: Option[Seq[Double]]): Seq[TrainingResult] = {
+    val inputTrans = Standardizer.getMultiStandardization(inputs)
+    val outputTrans: Seq[Option[(Double, Double)]] = labels.map { labelSeq =>
+      if (labelSeq.head != null && labelSeq.head.isInstanceOf[Double]) {
+        Some(Standardizer.getStandardization(labelSeq.asInstanceOf[Seq[Double]].filterNot(_.isNaN())))
+      } else {
+        None
+      }
+    }
+    val standardInputs = Standardizer.applyStandardization(inputs, inputTrans)
+    val standardLabels = labels.zip(outputTrans).map { case (labelSeq, trans) =>
+      Standardizer.applyStandardization(labelSeq, trans)
+    }
+
+    val baseTrainingResult = baseLearner.train(standardInputs, standardLabels, weights)
+
+    baseTrainingResult.zip(outputTrans).map { case (base, trans) =>
+      new StandardizerTrainingResult(base, Seq(trans) ++ inputTrans)
+    }
   }
 }
 
@@ -49,12 +72,10 @@ class Standardizer(baseLearner: Learner) extends Learner {
   *
   * @param baseTrainingResult
   * @param trans
-  * @param hypers
   */
 class StandardizerTrainingResult(
                                   baseTrainingResult: TrainingResult,
-                                  trans: Seq[Option[(Double, Double)]],
-                                  hypers: Map[String, Any]
+                                  trans: Seq[Option[(Double, Double)]]
                                 ) extends TrainingResult {
   /**
     * Get the model contained in the training result
@@ -62,13 +83,6 @@ class StandardizerTrainingResult(
     * @return the model
     */
   override def getModel(): Model[PredictionResult[Any]] = new StandardizerModel(baseTrainingResult.getModel(), trans)
-
-  /**
-    * Get the hyperparameters used to train this model
-    *
-    * @return hypers set for model
-    */
-  override def getHypers(): Map[String, Any] = hypers
 
   override def getFeatureImportance(): Option[Vector[Double]] = baseTrainingResult.getFeatureImportance()
 }
@@ -143,6 +157,7 @@ class StandardizerPrediction[T](baseResult: PredictionResult[T], trans: Seq[Opti
       case None => None
       case Some(x) =>
         Some(x.map(g => g.zip(trans.tail).map {
+          case (0.0, Some((_, Double.PositiveInfinity))) => 0
           // If there was a (linear) transformer used on that input, take the slope "m" and rescale by it
           case (y: Double, Some((_, m))) => y * rescale * m
           // Otherwise, just rescale by the output transformer
@@ -169,7 +184,13 @@ object Standardizer {
   def getStandardization(values: Seq[Double]): (Double, Double) = {
     val mean = values.sum / values.size
     val scale = Math.sqrt(values.map(v => Math.pow(v - mean, 2)).sum / values.size)
-    (mean, 1.0 / scale)
+
+    // If there is zero variance, then the scaling doesn't matter; default to 1.0
+    if (scale > 0) {
+      (mean, 1.0 / scale)
+    } else {
+      (mean, 1.0)
+    }
   }
 
   /**

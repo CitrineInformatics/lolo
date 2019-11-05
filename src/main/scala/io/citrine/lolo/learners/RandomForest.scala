@@ -3,6 +3,7 @@ package io.citrine.lolo.learners
 import io.citrine.lolo.bags.Bagger
 import io.citrine.lolo.trees.classification.ClassificationTreeLearner
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
+import io.citrine.lolo.trees.splits.{ClassificationSplitter, RegressionSplitter}
 import io.citrine.lolo.{Learner, TrainingResult}
 
 /**
@@ -14,24 +15,23 @@ import io.citrine.lolo.{Learner, TrainingResult}
   * @param biasLearner    learner to model bias (absolute residual)
   * @param leafLearner    learner to use at the leaves of the trees
   * @param subsetStrategy for random feature selection at each split
-  *                       (auto => 1/3 for regression, sqrt for classification)
+  *                       (auto => all fetures for regression, sqrt for classification)
+  * @param minLeafInstances minimum number of instances per leave in each tree
+  * @param maxDepth       maximum depth of each tree in the forest (default: unlimited)
+  * @param uncertaintyCalibration whether to empirically recalibrate the predicted uncertainties (default: false)
+  * @param randomizePivotLocation whether generate splits randomly between the data points (default: false)
   */
-class RandomForest(
-                    numTrees: Int = -1,
-                    useJackknife: Boolean = true,
-                    biasLearner: Option[Learner] = None,
-                    leafLearner: Option[Learner] = None,
-                    subsetStrategy: Any = "auto"
-                  ) extends Learner {
-
-  setHypers(Map(
-    "numTrees" -> numTrees,
-    "useJackknife" -> useJackknife,
-    "biasLearner" -> biasLearner,
-    "leafLearner" -> leafLearner,
-    "subsetStrategy" -> subsetStrategy
-  ))
-
+case class RandomForest(
+                         numTrees: Int = -1,
+                         useJackknife: Boolean = true,
+                         biasLearner: Option[Learner] = None,
+                         leafLearner: Option[Learner] = None,
+                         subsetStrategy: Any = "auto",
+                         minLeafInstances: Int = 1,
+                         maxDepth: Int = Integer.MAX_VALUE,
+                         uncertaintyCalibration: Boolean = false,
+                         randomizePivotLocation: Boolean = false
+                       ) extends Learner {
   /**
     * Train a random forest model
     *
@@ -44,36 +44,43 @@ class RandomForest(
     */
   override def train(trainingData: Seq[(Vector[Any], Any)], weights: Option[Seq[Double]]): TrainingResult = {
     trainingData.head._2 match {
-      case x: Double =>
-        val numFeatures: Int = hypers("subsetStrategy") match {
+      case _: Double =>
+        val numFeatures: Int = subsetStrategy match {
           case x: String =>
             x match {
-              case "auto" => (trainingData.head._1.size / 3.0).toInt
-              case "sqrt" => Math.sqrt(trainingData.head._1.size).toInt
+              case "auto" => trainingData.head._1.size
+              case "sqrt" => Math.ceil(Math.sqrt(trainingData.head._1.size)).toInt
+              case "log2" => Math.ceil(Math.log(trainingData.head._1.size) / Math.log(2)).toInt
               case x: String =>
                 println(s"Unrecognized subsetStrategy ${x}; using auto")
-                (trainingData.head._1.size / 3.0).toInt
+                trainingData.head._1.size
             }
           case x: Int =>
             x
           case x: Double =>
             (trainingData.head._1.size * x).toInt
         }
-        val DTLearner = new RegressionTreeLearner(
-          leafLearner = hypers("leafLearner").asInstanceOf[Option[Learner]],
-          numFeatures = numFeatures)
-        val bagger = new Bagger(DTLearner,
-          numBags = hypers("numTrees").asInstanceOf[Int],
-          useJackknife = hypers("useJackknife").asInstanceOf[Boolean],
-          biasLearner = hypers("biasLearner").asInstanceOf[Option[Learner]]
+        val DTLearner = RegressionTreeLearner(
+          leafLearner = leafLearner,
+          numFeatures = numFeatures,
+          minLeafInstances = minLeafInstances,
+          maxDepth = maxDepth,
+          splitter = RegressionSplitter(randomizePivotLocation)
+        )
+        val bagger = Bagger(DTLearner,
+          numBags = numTrees,
+          useJackknife = useJackknife,
+          biasLearner = biasLearner,
+          uncertaintyCalibration = uncertaintyCalibration
         )
         bagger.train(trainingData, weights)
-      case x: Any =>
-        val numFeatures: Int = hypers("subsetStrategy") match {
+      case _: Any =>
+        val numFeatures: Int = subsetStrategy match {
           case x: String =>
             x match {
-              case "auto" => Math.sqrt(trainingData.head._1.size).toInt
-              case "sqrt" => Math.sqrt(trainingData.head._1.size).toInt
+              case "auto" => Math.ceil(Math.sqrt(trainingData.head._1.size)).toInt
+              case "sqrt" => Math.ceil(Math.sqrt(trainingData.head._1.size)).toInt
+              case "log2" => Math.ceil(Math.log(trainingData.head._1.size) / Math.log(2)).toInt
               case x: String =>
                 println(s"Unrecognized subsetStrategy ${x}; using auto")
                 Math.sqrt(trainingData.head._1.size).toInt
@@ -83,9 +90,15 @@ class RandomForest(
           case x: Double =>
             (trainingData.head._1.size * x).toInt
         }
-        val DTLearner = new ClassificationTreeLearner(numFeatures = numFeatures)
-        val bagger = new Bagger(DTLearner,
-          numBags = hypers("numTrees").asInstanceOf[Int]
+        val DTLearner = ClassificationTreeLearner(
+          leafLearner = leafLearner,
+          numFeatures = numFeatures,
+          minLeafInstances = minLeafInstances,
+          maxDepth = maxDepth,
+          splitter = ClassificationSplitter(randomizePivotLocation)
+        )
+        val bagger = Bagger(DTLearner,
+          numBags = numTrees
         )
         bagger.train(trainingData, weights)
     }

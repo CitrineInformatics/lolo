@@ -1,7 +1,7 @@
 package io.citrine.lolo.trees.regression
 
-import io.citrine.lolo.trees.splits.{NoSplit, RegressionSplitter, Split}
-import io.citrine.lolo.trees.{InternalModelNode, ModelNode, TrainingLeaf, TrainingNode}
+import io.citrine.lolo.trees.splits.{NoSplit, RegressionSplitter, Split, Splitter}
+import io.citrine.lolo.trees.{InternalModelNode, ModelNode, TrainingNode}
 import io.citrine.lolo.{Learner, PredictionResult}
 
 /**
@@ -15,7 +15,8 @@ class RegressionTrainingNode(
                               numFeatures: Int,
                               minLeafInstances: Int,
                               remainingDepth: Int,
-                              maxDepth: Int
+                              maxDepth: Int,
+                              splitter: Splitter[Double]
                             )
   extends TrainingNode(
     trainingData = trainingData,
@@ -29,9 +30,9 @@ class RegressionTrainingNode(
   lazy val (leftTrain, rightTrain) = trainingData.partition(r => split.turnLeft(r._1))
   assert(leftTrain.nonEmpty && rightTrain.nonEmpty, s"Split ${split} resulted in zero size: ${trainingData.map(_._1(split.getIndex()))}")
 
-  lazy val leftChild = RegressionTrainingNode.buildChild(leftTrain, leafLearner, minLeafInstances, remainingDepth, maxDepth, numFeatures)
+  lazy val leftChild = RegressionTrainingNode.buildChild(leftTrain, leafLearner, minLeafInstances, remainingDepth, maxDepth, numFeatures, splitter)
 
-  lazy val rightChild = RegressionTrainingNode.buildChild(rightTrain, leafLearner, minLeafInstances, remainingDepth, maxDepth, numFeatures)
+  lazy val rightChild = RegressionTrainingNode.buildChild(rightTrain, leafLearner, minLeafInstances, remainingDepth, maxDepth, numFeatures, splitter)
 
   /**
     * Get the lightweight prediction node for the output tree
@@ -47,6 +48,7 @@ class RegressionTrainingNode(
     *
     * This routine sums the importance from the children and adds the local
     * improvement to the feature used in this split
+    *
     * @return feature importance as a vector
     */
   override def getFeatureImportance(): scala.collection.mutable.ArraySeq[Double] = {
@@ -81,12 +83,13 @@ object RegressionTrainingNode {
                   minLeafInstances: Int,
                   remainingDepth: Int,
                   maxDepth: Int,
-                  numFeatures: Int
+                  numFeatures: Int,
+                  splitter: Splitter[Double]
                 ): TrainingNode[AnyVal, Double] = {
     if (trainingData.size >= 2 * minLeafInstances && remainingDepth > 0 && trainingData.exists(_._2 != trainingData.head._2)) {
-      val (leftSplit, leftDelta) = RegressionSplitter.getBestSplit(trainingData, numFeatures, minLeafInstances)
+      val (leftSplit, leftDelta) = splitter.getBestSplit(trainingData, numFeatures, minLeafInstances)
       if (!leftSplit.isInstanceOf[NoSplit]) {
-        new RegressionTrainingNode(trainingData, leafLearner, leftSplit, leftDelta, numFeatures, minLeafInstances, remainingDepth - 1, maxDepth)
+        new RegressionTrainingNode(trainingData, leafLearner, leftSplit, leftDelta, numFeatures, minLeafInstances, remainingDepth - 1, maxDepth, splitter)
       } else {
         new RegressionTrainingLeaf(trainingData, leafLearner, maxDepth - remainingDepth)
       }

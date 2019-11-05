@@ -30,6 +30,7 @@ trait PredictionResult[+T] {
 
   /**
     * Get the improvement (positive) or damage (negative) due to each training row on a prediction
+    *
     * @param actuals to assess the improvement or damage against
     * @return Sequence (over predictions) of sequence (over training rows) of influence
     */

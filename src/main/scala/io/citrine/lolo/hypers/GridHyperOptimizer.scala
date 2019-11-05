@@ -6,10 +6,8 @@ import io.citrine.lolo.Learner
   * Brute force search over the grid of hypers
   *
   * Created by maxhutch on 12/7/16.
-  *
-  * @param base learner to optimize parameters for
   */
-class GridHyperOptimizer(base: Learner) extends HyperOptimizer(base) {
+case class GridHyperOptimizer() extends HyperOptimizer {
 
   /**
     * Search by enumerating every combination of hyper values
@@ -18,7 +16,7 @@ class GridHyperOptimizer(base: Learner) extends HyperOptimizer(base) {
     * @param numIterations ignored, since this is a brute force search
     * @return the best hyper map found in the search space
     */
-  override def optimize(trainingData: Seq[(Vector[Any], Any)], numIterations: Int = 1): (Map[String, Any], Double) = {
+  override def optimize(trainingData: Seq[(Vector[Any], Any)], numIterations: Int = 1, builder: Map[String, Any] => Learner): (Map[String, Any], Double) = {
     var best: Map[String, Any] = Map()
     var loss = Double.MaxValue
     /* Get the size of each dimension for index arithmetic */
@@ -36,7 +34,7 @@ class GridHyperOptimizer(base: Learner) extends HyperOptimizer(base) {
       }
 
       /* Set up a learner with these parameters and compute the loss */
-      val testLearner = base.setHypers(testHypers)
+      val testLearner = builder(testHypers)
       val res = testLearner.train(trainingData)
       if (res.getLoss().isEmpty) {
         throw new IllegalArgumentException("Trying to optimize hyper-paramters for a learner without getLoss")

@@ -1,5 +1,7 @@
 package io.citrine.lolo.trees.splits
 
+import io.citrine.lolo.trees.impurity.VarianceCalculator
+
 import scala.collection.immutable.BitSet
 import scala.util.Random
 
@@ -18,7 +20,7 @@ import scala.util.Random
   *
   * Created by maxhutch on 11/29/16.
   */
-object RegressionSplitter extends Splitter[Double] {
+case class RegressionSplitter(randomizePivotLocation: Boolean = false) extends Splitter[Double] {
 
   /**
     * Get the best split, considering numFeature random features (w/o replacement)
@@ -27,13 +29,16 @@ object RegressionSplitter extends Splitter[Double] {
     * @param numFeatures to consider, randomly
     * @return a split object that optimally divides data
     */
-  def getBestSplit(data: Seq[(Vector[AnyVal], Double, Double)], numFeatures: Int, minInstances: Int): (Split, Double) = {
+  def getBestSplit(
+                    data: Seq[(Vector[AnyVal], Double, Double)],
+                    numFeatures: Int,
+                    minInstances: Int
+                  ): (Split, Double) = {
+
+    val calculator = VarianceCalculator.build(data.map(_._2), data.map(_._3))
+    val initialVariance = calculator.getImpurity
     var bestSplit: Split = new NoSplit()
     var bestVariance = Double.MaxValue
-
-    /* Pre-compute these for the variance calculation */
-    val totalSum = data.map(d => d._2 * d._3).sum
-    val totalWeight = data.map(d => d._3).sum
 
     val rep = data.head
 
@@ -43,9 +48,9 @@ object RegressionSplitter extends Splitter[Double] {
 
       /* Use different spliters for each type */
       val (possibleSplit, possibleVariance) = rep._1(index) match {
-        case x: Double => getBestRealSplit(data, totalSum, totalWeight, index, minInstances)
-        case x: Char => getBestCategoricalSplit(data, totalSum, totalWeight, index, minInstances)
-        case x: Any => throw new IllegalArgumentException("Trying to split unknown feature type")
+        case _: Double => getBestRealSplit(data, calculator.copy(), index, minInstances, randomizePivotLocation)
+        case _: Char => getBestCategoricalSplit(data, calculator.copy(), index, minInstances)
+        case _: Any => throw new IllegalArgumentException("Trying to split unknown feature type")
       }
 
       /* Keep track of the best split */
@@ -57,47 +62,59 @@ object RegressionSplitter extends Splitter[Double] {
     if (bestVariance == Double.MaxValue) {
       (new NoSplit(), 0.0)
     } else {
-      val deltaImpurity = -bestVariance - totalSum * totalSum / totalWeight
+      val deltaImpurity = initialVariance - bestVariance
       (bestSplit, deltaImpurity)
     }
   }
 
   /**
-    * Find the best split on a continuous variable
+    * Find the best split on a continuous variable.
     *
-    * @param data        to split
-    * @param totalSum    Pre-computed data.map(d => data._2 * data._3).sum
-    * @param totalWeight Pre-computed data.map(d => d._3).sum
-    * @param index       of the feature to split on
+    * If randomizePivotLocation is true, the split pivots are drawn from a uniform random distribution between the two
+    * data points.  Each such pivot results in the same data split, but randomization can improve generalizability,
+    * particularly as part of an ensemble (i.e. random forests).
+    *
+    * @param data  to split
+    * @param index of the feature to split on
+    * @param minCount minimum number of data points to allow in each of the resulting splits
+    * @param randomizePivotLocation whether generate splits randomly between the data points (default: false)
     * @return the best split of this feature
     */
-  def getBestRealSplit(data: Seq[(Vector[AnyVal], Double, Double)], totalSum: Double, totalWeight: Double, index: Int, minCount: Int): (RealSplit, Double) = {
+  def getBestRealSplit(
+                        data: Seq[(Vector[AnyVal], Double, Double)],
+                        calculator: VarianceCalculator,
+                        index: Int,
+                        minCount: Int,
+                        randomizePivotLocation: Boolean = false
+                      ): (RealSplit, Double) = {
     /* Pull out the feature that's considered here and sort by it */
     val thinData = data.map(dat => (dat._1(index).asInstanceOf[Double], dat._2, dat._3)).sortBy(_._1)
 
+
     /* Base cases for iteration */
-    var leftSum = 0.0
-    var leftWeight = 0.0
     var bestVariance = Double.MaxValue
     var bestPivot = Double.MinValue
 
     /* Move the data from the right to the left partition one value at a time */
+    calculator.reset()
     (0 until data.size - minCount).foreach { j =>
-      leftSum = leftSum + thinData(j)._2 * thinData(j)._3
-      leftWeight = leftWeight + thinData(j)._3
-
-      /* This is just relative, so we can subtract off the sum of the squares, data.map(Math.pow(_._2, 2)) */
-      val totalVariance = -leftSum * leftSum / leftWeight - Math.pow(totalSum - leftSum, 2) / (totalWeight - leftWeight)
+      val totalVariance = calculator.add(thinData(j)._2, thinData(j)._3)
 
       /* Keep track of the best split, avoiding splits in the middle of constant sets of feature values
          It is really important for performance to keep these checks together so
          1) there is only one branch and
          2) it is usually false
        */
-      if (totalVariance < bestVariance && j + 1 >= minCount && Math.abs((thinData(j + 1)._1 - thinData(j)._1) / thinData(j)._1) > 1.0e-9) {
+      val left = thinData(j + 1)._1
+      val right = thinData(j)._1
+      if (totalVariance < bestVariance && j + 1 >= minCount && Splitter.isDifferent(left, right)) {
         bestVariance = totalVariance
         /* Try pivots at the midpoints between consecutive member values */
-        bestPivot = (thinData(j + 1)._1 + thinData(j)._1) / 2.0 // thinData(j)._1 //
+        bestPivot = if (randomizePivotLocation) {
+          (left - right) * Random.nextDouble() + right
+        } else {
+          (left + right) / 2.0
+        }
       }
     }
     (new RealSplit(index, bestPivot), bestVariance)
@@ -106,21 +123,19 @@ object RegressionSplitter extends Splitter[Double] {
   /**
     * Get find the best categorical splitter.
     *
-    * @param data        to split
-    * @param totalSum    Pre-computed data.map(d => data._2 * data._3).sum
-    * @param totalWeight Pre-computed data.map(d => d._3).sum
-    * @param index       of the feature to split on
+    * @param data  to split
+    * @param index of the feature to split on
     * @return the best split of this feature
     */
   def getBestCategoricalSplit(
                                data: Seq[(Vector[AnyVal], Double, Double)],
-                               totalSum: Double,
-                               totalWeight: Double,
+                               calculator: VarianceCalculator,
                                index: Int,
                                minCount: Int
                              ): (CategoricalSplit, Double) = {
     /* Extract the features at the index */
     val thinData = data.map(dat => (dat._1(index).asInstanceOf[Char], dat._2, dat._3))
+    val totalWeight = thinData.map(_._3).sum
 
     /* Group the data by categorical feature and compute the weighted sum and sum of the weights for each */
     val groupedData = thinData.groupBy(_._1).mapValues(g => (g.map(v => v._2 * v._3).sum, g.map(_._3).sum, g.size))
@@ -138,21 +153,17 @@ object RegressionSplitter extends Splitter[Double] {
     val orderedNames = categoryAverages.toSeq.sortBy(_._2).map(_._1)
 
     /* Base cases for the iteration */
-    var leftSum = 0.0
-    var leftWeight = 0.0
     var leftNum: Int = 0
     var bestVariance = Double.MaxValue
     var bestSet = Set.empty[Char]
 
     /* Add the categories one at a time in order of their average label */
+    calculator.reset()
     (0 until orderedNames.size - 1).foreach { j =>
       val dat = groupedData(orderedNames(j))
-      leftSum = leftSum + dat._1
-      leftWeight = leftWeight + dat._2
-      leftNum = leftNum + dat._3
+      val totalVariance = calculator.add(dat._1 / dat._2, dat._2)
 
-      /* This is just relative, so we can subtract off the sum of the squares, data.map(Math.pow(_._2, 2)) */
-      val totalVariance = -leftSum * leftSum / leftWeight - Math.pow(totalSum - leftSum, 2) / (totalWeight - leftWeight)
+      leftNum = leftNum + dat._3
 
       /* Keep track of the best split */
       if (totalVariance < bestVariance && leftNum >= minCount && (thinData.size - leftNum) >= minCount) {
