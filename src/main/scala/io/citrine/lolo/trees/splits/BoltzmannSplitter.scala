@@ -1,8 +1,8 @@
 package io.citrine.lolo.trees.splits
 
 import io.citrine.lolo.trees.impurity.VarianceCalculator
+import io.citrine.lolo.trees.splits.BoltzmannSplitter.SplitterResult
 
-import scala.collection.immutable.BitSet
 import scala.collection.mutable
 import scala.util.Random
 
@@ -15,6 +15,8 @@ import scala.util.Random
   * from the mean).  This is akin to kinetic monte carlo and simulated annealing techniques.
   *
   * Created by maxhutch on 11/29/16.
+  *
+  * @param temperature used to control how sensitive the probability of a split is to its change in variance
   */
 case class BoltzmannSplitter(temperature: Double) extends Splitter[Double] {
 
@@ -38,7 +40,7 @@ case class BoltzmannSplitter(temperature: Double) extends Splitter[Double] {
     /* Try every feature index */
     val featureIndices: Seq[Int] = rep._1.indices
 
-    val possibleSplits: Seq[(Split, Double, Double, Double)] = Random.shuffle(featureIndices).take(numFeatures).map { index =>
+    val possibleSplits: Seq[SplitterResult] = Random.shuffle(featureIndices).take(numFeatures).flatMap { index =>
       /* Use different spliters for each type */
       rep._1(index) match {
         case _: Double => BoltzmannSplitter.getBestRealSplit(data, calculator, index, minInstances, beta)
@@ -47,34 +49,58 @@ case class BoltzmannSplitter(temperature: Double) extends Splitter[Double] {
       }
     }
 
-    val rebase = possibleSplits.map(_._4).max
-
-    val totalProbability = possibleSplits.map{case (_, _, prob, base) => prob * Math.exp(base - rebase)}.sum
-    if (totalProbability == 0) {
-      (new NoSplit(), 0.0)
-    } else {
-      val draw = Random.nextDouble() * totalProbability
-      var cumSum: Double = 0.0
-      possibleSplits.foreach { case (split, variance, probability, base) =>
-        cumSum = cumSum + probability * Math.exp(base - rebase)
-        if (draw < cumSum) {
-          val deltaImpurity = initialVariance - variance
-          return (split, deltaImpurity)
-        }
-      }
-      // This shouldn't ever be hit
-      throw new RuntimeException(s"Draw was beyond all the probabilities ${draw} ${totalProbability}")
+    // If we couldn't find a split, then return NoSplit with no variance reduction
+    if (possibleSplits.isEmpty) {
+      return (new NoSplit(), 0.0)
     }
+
+    // Re-based the probabilities, such that the largest probability is order-1.0
+    // This is meant to avoid every probability underflowing
+    val rebase = possibleSplits.map(_.base).max
+    val totalProbability = possibleSplits.map { x => x.rebasedScore * Math.exp(x.base - rebase) }.sum
+
+    // select from a discrete probability distribution by drawing a random number and then computing the CDF
+    // where the "draw" is the bin for which the CDF crosses the drawn number
+    val draw = Random.nextDouble() * totalProbability
+    // could be a scanLeft + find, but this is more readable
+    var cumSum: Double = 0.0
+    possibleSplits.foreach { case SplitterResult(split, variance, score, base) =>
+      // Here's the probability rebasing again
+      cumSum = cumSum + score * Math.exp(base - rebase)
+      if (draw < cumSum) {
+        val deltaImpurity = initialVariance - variance
+        return (split, deltaImpurity)
+      }
+    }
+    // This shouldn't ever be hit
+    throw new RuntimeException(s"Draw was beyond all the probabilities ${draw} ${totalProbability}")
   }
 }
 
 object BoltzmannSplitter {
+
+  /**
+    * Container for function returns, like a decorated tuple
+    *
+    * The true score (proportional to draw probability) is rebasedScore * Math.exp(base).  This decomposition
+    * is such that rebasedScore should always be >= 1.0.
+    */
+  protected case class SplitterResult(split: Split, variance: Double, rebasedScore: Double, base: Double) {
+    // The rebasing procedure should result in rebasedScores that are >= 1.0 with finite bases
+    // Otherwise, None should have been returned
+    require(rebasedScore >= 1.0)
+    require(!base.isNegInfinity)
+  }
+
   /**
     * Find the best split on a continuous variable
     *
-    * @param data        to split
-    * @param index       of the feature to split on
-    * @return the best split of this feature
+    * @param data  to split
+    * @param calculator that will efficiently compute the impurity (variance in this case)
+    * @param index of the feature to split on
+    * @param minCount minimum number of training instances to leave in each of the children nodes
+    * @param beta the inverse temperature (1.0 / (temperature * initial variance)) to scale the variances by
+    * @return the best split of this feature, along with its score, base, and result variance
     */
   def getBestRealSplit(
                         data: Seq[(Vector[AnyVal], Double, Double)],
@@ -82,7 +108,7 @@ object BoltzmannSplitter {
                         index: Int,
                         minCount: Int,
                         beta: Double
-                      ): (RealSplit, Double, Double, Double) = {
+                      ): Option[SplitterResult] = {
     /* Pull out the feature that's considered here and sort by it */
     val thinData = data.map(dat => (dat._1(index).asInstanceOf[Double], dat._2, dat._3)).sortBy(_._1)
 
@@ -108,33 +134,32 @@ object BoltzmannSplitter {
     }
 
     if (possibleSplits.isEmpty) {
-      return (new RealSplit(index, 0.0), calculator.getImpurity, 0.0, Double.NegativeInfinity)
+      return None
     }
 
     val base: Double = possibleSplits.map(_._1).max
-    val totalScore = possibleSplits.map{case (s, _, _) => Math.exp(s - base)}.sum
-    if (totalScore > 0) {
-      val draw = Random.nextDouble() * totalScore
-      var cumSum: Double = 0.0
-      possibleSplits.foreach { case (score, pivot, variance) =>
-        cumSum = cumSum + Math.exp(score - base)
-        if (draw < cumSum) {
-          return (new RealSplit(index, pivot), variance, totalScore, base)
-        }
+    val totalScore = possibleSplits.map { case (s, _, _) => Math.exp(s - base) }.sum
+    val draw = Random.nextDouble() * totalScore
+    var cumSum: Double = 0.0
+    possibleSplits.foreach { case (score, pivot, variance) =>
+      cumSum = cumSum + Math.exp(score - base)
+      if (draw < cumSum) {
+        return Some(SplitterResult(new RealSplit(index, pivot), variance, totalScore, base))
       }
-      throw new RuntimeException(s"Draw was beyond all the probabilities: ${draw} > $cumSum")
-    } else {
-      val selected = possibleSplits(Random.nextInt(possibleSplits.size))
-      (new RealSplit(index, selected._2), selected._3, totalScore, base)
     }
+    // This should never be hit; it would mean there's a bug in the logic above ^^
+    throw new RuntimeException(s"Draw was beyond all the probabilities: ${draw} > $cumSum")
   }
 
   /**
     * Get find the best categorical splitter.
     *
-    * @param data        to split
-    * @param index       of the feature to split on
-    * @return the best split of this feature
+    * @param data  to split
+    * @param calculator that will efficiently compute the impurity (variance in this case)
+    * @param index of the feature to split on
+    * @param minCount minimum number of training instances to leave in each of the children nodes
+    * @param beta the inverse temperature (1.0 / (temperature * initial variance)) to scale the variances by
+    * @return the best split of this feature, along with its score, base, and result variance
     */
   def getBestCategoricalSplit(
                                data: Seq[(Vector[AnyVal], Double, Double)],
@@ -142,7 +167,7 @@ object BoltzmannSplitter {
                                index: Int,
                                minCount: Int,
                                beta: Double
-                             ): (CategoricalSplit, Double, Double, Double) = {
+                             ): Option[SplitterResult] = {
     /* Extract the features at the index */
     val thinData = data.map(dat => (dat._1(index).asInstanceOf[Char], dat._2, dat._3))
     val totalWeight = thinData.map(_._3).sum
@@ -153,7 +178,7 @@ object BoltzmannSplitter {
     /* Make sure there is more than one member for most of the classes */
     val nonTrivial: Double = groupedData.filter(_._2._3 > 1).map(_._2._2).sum
     if (nonTrivial / totalWeight < 0.5) {
-      return (new CategoricalSplit(index, BitSet()), 0.0, 0.0, Double.NegativeInfinity)
+      return None
     }
 
     /* Compute the average label for each categorical value */
@@ -173,7 +198,7 @@ object BoltzmannSplitter {
       leftNum += dat._3
 
       if (leftNum >= minCount && (thinData.size - leftNum) >= minCount) {
-        val score = - totalVariance * beta
+        val score = -totalVariance * beta
         val includeSet: mutable.BitSet = new mutable.BitSet() ++ orderedNames.slice(0, j + 1).map(_.toInt)
         Some((score, includeSet, totalVariance))
       } else {
@@ -182,26 +207,20 @@ object BoltzmannSplitter {
     }
 
     if (possibleSplits.isEmpty) {
-      return (new CategoricalSplit(index, new mutable.BitSet()), 0.0, 0.0, Double.NegativeInfinity)
+      return None
     }
 
     val base: Double = possibleSplits.map(_._1).max
-    val totalScore = possibleSplits.map{case (s, _, _) => Math.exp(s - base)}.sum
-    // If none of the splits were valid, return a dummy split with no weight
-    if (totalScore == 0.0) {
-      return (new CategoricalSplit(index, new mutable.BitSet()), 0.0, 0.0, Double.NegativeInfinity)
-    }
-
+    val totalScore = possibleSplits.map { case (s, _, _) => Math.exp(s - base) }.sum
     val draw = Random.nextDouble() * totalScore
     var cumSum: Double = 0.0
-    possibleSplits.foreach{case (score, includeSet, variance) =>
-        cumSum = cumSum + Math.exp(score - base)
-        if (draw < cumSum) {
-          return (new CategoricalSplit(index, includeSet), variance, totalScore, base)
-        }
+    possibleSplits.foreach { case (score, includeSet, variance) =>
+      cumSum = cumSum + Math.exp(score - base)
+      if (draw < cumSum) {
+        return Some(SplitterResult(new CategoricalSplit(index, includeSet), variance, totalScore, base))
+      }
     }
-    // This should never be hit
+    // This should never be hit; it would mean there's a bug in the logic above ^^
     throw new RuntimeException(s"Draw was beyond all the probabilities: $draw > $cumSum")
   }
-
 }
