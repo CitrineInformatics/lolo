@@ -17,8 +17,6 @@ import scala.util.Random
   * Created by maxhutch on 11/29/16.
   */
 case class BoltzmannSplitter(temperature: Double) extends Splitter[Double] {
-  val minimumSupportedTemperature: Double = -1.0 / Math.log(Double.MinPositiveValue)
-  require(temperature > minimumSupportedTemperature, s"Temperature must be > $minimumSupportedTemperature to avoid underflow")
 
   /**
     * Get the a split probabalisticly, considering numFeature random features (w/o replacement), ensuring that the
@@ -40,7 +38,7 @@ case class BoltzmannSplitter(temperature: Double) extends Splitter[Double] {
     /* Try every feature index */
     val featureIndices: Seq[Int] = rep._1.indices
 
-    val possibleSplits: Seq[(Split, Double, Double)] = Random.shuffle(featureIndices).take(numFeatures).map { index =>
+    val possibleSplits: Seq[(Split, Double, Double, Double)] = Random.shuffle(featureIndices).take(numFeatures).map { index =>
       /* Use different spliters for each type */
       rep._1(index) match {
         case _: Double => BoltzmannSplitter.getBestRealSplit(data, calculator, index, minInstances, beta)
@@ -49,14 +47,16 @@ case class BoltzmannSplitter(temperature: Double) extends Splitter[Double] {
       }
     }
 
-    val totalProbability = possibleSplits.map(_._3).sum
+    val rebase = possibleSplits.map(_._4).max
+
+    val totalProbability = possibleSplits.map{case (_, _, prob, base) => prob * Math.exp(base - rebase)}.sum
     if (totalProbability == 0) {
       (new NoSplit(), 0.0)
     } else {
       val draw = Random.nextDouble() * totalProbability
       var cumSum: Double = 0.0
-      possibleSplits.foreach { case (split, variance, probability) =>
-        cumSum = cumSum + probability
+      possibleSplits.foreach { case (split, variance, probability, base) =>
+        cumSum = cumSum + probability * Math.exp(base - rebase)
         if (draw < cumSum) {
           val deltaImpurity = initialVariance - variance
           return (split, deltaImpurity)
@@ -82,7 +82,7 @@ object BoltzmannSplitter {
                         index: Int,
                         minCount: Int,
                         beta: Double
-                      ): (RealSplit, Double, Double) = {
+                      ): (RealSplit, Double, Double, Double) = {
     /* Pull out the feature that's considered here and sort by it */
     val thinData = data.map(dat => (dat._1(index).asInstanceOf[Double], dat._2, dat._3)).sortBy(_._1)
 
@@ -99,7 +99,7 @@ object BoltzmannSplitter {
       val left = thinData(j + 1)._1
       val right = thinData(j)._1
       if (j + 1 >= minCount && Splitter.isDifferent(left, right)) {
-        val score = Math.exp(-totalVariance * beta)
+        val score = -totalVariance * beta
         val pivot = (left - right) * Random.nextDouble() + right
         Some(score, pivot, totalVariance)
       } else {
@@ -108,23 +108,24 @@ object BoltzmannSplitter {
     }
 
     if (possibleSplits.isEmpty) {
-      return (new RealSplit(index, 0.0), calculator.getImpurity, 0.0)
+      return (new RealSplit(index, 0.0), calculator.getImpurity, 0.0, Double.NegativeInfinity)
     }
 
-    val totalScore = possibleSplits.map(_._1).sum
+    val base: Double = possibleSplits.map(_._1).max
+    val totalScore = possibleSplits.map{case (s, _, _) => Math.exp(s - base)}.sum
     if (totalScore > 0) {
       val draw = Random.nextDouble() * totalScore
       var cumSum: Double = 0.0
       possibleSplits.foreach { case (score, pivot, variance) =>
-        cumSum = cumSum + score
+        cumSum = cumSum + Math.exp(score - base)
         if (draw < cumSum) {
-          return (new RealSplit(index, pivot), variance, totalScore)
+          return (new RealSplit(index, pivot), variance, totalScore, base)
         }
       }
       throw new RuntimeException(s"Draw was beyond all the probabilities: ${draw} > $cumSum")
     } else {
       val selected = possibleSplits(Random.nextInt(possibleSplits.size))
-      (new RealSplit(index, selected._2), selected._3, totalScore)
+      (new RealSplit(index, selected._2), selected._3, totalScore, base)
     }
   }
 
@@ -141,7 +142,7 @@ object BoltzmannSplitter {
                                index: Int,
                                minCount: Int,
                                beta: Double
-                             ): (CategoricalSplit, Double, Double) = {
+                             ): (CategoricalSplit, Double, Double, Double) = {
     /* Extract the features at the index */
     val thinData = data.map(dat => (dat._1(index).asInstanceOf[Char], dat._2, dat._3))
     val totalWeight = thinData.map(_._3).sum
@@ -152,7 +153,7 @@ object BoltzmannSplitter {
     /* Make sure there is more than one member for most of the classes */
     val nonTrivial: Double = groupedData.filter(_._2._3 > 1).map(_._2._2).sum
     if (nonTrivial / totalWeight < 0.5) {
-      return (new CategoricalSplit(index, BitSet()), 0.0, 0.0)
+      return (new CategoricalSplit(index, BitSet()), 0.0, 0.0, Double.NegativeInfinity)
     }
 
     /* Compute the average label for each categorical value */
@@ -172,7 +173,7 @@ object BoltzmannSplitter {
       leftNum += dat._3
 
       if (leftNum >= minCount && (thinData.size - leftNum) >= minCount) {
-        val score = Math.exp(- totalVariance * beta)
+        val score = - totalVariance * beta
         val includeSet: mutable.BitSet = new mutable.BitSet() ++ orderedNames.slice(0, j + 1).map(_.toInt)
         Some((score, includeSet, totalVariance))
       } else {
@@ -181,21 +182,22 @@ object BoltzmannSplitter {
     }
 
     if (possibleSplits.isEmpty) {
-      return (new CategoricalSplit(index, new mutable.BitSet()), 0.0, 0.0)
+      return (new CategoricalSplit(index, new mutable.BitSet()), 0.0, 0.0, Double.NegativeInfinity)
     }
 
-    val totalScore = possibleSplits.map{_._1}.sum
+    val base: Double = possibleSplits.map(_._1).max
+    val totalScore = possibleSplits.map{case (s, _, _) => Math.exp(s - base)}.sum
     // If none of the splits were valid, return a dummy split with no weight
     if (totalScore == 0.0) {
-      return (new CategoricalSplit(index, new mutable.BitSet()), 0.0, 0.0)
+      return (new CategoricalSplit(index, new mutable.BitSet()), 0.0, 0.0, Double.NegativeInfinity)
     }
 
     val draw = Random.nextDouble() * totalScore
     var cumSum: Double = 0.0
     possibleSplits.foreach{case (score, includeSet, variance) =>
-        cumSum = cumSum + score
+        cumSum = cumSum + Math.exp(score - base)
         if (draw < cumSum) {
-          return (new CategoricalSplit(index, includeSet), variance, totalScore)
+          return (new CategoricalSplit(index, includeSet), variance, totalScore, base)
         }
     }
     // This should never be hit
