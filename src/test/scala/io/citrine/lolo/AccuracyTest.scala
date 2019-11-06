@@ -11,40 +11,55 @@ import org.junit.Test
   */
 class AccuracyTest {
 
-  val noiseLevel = 0.000
-  val nFeat = 10
-  val nRow = 128
-  val nScal = 2
-  val trainingData = TestUtils.binTrainingData(TestUtils.generateTrainingData(nRow, nFeat, noise = noiseLevel, seed = 3L), inputBins = Seq((4, 32)))
-  val minInstances = 1
+  val noiseLevel: Double = 0.000
+  val nFeat: Int = 10
+  val nRow: Int = 128
+  val nScal: Int = 2
+  val minInstances: Int = 1
 
+  val trainingData: Seq[(Vector[Any], Double)]  = TestUtils.binTrainingData(
+    TestUtils.generateTrainingData(nRow, nFeat, noise = noiseLevel, seed = 3L),
+    inputBins = Seq((4, 32))
+  ).asInstanceOf[Seq[(Vector[Any], Double)]] // binTrainingData isn't binning the labels
+
+  // Get the out-of-bag RMSE
   private def computeMetrics(learner: Learner): Double = {
-    val pva = learner.train(trainingData).getLoss().get
-    pva
+    learner.train(trainingData).getLoss().get
   }
 
+  /**
+    * Quick sanity check of the test setup
+    */
   @Test
   def testRandomForest(): Unit = {
-    val baseLearner = new RegressionTreeLearner(numFeatures = nFeat / 3, minLeafInstances = minInstances)
+    val baseLearner = RegressionTreeLearner(numFeatures = nFeat / 3, minLeafInstances = minInstances)
     val learner = new Bagger(baseLearner, numBags = nRow * nScal)
     val error = computeMetrics(learner)
     assert(error > noiseLevel, s"Can't do better than noise")
-    println(s"Error in RF is ${error}")
+    assert(error < 4.0, "Error increased, probably due to a change in configuration")
   }
 
+  /**
+    * Check that a low-temperature Boltzmann Tree recovers the performance of a normal RF (with randomized pivots)
+    */
   @Test
   def testLowTLimit(): Unit = {
-    println("Hello?")
     val errorStandardTree = {
-      val baseLearner = new RegressionTreeLearner(numFeatures = nFeat)
+      val baseLearner = RegressionTreeLearner(
+        numFeatures = nFeat,
+        splitter = RegressionSplitter(randomizePivotLocation = true)
+      )
       val learner = new Bagger(baseLearner, numBags = nRow * 16)
-      println(s"Normal train time: ${Stopwatch.time(computeMetrics(learner))}")
+      // println(s"Normal train time: ${Stopwatch.time(computeMetrics(learner))}")
       computeMetrics(learner)
     }
     val errorAnnealingTree = {
-      val baseLearner = new RegressionTreeLearner(splitter = BoltzmannSplitter(temperature = 1.0e-9))
+      val baseLearner = RegressionTreeLearner(
+        numFeatures = nFeat,
+        splitter = BoltzmannSplitter(temperature = 1.0e-9)
+      )
       val learner = new Bagger(baseLearner, numBags = nRow * 16)
-      println(s"Annealing train time: ${Stopwatch.time(computeMetrics(learner))}")
+      // println(s"Annealing train time: ${Stopwatch.time(computeMetrics(learner))}")
       computeMetrics(learner)
     }
 
@@ -52,37 +67,11 @@ class AccuracyTest {
     println(relativeDifference)
     assert(relativeDifference < 0.01)
   }
-
-  @Test
-  def testLessRandomForest(): Unit = {
-    val baseLearner = new RegressionTreeLearner(numFeatures = nFeat, minLeafInstances = minInstances)
-    val learner = new Bagger(baseLearner, numBags = nRow * nScal)
-    val error = computeMetrics(learner)
-    assert(error > noiseLevel, s"Can't do better than noise")
-    println(s"Error in LRF is ${error}")
-  }
-
-  def testAnnealingForest(): Unit = {
-    var temp = 0.001
-    var base: Double = 0.0
-    val improvements: Seq[(Double, Double)] = (0 until 32).map { i =>
-      val baseLearner = new RegressionTreeLearner(splitter = BoltzmannSplitter(temperature = temp), minLeafInstances = minInstances)
-      val learner = new Bagger(baseLearner, numBags = nRow * nScal)
-      val error = computeMetrics(learner)
-      if (base == 0.0) base = error
-      assert(error > noiseLevel, s"Can't do better than noise")
-      println(f"Error in annealing tree at T=${temp}%6.2e is ${error}%5.2f (${error / base}%5.3f)")
-      val res = (temp, base / error)
-      temp = temp * Math.pow(2.0, 1.0/4.0)
-      res
-    }
-    val best = improvements.maxBy(_._2)
-    println(f"The best improvement was ${best._2}%5.2f x at T=${best._1}%6.2e")
-  }
-
-
 }
 
+/**
+  * Driver code to study the performance vs temperature
+  */
 object AccuracyTest {
 
   val trainingDataFull: Seq[(Vector[Any], Double)] = TestUtils.binTrainingData(TestUtils.generateTrainingData(2048, 48), inputBins = Seq((2, 32)))
@@ -116,14 +105,14 @@ object AccuracyTest {
 
 
   def main(args: Array[String]): Unit = {
-    var temp = 0.002
+    var temp = 0.00001
     val nRow = 256
     val nFeat = 48
     val nScal = 1
     val minInstances = 1
     val (baseRMSE: Double, baseStdRes: Double) = computeMetrics(nRow, nFeat, nFeat, nScal, minInstances, temperature = 0.0)
     println(baseRMSE, baseStdRes)
-    val improvements: Seq[(Double, Double, Double)] = (0 until 32).map { i =>
+    val improvements: Seq[(Double, Double, Double)] = (0 until 64).map { i =>
       val (error, stdres) = computeMetrics(nRow, nFeat, nFeat, nScal, minInstances, temp)
       println(f"Error in annealing tree at T=${temp}%6.2e is ${error}%5.2f (${error / baseRMSE}%5.3f, ${stdres}%5.3f)")
       val res = (temp, baseRMSE / error, baseStdRes / stdres)
