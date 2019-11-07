@@ -10,15 +10,28 @@ import scala.util.Random
   * Find a split for a regression problem
   *
   * The splits are picked with a probability that is related to the reduction in variance:
-  * P(split) ~ exp[ - {reduction in variance} / ({temperature} * {total variance}) ]
+  * P(split) ~ exp[ - {remaining variance} / ({temperature} * {total variance}) ]
   * recalling that the "variance" here is weighted by the sample size (so its really the sum of the square difference
-  * from the mean).  This is akin to kinetic monte carlo and simulated annealing techniques.
+  * from the mean of that side of the split).  This is akin to kinetic monte carlo and simulated annealing techniques.
+  *
+  * The motivation here is to reduce the correlation of the trees by making random choices between splits that are
+  * almost just as good as the strictly optimal one.  Reducing the correlation between trees will reduce the variance
+  * in an ensemble method (e.g. random forests): the variance will both decrease more quickly with the tree count and
+  * will reach a lower floor.  In this paragraph, we're using "variance" as in "bias-variance trade-off".
+  *
+  * Division by the local total variance make the splitting behavior invariant to data size and the scale of the labels.
+  * That means, however, that you can't set the temperature based on a known absolute noise scale.  For that, you'd want
+  * to divide by the total weight rather than the total variance.
+  *
+  * TODO: allow the rescaling to happen based on the total weight instead of the total variance, as an option
   *
   * Created by maxhutch on 11/29/16.
   *
-  * @param temperature used to control how sensitive the probability of a split is to its change in variance
+  * @param temperature used to control how sensitive the probability of a split is to its change in variance.
+  *                    The temperature can be thought of as a hyperparameter.
   */
 case class BoltzmannSplitter(temperature: Double) extends Splitter[Double] {
+  require(temperature >= 0, "Cannot use a negative temperature for the Boltzmann splitter")
 
   /**
     * Get the a split probabalisticly, considering numFeature random features (w/o replacement), ensuring that the
@@ -152,7 +165,7 @@ object BoltzmannSplitter {
   }
 
   /**
-    * Get find the best categorical splitter.
+    * Find the best categorical splitter.
     *
     * @param data  to split
     * @param calculator that will efficiently compute the impurity (variance in this case)

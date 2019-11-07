@@ -64,27 +64,42 @@ class AccuracyTest {
     }
 
     val relativeDifference = 2.0 * Math.abs(errorAnnealingTree - errorStandardTree)/(errorAnnealingTree + errorStandardTree)
-    println(relativeDifference)
+    // println(relativeDifference)
     assert(relativeDifference < 0.01)
   }
 }
 
 /**
   * Driver code to study the performance vs temperature
+  *
+  * This isn't cast as a test, but can be used to try to understand the behavior of Boltzmann trees on some simple problems.
+  * TODO: turn this into a demo or otherwise relocate it before the Boltzmann tree release
   */
 object AccuracyTest {
 
-  val trainingDataFull: Seq[(Vector[Any], Double)] = TestUtils.binTrainingData(TestUtils.generateTrainingData(2048, 48), inputBins = Seq((2, 32)))
-    .asInstanceOf[Seq[(Vector[Any], Double)]]
+  val trainingDataFull: Seq[(Vector[Any], Double)] = TestUtils.binTrainingData(
+    TestUtils.generateTrainingData(2048, 48),
+    inputBins = Seq((2, 32)) // bin the 3rd feature into a categorical
+  ).asInstanceOf[Seq[(Vector[Any], Double)]]
 
+  /**
+    * Compute the RMSE and standard residual for a Boltzmann tree with the given temperature
+    * @param nRow training set size
+    * @param nFeat number of features
+    * @param nFeatSub number of features considered per split
+    * @param nScal number of trees, as a multiple of the training set size
+    * @param minInstances minimum tree node size
+    * @param temperature of the boltzmann tree
+    * @return (RMSE, standard residual)
+    */
   def computeMetrics(nRow: Int, nFeat: Int, nFeatSub: Int, nScal: Int, minInstances: Int, temperature: Double): (Double, Double) = {
     val trainingData = trainingDataFull.take(nRow).map{case (f, l) => (f.take(nFeat), l)}
     val splitter = if (temperature > 0) {
       BoltzmannSplitter(temperature = temperature)
     } else {
-      RegressionSplitter()
+      RegressionSplitter(randomizePivotLocation = true)
     }
-    val baseLearner = new RegressionTreeLearner(
+    val baseLearner = RegressionTreeLearner(
       numFeatures = nFeatSub,
       splitter = splitter,
       minLeafInstances = minInstances
