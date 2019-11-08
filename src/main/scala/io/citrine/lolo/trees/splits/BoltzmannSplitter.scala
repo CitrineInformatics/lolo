@@ -31,7 +31,7 @@ import scala.util.Random
   *                    The temperature can be thought of as a hyperparameter.
   */
 case class BoltzmannSplitter(temperature: Double) extends Splitter[Double] {
-  require(temperature >= 0, "Cannot use a negative temperature for the Boltzmann splitter")
+  require(temperature >= Float.MinPositiveValue, s"Temperature must be >= ${Float.MinPositiveValue} to avoid numerical underflows")
 
   /**
     * Get the a split probabalisticly, considering numFeature random features (w/o replacement), ensuring that the

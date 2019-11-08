@@ -56,7 +56,7 @@ class AccuracyTest {
     val errorAnnealingTree = {
       val baseLearner = RegressionTreeLearner(
         numFeatures = nFeat,
-        splitter = BoltzmannSplitter(temperature = 1.0e-9)
+        splitter = BoltzmannSplitter(temperature = Float.MinPositiveValue)
       )
       val learner = new Bagger(baseLearner, numBags = nRow * 16)
       // println(s"Annealing train time: ${Stopwatch.time(computeMetrics(learner))}")
