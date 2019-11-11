@@ -12,7 +12,7 @@ import scala.util.Random
   * The splits are picked with a probability that is related to the reduction in variance:
   * P(split) ~ exp[ - {remaining variance} / ({temperature} * {total variance}) ]
   * recalling that the "variance" here is weighted by the sample size (so its really the sum of the square difference
-  * from the mean of that side of the split).  This is akin to kinetic monte carlo and simulated annealing techniques.
+  * from the mean of that side of the split).  This is analogous to simulated annealing and Metropolis-Hastings.
   *
   * The motivation here is to reduce the correlation of the trees by making random choices between splits that are
   * almost just as good as the strictly optimal one.  Reducing the correlation between trees will reduce the variance
@@ -46,6 +46,8 @@ case class BoltzmannSplitter(temperature: Double) extends Splitter[Double] {
     /* Pre-compute these for the variance calculation */
     val calculator = VarianceCalculator.build(data.map(_._2), data.map(_._3))
     val initialVariance = calculator.getImpurity
+
+    // Don't split if there is no impurity to reduce
     if (initialVariance == 0) {
       return (new NoSplit(), 0.0)
     }
