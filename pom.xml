@@ -94,6 +94,9 @@
                 <version>2.19.1</version>
                 <configuration>
                     <argLine>-Xmx1024m</argLine>
+                    <parallel>methods</parallel>
+                    <threadCount>1</threadCount>
+                    <perCoreThreadCount>true</perCoreThreadCount>
                     <excludedGroups>io.citrine.lolo.SlowTest</excludedGroups>
                 </configuration>
             </plugin>

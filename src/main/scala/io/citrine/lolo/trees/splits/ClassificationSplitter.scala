@@ -9,7 +9,7 @@ import scala.util.Random
   *
   * Created by maxhutch on 12/2/16.
   */
-object ClassificationSplitter {
+case class ClassificationSplitter(randomizedPivotLocation: Boolean = false) extends Splitter[Char]{
 
   /**
     * Get the best split, considering numFeature random features (w/o replacement)
@@ -21,8 +21,7 @@ object ClassificationSplitter {
   def getBestSplit(
                     data: Seq[(Vector[AnyVal], Char, Double)],
                     numFeatures: Int,
-                    minInstances: Int,
-                    randomizePivotLocation: Boolean = false
+                    minInstances: Int
                   ): (Split, Double) = {
     var bestSplit: Split = new NoSplit()
     var bestImpurity = Double.MaxValue
@@ -38,7 +37,7 @@ object ClassificationSplitter {
 
       /* Use different spliters for each type */
       val (possibleSplit, possibleImpurity) = rep._1(index) match {
-        case _: Double => getBestRealSplit(data, calculator, index, minInstances, randomizePivotLocation)
+        case _: Double => getBestRealSplit(data, calculator, index, minInstances)
         case _: Char => getBestCategoricalSplit(data, calculator, index, minInstances)
         case _: Any => throw new IllegalArgumentException("Trying to split unknown feature type")
       }

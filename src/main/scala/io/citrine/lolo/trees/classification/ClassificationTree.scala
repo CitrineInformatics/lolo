@@ -2,7 +2,7 @@ package io.citrine.lolo.trees.classification
 
 import io.citrine.lolo.encoders.CategoricalEncoder
 import io.citrine.lolo.linear.GuessTheMeanLearner
-import io.citrine.lolo.trees.splits.{ClassificationSplitter, NoSplit}
+import io.citrine.lolo.trees.splits.{ClassificationSplitter, NoSplit, Splitter}
 import io.citrine.lolo.trees.{ModelNode, TrainingLeaf, TrainingNode, TreeMeta}
 import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
 
@@ -17,7 +17,7 @@ case class ClassificationTreeLearner(
                                       maxDepth: Int = 30,
                                       minLeafInstances: Int = 1,
                                       leafLearner: Option[Learner] = None,
-                                      randomizePivotLocation: Boolean = false
+                                      splitter: Splitter[Char] = ClassificationSplitter()
                                     ) extends Learner {
 
   @transient private lazy val myLeafLearner: Learner = leafLearner.getOrElse(new GuessTheMeanLearner)
@@ -62,7 +62,7 @@ case class ClassificationTreeLearner(
     }
 
     /* The tree is built of training nodes */
-    val (split, delta) = ClassificationSplitter.getBestSplit(finalTraining, numFeaturesActual, minLeafInstances, randomizePivotLocation)
+    val (split, delta) = splitter.getBestSplit(finalTraining, numFeaturesActual, minLeafInstances)
     val rootTrainingNode = if (split.isInstanceOf[NoSplit] || maxDepth == 0) {
       new TrainingLeaf(finalTraining, myLeafLearner, 0)
     } else {
@@ -75,7 +75,7 @@ case class ClassificationTreeLearner(
         remainingDepth = maxDepth - 1,
         maxDepth = maxDepth,
         minLeafInstances = minLeafInstances,
-        randomizePivotLocation = randomizePivotLocation
+        splitter = splitter
       )
     }
 

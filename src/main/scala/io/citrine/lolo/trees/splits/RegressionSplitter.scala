@@ -20,7 +20,7 @@ import scala.util.Random
   *
   * Created by maxhutch on 11/29/16.
   */
-object RegressionSplitter {
+case class RegressionSplitter(randomizePivotLocation: Boolean = false) extends Splitter[Double] {
 
   /**
     * Get the best split, considering numFeature random features (w/o replacement)
@@ -32,8 +32,7 @@ object RegressionSplitter {
   def getBestSplit(
                     data: Seq[(Vector[AnyVal], Double, Double)],
                     numFeatures: Int,
-                    minInstances: Int,
-                    randomizePivotLocation: Boolean = false
+                    minInstances: Int
                   ): (Split, Double) = {
 
     val calculator = VarianceCalculator.build(data.map(_._2), data.map(_._3))
@@ -106,11 +105,11 @@ object RegressionSplitter {
          1) there is only one branch and
          2) it is usually false
        */
-      if (totalVariance < bestVariance && j + 1 >= minCount && Math.abs((thinData(j + 1)._1 - thinData(j)._1) / thinData(j)._1) > 1.0e-9) {
+      val left = thinData(j + 1)._1
+      val right = thinData(j)._1
+      if (totalVariance < bestVariance && j + 1 >= minCount && Splitter.isDifferent(left, right)) {
         bestVariance = totalVariance
         /* Try pivots at the midpoints between consecutive member values */
-        val left = thinData(j + 1)._1
-        val right = thinData(j)._1
         bestPivot = if (randomizePivotLocation) {
           (left - right) * Random.nextDouble() + right
         } else {

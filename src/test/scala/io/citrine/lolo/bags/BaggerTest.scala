@@ -8,6 +8,7 @@ import io.citrine.lolo.stats.functions.Friedman
 import io.citrine.lolo.transformers.Standardizer
 import io.citrine.lolo.trees.classification.ClassificationTreeLearner
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
+import io.citrine.lolo.trees.splits.RegressionSplitter
 import org.junit.Test
 import org.scalatest.Assertions._
 
@@ -126,7 +127,7 @@ class BaggerTest {
       numFeatures = nFeatures,
       leafLearner = Some(GuessTheMeanLearner()),
       maxDepth = 30,
-      randomizePivotLocation = true
+      splitter = RegressionSplitter(randomizePivotLocation = true)
     )
 
     val bagger = new Bagger(
@@ -136,7 +137,7 @@ class BaggerTest {
       biasLearner = Some(RegressionTreeLearner(
         maxDepth = 3,
         leafLearner = Some(GuessTheMeanLearner()),
-        randomizePivotLocation = true)
+        splitter = RegressionSplitter(randomizePivotLocation = true))
       ),
       uncertaintyCalibration = true
     )
@@ -267,8 +268,10 @@ class BaggerTest {
      * This model has a rescale field, which should be a real number. If it is not,
      * then the model will fail to train
      */
-    val DTLearner = new RegressionTreeLearner(leafLearner = Some(new GuessTheMeanLearner()),
-      numFeatures = 2, randomizePivotLocation = true
+    val DTLearner = RegressionTreeLearner(
+      leafLearner = Some(GuessTheMeanLearner()),
+      numFeatures = 2,
+      splitter = RegressionSplitter(randomizePivotLocation = true)
     )
     val trainedModel: BaggedModel = Bagger(DTLearner,
       numBags = 16, useJackknife = true, uncertaintyCalibration = true)
