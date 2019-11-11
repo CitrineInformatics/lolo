@@ -46,6 +46,9 @@ case class BoltzmannSplitter(temperature: Double) extends Splitter[Double] {
     /* Pre-compute these for the variance calculation */
     val calculator = VarianceCalculator.build(data.map(_._2), data.map(_._3))
     val initialVariance = calculator.getImpurity
+    if (initialVariance == 0) {
+      return (new NoSplit(), 0.0)
+    }
     val beta = 1.0 / (temperature * initialVariance)
 
     val rep = data.head
