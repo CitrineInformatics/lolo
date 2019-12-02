@@ -1,9 +1,9 @@
 package io.citrine.lolo.bags
 
-import breeze.linalg.{DenseMatrix, DenseVector, min, norm}
-import breeze.numerics.abs
+import breeze.linalg.{DenseMatrix, DenseVector, norm}
 import io.citrine.lolo.PredictionResult
 import io.citrine.lolo.util.Async
+import org.slf4j.{Logger, LoggerFactory}
 
 /**
   * Interface defining the return value of a [[BaggedModel]]
@@ -356,6 +356,9 @@ class BaggedMultiResult(
 }
 
 object BaggedResult {
+
+  val logger: Logger = LoggerFactory.getLogger(getClass)
+
   /**
    * Make sure the variance is non-negative
    *
@@ -372,8 +375,10 @@ object BaggedResult {
     if (rawSum > 0) {
       rawSum
     } else if (maxEntry > 0) {
+      logger.warn(s"Sum of scores was negative; using the largest score as an estimate for the variance.  Please consider increasing the ensemble size.")
       maxEntry
     } else {
+      logger.warn(s"All scores were negative; using the magnitude of the smallest score as an estimate for the variance.  It is highly recommended to increase the ensemble size.")
       - scores.min
     }
   } ensuring (_ >= 0.0)
@@ -393,6 +398,9 @@ object BaggedResult {
    */
   def rectifyImportanceScores(scores: Vector[Double]): Vector[Double] = {
     val floor = Math.abs(scores.min)
+    if (floor < 0.0) {
+      logger.warn(s"Some importance scores were negative; rectifying.  Please consider increasing the ensemble size.")
+    }
     scores.map(Math.max(floor, _))
   } ensuring (vec => vec.forall(_ >= 0.0))
 }
