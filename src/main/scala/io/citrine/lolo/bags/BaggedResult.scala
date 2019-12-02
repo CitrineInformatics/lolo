@@ -51,7 +51,7 @@ case class BaggedSingleResult(
                                rescale: Double = 1.0
                              ) extends BaggedResult {
   assert(predictions.head.getExpected().head.isInstanceOf[Double])
-  private lazy val treePredictions = predictions.map(_.getExpected().head.asInstanceOf[Double]).toArray
+  private lazy val treePredictions: Array[Double] = predictions.map(_.getExpected().head.asInstanceOf[Double]).toArray
 
   /**
     * Return the ensemble average or maximum vote
@@ -60,7 +60,8 @@ case class BaggedSingleResult(
     */
   override def getExpected(): Seq[Any] = Seq(expected)
 
-  private lazy val expected = treePredictions.sum / treePredictions.size
+  private lazy val expected = treePredictions.sum / treePredictions.length
+  private lazy val treeVariance: Double = treePredictions.map(x => Math.pow(x - expected, 2.0)).sum / treePredictions.length
 
   /**
     * Return jackknife-based variance estimates
@@ -69,11 +70,15 @@ case class BaggedSingleResult(
     */
   override def getUncertainty(): Option[Seq[Any]] = Some(Seq(scalarUncertainty))
 
-  private lazy val scalarUncertainty = if (useJackknife) {
-    Math.sqrt(singleScores.sum * Math.pow(rescale, 2.0) + Math.pow(bias.getOrElse(0.0), 2.0))
-  } else {
-    bias.getOrElse(0.0)
-  }
+  private lazy val scalarUncertainty: Double = {
+    if (useJackknife) {
+      // make sure the variance is non-negative after the stochastic correction
+      val rectified = BaggedResult.rectifyEstimatedVariance(singleScores)
+      Math.sqrt(rectified * Math.pow(rescale, 2.0) + Math.pow(bias.getOrElse(0.0), 2.0))
+    } else {
+      bias.getOrElse(0.0)
+    }
+  } ensuring(_ >= 0.0)
 
 
   /**
@@ -86,13 +91,12 @@ case class BaggedSingleResult(
 
   private lazy val singleScores: Vector[Double] = {
     // Compute the variance of the ensemble of predicted values and divide by the size of the ensemble an extra time
-    val varT = 1.0 / (treePredictions.size * treePredictions.size) * treePredictions.map(y => Math.pow(y - expected, 2.0)).sum
+    val varT = treeVariance / treePredictions.length
 
     // This will be more convenient later
     val nMat = NibIn.transpose
 
     // Loop over each of the training instances, computing its contribution to the uncertainty
-    var minimumContribution: Double = Double.MaxValue
     val trainingContributions = nMat.indices.toVector.map { idx =>
       // Pull the vector of the number of times this instance was used to train each tree
       val vecN = nMat(idx).toArray
@@ -115,7 +119,7 @@ case class BaggedSingleResult(
       // Compute the infinitessimal jackknife estimate
       val varIJ = Math.pow(cov / vecN.size, 2.0)
 
-      val res = if (tNotCount > 0) {
+      if (tNotCount > 0) {
         // Compute the Jackknife after bootstrap estimate
         val varJ = Math.pow(tNot / tNotCount - expected, 2.0) * (nMat.size - 1) / nMat.size
         // Compute the sum of the corrections to the IJ and J estimates
@@ -127,15 +131,10 @@ case class BaggedSingleResult(
         val correction = varT
         varIJ - correction
       }
-
-      // Keep track of the smallest estimated uncertainty, which may be negative
-      minimumContribution = Math.min(minimumContribution, res)
-      res
     }
     // The uncertainty must be positive, so anything smaller than zero is noise.  Make sure that no estimated
     // uncertainty is below that noise level
-    val floor = Math.max(0, -minimumContribution)
-    trainingContributions.map { x => Math.max(x, floor) }
+    trainingContributions
   }
 }
 
@@ -245,7 +244,10 @@ class BaggedMultiResult(
   /* Compute the scores one prediction at a time */
   lazy val scores: Seq[Vector[Double]] = rep match {
     case x: Double =>
-      scores(expected.asInstanceOf[Seq[Double]].toVector, expectedMatrix.asInstanceOf[Seq[Seq[Double]]], NibJMat, NibIJMat).map(_.map(Math.sqrt))
+      scores(expected.asInstanceOf[Seq[Double]].toVector, expectedMatrix.asInstanceOf[Seq[Seq[Double]]], NibJMat, NibIJMat)
+        // make sure the variance is non-negative after the stochastic correction
+        .map(BaggedResult.rectifyImportanceScores)
+        .map(_.map(Math.sqrt))
     case x: Any => Seq.fill(expected.size)(Vector.fill(Nib.size)(0.0))
   }
 
@@ -264,7 +266,7 @@ class BaggedMultiResult(
                 NibJ: DenseMatrix[Double],
                 NibIJ: DenseMatrix[Double]
               ): Seq[Double] = {
-    scores(meanPrediction, modelPredictions, NibJ, NibIJ).map(_.sum)
+    scores(meanPrediction, modelPredictions, NibJ, NibIJ).map{BaggedResult.rectifyEstimatedVariance}
   }
 
   /**
@@ -306,12 +308,7 @@ class BaggedMultiResult(
       val correction = Math.pow(inverseSize * norm(predMat(::, i) - meanPrediction(i)), 2)
 
       /* The correction is prediction dependent, so we need to operate on vectors */
-      val variancePerRow: DenseVector[Double] = 0.5 * (arg(::, i) - Math.E * correction)
-
-      /* Impose a floor in case any of the variances are negative (hacked to work in breeze) */
-      val floor: Double = Math.max(0, -min(variancePerRow))
-      val rezero: DenseVector[Double] = variancePerRow - floor
-      0.5 * (rezero + abs(rezero)) + floor
+      0.5 * (arg(::, i) - Math.E * correction)
     }.map(_.toScalaVector())
   }
 
@@ -358,4 +355,44 @@ class BaggedMultiResult(
   }
 }
 
+object BaggedResult {
+  /**
+   * Make sure the variance is non-negative
+   *
+   * The monte carlo bias correction is itself stochastic, so let's make sure the result is positive
+   * If all of the treePredictions are zero, then this will return zero
+   *
+   * @param scores the monte-carlo corrected importance scores
+   * @return A non-negative estimate of the variance
+   */
+  def rectifyEstimatedVariance(scores: Seq[Double]): Double = {
+    val rawSum = scores.sum
+    lazy val maxEntry = scores.max
 
+    if (rawSum > 0) {
+      rawSum
+    } else if (maxEntry > 0) {
+      maxEntry
+    } else {
+      - scores.min
+    }
+  } ensuring (_ >= 0.0)
+
+  /**
+   * Make sure the scores are each non-negative
+   *
+   * The monte carlo bias correction is itself stochastic, so let's make sure the result is positive.
+   * If the score was statistically consistent with zero, then we might subtract off the entire bias correction,
+   * which results in the negative value.  Therefore, we can use the magnitude of the minimum as an estimate of the noise
+   * level, and can simply set that as a floor.
+   *
+   * If all of the treePredictions are zero, then this will return a vector of zero
+   *
+   * @param scores the monte-carlo corrected importance scores
+   * @return a vector of non-negative bias corrected scores
+   */
+  def rectifyImportanceScores(scores: Vector[Double]): Vector[Double] = {
+    val floor = Math.abs(scores.min)
+    scores.map(Math.max(floor, _))
+  } ensuring (vec => vec.forall(_ >= 0.0))
+}

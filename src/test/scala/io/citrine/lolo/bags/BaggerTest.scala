@@ -173,10 +173,11 @@ class BaggerTest {
     val results = RF.transform(trainingData.map(_._1))
     val scores = results.getImportanceScores().get
     val corners = Seq(0, 7, 56, 63)
-    assert(
-      corners.forall(i => scores(i)(i) == scores(i).max),
-      "One of the training corners didn't have the highest score"
-    )
+    corners.foreach { i =>
+      assert(scores(i)(i) == scores(i).max,
+        s"The corner at $i didn't have the highest score: ${scores(i)(i)} vs ${scores(i).max}"
+      )
+    }
   }
 
   /**
