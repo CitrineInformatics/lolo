@@ -363,7 +363,19 @@ object BaggedResult {
    * Make sure the variance is non-negative
    *
    * The monte carlo bias correction is itself stochastic, so let's make sure the result is positive
-   * If all of the treePredictions are zero, then this will return zero
+   *
+   * If the sum is positive, then great!  We're done.
+   *
+   * If the sum is <= 0.0, then the actual variance is likely quite small.  We know the variance should be at
+   * least as large as the largest importance, since at least one training point will be important.
+   * Therefore, let's just take the maximum importance, which should be a reasonable lower-bound of the variance.
+   * Note that we could also sum the non-negative scores, but that could be biased upwards.
+   *
+   * If all of the scores are negative (which happens infrequently for very small ensembles), then we just need a scale.
+   * The largest scale is the largest magnitude score, which is the absolute value of the minimum score.  When this
+   * happens, then a larger ensemble should really be used!
+   *
+   * If all of the treePredictions are zero, then this will return zero.
    *
    * @param scores the monte-carlo corrected importance scores
    * @return A non-negative estimate of the variance
@@ -375,11 +387,12 @@ object BaggedResult {
     if (rawSum > 0) {
       rawSum
     } else if (maxEntry > 0) {
+      // If the sum is negative,
       logger.warn(s"Sum of scores was negative; using the largest score as an estimate for the variance.  Please consider increasing the ensemble size.")
       maxEntry
     } else {
       logger.warn(s"All scores were negative; using the magnitude of the smallest score as an estimate for the variance.  It is highly recommended to increase the ensemble size.")
-      - scores.min
+      - scores.min // equivalent to Math.abs(scores.min)
     }
   } ensuring (_ >= 0.0)
 
@@ -397,7 +410,9 @@ object BaggedResult {
    * @return a vector of non-negative bias corrected scores
    */
   def rectifyImportanceScores(scores: Vector[Double]): Vector[Double] = {
+    // this is a lower-bound on the noise level; note that it is strictly smaller than the correction
     val floor = Math.abs(scores.min)
+
     if (floor < 0.0) {
       logger.warn(s"Some importance scores were negative; rectifying.  Please consider increasing the ensemble size.")
     }
