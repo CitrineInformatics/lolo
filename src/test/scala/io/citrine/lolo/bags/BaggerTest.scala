@@ -216,10 +216,10 @@ class BaggerTest {
 
     // Create a future to run train
     val tmpPool = Executors.newFixedThreadPool(1)
-    val fut: Future[BaggedTrainingResult] = tmpPool.submit(
-      new Callable[BaggedTrainingResult] {
+    val fut: Future[BaggedTrainingResult[Any]] = tmpPool.submit(
+      new Callable[BaggedTrainingResult[Any]] {
         override def call() = {
-          val res = baggedLearner.train(trainingData)
+          val res: BaggedTrainingResult[Any] = baggedLearner.train(trainingData)
           assert(false, "Training was not terminated")
           res
         }
@@ -274,7 +274,7 @@ class BaggerTest {
       numFeatures = 2,
       splitter = RegressionSplitter(randomizePivotLocation = true)
     )
-    val trainedModel: BaggedModel = Bagger(DTLearner,
+    val trainedModel: BaggedModel[Any] = Bagger(DTLearner,
       numBags = 16, useJackknife = true, uncertaintyCalibration = true)
       .train(trainingData)
       .getModel()
@@ -336,7 +336,7 @@ object BaggerTest {
   }
 
 
-  def getStandardRMSE(testSet: Seq[(Vector[Any], Double)], model: BaggedModel): Double = {
+  def getStandardRMSE(testSet: Seq[(Vector[Any], Double)], model: BaggedModel[Any]): Double = {
     val predictions = model.transform(testSet.map(_._1))
     val pva = testSet.map(_._2).zip(
       predictions.getExpected().asInstanceOf[Seq[Double]].zip(
