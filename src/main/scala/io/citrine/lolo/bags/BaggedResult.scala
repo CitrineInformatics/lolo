@@ -12,7 +12,7 @@ import org.slf4j.{Logger, LoggerFactory}
   * implications.
   */
 trait BaggedResult[+T] extends PredictionResult[T] {
-  protected val predictions: Seq[PredictionResult[T]]
+  def predictions: Seq[PredictionResult[T]]
 
   /**
     * Average the gradients from the models in the ensemble
@@ -135,8 +135,8 @@ case class BaggedSingleResult(
   }
 }
 
-class BaggedClassificationResult(
-                                  override protected val predictions: Seq[PredictionResult[Any]]
+case class BaggedClassificationResult(
+                                  predictions: Seq[PredictionResult[Any]]
                                 ) extends BaggedResult[Any] {
   lazy val expectedMatrix: Seq[Seq[Any]] = predictions.map(p => p.getExpected()).transpose
 
@@ -164,8 +164,8 @@ class BaggedClassificationResult(
   * @param NibIn       the sample matrix as (N_models x N_training)
   * @param bias        model to use for estimating bias
   */
-class BaggedMultiResult(
-                         override protected val predictions: Seq[PredictionResult[Double]],
+case class BaggedMultiResult(
+                         predictions: Seq[PredictionResult[Double]],
                          NibIn: Vector[Vector[Int]],
                          useJackknife: Boolean,
                          bias: Option[Seq[Double]] = None,
