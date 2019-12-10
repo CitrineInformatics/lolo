@@ -1,7 +1,7 @@
 package io.citrine.lolo.bags
 
 import breeze.linalg.{DenseMatrix, DenseVector, norm}
-import io.citrine.lolo.PredictionResult
+import io.citrine.lolo.{PredictionResult, RegressionResult}
 import io.citrine.lolo.util.Async
 import org.slf4j.{Logger, LoggerFactory}
 
@@ -44,10 +44,9 @@ trait BaggedResult[+T] extends PredictionResult[T] {
 case class BaggedSingleResult(
                                predictions: Seq[PredictionResult[Double]],
                                NibIn: Vector[Vector[Int]],
-                               useJackknife: Boolean,
                                bias: Option[Double] = None,
                                rescale: Double = 1.0
-                             ) extends BaggedResult[Double] {
+                             ) extends BaggedResult[Double] with RegressionResult {
   private lazy val treePredictions: Array[Double] = predictions.map(_.getExpected().head).toArray
 
   /**
@@ -60,21 +59,21 @@ case class BaggedSingleResult(
   private lazy val expected = treePredictions.sum / treePredictions.length
   private lazy val treeVariance: Double = treePredictions.map(x => Math.pow(x - expected, 2.0)).sum / treePredictions.length
 
+  override def getPredictionInterval(): Option[Seq[Double]] = Some(Seq(treeVariance))
+
+  override def getVariance(): Option[Seq[Double]] = Some(Seq(scalarUncertainty))
+
   /**
     * Return jackknife-based variance estimates
     *
     * @return uncertainty of each prediction
     */
-  override def getUncertainty(): Option[Seq[Any]] = Some(Seq(scalarUncertainty))
+  override def getUncertainty(): Option[Seq[Any]] = getPredictionInterval()
 
   private lazy val scalarUncertainty: Double = {
-    if (useJackknife) {
-      // make sure the variance is non-negative after the stochastic correction
-      val rectified = BaggedResult.rectifyEstimatedVariance(singleScores)
-      Math.sqrt(rectified * Math.pow(rescale, 2.0) + Math.pow(bias.getOrElse(0.0), 2.0))
-    } else {
-      bias.getOrElse(0.0)
-    }
+    // make sure the variance is non-negative after the stochastic correction
+    val rectified = BaggedResult.rectifyEstimatedVariance(singleScores)
+    Math.sqrt(rectified * Math.pow(rescale, 2.0) + Math.pow(bias.getOrElse(0.0), 2.0))
   } ensuring(_ >= 0.0)
 
 
@@ -167,10 +166,9 @@ case class BaggedClassificationResult(
 case class BaggedMultiResult(
                          predictions: Seq[PredictionResult[Double]],
                          NibIn: Vector[Vector[Int]],
-                         useJackknife: Boolean,
                          bias: Option[Seq[Double]] = None,
                          rescale: Double = 1.0
-                       ) extends BaggedResult[Double]{
+                       ) extends BaggedResult[Double] with RegressionResult {
 
   /**
     * Return the ensemble average
@@ -184,7 +182,15 @@ case class BaggedMultiResult(
     *
     * @return uncertainty of each prediction
     */
-  override def getUncertainty(): Option[Seq[Double]] = Some(uncertainty)
+  override def getUncertainty(): Option[Seq[Double]] = getPredictionInterval()
+
+  override def getPredictionInterval(): Option[Seq[Double]] = Some{
+    expectedMatrix.asInstanceOf[Seq[Seq[Double]]].zip(expected.asInstanceOf[Seq[Double]]).map{case (b, y) =>
+      b.map{x => Math.pow(x - y, 2.0)}.sum / b.size
+    }
+  }
+
+  override def getVariance(): Option[Seq[Double]] = Some(uncertainty)
 
   /**
     * Return IJ scores
@@ -232,11 +238,7 @@ case class BaggedMultiResult(
 
   /* Compute the uncertainties one prediction at a time */
   lazy val uncertainty: Seq[Double] = {
-    val sigma2: Seq[Double] = if (useJackknife) {
-      variance(expected.asInstanceOf[Seq[Double]].toVector, expectedMatrix, NibJMat, NibIJMat)
-    } else {
-      Seq.fill(expected.size)(0.0)
-    }
+    val sigma2: Seq[Double] = variance(expected.asInstanceOf[Seq[Double]].toVector, expectedMatrix, NibJMat, NibIJMat)
     val rescale2 = rescale * rescale
     sigma2.zip(bias.getOrElse(Seq.fill(expected.size)(0.0))).map { case (variance, b) => Math.sqrt(b * b + variance * rescale2) }
   }

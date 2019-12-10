@@ -44,6 +44,14 @@ trait PredictionResult[+T] {
   def getGradient(): Option[Seq[Vector[Double]]] = None
 }
 
+trait RegressionResult extends PredictionResult[Double] {
+  def getPredictionInterval(): Option[Seq[Double]] = None
+  def getConfidenceInterval(): Option[Seq[Double]] = None
+  def getBias(): Option[Seq[Double]] = None
+  def getVariance(): Option[Seq[Double]] = None
+  def getIrreducibleError(): Option[Seq[Double]] = None
+}
+
 case class MultiResult[T](values: Seq[T]) extends PredictionResult[T] {
   /**
     * Get the expected values for this prediction
