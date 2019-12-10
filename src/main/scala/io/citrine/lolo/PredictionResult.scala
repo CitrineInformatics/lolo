@@ -19,7 +19,7 @@ trait PredictionResult[+T] {
     * For example, in regression this is sqrt(bias^2 + variance)
     * @return uncertainty of each prediction
     */
-  def getUncertainty(): Option[Seq[Any]] = None
+  def getUncertainty(includeNoise: Boolean = true): Option[Seq[Any]] = None
 
   /**
     * Get the training row scores for each prediction
