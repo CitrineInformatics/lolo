@@ -61,14 +61,7 @@ case class BaggedSingleResult(
 
   override def getPredictionInterval(): Option[Seq[Double]] = Some(Seq(treeVariance))
 
-  override def getVariance(): Option[Seq[Double]] = Some(Seq(scalarUncertainty))
-
-  /**
-    * Return jackknife-based variance estimates
-    *
-    * @return uncertainty of each prediction
-    */
-  override def getUncertainty(): Option[Seq[Any]] = getPredictionInterval()
+  override def getRootVariance(): Option[Seq[Double]] = Some(Seq(scalarUncertainty))
 
   private lazy val scalarUncertainty: Double = {
     // make sure the variance is non-negative after the stochastic correction
@@ -149,7 +142,7 @@ case class BaggedClassificationResult(
    */
   override def getExpected(): Seq[Any] = expected
 
-  override def getUncertainty(): Option[Seq[Any]] = Some(uncertainty)
+  override def getUncertainty(includeNoise: Boolean = true): Option[Seq[Any]] = Some(uncertainty)
 }
 
 /**
@@ -177,20 +170,13 @@ case class BaggedMultiResult(
     */
   override def getExpected(): Seq[Double] = expected
 
-  /**
-    * Return jackknife-based variance estimates
-    *
-    * @return uncertainty of each prediction
-    */
-  override def getUncertainty(): Option[Seq[Double]] = getPredictionInterval()
-
   override def getPredictionInterval(): Option[Seq[Double]] = Some{
     expectedMatrix.asInstanceOf[Seq[Seq[Double]]].zip(expected.asInstanceOf[Seq[Double]]).map{case (b, y) =>
       b.map{x => Math.pow(x - y, 2.0)}.sum / b.size
     }
   }
 
-  override def getVariance(): Option[Seq[Double]] = Some(uncertainty)
+  override def getRootVariance(): Option[Seq[Double]] = Some(uncertainty)
 
   /**
     * Return IJ scores

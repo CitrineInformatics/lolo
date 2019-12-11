@@ -241,9 +241,9 @@ class BaggedModel[+T: ClassTag](
 
     val res = if (inputs.size == 1 && isRegression) {
       // In the special case of a single prediction on a real value, emit an optimized BaggedSingleResult
-      BaggedSingleResult(ensemblePredictions.map(_.asInstanceOf[PredictionResult[Double]]), Nib, useJackknife, bias.map(_.head), rescale)
+      BaggedSingleResult(ensemblePredictions.map(_.asInstanceOf[PredictionResult[Double]]), Nib, bias.map(_.head), rescale)
     } else if (isRegression) {
-      new BaggedMultiResult(ensemblePredictions.map(_.asInstanceOf[PredictionResult[Double]]), Nib, useJackknife, bias, rescale)
+      new BaggedMultiResult(ensemblePredictions.map(_.asInstanceOf[PredictionResult[Double]]), Nib, bias, rescale)
     } else {
       new BaggedClassificationResult(ensemblePredictions)
     }
