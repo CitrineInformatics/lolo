@@ -93,7 +93,7 @@ trait RegressionResult extends PredictionResult[Double] {
    * @param includeNoise whether the uncertainty should account for irreducible noise (i.e. a prediction interval)
    * @return uncertainty of each prediction
    */
-  override def getUncertainty(includeNoise: Boolean): Option[Seq[Any]] = {
+  override def getUncertainty(includeNoise: Boolean = true): Option[Seq[Any]] = {
     if (includeNoise) {
       getPredictionInterval()
     } else {
