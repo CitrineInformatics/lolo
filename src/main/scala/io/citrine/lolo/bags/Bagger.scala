@@ -133,7 +133,7 @@ case class Bagger(
     assert(!ratio.isNaN && !ratio.isInfinity, s"Uncertainty calibration ratio is not real: $ratio")
 
     /* Wrap the models in a BaggedModel object */
-    if (oobErrors.isEmpty) {
+    if (!useBagging || oobErrors.isEmpty) {
       Async.canStop()
       new BaggedTrainingResult(models, averageImportance, Nib, trainingData, useJackknife, Seq(), ratio)
     } else {
@@ -143,10 +143,11 @@ case class Bagger(
         val bias = e // Math.max(Math.abs(e) - u * ratio, 0)
         (f, bias)
       }
-      val biasModels = Seq(4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048).filter(_ <= biasTraining.size).map{minLeaf =>
-        val biasLearner = RegressionTreeLearner(
-          splitter = RegressionSplitter(),
-          minLeafInstances = minLeaf
+      val biasModels = Seq(16384).map{minLeaf =>
+        val biasLearner = Bagger(
+          method = RegressionTreeLearner(splitter = RegressionSplitter(true), numFeatures = trainingData.head._1.size / 2),
+          useBagging = false,
+          numBags = 128
         )
         Async.canStop()
         val model = biasLearner.train(biasTraining).getModel()
