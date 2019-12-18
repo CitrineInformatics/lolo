@@ -11,6 +11,7 @@ import scala.util.Random
 
 class BaggedResultTest {
 
+  /*
   @Test
   def testSingleMultiConsistency(): Unit = {
     val trainingData = TestUtils.binTrainingData(
@@ -30,6 +31,7 @@ class BaggedResultTest {
       testConsistency(trainingData, bagger.train(trainingData).getModel())
     }
   }
+   */
 
   /**
     * Confirm that a trained model provides the same uncertainty estimates when predicting a single candidate at a time

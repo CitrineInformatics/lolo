@@ -1,6 +1,6 @@
 package io.citrine.lolo.trees.regression
 
-import io.citrine.lolo.trees.splits.{NoSplit, RegressionSplitter, Split, Splitter}
+import io.citrine.lolo.trees.splits.{NoSplit, ExtraRandomSplitter, Split, Splitter}
 import io.citrine.lolo.trees.{InternalModelNode, ModelNode, TrainingNode}
 import io.citrine.lolo.trees.{InternalModelNode, ModelNode, TrainingLeaf, TrainingNode}
 import io.citrine.lolo.{Learner, PredictionResult}

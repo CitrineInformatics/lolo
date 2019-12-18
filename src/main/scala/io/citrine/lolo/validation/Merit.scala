@@ -104,12 +104,16 @@ case object UncertaintyCorrelation extends Merit[Double] {
       actual
     ).zipped.toSeq
 
-    val ideal = predictedUncertaintyActual.map { case (_, uncertainty, actual) =>
-      val error = Random.nextGaussian() * uncertainty
-      (actual + error, uncertainty, actual)
-    }
+    val nSample = 32
+    val baseline = (0 until nSample).map { _ =>
+      val ideal = predictedUncertaintyActual.map { case (_, uncertainty, actual) =>
+        val error = Random.nextGaussian() * uncertainty
+        (actual + error, uncertainty, actual)
+      }
+      computeFromPredictedUncertaintyActual(ideal)
+    }.sum / nSample
 
-    computeFromPredictedUncertaintyActual(predictedUncertaintyActual) / computeFromPredictedUncertaintyActual(ideal)
+    computeFromPredictedUncertaintyActual(predictedUncertaintyActual) / baseline
   }
 
   /**

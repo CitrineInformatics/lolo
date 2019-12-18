@@ -5,7 +5,7 @@ import java.io.{File, FileOutputStream, ObjectOutputStream}
 import io.citrine.lolo.TestUtils
 import io.citrine.lolo.linear.LinearRegressionLearner
 import io.citrine.lolo.stats.functions.Friedman
-import io.citrine.lolo.trees.splits.{BoltzmannSplitter, RegressionSplitter}
+import io.citrine.lolo.trees.splits.{BoltzmannSplitter, ExtraRandomSplitter, RegressionSplitter}
 import org.junit.Test
 import org.scalatest.Assertions._
 

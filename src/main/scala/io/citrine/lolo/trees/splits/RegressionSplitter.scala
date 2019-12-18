@@ -44,7 +44,8 @@ case class RegressionSplitter(randomizePivotLocation: Boolean = false) extends S
 
     /* Try every feature index */
     val featureIndices: Seq[Int] = rep._1.indices
-    Random.shuffle(featureIndices).take(numFeatures).foreach { index =>
+    val subset = Random.shuffle(featureIndices).take(numFeatures)
+    subset.foreach { index =>
 
       /* Use different spliters for each type */
       val (possibleSplit, possibleVariance) = rep._1(index) match {

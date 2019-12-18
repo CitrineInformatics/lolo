@@ -179,7 +179,7 @@ object CalibrationStudy {
       numBags = nTree,
       useJackknife = true,
       uncertaintyCalibration = true,
-      biasLearner = None // Some(RegressionTreeLearner(maxDepth = (Math.log(nTrain) / Math.log(2) / 2).toInt))
+      // biasLearner = None // Some(RegressionTreeLearner(maxDepth = (Math.log(nTrain) / Math.log(2) / 2).toInt))
     )
 
     val fullStream = StatisticalValidation.generativeValidation[Double](

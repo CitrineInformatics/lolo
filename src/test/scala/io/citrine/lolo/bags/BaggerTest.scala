@@ -96,7 +96,7 @@ class BaggerTest {
     val trainingData = TestUtils.generateTrainingData(128, nFeatures, xscale = width, seed = Random.nextLong())
     val DTLearner = RegressionTreeLearner(numFeatures = nFeatures)
     val bias = RegressionTreeLearner(maxDepth = 4)
-    val baggedLearner = Bagger(DTLearner, numBags = bagsPerRow * trainingData.size, biasLearner = Some(bias))
+    val baggedLearner = Bagger(DTLearner, numBags = bagsPerRow * trainingData.size) // c, biasLearner = Some(bias))
     val RFMeta = baggedLearner.train(trainingData)
     val RF = RFMeta.getModel()
 
@@ -134,11 +134,13 @@ class BaggerTest {
       new Standardizer(DTLearner),
       numBags = 64,
       useJackknife = true,
+      /*
       biasLearner = Some(RegressionTreeLearner(
         maxDepth = 3,
         leafLearner = Some(GuessTheMeanLearner()),
         splitter = RegressionSplitter(randomizePivotLocation = true))
       ),
+       */
       uncertaintyCalibration = true
     )
 
@@ -310,7 +312,7 @@ class BaggerTest {
     (0 until 1024).foreach { idx =>
       val trainingData = TestUtils.generateTrainingData(16, 5, noise = 0.0, function = Friedman.friedmanSilverman, seed = Random.nextLong())
       val DTLearner = RegressionTreeLearner(numFeatures = 2)
-      val sigma = Bagger(DTLearner, numBags = 7, biasLearner = Some(GuessTheMeanLearner()))
+      val sigma = Bagger(DTLearner, numBags = 7) // , biasLearner = Some(GuessTheMeanLearner()))
         .train(trainingData)
         .getModel()
         .transform(trainingData.map(_._1))

@@ -1,9 +1,10 @@
 package io.citrine.lolo.bags
 
-import breeze.linalg.{DenseMatrix, DenseVector, min, norm}
+import breeze.linalg.{DenseMatrix, DenseVector, eig, max, min, norm, sum}
 import breeze.numerics.abs
 import io.citrine.lolo.PredictionResult
 import io.citrine.lolo.util.Async
+import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
 /**
   * Interface defining the return value of a [[BaggedModel]]
@@ -46,7 +47,7 @@ case class BaggedSingleResult(
                                predictions: Seq[PredictionResult[Any]],
                                NibIn: Vector[Vector[Int]],
                                useJackknife: Boolean,
-                               bias: Option[Double] = None,
+                               bias: Seq[(Int, Double)] = Seq(),
                                repInput: Vector[Any],
                                rescale: Double = 1.0
                              ) extends BaggedResult {
@@ -70,11 +71,10 @@ case class BaggedSingleResult(
   override def getUncertainty(): Option[Seq[Any]] = Some(Seq(scalarUncertainty))
 
   private lazy val scalarUncertainty = if (useJackknife) {
-    Math.sqrt(singleScores.sum * Math.pow(rescale, 2.0) + Math.pow(bias.getOrElse(0.0), 2.0))
+    Math.sqrt(singleScores.sum * Math.pow(rescale, 2.0)) //  + Math.pow(bias.getOrElse(0.0), 2.0))
   } else {
-    bias.getOrElse(0.0)
+    Math.sqrt(ensembleVariance * Math.pow(rescale, 2.0)) //  + Math.pow(bias.getOrElse(0.0), 2.0))
   }
-
 
   /**
     * The importances are computed as an average of bias-corrected jackknife-after-bootstrap
@@ -137,6 +137,10 @@ case class BaggedSingleResult(
     val floor = Math.max(0, -minimumContribution)
     trainingContributions.map { x => Math.max(x, floor) }
   }
+
+  lazy val ensembleVariance: Double = {
+    treePredictions.map(x => Math.pow(x - expected, 2.0)).sum / (treePredictions.size - 1)
+  }
 }
 
 /**
@@ -151,11 +155,11 @@ case class BaggedSingleResult(
   * @param bias        model to use for estimating bias
   * @param repInput    representative input
   */
-class BaggedMultiResult(
+case class BaggedMultiResult(
                          override protected val predictions: Seq[PredictionResult[Any]],
                          NibIn: Vector[Vector[Int]],
                          useJackknife: Boolean,
-                         bias: Option[Seq[Double]] = None,
+                         bias: Seq[(Int, Seq[Double])] = Seq(),
                          repInput: Vector[Any],
                          rescale: Double = 1.0
                        ) extends BaggedResult {
@@ -173,6 +177,79 @@ class BaggedMultiResult(
     * @return uncertainty of each prediction
     */
   override def getUncertainty(): Option[Seq[Any]] = Some(uncertainty)
+
+  def getPredictedVariance(): Double = {
+    val actuals = getExpected()
+    if (!actuals.head.isInstanceOf[Double]) {
+      throw new NotImplementedException()
+    }
+    val residuals: Seq[Seq[Double]] = expectedMatrix.zip(actuals).map{case (pred, y) =>
+      pred.map(_.asInstanceOf[Double] - y.asInstanceOf[Double])
+    }.transpose
+
+    val sd = residuals.map{vec =>
+      Math.sqrt(vec.map(Math.pow(_, 2.0)).sum / vec.size)
+    }
+
+    Seq.tabulate(sd.size, sd.size){ case (i, j) =>
+      residuals(i).zip(residuals(j)).map(x => x._1 * x._2).sum / residuals(i).size
+    }.flatten.sum / (residuals.size * residuals.size)
+  }
+
+  def getPredictiveCorrelation(): Double = {
+    val actuals = getExpected()
+    if (!actuals.head.isInstanceOf[Double]) {
+      throw new NotImplementedException()
+    }
+
+    val residuals: Seq[Seq[Double]] = expectedMatrix.zip(actuals).map{case (pred, y) =>
+      pred.map(_.asInstanceOf[Double] - y.asInstanceOf[Double])
+    }.transpose
+
+    val rho = Seq.tabulate(residuals.size, residuals.size){ case (i, j) =>
+        residuals(i).zip(residuals(j)).map(x => x._1 * x._2).sum / residuals(i).size
+    }
+
+    val rMat = new DenseMatrix[Double](rho.size, rho.size, rho.flatten.toArray)
+    eig(rMat).eigenvalues.toArray.map(Math.pow(_, 2.0)).sum / rho.indices.map(i => Math.pow(rho(i)(i), 2.0)).sum
+  }
+
+  def getCorrelation(actuals: Seq[Any]): Double = {
+    if (!actuals.head.isInstanceOf[Double]) {
+      throw new NotImplementedException()
+    }
+    val residuals: Seq[Seq[Double]] = expectedMatrix.zip(actuals).map{case (pred, y) =>
+        pred.map(_.asInstanceOf[Double] - y.asInstanceOf[Double])
+    }.transpose
+
+    val sd = residuals.map{vec =>
+      Math.sqrt(vec.map(Math.pow(_, 2.0)).sum / vec.size)
+    }
+    val avgSd = sd.sum / sd.size
+
+    val rho = Seq.tabulate(sd.size, sd.size){ case (i, j) =>
+      if (i == j) {
+        0.0
+      } else {
+        residuals(i).zip(residuals(j)).map(x => x._1 * x._2).sum / residuals(i).size
+      }
+    }.flatten.sum / Math.pow(avgSd, 2.0) / (sd.size * (sd.size - 1))
+    rho
+  }
+
+  def getTreeError(actuals: Seq[Any]): Double = {
+    if (!actuals.head.isInstanceOf[Double]) {
+      throw new NotImplementedException()
+    }
+    val residuals: Seq[Seq[Double]] = expectedMatrix.zip(actuals).map{case (pred, y) =>
+      pred.map(_.asInstanceOf[Double] - y.asInstanceOf[Double])
+    }.transpose
+
+    val sd = residuals.map{vec =>
+      vec.map(Math.pow(_, 2.0)).sum / vec.size
+    }
+    sd.sum / sd.size
+  }
 
   /**
     * Return IJ scores
@@ -228,18 +305,51 @@ class BaggedMultiResult(
     }.toArray
   )
 
+  /* This matrix is used to compute the IJ variance */
+  lazy val biasIJMat = new DenseMatrix[Double](Nib.head.size, Nib.size,
+    Nib.flatMap { v =>
+      val itot = 1.0 / v.size
+      val vtot = v.sum.toDouble * itot
+      v.map(n => itot * itot * Math.pow(n - vtot, 2.0))
+    }.toArray
+  )
+
+  def getEnsembleVariance(): Seq[Double] = {
+    ensembleVariance.map(_ * rescale * rescale)
+  }
+
+  lazy val ensembleVariance: Seq[Double] = expectedMatrix.asInstanceOf[Seq[Seq[Double]]].zip(expected.asInstanceOf[Seq[Double]]).map { case (b, y) =>
+    b.map { x => Math.pow(x - y, 2.0) }.sum / (b.size - 1)
+  }
+
+  lazy val jackknifeVariance: Seq[Double] = variance(
+    expected.asInstanceOf[Seq[Double]].toVector,
+    expectedMatrix.asInstanceOf[Seq[Seq[Double]]],
+    NibJMat, NibIJMat
+  )
+
+  private lazy val reversedBias = bias.sortBy(_._1 * -1)
+
+  lazy val biasEstimate: Seq[Double] = {
+    val ratio: Seq[Double] = ensembleVariance.zip(jackknifeVariance).map(x => x._1 / x._2)
+    println(ratio.max, ratio.min, ratio.sum / ratio.size)
+    ratio.zipWithIndex.map{case (r, i) =>
+      reversedBias.takeWhile(_._1 > r).lastOption.getOrElse(reversedBias.head)._2(i)
+    }
+  }
+
   /* Compute the uncertainties one prediction at a time */
-  lazy val uncertainty = rep match {
-    case x: Double =>
-      val sigma2: Seq[Double] = if (useJackknife) {
-        variance(expected.asInstanceOf[Seq[Double]].toVector, expectedMatrix.asInstanceOf[Seq[Seq[Double]]], NibJMat, NibIJMat)
-      } else {
-        Seq.fill(expected.size)(0.0)
-      }
-      val rescale2 = rescale * rescale
-      sigma2.zip(bias.getOrElse(Seq.fill(expected.size)(0.0))).map { case (variance, b) => Math.sqrt(b * b + variance * rescale2) }
-    case x: Any =>
-      expectedMatrix.map(ps => ps.groupBy(identity).mapValues(_.size.toDouble / ps.size))
+  lazy val uncertainty: Seq[Any] = {
+    rep match {
+      case x: Double =>
+        if (useJackknife) {
+          jackknifeVariance.zip(biasEstimate).map { case (variance, b) => Math.sqrt(b * b + variance)}
+        } else {
+          ensembleVariance.map(v => Math.sqrt(v) * rescale)
+        }
+      case x: Any =>
+        expectedMatrix.map(ps => ps.groupBy(identity).mapValues(_.size.toDouble / ps.size))
+    }
   }
 
   /* Compute the scores one prediction at a time */
@@ -251,7 +361,8 @@ class BaggedMultiResult(
 
   /**
     * Compute the variance of a prediction as the average of bias corrected IJ and J variance estimates
-    *
+
+*
     * @param meanPrediction   over the models
     * @param modelPredictions prediction of each model
     * @param NibJ             sampling matrix for the jackknife-after-bootstrap estimate
@@ -264,8 +375,24 @@ class BaggedMultiResult(
                 NibJ: DenseMatrix[Double],
                 NibIJ: DenseMatrix[Double]
               ): Seq[Double] = {
-    scores(meanPrediction, modelPredictions, NibJ, NibIJ).map(_.sum)
-  }
+    scores(meanPrediction, modelPredictions, NibJ, NibIJ).map{vec =>
+      val importances = vec.sorted.reverse
+      val cutoff = Double.NegativeInfinity
+      val signal = importances.filter(_ > cutoff)
+      val res = signal.sum
+      if (res <= 0) {
+        val test = importances.filter(_ > 0).sum
+        if (test <= 0) {
+          - importances.last
+        } else {
+          test
+        }
+      } else {
+        // println(signal.size.toDouble / importances.size)
+        res
+      }
+    }
+  } ensuring(_.forall(x => x > 0))
 
   /**
     * Compute the IJ training row scores for a prediction
@@ -312,6 +439,10 @@ class BaggedMultiResult(
       val floor: Double = Math.max(0, -min(variancePerRow))
       val rezero: DenseVector[Double] = variancePerRow - floor
       0.5 * (rezero + abs(rezero)) + floor
+
+      // println(max(variancePerRow) * 2 / (Math.E * correction), min(variancePerRow), correction)
+
+      variancePerRow
     }.map(_.toScalaVector())
   }
 

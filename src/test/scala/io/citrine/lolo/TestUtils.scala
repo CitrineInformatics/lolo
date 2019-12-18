@@ -2,6 +2,7 @@ package io.citrine.lolo
 
 import io.citrine.lolo.stats.functions.Friedman
 
+import scala.annotation.tailrec
 import scala.util.{Random, Try}
 
 /**
@@ -33,11 +34,62 @@ object TestUtils {
                             xscale: Double = 1.0,
                             xoff: Double = 0.0,
                             noise: Double = 0.0,
-                            seed: Long = 0L
+                            heteroscedastic: Boolean = false,
+                            seed: Long = 0L,
+                            shape: String = "uniform"
                           ): Vector[(Vector[Double], Double)] = {
     val rnd = new Random(seed)
     Vector.fill(rows) {
-      val input = Vector.fill(cols)(xscale * rnd.nextDouble() + xoff)
+      val input = if (shape == "uniform") {
+        Vector.fill(cols)(xscale * rnd.nextDouble() + xoff)
+      } else {
+        Vector.fill(cols)(xscale * rnd.nextGaussian() / 0.5 + xoff)
+      }
+      if (heteroscedastic) {
+        val r2 = 2.0 * Math.sqrt(input.map(x => x*x).sum / input.size)
+        (input, function(input) + noise * rnd.nextGaussian() * r2)
+      } else {
+        (input, function(input) + noise * rnd.nextGaussian())
+      }
+    }
+  }
+
+  @tailrec
+  private def makeGrid(dims: Seq[Int], partial: Vector[Vector[Double]] = Vector.empty): Vector[Vector[Double]] = {
+    if (dims.isEmpty) {
+      return partial
+    }
+
+    val num = dims.last
+    val nextDim = if (num == 1) {
+      Vector(0.5)
+    } else {
+      Vector.tabulate(num){i => i.toDouble / (num - 1)}
+    }
+
+    val updated = if (partial.isEmpty) {
+      nextDim.map(x => Vector(x))
+    } else {
+      nextDim.flatMap { x =>
+        partial.map(p => Vector(x) ++ p)
+      }
+    }
+
+    makeGrid(dims.init, updated)
+  }
+
+  def generateGridData(
+                        dims: Seq[Int],
+                        function: (Seq[Double] => Double) = Friedman.friedmanGrosseSilverman,
+                        xscale: Double = 1.0,
+                        xoff: Double = 0.0,
+                        noise: Double = 0.0,
+                        seed: Long = 0L
+                      ): Vector[(Vector[Double], Double)] = {
+    val rnd = new Random(seed)
+
+    makeGrid(dims).map{x =>
+      val input = x.map(_ * xscale + xoff)
       (input, function(input) + noise * rnd.nextGaussian())
     }
   }

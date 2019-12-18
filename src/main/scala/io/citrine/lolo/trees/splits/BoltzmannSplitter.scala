@@ -30,7 +30,7 @@ import scala.util.Random
   * @param temperature used to control how sensitive the probability of a split is to its change in variance.
   *                    The temperature can be thought of as a hyperparameter.
   */
-case class BoltzmannSplitter(temperature: Double) extends Splitter[Double] {
+case class BoltzmannSplitter(temperature: Double, relative: Boolean = true) extends Splitter[Double] {
   require(temperature >= Float.MinPositiveValue, s"Temperature must be >= ${Float.MinPositiveValue} to avoid numerical underflows")
 
   /**
@@ -51,7 +51,11 @@ case class BoltzmannSplitter(temperature: Double) extends Splitter[Double] {
     if (initialVariance == 0) {
       return (new NoSplit(), 0.0)
     }
-    val beta = 1.0 / (temperature * initialVariance)
+    val beta = if (relative) {
+      1.0 / (temperature * initialVariance)
+    } else {
+      1.0 / temperature
+    }
 
     val rep = data.head
 
