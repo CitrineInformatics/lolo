@@ -47,7 +47,7 @@ case class BaggedSingleResult(
                                predictions: Seq[PredictionResult[Any]],
                                NibIn: Vector[Vector[Int]],
                                useJackknife: Boolean,
-                               bias: Seq[(Int, Double)] = Seq(),
+                               bias: Option[Double],
                                repInput: Vector[Any],
                                rescale: Double = 1.0
                              ) extends BaggedResult {
@@ -159,7 +159,7 @@ case class BaggedMultiResult(
                          override protected val predictions: Seq[PredictionResult[Any]],
                          NibIn: Vector[Vector[Int]],
                          useJackknife: Boolean,
-                         bias: Seq[(Int, Seq[Double])] = Seq(),
+                         bias: Option[Seq[Any]],
                          repInput: Vector[Any],
                          rescale: Double = 1.0
                        ) extends BaggedResult {
@@ -328,15 +328,7 @@ case class BaggedMultiResult(
     NibJMat, NibIJMat
   )
 
-  private lazy val reversedBias = bias.sortBy(_._1 * -1)
-
-  lazy val biasEstimate: Seq[Double] = {
-    val ratio: Seq[Double] = ensembleVariance.zip(jackknifeVariance).map(x => x._1 / x._2)
-    println(ratio.max, ratio.min, ratio.sum / ratio.size)
-    ratio.zipWithIndex.map{case (r, i) =>
-      reversedBias.takeWhile(_._1 > r).lastOption.getOrElse(reversedBias.head)._2(i)
-    }
-  }
+  lazy val biasEstimate: Seq[Double] = bias.get.asInstanceOf[Seq[Double]]
 
   /* Compute the uncertainties one prediction at a time */
   lazy val uncertainty: Seq[Any] = {

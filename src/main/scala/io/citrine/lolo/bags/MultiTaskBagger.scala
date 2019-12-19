@@ -103,7 +103,7 @@ case class MultiTaskBagger(
         val biasModel = biasLearner.get.train(biasTraining).getModel()
         Async.canStop()
 
-        new BaggedTrainingResult(m, averageImportance, Nib, trainingData, useJackknife, Seq((1, biasModel)))
+        new BaggedTrainingResult(m, averageImportance, Nib, trainingData, useJackknife, Some(biasModel))
       }
     }.seq
   }

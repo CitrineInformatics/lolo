@@ -201,16 +201,18 @@ object AccuracyTest {
       splitter = splitter
     )
 
+    val biasLearner = new Bagger(baseLearner, numBags = 128, uncertaintyCalibration = false)
+
     Seq(16, 32, 64, 128, 256, 512, 1024).foreach { nRow =>
       val trainSeed = rand.nextLong()
       val testSeed = rand.nextLong()
 
-      Seq(0.0, 1.0).foreach { trainingNoise =>
+      Seq(0.0, 0.125, 0.25, 0.5, 1.0).foreach { trainingNoise =>
         val trainingData = TestUtils.generateTrainingData(nRow, 10, function = func, seed = trainSeed, noise = trainingNoise, heteroscedastic = false)
 
         Seq(true).map { useJackknife =>
           Seq(32, 64, 128, 256, 512, 1024, 2048, 4096).foreach { nBag =>
-            val learner = new Bagger(baseLearner, numBags = nBag, useJackknife = useJackknife, uncertaintyCalibration = true)
+            val learner = new Bagger(baseLearner, numBags = nBag, useJackknife = useJackknife, uncertaintyCalibration = true, biasLearner = Some(biasLearner))
             val model = learner.train(trainingData).getModel()
             Seq(0.0, trainingNoise).foreach { testNoise =>
               val testData = TestUtils.generateTrainingData(nTest, 10, function = func, seed = testSeed, noise = testNoise, heteroscedastic = false)

@@ -2,8 +2,6 @@ package io.citrine.lolo.bags
 
 import breeze.stats.distributions.Poisson
 import io.citrine.lolo.stats.metrics.ClassificationMetrics
-import io.citrine.lolo.trees.regression.RegressionTreeLearner
-import io.citrine.lolo.trees.splits.RegressionSplitter
 import io.citrine.lolo.util.{Async, InterruptibleExecutionContext}
 import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
 
@@ -22,7 +20,7 @@ case class Bagger(
                    method: Learner,
                    numBags: Int = -1,
                    useJackknife: Boolean = true,
-                   // biasLearner: Option[Learner] = None,
+                   biasLearner: Option[Learner] = None,
                    uncertaintyCalibration: Boolean = false,
                    useBagging: Boolean = true
                  ) extends Learner {
@@ -133,28 +131,19 @@ case class Bagger(
     assert(!ratio.isNaN && !ratio.isInfinity, s"Uncertainty calibration ratio is not real: $ratio")
 
     /* Wrap the models in a BaggedModel object */
-    if (!useBagging || oobErrors.isEmpty) {
+    if (biasLearner.isEmpty || oobErrors.isEmpty) {
       Async.canStop()
-      new BaggedTrainingResult(models, averageImportance, Nib, trainingData, useJackknife, Seq(), ratio)
+      new BaggedTrainingResult(models, averageImportance, Nib, trainingData, useJackknife, None, ratio)
     } else {
-      val biasTraining = oobErrors.map { case (f, e, u) =>
-        // Math.E is only statistically correct.  It should be actualBags / Nib.transpose(i).count(_ == 0)
-        // Or, better yet, filter the bags that don't include the training example
-        val bias = e // Math.max(Math.abs(e) - u * ratio, 0)
-        (f, bias)
+      val biasTraining = oobErrors.map { case (f, residual, _) =>
+        (f, residual)
       }
-      val biasModels = Seq(16384).map{minLeaf =>
-        val biasLearner = Bagger(
-          method = RegressionTreeLearner(splitter = RegressionSplitter(true), numFeatures = trainingData.head._1.size / 2),
-          useBagging = false,
-          numBags = 128
-        )
-        Async.canStop()
-        val model = biasLearner.train(biasTraining).getModel()
-        Async.canStop()
-        (minLeaf, model)
+      Async.canStop()
+      val biasModel = biasLearner.map{learner =>
+        learner.train(biasTraining).getModel()
       }
-      new BaggedTrainingResult(models, averageImportance, Nib, trainingData, useJackknife, biasModels, ratio)
+      Async.canStop()
+      new BaggedTrainingResult(models, averageImportance, Nib, trainingData, useJackknife, biasModel, ratio)
     }
   }
 }
@@ -165,7 +154,7 @@ class BaggedTrainingResult(
                             Nib: Vector[Vector[Int]],
                             trainingData: Seq[(Vector[Any], Any)],
                             useJackknife: Boolean,
-                            biasModel: Seq[(Int, Model[PredictionResult[Any]])] = Seq(),
+                            biasModel: Option[Model[PredictionResult[Any]]] = None,
                             rescale: Double = 1.0,
                           )
   extends TrainingResult {
@@ -216,7 +205,7 @@ class BaggedModel(
                    models: ParSeq[Model[PredictionResult[Any]]],
                    Nib: Vector[Vector[Int]],
                    useJackknife: Boolean,
-                   biasModel: Seq[(Int, Model[PredictionResult[Any]])] = Seq(),
+                   biasModel: Option[Model[PredictionResult[Any]]] = None,
                    rescale: Double = 1.0
                  ) extends Model[BaggedResult] {
 
@@ -228,16 +217,16 @@ class BaggedModel(
     */
   override def transform(inputs: Seq[Vector[Any]]): BaggedResult = {
     assert(inputs.forall(_.size == inputs.head.size))
-    val bias: Seq[(Int, Seq[Any])] = biasModel.map{case (n, model) =>
-      (n, model.transform(inputs).getExpected())
+    val bias: Option[Seq[Any]] = biasModel.map{model =>
+      model.transform(inputs).getExpected()
     }
 
     val ensemblePredictions = models.map(model => model.transform(inputs)).seq
     if (inputs.size == 1 && ensemblePredictions.head.getExpected().head.isInstanceOf[Double]) {
       // In the special case of a single prediction on a real value, emit an optimized BaggedSingleResult
-      BaggedSingleResult(ensemblePredictions, Nib, useJackknife, bias.map(x => (x._1, x._2.head.asInstanceOf[Double])), inputs.head, rescale)
+      BaggedSingleResult(ensemblePredictions, Nib, useJackknife, bias.map(_.head.asInstanceOf[Double]), inputs.head, rescale)
     } else {
-      new BaggedMultiResult(ensemblePredictions, Nib, useJackknife, bias.asInstanceOf[Seq[(Int, Seq[Double])]], inputs.head, rescale)
+      new BaggedMultiResult(ensemblePredictions, Nib, useJackknife, bias, inputs.head, rescale)
     }
   }
 }
