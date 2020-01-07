@@ -52,52 +52,75 @@ trait PredictionResult[+T] {
  */
 trait RegressionResult extends PredictionResult[Double] {
   /**
-   * Get the 1-\sigma Prediction Interval for each prediction, if possible
+   * Get the standard deviation of the distribution of predicted observations, if possible
    *
-   * https://en.wikipedia.org/wiki/Prediction_interval
-   * The prediction interval is typically the sum of the (square) bias, variance, and irreducible error
+   * Observations of the predicted variable are expected to have a stddev that matches this value.
+   * This statistic is related to the https://en.wikipedia.org/wiki/Prediction_interval
    */
-  def getPredictionInterval(): Option[Seq[Double]] = None
+  def getStdDevObs(): Option[Seq[Double]] = None
 
   /**
-   * Get the 1-\sigma Confidence Interval for each prediction, if possible
-   * https://en.wikipedia.org/wiki/Confidence_interval
+    * Get a quantile from the distribution of predicted observations, if possible
+    *
+    * Observations of the predicted variable are expected to have a distribution with this quantile.
+    * This statistic is related to the https://en.wikipedia.org/wiki/Prediction_interval
+    *
+    * @param quantile to get, taken between 0.0 and 1.0 (i.e. not a percentile)
+    */
+  def getObsQuantile(quantile: Double): Option[Seq[Double]] = None
+
+  /**
+   * Get the expected error of the predicted mean observations, if possible
+   *
+   * The mean of a large sample of repeated observations are expected to have a stddev that matches this value.
+   * This statistic is related to the https://en.wikipedia.org/wiki/Confidence_interval
    */
-  def getConfidenceInterval(): Option[Seq[Double]] = None
+  def getTotalError(): Option[Seq[Double]] = None
+
+  def getTotalErrorQuantile(quantile: Double): Option[Seq[Double]] = None
 
   /**
    * Get the estimated magnitude of the bias of each prediction, if possible
    *
+   * The bias is signed and can be added to the prediction to improve accuracy.
    * See https://en.wikipedia.org/wiki/Bias%E2%80%93variance_tradeoff
    */
   def getBias(): Option[Seq[Double]] = None
 
-  /**
-   * Get the estimated magnitude of the sqrt of the variance of each prediction, if possible
-   *
-   * The sqrt is so that the bias, variance, and irreducible error have the same scale.
-   * See https://en.wikipedia.org/wiki/Bias%E2%80%93variance_tradeoff
-   */
-  def getRootVariance(): Option[Seq[Double]] = None
+  def getBiasQuantile(quantile: Double): Option[Seq[Double]] = None
 
   /**
-   * Get the estimated magnitude of the irreducible noise of each prediction, if possible
+   * Get the standard deviation of the distribution of predicted mean observations, if possible
    *
-   * See https://en.wikipedia.org/wiki/Bias%E2%80%93variance_tradeoff
+   * The variation is the variation due to the finite size of the training data (i.e. "sample")
+   * This statistic is related to the variance in the bias-variance trade-off
+   * https://en.wikipedia.org/wiki/Bias%E2%80%93variance_tradeoff
    */
-  def getIrreducibleError(): Option[Seq[Double]] = None
+  def getSampleStdDev(): Option[Seq[Double]] = None
+
+
+  def getSampleQuantile(quantile: Double): Option[Seq[Double]] = None
 
   /**
-   * Get the "uncertainty", which is the prediction interval if includeNoise and the confidence interval otherwise
+   * Get the "uncertainty", which is the TotalError if non-observational and the StdDevObs if observational
    *
-   * @param includeNoise whether the uncertainty should account for irreducible noise (i.e. a prediction interval)
+   * @param observational whether the uncertainty should account for observational uncertainty
    * @return uncertainty of each prediction
    */
-  override def getUncertainty(includeNoise: Boolean = true): Option[Seq[Any]] = {
-    if (includeNoise) {
-      getPredictionInterval()
+  override def getUncertainty(observational: Boolean = true): Option[Seq[Any]] = {
+    if (observational) {
+      getStdDevObs()
     } else {
-      getConfidenceInterval()
+      getTotalError()
+    }
+  }
+
+
+  def getQuantile(quantile: Double, observational: Boolean = true): Option[Seq[Double]] = {
+    if (observational) {
+      getObsQuantile(quantile)
+    } else {
+      getTotalErrorQuantile(quantile)
     }
   }
 }

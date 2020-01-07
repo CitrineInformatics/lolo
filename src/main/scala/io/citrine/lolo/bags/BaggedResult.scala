@@ -59,9 +59,9 @@ case class BaggedSingleResult(
   private lazy val expected = treePredictions.sum / treePredictions.length
   private lazy val treeVariance: Double = treePredictions.map(x => Math.pow(x - expected, 2.0)).sum / treePredictions.length
 
-  override def getPredictionInterval(): Option[Seq[Double]] = Some(Seq(treeVariance))
+  override def getStdDevObs(): Option[Seq[Double]] = Some(Seq(treeVariance))
 
-  override def getRootVariance(): Option[Seq[Double]] = Some(Seq(scalarUncertainty))
+  override def getStdDev(): Option[Seq[Double]] = Some(Seq(scalarUncertainty))
 
   private lazy val scalarUncertainty: Double = {
     // make sure the variance is non-negative after the stochastic correction
@@ -170,13 +170,13 @@ case class BaggedMultiResult(
     */
   override def getExpected(): Seq[Double] = expected
 
-  override def getPredictionInterval(): Option[Seq[Double]] = Some{
+  override def getStdDevObs(): Option[Seq[Double]] = Some{
     expectedMatrix.asInstanceOf[Seq[Seq[Double]]].zip(expected.asInstanceOf[Seq[Double]]).map{case (b, y) =>
       b.map{x => Math.pow(x - y, 2.0)}.sum / b.size
     }
   }
 
-  override def getRootVariance(): Option[Seq[Double]] = Some(uncertainty)
+  override def getStdDev(): Option[Seq[Double]] = Some(uncertainty)
 
   /**
     * Return IJ scores
