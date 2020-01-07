@@ -3,7 +3,7 @@ package io.citrine.lolo.learners
 import io.citrine.lolo.bags.Bagger
 import io.citrine.lolo.trees.classification.ClassificationTreeLearner
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
-import io.citrine.lolo.trees.splits.{ClassificationSplitter, RegressionSplitter}
+import io.citrine.lolo.trees.splits.{BoltzmannSplitter, ClassificationSplitter, RegressionSplitter}
 import io.citrine.lolo.{Learner, TrainingResult}
 
 /**
@@ -30,7 +30,8 @@ case class RandomForest(
                          minLeafInstances: Int = 1,
                          maxDepth: Int = Integer.MAX_VALUE,
                          uncertaintyCalibration: Boolean = false,
-                         randomizePivotLocation: Boolean = false
+                         randomizePivotLocation: Boolean = false,
+                         temperature: Double = 0.0
                        ) extends Learner {
   /**
     * Train a random forest model
@@ -60,12 +61,17 @@ case class RandomForest(
           case x: Double =>
             (trainingData.head._1.size * x).toInt
         }
+        val splitter = if (temperature > 0) {
+          BoltzmannSplitter(temperature)
+        } else {
+          RegressionSplitter(randomizePivotLocation)
+        }
         val DTLearner = RegressionTreeLearner(
           leafLearner = leafLearner,
           numFeatures = numFeatures,
           minLeafInstances = minLeafInstances,
           maxDepth = maxDepth,
-          splitter = RegressionSplitter(randomizePivotLocation)
+          splitter = splitter
         )
         val bagger = Bagger(DTLearner,
           numBags = numTrees,
