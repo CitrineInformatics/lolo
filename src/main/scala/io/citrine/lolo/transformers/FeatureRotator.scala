@@ -146,9 +146,7 @@ class RotatedFeaturePrediction[T](
     * @return a vector of doubles for each prediction
     */
   override def getGradient(): Option[Seq[Vector[Double]]] = {
-    var baseGradient = baseResult.getGradient()
-    // TODO: how should this handle None gradients?
-    baseGradient.map { g =>
+    baseResult.getGradient().map { g =>
       FeatureRotator.applyRotation(g, rotatedFeatures, trans.t).asInstanceOf[Seq[Vector[Double]]]
     }
   }
@@ -169,7 +167,9 @@ object FeatureRotator {
   def getRandomRotation(dimension: Int): DenseMatrix[Double] = {
     val X = DenseMatrix.rand(dimension, dimension, Gaussian(0, 1))
     val QR(_Q, _R) = qr(X)
-    diag(signum(diag(_R))) * _Q.toDenseMatrix
+    val d = signum(diag(_R))
+    val detV = d.reduce((a,b) => a*b)
+    detV * diag(d) * _Q.toDenseMatrix
   }
 
   /**
@@ -181,7 +181,7 @@ object FeatureRotator {
   def getDoubleFeatures(rep: Vector[Any]): IndexedSeq[Int] = {
     rep.indices.collect( i =>
       rep(i) match {
-        case x if x.isInstanceOf[Double] => i
+        case _: Double => i
       }
     )
   }
