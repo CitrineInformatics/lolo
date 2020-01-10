@@ -93,7 +93,7 @@ class RotatedFeatureTrainingResult(
   * @param baseModel model to which to delegate prediction on rotated features
   * @param rotatedFeatures indices of features to rotate
   * @param trans matrix to apply to features
-  * @tparam T
+  * @tparam T label type
   */
 class RotatedFeatureModel[T](
                              baseModel: Model[PredictionResult[T]],
@@ -179,15 +179,11 @@ object FeatureRotator {
     * @return list of feature indices that are doubles
     */
   def getDoubleFeatures(rep: Vector[Any]): IndexedSeq[Int] = {
-    rep.indices.collect( i =>
-      rep(i) match {
-        case _: Double => i
-      }
-    )
+    rep.indices.filter(i => rep(i).isInstanceOf[Double])
   }
 
   /**
-   * Apply rotation to a vectors.
+   * Apply rotation to a vector.
    *
    * @param input vector to rotate
    * @param featuresToRotate vector of feature indices included in rotation
