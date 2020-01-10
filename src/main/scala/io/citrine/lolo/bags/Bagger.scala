@@ -111,7 +111,7 @@ case class Bagger(
         }, useJackknife)
         val predicted = model.transform(Seq(trainingData(idx)._1)).asInstanceOf[BaggedSingleResult]
         val error = predicted.getExpected().head.asInstanceOf[Double] - trainingData(idx)._2.asInstanceOf[Double]
-        val uncertainty = Math.sqrt(predicted.ensembleVariance)
+        val uncertainty = predicted.getUncertainty().get.head.asInstanceOf[Double] // Math.sqrt(predicted.ensembleVariance)
         Some(trainingData(idx)._1, error, uncertainty)
       }
     }

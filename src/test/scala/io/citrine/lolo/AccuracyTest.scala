@@ -212,7 +212,7 @@ object AccuracyTest {
 
         Seq(true).map { useJackknife =>
           Seq(32, 64, 128, 256, 512, 1024, 2048, 4096).foreach { nBag =>
-            val learner = new Bagger(baseLearner, numBags = nBag, useJackknife = useJackknife, uncertaintyCalibration = true, biasLearner = Some(biasLearner))
+            val learner = new Bagger(baseLearner, numBags = nBag, useJackknife = useJackknife, uncertaintyCalibration = true, biasLearner = None) // Some(biasLearner))
             val model = learner.train(trainingData).getModel()
             Seq(0.0, trainingNoise).foreach { testNoise =>
               val testData = TestUtils.generateTrainingData(nTest, 10, function = func, seed = testSeed, noise = testNoise, heteroscedastic = false)
@@ -222,7 +222,7 @@ object AccuracyTest {
 
               val orig: BaggedMultiResult with PredictionResult[Double] = model.transform(testFeatures).asInstanceOf[BaggedMultiResult with PredictionResult[Double]]
 
-              if (testNoise == 0.0) {
+              if (true) {
                 val predictions = orig
                 val stdconf = validation.StandardConfidence.evaluate(predictions, testLabels)
                 val ucorr = validation.UncertaintyCorrelation.evaluate(predictions, testLabels)
@@ -235,7 +235,7 @@ object AccuracyTest {
                 } finally fw.close()
               }
 
-              {
+              if (false) {
                 val predictions = orig.copy(useJackknife = false).asInstanceOf[BaggedMultiResult with PredictionResult[Double]]
                 val stdconf = validation.StandardConfidence.evaluate(predictions, testLabels)
                 val ucorr = validation.UncertaintyCorrelation.evaluate(predictions, testLabels)

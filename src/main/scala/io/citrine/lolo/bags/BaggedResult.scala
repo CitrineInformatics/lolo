@@ -328,14 +328,14 @@ case class BaggedMultiResult(
     NibJMat, NibIJMat
   )
 
-  lazy val biasEstimate: Seq[Double] = bias.get.asInstanceOf[Seq[Double]]
+  lazy val biasEstimate: Seq[Double] = bias.getOrElse(Seq.fill(expected.size)(0.0)).asInstanceOf[Seq[Double]]
 
   /* Compute the uncertainties one prediction at a time */
   lazy val uncertainty: Seq[Any] = {
     rep match {
       case x: Double =>
         if (useJackknife) {
-          jackknifeVariance.zip(biasEstimate).map { case (variance, b) => Math.sqrt(b * b + variance)}
+          jackknifeVariance.zip(biasEstimate).map { case (variance, b) => Math.sqrt(b * b + variance) * rescale}
         } else {
           ensembleVariance.map(v => Math.sqrt(v) * rescale)
         }
@@ -431,10 +431,6 @@ case class BaggedMultiResult(
       val floor: Double = Math.max(0, -min(variancePerRow))
       val rezero: DenseVector[Double] = variancePerRow - floor
       0.5 * (rezero + abs(rezero)) + floor
-
-      // println(max(variancePerRow) * 2 / (Math.E * correction), min(variancePerRow), correction)
-
-      variancePerRow
     }.map(_.toScalaVector())
   }
 
