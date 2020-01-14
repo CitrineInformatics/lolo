@@ -94,9 +94,9 @@ class FeatureRotatorTest {
 
     rotatedTrainingResult.getPredictedVsActual().foreach { x =>
       x.zip(data).foreach { case (a,b) =>
-        assert(a._1 == b._1)
-        assert(a._2 == b._2)
-        assert(a._3 == b._2)
+        assert(a._1 == b._1, "getPredictedVsActual must return the correct training inputs.")
+        assert(a._2 == b._2, "getPredictedVsActual must return the correct predicted value.")
+        assert(a._3 == b._2, "getPredictedVsActual must return the correct actual value.")
       }
     }
   }
