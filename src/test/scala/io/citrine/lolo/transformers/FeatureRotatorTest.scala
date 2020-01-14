@@ -81,6 +81,22 @@ class FeatureRotatorTest {
   }
 
   /**
+    * Functions getLoss and getPredictedVsActual should pass through to base learner.
+    */
+  @Test
+  def testPassthroughFunctions(): Unit = {
+    val rotatedTrainingResult = FeatureRotator(GuessTheMeanLearner()).train(data)
+    assert(
+      rotatedTrainingResult.getLoss() == rotatedTrainingResult.baseTrainingResult.getLoss(),
+      "Function getLoss() should pass through to base learner."
+    )
+    assert(
+      rotatedTrainingResult.getPredictedVsActual() == rotatedTrainingResult.baseTrainingResult.getPredictedVsActual(),
+      "Function getPredictedVsActual() should pass through to base learner."
+    )
+  }
+
+  /**
     * Guess the mean should be invariant under rotation.
     */
   @Test
@@ -144,8 +160,8 @@ class FeatureRotatorTest {
   }
 
   /**
-   * Regression trees should not depend on rotation
-   */
+    * Verify expected properties of rotated-input regression trees
+    */
   @Test
   def testRotatedRegressionTree(): Unit = {
     val learner = RegressionTreeLearner()
@@ -153,17 +169,30 @@ class FeatureRotatorTest {
     val result = model.transform(data.map(_._1)).getExpected()
 
     val rotatedLearner = new FeatureRotator(learner)
-    val rotatedModel = rotatedLearner.train(data).getModel()
-    val rotatedResult = rotatedModel.transform(data.map(_._1)).getExpected()
-
+    val rotatedModel = rotatedLearner.train(data).getModel().asInstanceOf[RotatedFeatureModel[Double]]
+    var rotatedResult = rotatedModel.transform(data.map(_._1)).getExpected()
     result.zip(rotatedResult).foreach { case (free: Double, rotated: Double) =>
       assert(Math.abs(free - rotated) < 1.0e-9, s"${free} and ${rotated} should be the same")
     }
+
+    val rotatedData = FeatureRotator.applyRotation(data.map(_._1), rotatedModel.rotatedFeatures, rotatedModel.trans)
+    rotatedResult = rotatedModel.transform(rotatedData).getExpected()
+    // Check that labels change when we feed in different data.
+    assert(
+      rotatedResult.zip(result).map{ case (a: Double, b: Double) => a - b }.count{x => Math.abs(x) > 1e-9} > 0,
+      "Rotated data passed to rotated model should not map to the same predictions."
+    )
+    val baseResult = rotatedModel.baseModel.transform(rotatedData).getExpected()
+    // Check that labels are the same as feeding rotated data into base learner.
+    assert(
+      baseResult.zip(result).map{ case (a: Double, b: Double) => a - b }.count{x => Math.abs(x) > 1e-9} == 0,
+      "Rotated data passed to base model should map to the same predictions."
+    )
   }
 
   /**
-   * Classification trees should not depend on rotation
-   */
+    * Verify expected properties of rotated-input classification trees
+    */
   @Test
   def testRotatedClassificationTree(): Unit = {
     val classificationData = TestUtils.binTrainingData(
@@ -177,17 +206,31 @@ class FeatureRotatorTest {
     val result = model.transform(classificationData.map(_._1)).getExpected()
 
     val rotatedLearner = new FeatureRotator(learner)
-    val rotatedModel = rotatedLearner.train(classificationData).getModel()
-    val rotatedResult = rotatedModel.transform(classificationData.map(_._1)).getExpected()
+    val rotatedModel = rotatedLearner.train(classificationData).getModel().asInstanceOf[RotatedFeatureModel[String]]
+    var rotatedResult = rotatedModel.transform(classificationData.map(_._1)).getExpected()
 
     result.zip(rotatedResult).foreach { case (free: Any, rotated: Any) =>
       assert(free == rotated, s"${free} and ${rotated} should be the same")
     }
+
+    val rotatedData = FeatureRotator.applyRotation(classificationData.map(_._1), rotatedModel.rotatedFeatures, rotatedModel.trans)
+    rotatedResult = rotatedModel.transform(rotatedData).getExpected()
+    // Check that labels change when we feed in different data.
+    assert(
+      rotatedResult.zip(result).count{ case (a: String, b: String) => a != b } > 0,
+      "Rotated data passed to rotated model should not map to the same predictions."
+    )
+    val baseResult = rotatedModel.baseModel.transform(rotatedData).getExpected()
+    // Check that labels are the same as feeding rotated data into base learner.
+    assert(
+      baseResult.zip(result).count{ case (a: String, b: String) => a != b } == 0,
+      s"Categorical labels should be identical when we feed rotated inputs into base learner."
+    )
   }
 
   /**
-   * Test that multitask rotation has the proper performance and invariants
-   */
+    * Verify that rotated-input multi-task trees have expected properties
+    */
   @Test
   def testMultiTaskRotator(): Unit = {
     val data: Vector[(Vector[Double], Double)] = TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman)
@@ -201,27 +244,66 @@ class FeatureRotatorTest {
 
     // Train and evaluate rotated models on original and rotated features
     val baseLearner = new MultiTaskTreeLearner()
-    val rotator = new MultiTaskFeatureRotator(MultiTaskTreeLearner())
+    val rotatedLearner = new MultiTaskFeatureRotator(MultiTaskTreeLearner())
+
+    val baseTrainingResult = baseLearner.train(inputs, Seq(doubleLabel, sparseCatLabel))
+    val baseDoubleModel = baseTrainingResult.head.getModel()
+    val baseCatModel = baseTrainingResult.last.getModel()
+    val rotatedTrainingResult = rotatedLearner.train(inputs, Seq(doubleLabel, sparseCatLabel))
+    val rotatedDoubleModel = rotatedTrainingResult.head.getModel().asInstanceOf[RotatedFeatureModel[Double]]
+    val rotatedCatModel = rotatedTrainingResult.last.getModel().asInstanceOf[RotatedFeatureModel[Boolean]]
 
     // Check double labels are the same
-    val baseDoubleRes = baseLearner.train(inputs, Seq(doubleLabel, sparseCatLabel)).head.getModel().transform(inputs).getExpected()
-    val rotatedDoubleRes = rotator.train(inputs, Seq(doubleLabel, sparseCatLabel)).head.getModel().transform(inputs).getExpected()
-    baseDoubleRes.zip(rotatedDoubleRes).foreach { case (br: Double, rr: Double) =>
+    val baseDoubleResult = baseDoubleModel.transform(inputs).getExpected()
+    val rotatedDoubleResult = rotatedDoubleModel.transform(inputs).getExpected()
+    baseDoubleResult.zip(rotatedDoubleResult).foreach { case (br: Double, rr: Double) =>
       assert(Math.abs(br - rr) < 1e-9, "Predicted double label not the same in rotated learner.")
     }
 
-    // Check categorical labels are the same
-    val baseTrainingRes = baseLearner.train(inputs, Seq(doubleLabel, sparseCatLabel))
-    val baseCatRes = baseLearner.train(inputs, Seq(doubleLabel, sparseCatLabel)).last.getModel().transform(inputs).getExpected()
-    val rotatedCatRes = rotator.train(inputs, Seq(doubleLabel, sparseCatLabel)).last.getModel().transform(inputs).getExpected()
+    // Check categorical labels are close
+    val baseCatResult = baseCatModel.transform(inputs).getExpected()
+    val rotatedCatResult = rotatedCatModel.transform(inputs).getExpected()
+    val baseF1 = ClassificationMetrics.f1scores(baseCatResult, catLabel)
+    val rotatedF1 = ClassificationMetrics.f1scores(rotatedCatResult, catLabel)
+    // rotatedF1 appears to come in substantially lower than baseF1; this is just a rough sanity check / smoketest.
+    assert(Math.abs(baseF1 - rotatedF1) < 0.15, s"baseF1 ${baseF1} and rotatedF1 ${rotatedF1} are too dissimilar.")
 
-    val baseF1 = ClassificationMetrics.f1scores(baseCatRes, catLabel)
-    val rotatedF1 = ClassificationMetrics.f1scores(rotatedCatRes, catLabel)
-    // rotatedF1 appears to come in be substantially lower than baseF1; this is just a rough sanity check / smoketest.
-    assert(Math.abs(baseF1 - rotatedF1) < 0.15)
+    // Check that rotation features and rotation matrices are the same for both tasks
+    val U = rotatedDoubleModel.trans
+    val rotatedFeatures = rotatedDoubleModel.rotatedFeatures
+    assert(U == rotatedCatModel.trans)
+    assert(rotatedFeatures == rotatedCatModel.rotatedFeatures)
+
+    val rotatedInputs = FeatureRotator.applyRotation(data.map(_._1), rotatedFeatures, U)
+    assert(
+        rotatedDoubleModel.baseModel.transform(rotatedInputs).getExpected().zip(rotatedDoubleResult).count{
+        case (a: Double, b: Double) => Math.abs(a - b) > 1e-9
+      } == 0,
+      "Rotated data passed to base model should map to the same predictions."
+    )
+    assert(
+      rotatedDoubleModel.transform(rotatedInputs).getExpected().zip(baseDoubleResult).count{
+        case (a: Double, b: Double) => Math.abs(a - b) > 1e-9
+      } > 0,
+      "Rotated data passed to rotated model should map to different predictions."
+    )
+
+    val doublyRotatedF1 =  ClassificationMetrics.f1scores(rotatedCatModel.transform(rotatedInputs).getExpected(), catLabel)
+    val rotatedF1Base =  ClassificationMetrics.f1scores(baseCatModel.transform(rotatedInputs).getExpected(), catLabel)
+
+    // Check that categorical labels change when we feed in different data.
+    assert(
+      rotatedCatModel.transform(rotatedInputs).getExpected().zip(baseCatModel.transform(rotatedInputs).getExpected()).count{
+        case (a: Boolean, b: Boolean) => a != b
+      } > 0,
+      s"Categorical labels should substantially change when we feed in different inputs."
+    )
+    // Check that categorical labels are the same as feeding rotated data into base learner.
+    assert(
+      rotatedCatModel.transform(inputs).getExpected().zip(rotatedCatModel.baseModel.transform(rotatedInputs).getExpected).count{
+        case (a: Boolean, b: Boolean) => a != b
+      } == 0,
+      s"Categorical labels should be identical when we feed rotated inputs into base learner."
+    )
   }
-
-  /*
-   * TODO: investigate performance relative to un-rotated random forest
-   */
 }

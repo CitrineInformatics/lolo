@@ -38,7 +38,7 @@ case class FeatureRotator(baseLearner: Learner) extends Learner {
   }
 }
 
-class MultiTaskFeatureRotator(baseLearner: MultiTaskLearner) extends MultiTaskLearner {
+case class MultiTaskFeatureRotator(baseLearner: MultiTaskLearner) extends MultiTaskLearner {
 
   /**
     * Create linear transformations for continuous features and labels & pass data through to learner
@@ -71,7 +71,7 @@ class MultiTaskFeatureRotator(baseLearner: MultiTaskLearner) extends MultiTaskLe
   * @param rotatedFeatures indices of features to rotate
   * @param trans matrix to apply to features
   */
-class RotatedFeatureTrainingResult(
+case class RotatedFeatureTrainingResult(
                                    baseTrainingResult: TrainingResult,
                                    rotatedFeatures: IndexedSeq[Int],
                                    trans: DenseMatrix[Double]
@@ -85,6 +85,10 @@ class RotatedFeatureTrainingResult(
   override def getModel(): Model[PredictionResult[Any]] = {
     new RotatedFeatureModel(baseTrainingResult.getModel(), rotatedFeatures, trans)
   }
+
+  override def getLoss(): Option[Double] = baseTrainingResult.getLoss()
+
+  override def getPredictedVsActual(): Option[Seq[(Vector[Any], Any, Any)]] = baseTrainingResult.getPredictedVsActual()
 }
 
 /**
@@ -95,7 +99,7 @@ class RotatedFeatureTrainingResult(
   * @param trans matrix to apply to features
   * @tparam T label type
   */
-class RotatedFeatureModel[T](
+case class RotatedFeatureModel[T](
                              baseModel: Model[PredictionResult[T]],
                              rotatedFeatures: IndexedSeq[Int],
                              trans: DenseMatrix[Double]
@@ -119,9 +123,9 @@ class RotatedFeatureModel[T](
   * @param baseResult
   * @param rotatedFeatures
   * @param trans
-  * @tparam T
+  * @tparam T label type
   */
-class RotatedFeaturePrediction[T](
+case class RotatedFeaturePrediction[T](
                                   baseResult: PredictionResult[T],
                                   rotatedFeatures: IndexedSeq[Int],
                                   trans: DenseMatrix[Double]
