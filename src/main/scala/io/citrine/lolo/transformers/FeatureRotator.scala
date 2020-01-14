@@ -34,7 +34,7 @@ case class FeatureRotator(baseLearner: Learner) extends Learner {
     val rotatedTrainingData = FeatureRotator.applyRotation(inputs, featuresToRotate, trans).zip(labels)
     val baseTrainingResult = baseLearner.train(rotatedTrainingData, weights)
 
-    new RotatedFeatureTrainingResult(baseTrainingResult, featuresToRotate, trans)
+    RotatedFeatureTrainingResult(baseTrainingResult, featuresToRotate, trans)
   }
 }
 
@@ -59,7 +59,7 @@ case class MultiTaskFeatureRotator(baseLearner: MultiTaskLearner) extends MultiT
     val baseTrainingResult = baseLearner.train(rotatedFeatures, labels, weights)
 
     baseTrainingResult.map { case (base) =>
-      new RotatedFeatureTrainingResult(base, featuresToRotate, trans)
+      RotatedFeatureTrainingResult(base, featuresToRotate, trans)
     }
   }
 }
@@ -83,12 +83,18 @@ case class RotatedFeatureTrainingResult(
     * @return the model
     */
   override def getModel(): Model[PredictionResult[Any]] = {
-    new RotatedFeatureModel(baseTrainingResult.getModel(), rotatedFeatures, trans)
+    RotatedFeatureModel(baseTrainingResult.getModel(), rotatedFeatures, trans)
   }
 
   override def getLoss(): Option[Double] = baseTrainingResult.getLoss()
 
-  override def getPredictedVsActual(): Option[Seq[(Vector[Any], Any, Any)]] = baseTrainingResult.getPredictedVsActual()
+  override def getPredictedVsActual(): Option[Seq[(Vector[Any], Any, Any)]] = {
+    baseTrainingResult.getPredictedVsActual().map { x =>
+      x.map {
+        case (v: Vector[Any], e: Any, a: Any) => (FeatureRotator.applyOneRotation(v, rotatedFeatures, trans), e, a)
+      }
+    }
+  }
 }
 
 /**
@@ -113,7 +119,7 @@ case class RotatedFeatureModel[T](
     */
   override def transform(inputs: Seq[Vector[Any]]): RotatedFeaturePrediction[T] = {
     val rotatedInputs = FeatureRotator.applyRotation(inputs, rotatedFeatures,  trans)
-    new RotatedFeaturePrediction(baseModel.transform(rotatedInputs), rotatedFeatures, trans)
+    RotatedFeaturePrediction(baseModel.transform(rotatedInputs), rotatedFeatures, trans)
   }
 }
 

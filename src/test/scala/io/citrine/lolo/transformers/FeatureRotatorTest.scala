@@ -85,15 +85,20 @@ class FeatureRotatorTest {
     */
   @Test
   def testPassthroughFunctions(): Unit = {
-    val rotatedTrainingResult = FeatureRotator(GuessTheMeanLearner()).train(data)
+    val rotatedTrainingResult = FeatureRotator(RegressionTreeLearner()).train(data)
+
     assert(
       rotatedTrainingResult.getLoss() == rotatedTrainingResult.baseTrainingResult.getLoss(),
       "Function getLoss() should pass through to base learner."
     )
-    assert(
-      rotatedTrainingResult.getPredictedVsActual() == rotatedTrainingResult.baseTrainingResult.getPredictedVsActual(),
-      "Function getPredictedVsActual() should pass through to base learner."
-    )
+
+    rotatedTrainingResult.getPredictedVsActual().foreach { x =>
+      x.zip(data).foreach { case (a,b) =>
+        assert(a._1 == b._1)
+        assert(a._2 == b._2)
+        assert(a._3 == b._2)
+      }
+    }
   }
 
   /**
