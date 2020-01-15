@@ -56,28 +56,67 @@ trait RegressionResult extends PredictionResult[Double] {
    *
    * Observations of the predicted variable are expected to have a stddev that matches this value.
    * This statistic is related to the https://en.wikipedia.org/wiki/Prediction_interval
+   * It does not include estimated bias, if applicable
    */
   def getStdDevObs(): Option[Seq[Double]] = None
+
+  /**
+   * Get the expected error of the observations, if possible
+   *
+   * This statistic is related to the https://en.wikipedia.org/wiki/Prediction_interval
+   * This statistic includes the contribution of the estimated bias.  E.g., for a normal distribution of predicted
+   * means, the total error is sqrt(bias**2 + variance)
+   */
+  def getTotalErrorObs(): Option[Seq[Double]] = None
 
   /**
     * Get a quantile from the distribution of predicted observations, if possible
     *
     * Observations of the predicted variable are expected to have a distribution with this quantile.
     * This statistic is related to the https://en.wikipedia.org/wiki/Prediction_interval
+   *  getObsQuantile(0.5) is a central statistic for the estimated bias, if the bias is estimated but not
+   *  corrected.
     *
     * @param quantile to get, taken between 0.0 and 1.0 (i.e. not a percentile)
     */
-  def getObsQuantile(quantile: Double): Option[Seq[Double]] = None
+  def getTotalErrorQuantileObs(quantile: Double): Option[Seq[Double]] = None
 
   /**
    * Get the expected error of the predicted mean observations, if possible
    *
    * The mean of a large sample of repeated observations are expected to have a stddev that matches this value.
    * This statistic is related to the https://en.wikipedia.org/wiki/Confidence_interval
+   * This statistic includes the contribution of the estimated bias.  E.g., for a normal distribution of predicted
+   * means, the total error is sqrt(bias**2 + variance)
    */
   def getTotalError(): Option[Seq[Double]] = None
 
+  /**
+   * Get a quantile from the distribution of predicted means, if possible
+   *
+   * The distribution for which these quantiles are computed could be biased, e.g. if the bias is estimated but not
+   * corrected.
+   * @param quantile to get, taken between 0.0 and 1.0 (i.e. not a percentile)
+   */
   def getTotalErrorQuantile(quantile: Double): Option[Seq[Double]] = None
+
+  /**
+   * Get the standard deviation of the distribution of predicted mean observations, if possible
+   *
+   * The variation is the variation due to the finite size of the training data, which can be thought of as being
+   * sampled from some training data distribution.
+   * This statistic is related to the variance in the bias-variance trade-off
+   * https://en.wikipedia.org/wiki/Bias%E2%80%93variance_tradeoff
+   */
+  def getStdDevMean(): Option[Seq[Double]] = None
+
+  /**
+   * Get a quantile from the distribution of predicted means, if possible
+   *
+   * The distribution for which these quantiles are computed should have zero-mean (i.e. no bias)
+   * @param quantile to get, taken between 0.0 and 1.0 (i.e. not a percentile)
+   */
+  def getQuantileMean(quantile: Double): Option[Seq[Double]] = None
 
   /**
    * Get the estimated magnitude of the bias of each prediction, if possible
@@ -87,19 +126,6 @@ trait RegressionResult extends PredictionResult[Double] {
    */
   def getBias(): Option[Seq[Double]] = None
 
-  def getBiasQuantile(quantile: Double): Option[Seq[Double]] = None
-
-  /**
-   * Get the standard deviation of the distribution of predicted mean observations, if possible
-   *
-   * The variation is the variation due to the finite size of the training data (i.e. "sample")
-   * This statistic is related to the variance in the bias-variance trade-off
-   * https://en.wikipedia.org/wiki/Bias%E2%80%93variance_tradeoff
-   */
-  def getSampleStdDev(): Option[Seq[Double]] = None
-
-
-  def getSampleQuantile(quantile: Double): Option[Seq[Double]] = None
 
   /**
    * Get the "uncertainty", which is the TotalError if non-observational and the StdDevObs if observational
@@ -109,16 +135,15 @@ trait RegressionResult extends PredictionResult[Double] {
    */
   override def getUncertainty(observational: Boolean = true): Option[Seq[Any]] = {
     if (observational) {
-      getStdDevObs()
+      getTotalErrorObs()
     } else {
       getTotalError()
     }
   }
 
-
   def getQuantile(quantile: Double, observational: Boolean = true): Option[Seq[Double]] = {
     if (observational) {
-      getObsQuantile(quantile)
+      getTotalErrorQuantileObs(quantile)
     } else {
       getTotalErrorQuantile(quantile)
     }
