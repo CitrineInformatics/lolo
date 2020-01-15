@@ -1,10 +1,16 @@
 package io.citrine.lolo
 
-import io.citrine.lolo.bags.Bagger
+import java.io.FileWriter
+
+import io.citrine.lolo.bags.{BaggedMultiResult, Bagger}
+import io.citrine.lolo.stats.functions.Friedman
+import io.citrine.lolo.transformers.FeatureRotator
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
 import io.citrine.lolo.trees.splits.{BoltzmannSplitter, RegressionSplitter}
 import io.citrine.theta.Stopwatch
 import org.junit.Test
+
+import scala.util.Random
 
 /**
   * Created by maxhutch on 7/10/17.
@@ -118,8 +124,59 @@ object AccuracyTest {
     (rmse, stdres)
   }
 
+  def randomRotationTest(
+                         function: Seq[Double] => Double = Friedman.friedmanSilverman,
+                         outputFilename: String = s"random_rotation_test.csv",
+                         append: Boolean = false
+                        ) = {
+    val nTest = 64
+    val rand = new Random()
+    val splitter = RegressionSplitter(randomizePivotLocation = false)
+    val plainBaseLearner= RegressionTreeLearner(splitter = splitter)
+    val rotatedBaseLearner = FeatureRotator(plainBaseLearner)
+
+    {
+      val fw = new FileWriter(outputFilename)
+      try {
+        fw.write(f"nRow,trainingNoise,testNoise,numBags,useJackknife,randomRotation,rmse,stdconf,ucorr,stdres\n")
+      } finally fw.close()
+    }
+
+    Seq(32, 128, 512).foreach { nRow =>
+      val trainSeed = rand.nextLong()
+      val testSeed = rand.nextLong()
+      Seq(0.0, 0.25, 0.5, 1.0, 2.0, 4.0).foreach { trainingNoise =>
+        val trainingData = TestUtils.generateTrainingData(nRow, 10, function = function, seed = trainSeed, noise = trainingNoise)
+        Seq(32, 128, 512).foreach { numBags =>
+          Seq(0.0, trainingNoise).foreach { testNoise =>
+            Seq(true, false).foreach { randomRotation =>
+              val baseLearner = if (randomRotation) rotatedBaseLearner else plainBaseLearner
+              val learner = new Bagger(baseLearner, numBags = numBags, useJackknife = true, uncertaintyCalibration = true, biasLearner = None)
+              val model = learner.train(trainingData).getModel()
+              val testData = TestUtils.generateTrainingData(nTest, 10, function = function, seed = testSeed, noise = testNoise)
+              val (testFeatures, testLabels) = testData.unzip
+
+              val predictions: BaggedMultiResult with PredictionResult[Double] = model.transform(testFeatures).asInstanceOf[BaggedMultiResult with PredictionResult[Double]]
+              val stdconf = validation.StandardConfidence.evaluate(predictions, testLabels)
+              val ucorr = validation.UncertaintyCorrelation.evaluate(predictions, testLabels)
+              val stdres = validation.StandardError().evaluate(predictions, testLabels)
+              val rmse = validation.RootMeanSquareError.evaluate(predictions, testLabels)
+
+              val fw = new FileWriter(outputFilename, true)
+              try {
+                fw.write(f"$nRow,$trainingNoise,$testNoise,${learner.numBags},${predictions.useJackknife},$randomRotation,${rmse}%7.5f,${stdconf}%7.5f,${ucorr}%7.5f,${stdres}%7.5f\n")
+              } finally fw.close()
+            }
+          }
+        }
+      }
+    }
+  }
 
   def main(args: Array[String]): Unit = {
+    randomRotationTest()
+    return
+
     var temp = 0.00001
     val nRow = 256
     val nFeat = 48
