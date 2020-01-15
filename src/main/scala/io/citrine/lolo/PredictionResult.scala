@@ -56,7 +56,7 @@ trait RegressionResult extends PredictionResult[Double] {
    *
    * Observations of the predicted variable are expected to have a stddev that matches this value.
    * This statistic is related to the https://en.wikipedia.org/wiki/Prediction_interval
-   * It does not include estimated bias, if applicable
+   * It does not include estimated bias, even if the regression result contains a bias estimate.
    */
   def getStdDevObs(): Option[Seq[Double]] = None
 
@@ -65,17 +65,17 @@ trait RegressionResult extends PredictionResult[Double] {
    *
    * This statistic is related to the https://en.wikipedia.org/wiki/Prediction_interval
    * This statistic includes the contribution of the estimated bias.  E.g., for a normal distribution of predicted
-   * means, the total error is sqrt(bias**2 + variance)
+   * means, the total error is sqrt(bias**2 + variance).
    */
   def getTotalErrorObs(): Option[Seq[Double]] = None
 
   /**
     * Get a quantile from the distribution of predicted observations, if possible
     *
-    * Observations of the predicted variable are expected to have a distribution with this quantile.
+    * Observations of the predicted variable are inferred to have a distribution with this quantile.
     * This statistic is related to the https://en.wikipedia.org/wiki/Prediction_interval
-   *  getObsQuantile(0.5) is a central statistic for the estimated bias, if the bias is estimated but not
-   *  corrected.
+    * getObsQuantile(0.5) is a central statistic for the estimated bias, if the bias is estimated but not
+    * corrected.
     *
     * @param quantile to get, taken between 0.0 and 1.0 (i.e. not a percentile)
     */
@@ -84,7 +84,8 @@ trait RegressionResult extends PredictionResult[Double] {
   /**
    * Get the expected error of the predicted mean observations, if possible
    *
-   * The mean of a large sample of repeated observations are expected to have a stddev that matches this value.
+   * The mean of a large sample of repeated observations are expected to have a root mean squared error of the mean
+   * that matches this value.
    * This statistic is related to the https://en.wikipedia.org/wiki/Confidence_interval
    * This statistic includes the contribution of the estimated bias.  E.g., for a normal distribution of predicted
    * means, the total error is sqrt(bias**2 + variance)
@@ -103,7 +104,7 @@ trait RegressionResult extends PredictionResult[Double] {
   /**
    * Get the standard deviation of the distribution of predicted mean observations, if possible
    *
-   * The variation is the variation due to the finite size of the training data, which can be thought of as being
+   * The variation is due to the finite size of the training data, which can be thought of as being
    * sampled from some training data distribution.
    * This statistic is related to the variance in the bias-variance trade-off
    * https://en.wikipedia.org/wiki/Bias%E2%80%93variance_tradeoff
@@ -121,7 +122,7 @@ trait RegressionResult extends PredictionResult[Double] {
   /**
    * Get the estimated magnitude of the bias of each prediction, if possible
    *
-   * The bias is signed and can be added to the prediction to improve accuracy.
+   * The bias is signed and can be subtracted from the prediction to improve accuracy.
    * See https://en.wikipedia.org/wiki/Bias%E2%80%93variance_tradeoff
    */
   def getBias(): Option[Seq[Double]] = None
