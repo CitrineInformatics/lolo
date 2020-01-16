@@ -24,7 +24,7 @@ trait PredictionResult[+T] {
   /**
     * Get the training row scores for each prediction
     *
-    * @return training row scores of each prediction
+    * @return sequence (over predictions) of sequence (over training rows) of importances
     */
   def getImportanceScores(): Option[Seq[Seq[Double]]] = None
 
