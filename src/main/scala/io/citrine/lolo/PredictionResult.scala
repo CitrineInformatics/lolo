@@ -120,10 +120,13 @@ trait RegressionResult extends PredictionResult[Double] {
   def getQuantileMean(quantile: Double): Option[Seq[Double]] = None
 
   /**
-   * Get the estimated magnitude of the bias of each prediction, if possible
+   * **EXPERIMENTAL** Get the estimated magnitude of the bias of each prediction, if possible
    *
    * The bias is signed and can be subtracted from the prediction to improve accuracy.
    * See https://en.wikipedia.org/wiki/Bias%E2%80%93variance_tradeoff
+   *
+   * It is unclear if this method will be a stable member of the interface.  It should be reviewed
+   * before the next formal release.
    */
   def getBias(): Option[Seq[Double]] = None
 
