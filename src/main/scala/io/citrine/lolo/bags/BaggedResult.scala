@@ -61,7 +61,14 @@ case class BaggedSingleResult(
 
   override def getStdDevObs(): Option[Seq[Double]] = Some(Seq(treeVariance))
 
-  override def getStdDev(): Option[Seq[Double]] = Some(Seq(scalarUncertainty))
+  override def getStdDevMean(): Option[Seq[Double]] = Some(Seq(scalarUncertainty))
+
+  /**
+   * For the sake of parity, we were using this method
+   */
+  override def getUncertainty(observational: Boolean): Option[Seq[Any]] = {
+    getStdDevMean()
+  }
 
   private lazy val scalarUncertainty: Double = {
     // make sure the variance is non-negative after the stochastic correction
@@ -176,7 +183,14 @@ case class BaggedMultiResult(
     }
   }
 
-  override def getStdDev(): Option[Seq[Double]] = Some(uncertainty)
+  override def getStdDevMean(): Option[Seq[Double]] = Some(uncertainty)
+
+  /**
+   * For the sake of parity, we were using this method
+   */
+  override def getUncertainty(observational: Boolean): Option[Seq[Any]] = {
+    getStdDevMean()
+  }
 
   /**
     * Return IJ scores

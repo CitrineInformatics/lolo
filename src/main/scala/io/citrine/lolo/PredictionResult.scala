@@ -14,15 +14,14 @@ trait PredictionResult[+T] {
   def getExpected(): Seq[T]
 
   /**
-    * Get the uncertainty of the prediction
-    *
-    * For regression, this should be a standard deviation for the output distribution.
-    * If includeNoise, then it is a prediction interval; if not, then this is a confidence interval
-    *
-    * @param includeNoise whether the uncertainty should account for irreducible noise (i.e. a prediction interval)
-    * @return uncertainty of each prediction
-    */
-  def getUncertainty(includeNoise: Boolean = true): Option[Seq[Any]] = None
+   * Get the "uncertainty" of the prediction
+   *
+   * For regression, this should be the TotalError if non-observational and the StdDevObs if observational
+   *
+   * @param observational whether the uncertainty should account for observational uncertainty
+   * @return uncertainty of each prediction
+   */
+  def getUncertainty(observational: Boolean = true): Option[Seq[Any]] = None
 
   /**
     * Get the training row scores for each prediction
@@ -129,7 +128,6 @@ trait RegressionResult extends PredictionResult[Double] {
    * before the next formal release.
    */
   def getBias(): Option[Seq[Double]] = None
-
 
   /**
    * Get the "uncertainty", which is the TotalError if non-observational and the StdDevObs if observational
