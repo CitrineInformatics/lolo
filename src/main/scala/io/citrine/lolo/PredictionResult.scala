@@ -48,6 +48,16 @@ trait PredictionResult[+T] {
 
 /**
  * Additional regression-specific interface
+ * 
+ * This interface is experimental and SHOULD BE REVIEWED before being merged into `master`. 
+ * n particular, an explanation of how the different methods relate to each other, 
+ * how predictive uncertainty is decomposed, and what the assumptions are 
+ * should be added, as these are currently not entirely clear.
+ * 
+ * For example, does the interface assume that the predictions are the mean of a predictive distribution 
+ * (as opposed to, for example, the median, or the value with highest probability)? 
+ * Does it assume the predictive distribution to be normal? 
+ * Such assumptions are fine, but should be explicitly stated.
  */
 trait RegressionResult extends PredictionResult[Double] {
   /**
