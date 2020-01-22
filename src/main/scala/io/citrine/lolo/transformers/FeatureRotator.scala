@@ -144,11 +144,11 @@ case class RotatedFeaturePrediction[T](
   override def getExpected(): Seq[T] = baseResult.getExpected().asInstanceOf[Seq[T]]
 
   /**
-    * Get the uncertainty of the prediction by delegating to baseResult
-    *
-    * @return uncertainty of each prediction
-    */
-  override def getUncertainty(): Option[Seq[Any]] = baseResult.getUncertainty()
+   * Get the uncertainty of the prediction by delegating to baseResult
+   *
+   * @return uncertainty of each prediction
+   */
+  override def getUncertainty(observational: Boolean): Option[Seq[Any]] = baseResult.getUncertainty(observational)
 
   /**
     * Get the gradient or sensitivity of each prediction
