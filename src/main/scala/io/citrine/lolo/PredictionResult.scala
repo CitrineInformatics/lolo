@@ -50,7 +50,7 @@ trait PredictionResult[+T] {
  * Additional regression-specific interface
  *
  * This interface is experimental and SHOULD BE REVIEWED before being merged into `master`.
- * n particular, an explanation of how the different methods relate to each other,
+ * In particular, an explanation of how the different methods relate to each other,
  * how predictive uncertainty is decomposed, and what the assumptions are
  * should be added, as these are currently not entirely clear.
  *
