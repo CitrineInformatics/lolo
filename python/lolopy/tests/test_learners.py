@@ -181,18 +181,6 @@ class TestRF(TestCase):
         rf.fit(X[:16, :], y[:16])
         self.assertLess(r2_score(y, rf.predict(X)), 1.0)  # Should not fit the whole dataset perfectly
 
-        # Make sure the bias learner does something
-        rf = RandomForestRegressor(use_jackknife=False)
-        rf.fit(X, y)
-        y_pred, y_std = rf.predict(X, return_std=True)
-        total_std = sum(y_std)
-
-        rf = RandomForestRegressor(use_jackknife=False,
-                                   bias_learner=LinearRegression())
-        y_pred, y_std = rf.fit(X, y).predict(X, return_std=True)
-        total_std_bias = sum(y_std)
-        self.assertGreater(total_std_bias - total_std, 0)   # Should increase the bias
-
 
 if __name__ == "__main__":
     main()
