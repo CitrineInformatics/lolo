@@ -1,6 +1,7 @@
 package io.citrine.lolo.learners
 
 import io.citrine.lolo.bags.Bagger
+import io.citrine.lolo.transformers.FeatureRotator
 import io.citrine.lolo.trees.classification.ClassificationTreeLearner
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
 import io.citrine.lolo.trees.splits.{ClassificationSplitter, RegressionSplitter}
@@ -30,7 +31,8 @@ case class RandomForest(
                          minLeafInstances: Int = 1,
                          maxDepth: Int = Integer.MAX_VALUE,
                          uncertaintyCalibration: Boolean = false,
-                         randomizePivotLocation: Boolean = false
+                         randomizePivotLocation: Boolean = false,
+                         randomlyRotateFeatures: Boolean = false
                        ) extends Learner {
   /**
     * Train a random forest model
@@ -67,7 +69,7 @@ case class RandomForest(
           maxDepth = maxDepth,
           splitter = RegressionSplitter(randomizePivotLocation)
         )
-        val bagger = Bagger(DTLearner,
+        val bagger = Bagger(if (randomlyRotateFeatures) FeatureRotator(DTLearner) else DTLearner,
           numBags = numTrees,
           useJackknife = useJackknife,
           biasLearner = biasLearner,
@@ -97,7 +99,7 @@ case class RandomForest(
           maxDepth = maxDepth,
           splitter = ClassificationSplitter(randomizePivotLocation)
         )
-        val bagger = Bagger(DTLearner,
+        val bagger = Bagger(if (randomlyRotateFeatures) FeatureRotator(DTLearner) else DTLearner,
           numBags = numTrees
         )
         bagger.train(trainingData, weights)
