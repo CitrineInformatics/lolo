@@ -252,7 +252,8 @@ class RandomForestMixin(BaseLoloLearner):
 
     def __init__(self, num_trees=-1, use_jackknife=True, bias_learner=None,
                  leaf_learner=None, subset_strategy="auto", min_leaf_instances=1,
-                 max_depth=2**30, uncertainty_calibration=False, randomize_pivot_location=False):
+                 max_depth=2**30, uncertainty_calibration=False, randomize_pivot_location=False,
+                 randomly_rotate_features=False):
         """Initialize the RandomForest
 
         Args:
@@ -284,6 +285,7 @@ class RandomForestMixin(BaseLoloLearner):
         self.max_depth = max_depth
         self.uncertainty_calibration = uncertainty_calibration
         self.randomize_pivot_location = randomize_pivot_location
+        self.randomly_rotate_features = randomly_rotate_features
 
     def _make_learner(self):
         #  TODO: Figure our a more succinct way of dealing with optional arguments/Option values
@@ -300,7 +302,8 @@ class RandomForestMixin(BaseLoloLearner):
             self.min_leaf_instances,
             self.max_depth,
             self.uncertainty_calibration,
-            self.randomize_pivot_location
+            self.randomize_pivot_location,
+            self.randomly_rotate_features
         )
         return learner
 
