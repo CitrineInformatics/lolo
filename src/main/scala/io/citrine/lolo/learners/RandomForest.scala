@@ -1,6 +1,7 @@
 package io.citrine.lolo.learners
 
 import io.citrine.lolo.bags.Bagger
+import io.citrine.lolo.transformers.FeatureRotator
 import io.citrine.lolo.trees.classification.ClassificationTreeLearner
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
 import io.citrine.lolo.trees.splits.{ClassificationSplitter, RegressionSplitter}
@@ -20,6 +21,7 @@ import io.citrine.lolo.{Learner, TrainingResult}
   * @param maxDepth       maximum depth of each tree in the forest (default: unlimited)
   * @param uncertaintyCalibration whether to empirically recalibrate the predicted uncertainties (default: false)
   * @param randomizePivotLocation whether generate splits randomly between the data points (default: false)
+  * @param randomlyRotateFeatures whether to randomly rotate real features for each tree in the forest (default: false)
   */
 case class RandomForest(
                          numTrees: Int = -1,
@@ -30,7 +32,8 @@ case class RandomForest(
                          minLeafInstances: Int = 1,
                          maxDepth: Int = Integer.MAX_VALUE,
                          uncertaintyCalibration: Boolean = false,
-                         randomizePivotLocation: Boolean = false
+                         randomizePivotLocation: Boolean = false,
+                         randomlyRotateFeatures: Boolean = false
                        ) extends Learner {
   /**
     * Train a random forest model
@@ -67,7 +70,7 @@ case class RandomForest(
           maxDepth = maxDepth,
           splitter = RegressionSplitter(randomizePivotLocation)
         )
-        val bagger = Bagger(DTLearner,
+        val bagger = Bagger(if (randomlyRotateFeatures) FeatureRotator(DTLearner) else DTLearner,
           numBags = numTrees,
           useJackknife = useJackknife,
           biasLearner = biasLearner,
@@ -97,7 +100,7 @@ case class RandomForest(
           maxDepth = maxDepth,
           splitter = ClassificationSplitter(randomizePivotLocation)
         )
-        val bagger = Bagger(DTLearner,
+        val bagger = Bagger(if (randomlyRotateFeatures) FeatureRotator(DTLearner) else DTLearner,
           numBags = numTrees
         )
         bagger.train(trainingData, weights)
