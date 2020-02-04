@@ -21,6 +21,7 @@ import io.citrine.lolo.{Learner, TrainingResult}
   * @param maxDepth       maximum depth of each tree in the forest (default: unlimited)
   * @param uncertaintyCalibration whether to empirically recalibrate the predicted uncertainties (default: false)
   * @param randomizePivotLocation whether generate splits randomly between the data points (default: false)
+  * @param randomlyRotateFeatures whether to randomly rotate real features for each tree in the forest (default: false)
   */
 case class RandomForest(
                          numTrees: Int = -1,

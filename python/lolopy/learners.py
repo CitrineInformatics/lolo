@@ -272,6 +272,7 @@ class RandomForestMixin(BaseLoloLearner):
             max_depth (int): Maximum depth to which to allow the decision trees to grow
             uncertainty_calibration (bool): whether to re-calibrate the predicted uncertainty based on out-of-bag residuals
             randomize_pivot_location (bool): whether to draw pivots randomly or always select the midpoint
+            randomly_rotate_features (bool): whether to randomly rotate real features for each tree in the forest
         """
         super(RandomForestMixin, self).__init__()
 
