@@ -108,6 +108,20 @@ class RegressionTreeTrainingResult(
     }
   }
 
+  /**
+    * Compute Shapley feature attributions for a given input
+    *
+    * @param input for which to compute feature attributions.
+    * @return array of Shapley feature attributions, one per input feature.
+    */
+  def shapley(input: Vector[AnyVal]): Array[Double] = {
+    // TODO: this is a bit tacky. Check types, fail on unhandled? Add shapley() to TrainingResult?
+    rootTrainingNode match {
+      case node: RegressionTrainingNode => node.shapley(input)
+      case _ => Array.fill[Double](input.length)(0.0)
+    }
+  }
+
   override def getModel(): RegressionTree = model
 
   /**

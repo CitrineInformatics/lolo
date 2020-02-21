@@ -31,6 +31,9 @@ abstract class TrainingNode[T <: AnyVal, S](
     * @return feature importance as a vector
     */
   def getFeatureImportance(): mutable.ArraySeq[Double]
+
+  // TODO: expose this interface once other learner types are implemented.
+  // def shapley(): Array[S] = Array.fill[S](trainingData.head._1.size)(0.0)
 }
 
 trait ModelNode[T <: PredictionResult[Any]] extends Serializable {

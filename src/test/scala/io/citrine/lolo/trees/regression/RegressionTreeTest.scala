@@ -245,6 +245,48 @@ class RegressionTreeTest {
     }
   }
 
+  /**
+    * Test Shapley value for  a simple tree.
+    */
+  @Test
+  def testShapley(): Unit = {
+    val trainingData1 = Seq(
+      (Vector(1.0, 1.0), 80.0),
+      (Vector(1.0, 0.0), 0.0),
+      (Vector(0.0, 1.0), 0.0),
+      (Vector(0.0, 0.0), 0.0)
+    )
+    val expected1 = Array(30.0, 30.0)
+    expected1.zip(RegressionTreeLearner().train(trainingData1).shapley(Vector[AnyVal](1.0, 1.0))).foreach {
+      case (e, a) => assert(Math.abs(e - a) < 1e-12)
+    }
+
+    val trainingData2 = Seq(
+      (Vector(1.0, 1.0), 90.0),
+      (Vector(1.0, 0.0), 10.0),
+      (Vector(0.0, 1.0), 0.0),
+      (Vector(0.0, 0.0), 0.0)
+    )
+    val expected2 = Array(35.0, 30.0)
+    expected2.zip(RegressionTreeLearner().train(trainingData2).shapley(Vector[AnyVal](1.0, 1.0))).foreach {
+      case (e, a) => assert(Math.abs(e - a) < 1e-12)
+    }
+
+    val trainingData3 = Seq(
+      (Vector(1.0, 1.0), 100.0),
+      (Vector(1.0, 0.0), 80.0),
+      (Vector(1.0, 0.2), 70.0),
+      (Vector(0.0, 1.0), 0.0),
+      (Vector(0.0, 0.2), 0.0),
+      (Vector(0.0, 0.0), 0.0)
+    )
+    val expected3 = Array(45.8333333333333, 12.5)
+    val trained = RegressionTreeLearner().train(trainingData3)
+    trained.shapley(Vector[AnyVal](1.0, 1.0))
+    expected3.zip(RegressionTreeLearner().train(trainingData3).shapley(Vector[AnyVal](1.0, 1.0))).foreach {
+      case (e, a) => assert(Math.abs(e - a) < 0.02)
+    }
+  }
 }
 
 /** Companion driver */
@@ -255,6 +297,7 @@ object RegressionTreeTest {
     * @param argv args
     */
   def main(argv: Array[String]): Unit = {
-    new RegressionTreeTest().testSimpleBoltzmannTree()
+    //new RegressionTreeTest().testSimpleBoltzmannTree()
+    new RegressionTreeTest().testShapley()
   }
 }
