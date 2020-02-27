@@ -7,7 +7,7 @@ import org.scalatest.Assertions._
 class FeaturePathTest {
   @Test
   def testExtend() {
-    val path = FeaturePath(2)
+    val path = new FeaturePath(2)
     assert(path.length == -1)
 
     path.extend(1.0,1.0,-1)
@@ -46,7 +46,7 @@ class FeaturePathTest {
 
   @Test
   def testCopy(): Unit = {
-    val path = FeaturePath(3)
+    val path = new FeaturePath(3)
     var newPath = path.copy()
     assert(path.length == newPath.length)
 
@@ -69,7 +69,7 @@ class FeaturePathTest {
 
   @Test
   def testUnwind(): Unit = {
-    val path = FeaturePath(2)
+    val path = new FeaturePath(2)
     val path0 = path.copy()
     path.extend(1.0,1.0,-1)
     val path1 = path.copy()

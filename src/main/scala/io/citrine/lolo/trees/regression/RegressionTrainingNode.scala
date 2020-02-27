@@ -65,7 +65,7 @@ class RegressionTrainingNode(
     */
   def shapley(input: Vector[AnyVal]): Array[Double] = {
     val importances = Array.fill[Double](input.length)(elem=0)
-    shapleyRecurse(input, FeaturePath(numFeatures), 1.0, 1.0, -1, importances)
+    shapleyRecurse(input, new FeaturePath(numFeatures), 1.0, 1.0, -1, importances)
     importances
   }
 

@@ -8,12 +8,16 @@ package io.citrine.lolo.trees
   * @param oneFraction fraction of one paths flowing through this node with this feature included.
   * @param pathWeight summation weight for this path, taking into account combinatorial factor.
   */
-case class FeatureNode(
+class FeatureNode(
                   var featureIndex: Int,
                   var zeroFraction: Double,
                   var oneFraction: Double,
                   var pathWeight: Double
-                 )
+                 ) {
+  def copy(): FeatureNode = {
+    new FeatureNode(featureIndex, zeroFraction, oneFraction, pathWeight)
+  }
+}
 
 /**
   * Path of unique features used in splitting to arrive at a node in a decision tree
@@ -23,8 +27,8 @@ case class FeatureNode(
   *
   * @param numFeatures number of features in the input space.
   */
-case class FeaturePath(numFeatures: Int) {
-  var path: Array[FeatureNode] = Array.fill[FeatureNode](numFeatures+2)(FeatureNode(0, 1, 1, 1))
+class FeaturePath(numFeatures: Int) {
+  var path: Array[FeatureNode] = Array.fill[FeatureNode](numFeatures+2)(new FeatureNode(-1, 1, 1, 1))
   var length: Int = -1  // Start at -1 since first path extension accounts for 0 active features.
 
   /**
@@ -87,7 +91,7 @@ case class FeaturePath(numFeatures: Int) {
   }
 
   def copy(): FeaturePath = {
-    val newPath = FeaturePath(this.numFeatures)
+    val newPath = new FeaturePath(this.numFeatures)
     newPath.length = this.length
     newPath.path = this.path.map{x => x.copy()}
     return newPath
