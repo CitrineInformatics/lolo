@@ -107,13 +107,13 @@ class RandomForestTest {
       } else {
         (0,0)
       }
-    }.asInstanceOf[Seq[(Int,Int)]].reduce{(a:(Int,Int),b:(Int,Int))=>(a._1+b._1, a._2+b._2)}
+    }.asInstanceOf[Seq[(Int,Int)]].reduce{(a: (Int,Int),b: (Int,Int))=>(a._1 + b._1, a._2 + b._2)}
 
     // Posterior beta distribution with Jeffrey prior.
     val d = new Beta(wins1 + 0.5, wins2 + 0.5)
     val tol = 1e-2
-    assert(d.inverseCdf(2e-6) < 0.5 - tol, "Bias detected toward prefixed duplicate rows (rate "+ d.mean + " should be close to 0.5)")
-    assert(d.inverseCdf(1-2e-6) > 0.5 + tol, "Bias detected toward prefixed duplicate rows (rate "+ d.mean + " should be close to 0.5)")
+    assert(d.inverseCdf(2e-6) < 0.5 - tol, "Bias detected toward prefixed duplicate rows (rate " + d.mean + " should be close to 0.5)")
+    assert(d.inverseCdf(1-2e-6) > 0.5 + tol, "Bias detected toward prefixed duplicate rows (rate " + d.mean + " should be close to 0.5)")
   }
 
   /**
