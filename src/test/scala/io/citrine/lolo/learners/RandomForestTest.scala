@@ -80,29 +80,29 @@ class RandomForestTest {
   @Test
   def testClassificationForestUnbiased(): Unit = {
     val numTrials = 30
-    var (wins1, wins2): (Int,Int) = (0 until numTrials).map {case i: Int =>
+    val (winsSuffixed, winsPrefixed): (Int,Int) = (0 until numTrials).map {case i: Int =>
       val mainTrainingData = TestUtils.binTrainingData(
         TestUtils.generateTrainingData(128, 5, noise = 0.1, function = Friedman.friedmanSilverman, seed = i),
         responseBins = Some(2)
       )
       val dupeLabel = "DUPE"
-      val trainingData1 = mainTrainingData ++ Seq(
+      val trainingDataSuffixed = mainTrainingData ++ Seq(
         (mainTrainingData.head._1, dupeLabel)
       )
-      val trainingData2 = Seq(
+      val trainingDataPrefixed = Seq(
         (mainTrainingData.head._1, dupeLabel)
       ) ++ mainTrainingData
 
-      val RF1 = RandomForest(numTrees = trainingData1.size * 2).train(trainingData1)
-      val RF2 = RandomForest(numTrees = trainingData2.size * 2).train(trainingData2)
-      val predicted1 = RF1.getModel().transform(mainTrainingData.map(_._1))
-      val predicted2 = RF2.getModel().transform(mainTrainingData.map(_._1))
-      val extraLabelCount1 = predicted1.getExpected().count { case p: String => p == dupeLabel }
-      val extraLabelCount2 = predicted2.getExpected().count { case p: String => p == dupeLabel }
+      val RFSuffixed = RandomForest(numTrees = trainingDataSuffixed.size * 2).train(trainingDataSuffixed)
+      val RFPrefixed = RandomForest(numTrees = trainingDataPrefixed.size * 2).train(trainingDataPrefixed)
+      val predictedSuffixed = RFSuffixed.getModel().transform(mainTrainingData.map(_._1))
+      val predictedPrefixed = RFPrefixed.getModel().transform(mainTrainingData.map(_._1))
+      val extraLabelCountSuffixed = predictedSuffixed.getExpected().count { case p: String => p == dupeLabel }
+      val extraLabelCountPrefixed = predictedPrefixed.getExpected().count { case p: String => p == dupeLabel }
 
-      if (extraLabelCount1 > extraLabelCount2) {
+      if (extraLabelCountSuffixed > extraLabelCountPrefixed) {
         (1,0)
-      } else if (extraLabelCount1 < extraLabelCount2) {
+      } else if (extraLabelCountSuffixed < extraLabelCountPrefixed) {
         (0,1)
       } else {
         (0,0)
@@ -110,10 +110,10 @@ class RandomForestTest {
     }.asInstanceOf[Seq[(Int,Int)]].reduce{(a: (Int,Int),b: (Int,Int))=>(a._1 + b._1, a._2 + b._2)}
 
     // Posterior beta distribution with Jeffrey prior.
-    val d = new Beta(wins1 + 0.5, wins2 + 0.5)
+    val d = new Beta(winsSuffixed + 0.5, winsPrefixed + 0.5)
     val tol = 1e-2
     assert(d.inverseCdf(2e-6) < 0.5 - tol, "Bias detected toward prefixed duplicate rows (rate " + d.mean + " should be close to 0.5)")
-    assert(d.inverseCdf(1-2e-6) > 0.5 + tol, "Bias detected toward prefixed duplicate rows (rate " + d.mean + " should be close to 0.5)")
+    assert(d.inverseCdf(1-2e-6) > 0.5 + tol, "Bias detected toward suffixed duplicate rows (rate " + d.mean + " should be close to 0.5)")
   }
 
   /**
