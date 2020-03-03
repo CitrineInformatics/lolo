@@ -111,9 +111,12 @@ class RandomForestTest {
 
     // Posterior beta distribution with Jeffrey prior.
     val d = new Beta(winsSuffixed + 0.5, winsPrefixed + 0.5)
+    val l = d.inverseCdf(2e-6)
+    val r = d.inverseCdf(1-2e-6)
     val tol = 1e-2
-    assert(d.inverseCdf(2e-6) < 0.5 - tol, "Bias detected toward prefixed duplicate rows (rate " + d.mean + " should be close to 0.5)")
-    assert(d.inverseCdf(1-2e-6) > 0.5 + tol, "Bias detected toward suffixed duplicate rows (rate " + d.mean + " should be close to 0.5)")
+    // println(f"Rate=${d.mean}%.3f (1e-6 CI ${l}%.3f - ${r}%.3f)")
+    assert(l < 0.5 - tol, f"Bias detected toward prefixed duplicate rows: rate ${d.mean}%.3f (1e-6 CI ${l}%.3f - ${r}%.3f) should be close to 0.5")
+    assert(r > 0.5 + tol, f"Bias detected toward suffixed duplicate rows: rate ${d.mean}%.3f (1e-6 CI ${l}%.3f - ${r}%.3f) should be close to 0.5")
   }
 
   /**
