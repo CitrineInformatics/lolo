@@ -147,7 +147,7 @@ class InternalModelNode[T <: PredictionResult[Any]](
     var incomingZeroFraction = 1.0
     var incomingOneFraction = 1.0
 
-    val k = path.path.take(path.length+1).indexWhere{x => x.featureIndex == split.getIndex() && x.featureIndex > -1}
+    val k = path.path.take(path.length + 1).indexWhere{x => x.featureIndex == split.getIndex() && x.featureIndex > -1}
     if (k > 0) {
       incomingZeroFraction = path.path(k).zeroFraction
       incomingOneFraction = path.path(k).oneFraction
