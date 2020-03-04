@@ -90,7 +90,7 @@ class InternalModelNode[T <: PredictionResult[Any]](
                                                      right: ModelNode[T],
                                                      numFeatures: Int,
                                                      outputDimension: Int,
-                                                     trainingWeight: Double,
+                                                     trainingWeight: Double
                                                    ) extends ModelNode[T] {
   /**
     * Just propagate the prediction call through the appropriate child
