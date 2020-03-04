@@ -310,7 +310,6 @@ object RegressionTreeTest {
     * @param argv args
     */
   def main(argv: Array[String]): Unit = {
-    //new RegressionTreeTest().testSimpleBoltzmannTree()
-    new RegressionTreeTest().testShapley()
+    new RegressionTreeTest().testSimpleBoltzmannTree()
   }
 }

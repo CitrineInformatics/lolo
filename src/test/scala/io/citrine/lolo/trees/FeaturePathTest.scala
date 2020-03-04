@@ -81,7 +81,7 @@ class FeaturePathTest {
     var unwound = path3.unwind(2)
     assert(unwound.length == path2.length)
 
-    unwound.path.zip(path2.path).take(unwound.length+1).foreach{case (a,b)=>
+    unwound.path.zip(path2.path).take(unwound.length + 1).foreach{case (a,b)=>
       assert(a.oneFraction == b.oneFraction)
       assert(a.zeroFraction == b.oneFraction)
       assert(a.pathWeight == b.pathWeight)
