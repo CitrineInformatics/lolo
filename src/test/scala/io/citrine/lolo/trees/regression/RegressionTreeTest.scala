@@ -2,6 +2,7 @@ package io.citrine.lolo.trees.regression
 
 import java.io.{File, FileOutputStream, ObjectOutputStream}
 
+import breeze.linalg.DenseVector
 import io.citrine.lolo.TestUtils
 import io.citrine.lolo.linear.LinearRegressionLearner
 import io.citrine.lolo.stats.functions.Friedman
@@ -245,6 +246,26 @@ class RegressionTreeTest {
     }
   }
 
+  def shapleyCompare(
+                     trainingData: Seq[(Vector[Double],Double)],
+                     evalLocation: Vector[AnyVal],
+                     expected: Array[Double]
+                    ): Unit = {
+    val actual = RegressionTreeLearner().train(trainingData).getModel().shapley(evalLocation) match {
+      case None => fail("Unexpected None returned by shapley.")
+      case x: Option[Array[DenseVector[Double]]] => {
+        val a = x.get
+        assert(a.length == trainingData.head._1.length, "Expected one Shapley value per feature.")
+        assert(a.head.length == 1, "Expected a single output dimension.")
+        a.map{_(0)}
+      }
+      case _ => fail("Unexpected return type.")
+    }
+    expected.zip(actual).foreach {
+      case (e: Double, a: Double) => assert(Math.abs(e - a) < 1e-12)
+    }
+  }
+
   /**
     * Test Shapley value for  a simple tree.
     */
@@ -257,9 +278,7 @@ class RegressionTreeTest {
       (Vector(0.0, 0.0), 0.0)
     )
     val expected1 = Array(30.0, 30.0)
-    expected1.zip(RegressionTreeLearner().train(trainingData1).shapley(Vector[AnyVal](1.0, 1.0))).foreach {
-      case (e, a) => assert(Math.abs(e - a) < 1e-12)
-    }
+    shapleyCompare(trainingData1, Vector[AnyVal](1.0, 1.0), expected1)
 
     val trainingData2 = Seq(
       (Vector(1.0, 1.0), 90.0),
@@ -268,9 +287,7 @@ class RegressionTreeTest {
       (Vector(0.0, 0.0), 0.0)
     )
     val expected2 = Array(35.0, 30.0)
-    expected2.zip(RegressionTreeLearner().train(trainingData2).shapley(Vector[AnyVal](1.0, 1.0))).foreach {
-      case (e, a) => assert(Math.abs(e - a) < 1e-12)
-    }
+    shapleyCompare(trainingData2, Vector[AnyVal](1.0, 1.0), expected2)
 
     val trainingData3 = Seq(
       (Vector(1.0, 1.0), 100.0),
@@ -281,11 +298,7 @@ class RegressionTreeTest {
       (Vector(0.0, 0.0), 0.0)
     )
     val expected3 = Array(45.8333333333333, 12.5)
-    val trained = RegressionTreeLearner().train(trainingData3)
-    trained.shapley(Vector[AnyVal](1.0, 1.0))
-    expected3.zip(RegressionTreeLearner().train(trainingData3).shapley(Vector[AnyVal](1.0, 1.0))).foreach {
-      case (e, a) => assert(Math.abs(e - a) < 0.02)
-    }
+    shapleyCompare(trainingData3, Vector[AnyVal](1.0, 1.0), expected3)
   }
 }
 

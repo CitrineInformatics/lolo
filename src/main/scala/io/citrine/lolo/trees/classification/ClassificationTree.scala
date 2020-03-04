@@ -11,6 +11,10 @@ import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
   * Created by maxhutch on 12/2/16.
   *
   * @param numFeatures subset of features to select splits from
+  * @param maxDepth maximum depth of tree
+  * @param minLeafInstances minimum training instances per node
+  * @param leafLearner to train on leaves
+  * @param splitter used to select splits
   */
 case class ClassificationTreeLearner(
                                       numFeatures: Int = -1,
@@ -75,6 +79,7 @@ case class ClassificationTreeLearner(
         remainingDepth = maxDepth - 1,
         maxDepth = maxDepth,
         minLeafInstances = minLeafInstances,
+        numClasses = trainingData.map{_._2}.distinct.length,
         splitter = splitter
       )
     }

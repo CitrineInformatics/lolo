@@ -39,7 +39,7 @@ class RegressionTrainingNode(
     * @return lightweight prediction node
     */
   override def getNode(): ModelNode[PredictionResult[Double]] = {
-    new InternalModelNode[PredictionResult[Double]](split, leftChild.getNode(), rightChild.getNode())
+    new InternalModelNode[PredictionResult[Double]](split, leftChild.getNode(), rightChild.getNode(), numFeatures, 1, trainingData.size.toDouble)
   }
 
   /**
@@ -55,66 +55,6 @@ class RegressionTrainingNode(
     val ans = leftChild.getFeatureImportance().zip(rightChild.getFeatureImportance()).map(p => p._1 + p._2)
     ans(split.getIndex()) = ans(split.getIndex()) + improvement
     ans
-  }
-
-  /**
-    * Compute Shapley feature attributions for a given input
-    *
-    * @param input for which to compute feature attributions.
-    * @return array of Shapley feature attributions, one per input feature.
-    */
-  def shapley(input: Vector[AnyVal]): Array[Double] = {
-    val importances = Array.fill[Double](input.length)(elem=0)
-    shapleyRecurse(input, new FeaturePath(numFeatures), 1.0, 1.0, -1, importances)
-    importances
-  }
-
-  /**
-    * Get the Shapley feature attribution from a subtree
-    *
-    * @param input for which to compute feature attributions.
-    * @param parentPath path of unique features arriving at parent node.
-    * @param parentZeroFraction fraction of zero (cold) paths flowing to parent node.
-    * @param parentOneFraction fraction of one (hot) paths flowing to parent node.
-    * @param parentFeatureIndex index of feature on which the parent node splits.
-    * @param importances array of feature attributions to modify.
-    */
-  def shapleyRecurse(
-               input: Vector[AnyVal],
-               parentPath: FeaturePath,
-               parentZeroFraction: Double,
-               parentOneFraction: Double,
-               parentFeatureIndex: Int,
-               importances: Array[Double]
-             ): Unit = {
-    var path = parentPath.copy().extend(parentZeroFraction, parentOneFraction, parentFeatureIndex)
-
-    val (hot, hotTrain, cold, coldTrain) = if (this.split.turnLeft(input)) {
-      (leftChild,leftTrain,rightChild,rightTrain)
-    } else {
-      (rightChild,rightTrain,leftChild,leftTrain)
-    }
-    var incomingZeroFraction = 1.0
-    var incomingOneFraction = 1.0
-
-    val k = path.path.take(path.length+1).indexWhere{x => x.featureIndex == split.getIndex() && x.featureIndex > -1}
-    if (k > 0) {
-      incomingZeroFraction = path.path(k).zeroFraction
-      incomingOneFraction = path.path(k).oneFraction
-      path = path.unwind(k)
-    }
-    var x = hot match {
-      case node: RegressionTrainingNode => node.shapleyRecurse(
-        input, path, incomingZeroFraction*hotTrain.size.toDouble/trainingData.size, incomingOneFraction, split.getIndex(), importances)
-      case leaf: RegressionTrainingLeaf => leaf.shapleyRecurse(
-        input, path, incomingZeroFraction*hotTrain.size.toDouble/trainingData.size, incomingOneFraction, split.getIndex(), importances)
-    }
-    x = cold match {
-      case node: RegressionTrainingNode => node.shapleyRecurse(
-        input, path, incomingZeroFraction*coldTrain.size.toDouble/trainingData.size, 0.0, split.getIndex(), importances)
-      case leaf: RegressionTrainingLeaf => leaf.shapleyRecurse(
-        input, path, incomingZeroFraction*coldTrain.size.toDouble/trainingData.size, 0.0, split.getIndex(), importances)
-    }
   }
 }
 

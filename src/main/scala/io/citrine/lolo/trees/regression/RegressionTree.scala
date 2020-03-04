@@ -1,9 +1,9 @@
 package io.citrine.lolo.trees.regression
 
+import breeze.linalg.DenseVector
 import io.citrine.lolo.encoders.CategoricalEncoder
 import io.citrine.lolo.linear.GuessTheMeanLearner
 import io.citrine.lolo.trees.splits.{NoSplit, RegressionSplitter, Splitter}
-import io.citrine.lolo.trees.splits.{NoSplit, RegressionSplitter}
 import io.citrine.lolo.trees.{ModelNode, TrainingNode, TreeMeta}
 import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
 
@@ -108,20 +108,6 @@ class RegressionTreeTrainingResult(
     }
   }
 
-  /**
-    * Compute Shapley feature attributions for a given input
-    *
-    * @param input for which to compute feature attributions.
-    * @return array of Shapley feature attributions, one per input feature.
-    */
-  def shapley(input: Vector[AnyVal]): Array[Double] = {
-    // TODO: this is a bit tacky. Check types, fail on unhandled? Add shapley() to TrainingResult?
-    rootTrainingNode match {
-      case node: RegressionTrainingNode => node.shapley(input)
-      case _ => Array.fill[Double](input.length)(0.0)
-    }
-  }
-
   override def getModel(): RegressionTree = model
 
   /**
@@ -152,6 +138,16 @@ class RegressionTree(
     new RegressionTreeResult(
       inputs.map(inp => root.transform(CategoricalEncoder.encodeInput(inp, encoders)))
     )
+  }
+
+  /**
+    * Compute Shapley feature attributions for a given input
+    *
+    * @param input for which to compute feature attributions.
+    * @return array of Shapley feature attributions, one per input feature.
+    */
+  def shapley(input: Vector[AnyVal]): Option[Array[DenseVector[Double]]] = {
+    root.shapley(input)
   }
 }
 

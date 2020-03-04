@@ -21,7 +21,7 @@ class RegressionTrainingLeaf(
     * @return lightweight prediction node
     */
   def getNode(): ModelNode[PredictionResult[Double]] = {
-    new ModelLeaf(model.asInstanceOf[Model[PredictionResult[Double]]], depth)
+    new ModelLeaf(model.asInstanceOf[Model[PredictionResult[Double]]], depth, 1, trainingData.size.toDouble)
   }
 
   /**
@@ -40,25 +40,6 @@ class RegressionTrainingLeaf(
         val impurity = Math.max(expectations._2 / expectations._3 - Math.pow(expectations._1 / expectations._3, 2.0), 0.0)
         mutable.ArraySeq(x: _*).map(_ * impurity)
       case None => mutable.ArraySeq.fill(trainingData.head._1.size)(0.0)
-    }
-  }
-
-  /**
-    * Get the Shapley feature attribution from the subtree
-    */
-  def shapleyRecurse(
-                      input: Vector[AnyVal],
-                      parentPath: FeaturePath,
-                      parentZeroFraction: Double,
-                      parentOneFraction: Double,
-                      parentFeatureIndex: Int,
-                      importances: Array[Double]
-                    ): Unit = {
-    val path = parentPath.copy().extend(parentZeroFraction, parentOneFraction, parentFeatureIndex)
-    (1 until path.length+1).foreach{i=>
-      val w = path.unwind(i).path.take(path.length).map(_.pathWeight).sum
-      val v = this.model.transform(Seq(input)).getExpected().head
-      importances(path.path(i).featureIndex) = importances(path.path(i).featureIndex) + w*(path.path(i).oneFraction - path.path(i).zeroFraction)*v
     }
   }
 
