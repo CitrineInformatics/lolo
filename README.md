@@ -16,6 +16,7 @@ Lolo supports:
  * bagged learners to produce ensemble models, e.g. random forests
  * linear and ridge regression
  * regression _leaf models_, e.g. ridge regression trained on the leaf data
+ * random rotation ensembles
  * bias-corrected jackknife-after-bootstrap and infinitesimal jackknife variance estimates
  * bias models trained on out-of-bag residuals
  * discrete influence scores, which characterize the response of a prediction each training instance
@@ -33,7 +34,7 @@ Lolo is on the central repository, and can be used by simply adding the followin
 <dependency>
     <groupId>io.citrine</groupId>
     <artifactId>lolo</artifactId>
-    <version>2.2.0</version>
+    <version>2.3.0</version>
 </dependency>
 ```
 Lolo provides higher level wrappers for common learner combinations.

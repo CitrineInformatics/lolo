@@ -1,5 +1,6 @@
 package io.citrine.lolo.learners
 
+import breeze.stats.distributions.Beta
 import io.citrine.lolo.TestUtils
 import io.citrine.lolo.stats.functions.Friedman
 import org.junit.Test
@@ -73,6 +74,51 @@ class RandomForestTest {
   }
 
   /**
+    * Ensure classification forest isn't biased toward one or the other ordering of class labels
+    * when there are duplicate inputs.
+    */
+  @Test
+  def testClassificationForestUnbiased(): Unit = {
+    val numTrials = 30
+    val (winsSuffixed, winsPrefixed): (Int,Int) = (0 until numTrials).map {case i: Int =>
+      val mainTrainingData = TestUtils.binTrainingData(
+        TestUtils.generateTrainingData(128, 5, noise = 0.1, function = Friedman.friedmanSilverman, seed = i),
+        responseBins = Some(2)
+      )
+      val dupeLabel = "DUPE"
+      val trainingDataSuffixed = mainTrainingData ++ Seq(
+        (mainTrainingData.head._1, dupeLabel)
+      )
+      val trainingDataPrefixed = Seq(
+        (mainTrainingData.head._1, dupeLabel)
+      ) ++ mainTrainingData
+
+      val RFSuffixed = RandomForest(numTrees = trainingDataSuffixed.size * 2).train(trainingDataSuffixed)
+      val RFPrefixed = RandomForest(numTrees = trainingDataPrefixed.size * 2).train(trainingDataPrefixed)
+      val predictedSuffixed = RFSuffixed.getModel().transform(mainTrainingData.map(_._1))
+      val predictedPrefixed = RFPrefixed.getModel().transform(mainTrainingData.map(_._1))
+      val extraLabelCountSuffixed = predictedSuffixed.getExpected().count { case p: String => p == dupeLabel }
+      val extraLabelCountPrefixed = predictedPrefixed.getExpected().count { case p: String => p == dupeLabel }
+
+      if (extraLabelCountSuffixed > extraLabelCountPrefixed) {
+        (1,0)
+      } else if (extraLabelCountSuffixed < extraLabelCountPrefixed) {
+        (0,1)
+      } else {
+        (0,0)
+      }
+    }.asInstanceOf[Seq[(Int,Int)]].reduce{(a: (Int,Int),b: (Int,Int))=>(a._1 + b._1, a._2 + b._2)}
+
+    // Posterior beta distribution with Jeffreys prior.
+    val d = new Beta(winsSuffixed + 0.5, winsPrefixed + 0.5)
+    val l = d.inverseCdf(2e-6)
+    val r = d.inverseCdf(1-2e-6)
+    val tol = 1e-2
+    assert(l < 0.5 - tol, f"Bias detected toward prefixed duplicate rows: rate ${d.mean}%.3f (1e-6 CI ${l}%.3f - ${r}%.3f) should be close to 0.5")
+    assert(r > 0.5 + tol, f"Bias detected toward suffixed duplicate rows: rate ${d.mean}%.3f (1e-6 CI ${l}%.3f - ${r}%.3f) should be close to 0.5")
+  }
+
+  /**
     * Randomized splits should do really well on linear signals when there are lots of trees.  Test that they
     * outperform mid-point splits
     */
@@ -118,5 +164,7 @@ object RandomForestTest {
   def main(argv: Array[String]): Unit = {
     new RandomForestTest()
       .testClassificationForest()
+    new RandomForestTest()
+      .testClassificationForestUnbiased()
   }
 }
