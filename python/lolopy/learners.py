@@ -252,7 +252,8 @@ class RandomForestMixin(BaseLoloLearner):
 
     def __init__(self, num_trees=-1, use_jackknife=True, bias_learner=None,
                  leaf_learner=None, subset_strategy="auto", min_leaf_instances=1,
-                 max_depth=2**30, uncertainty_calibration=False, randomize_pivot_location=False):
+                 max_depth=2**30, uncertainty_calibration=False, randomize_pivot_location=False,
+                 randomly_rotate_features=False):
         """Initialize the RandomForest
 
         Args:
@@ -271,6 +272,7 @@ class RandomForestMixin(BaseLoloLearner):
             max_depth (int): Maximum depth to which to allow the decision trees to grow
             uncertainty_calibration (bool): whether to re-calibrate the predicted uncertainty based on out-of-bag residuals
             randomize_pivot_location (bool): whether to draw pivots randomly or always select the midpoint
+            randomly_rotate_features (bool): whether to randomly rotate real features for each tree in the forest
         """
         super(RandomForestMixin, self).__init__()
 
@@ -284,6 +286,7 @@ class RandomForestMixin(BaseLoloLearner):
         self.max_depth = max_depth
         self.uncertainty_calibration = uncertainty_calibration
         self.randomize_pivot_location = randomize_pivot_location
+        self.randomly_rotate_features = randomly_rotate_features
 
     def _make_learner(self):
         #  TODO: Figure our a more succinct way of dealing with optional arguments/Option values
@@ -300,7 +303,8 @@ class RandomForestMixin(BaseLoloLearner):
             self.min_leaf_instances,
             self.max_depth,
             self.uncertainty_calibration,
-            self.randomize_pivot_location
+            self.randomize_pivot_location,
+            self.randomly_rotate_features
         )
         return learner
 
@@ -316,8 +320,7 @@ class RandomForestClassifier(BaseLoloClassifier, RandomForestMixin):
 class RegressionTreeLearner(BaseLoloRegressor):
     """Regression tree learner, based on the RandomTree algorithm."""
 
-    def __init__(self, num_features=-1, max_depth=30, min_leaf_instances=1, leaf_learner=None,
-                 randomize_pivot_location=False):
+    def __init__(self, num_features=-1, max_depth=30, min_leaf_instances=1, leaf_learner=None):
         """Initialize the learner
 
         Args:
@@ -325,27 +328,32 @@ class RegressionTreeLearner(BaseLoloRegressor):
             max_depth (int): Maximum depth of the regression tree
             min_leaf_instances (int): Minimum number instances per leaf
             leaf_learner (BaseLoloLearner): Learner to use on the leaves
-            randomize_pivot_location (bool): whether to draw pivots randomly or always select the midpoint
         """
         super(RegressionTreeLearner, self).__init__()
         self.num_features = num_features
         self.max_depth = max_depth
         self.min_leaf_instances = min_leaf_instances
         self.leaf_learner = leaf_learner
-        self.randomize_pivot_location = randomize_pivot_location
 
     def _make_learner(self):
         if self.leaf_learner is None:
+            # pull out default learner
             leaf_learner = getattr(
                 self.gateway.jvm.io.citrine.lolo.trees.regression.RegressionTreeLearner,
                 "$lessinit$greater$default$4"
             )()
         else:
             leaf_learner = self.gateway.jvm.scala.Some(self.leaf_learner._make_learner())
+
+        # pull out default splitter
+        splitter = getattr(
+            self.gateway.jvm.io.citrine.lolo.trees.regression.RegressionTreeLearner,
+            "$lessinit$greater$default$5"
+        )()
+
         return self.gateway.jvm.io.citrine.lolo.trees.regression.RegressionTreeLearner(
             self.num_features, self.max_depth, self.min_leaf_instances,
-            leaf_learner,
-            self.randomize_pivot_location
+            leaf_learner, splitter
         )
 
 class LinearRegression(BaseLoloRegressor):

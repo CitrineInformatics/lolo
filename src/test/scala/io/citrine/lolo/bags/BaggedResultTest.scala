@@ -38,7 +38,7 @@ class BaggedResultTest {
     * @param trainingData The original training data for the model
     * @param model        The trained model
     */
-  private def testConsistency(trainingData: Seq[(Vector[Any], Any)], model: BaggedModel): Unit = {
+  private def testConsistency(trainingData: Seq[(Vector[Any], Any)], model: BaggedModel[Any]): Unit = {
     val testSubset = Random.shuffle(trainingData).take(16)
     val (singleValues, singleUncertainties) = testSubset.map { case (x, _) =>
       val res = model.transform(Seq(x))

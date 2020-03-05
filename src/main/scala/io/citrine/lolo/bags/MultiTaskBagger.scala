@@ -35,7 +35,7 @@ case class MultiTaskBagger(
     * @param weights for the training rows, if applicable
     * @return a model
     */
-  override def train(inputs: Seq[Vector[Any]], labels: Seq[Seq[Any]], weights: Option[Seq[Double]] = None): Seq[BaggedTrainingResult] = {
+  override def train(inputs: Seq[Vector[Any]], labels: Seq[Seq[Any]], weights: Option[Seq[Double]] = None): Seq[BaggedTrainingResult[Any]] = {
     /* Make sure the training data is the same size */
     assert(inputs.forall(inputs.head.size == _.size))
     assert(inputs.size > 8, s"We need to have at least 8 rows, only ${inputs.size} given")
@@ -74,16 +74,24 @@ case class MultiTaskBagger(
      * Foreach label, emit a BaggedTrainingResult
      */
     models.transpose.zip(importances.seq.transpose).zipWithIndex.map { case ((m, i: Seq[Option[Vector[Double]]]), k) =>
+      val isRegression: Boolean = labels(k).find(_ != null) match {
+        case Some(_: Double) => true
+        case Some(_: Any) => false
+        case None => throw new IllegalArgumentException(s"Unable to find a non-null label for task ${k}")
+      }
+
       val averageImportance: Option[Vector[Double]] = i.reduce {
         combineImportance
       }.map(_.map(_ / importances.size))
       val trainingData = inputs.zip(labels(k))
       Async.canStop()
-      if (biasLearner.isEmpty || !labels(k).head.isInstanceOf[Double]) {
-        new BaggedTrainingResult(m, averageImportance, Nib, inputs.zip(labels(k)), useJackknife)
+      if (!isRegression) {
+        new BaggedTrainingResult[Any](m, averageImportance, Nib, inputs.zip(labels(k)), useJackknife)
+      } else if (biasLearner.isEmpty) {
+        new BaggedTrainingResult[Double](m.asInstanceOf[ParSeq[Model[PredictionResult[Double]]]], averageImportance, Nib, trainingData, useJackknife, None)
       } else {
         Async.canStop()
-        val baggedModel = new BaggedModel(m, Nib, useJackknife)
+        val baggedModel = new BaggedModel[Double](m.asInstanceOf[ParSeq[Model[PredictionResult[Double]]]], Nib, useJackknife)
         Async.canStop()
         val baggedRes = baggedModel.transform(trainingData.map(_._1))
         Async.canStop()
@@ -100,10 +108,10 @@ case class MultiTaskBagger(
           }
         }
         Async.canStop()
-        val biasModel = biasLearner.get.train(biasTraining).getModel()
+        val biasModel = biasLearner.get.train(biasTraining).getModel().asInstanceOf[Model[PredictionResult[Double]]]
         Async.canStop()
 
-        new BaggedTrainingResult(m, averageImportance, Nib, trainingData, useJackknife, Some(biasModel))
+        new BaggedTrainingResult[Double](m.asInstanceOf[ParSeq[Model[PredictionResult[Double]]]], averageImportance, Nib, trainingData, useJackknife, Some(biasModel))
       }
     }.seq
   }

@@ -8,6 +8,7 @@ import io.citrine.lolo.stats.functions.Friedman
 import io.citrine.lolo.transformers.Standardizer
 import io.citrine.lolo.trees.classification.ClassificationTreeLearner
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
+import io.citrine.lolo.trees.splits.RegressionSplitter
 import org.junit.Test
 import org.scalatest.Assertions._
 
@@ -126,7 +127,7 @@ class BaggerTest {
       numFeatures = nFeatures,
       leafLearner = Some(GuessTheMeanLearner()),
       maxDepth = 30,
-      randomizePivotLocation = true
+      splitter = RegressionSplitter(randomizePivotLocation = true)
     )
 
     val bagger = new Bagger(
@@ -136,7 +137,7 @@ class BaggerTest {
       biasLearner = Some(RegressionTreeLearner(
         maxDepth = 3,
         leafLearner = Some(GuessTheMeanLearner()),
-        randomizePivotLocation = true)
+        splitter = RegressionSplitter(randomizePivotLocation = true))
       ),
       uncertaintyCalibration = true
     )
@@ -172,10 +173,11 @@ class BaggerTest {
     val results = RF.transform(trainingData.map(_._1))
     val scores = results.getImportanceScores().get
     val corners = Seq(0, 7, 56, 63)
-    assert(
-      corners.forall(i => scores(i)(i) == scores(i).max),
-      "One of the training corners didn't have the highest score"
-    )
+    corners.foreach { i =>
+      assert(scores(i)(i) == scores(i).max,
+        s"The corner at $i didn't have the highest score: ${scores(i)(i)} vs ${scores(i).max}"
+      )
+    }
   }
 
   /**
@@ -214,10 +216,10 @@ class BaggerTest {
 
     // Create a future to run train
     val tmpPool = Executors.newFixedThreadPool(1)
-    val fut: Future[BaggedTrainingResult] = tmpPool.submit(
-      new Callable[BaggedTrainingResult] {
+    val fut: Future[BaggedTrainingResult[Any]] = tmpPool.submit(
+      new Callable[BaggedTrainingResult[Any]] {
         override def call() = {
-          val res = baggedLearner.train(trainingData)
+          val res: BaggedTrainingResult[Any] = baggedLearner.train(trainingData)
           assert(false, "Training was not terminated")
           res
         }
@@ -267,10 +269,12 @@ class BaggerTest {
      * This model has a rescale field, which should be a real number. If it is not,
      * then the model will fail to train
      */
-    val DTLearner = new RegressionTreeLearner(leafLearner = Some(new GuessTheMeanLearner()),
-      numFeatures = 2, randomizePivotLocation = true
+    val DTLearner = RegressionTreeLearner(
+      leafLearner = Some(GuessTheMeanLearner()),
+      numFeatures = 2,
+      splitter = RegressionSplitter(randomizePivotLocation = true)
     )
-    val trainedModel: BaggedModel = Bagger(DTLearner,
+    val trainedModel: BaggedModel[Any] = Bagger(DTLearner,
       numBags = 16, useJackknife = true, uncertaintyCalibration = true)
       .train(trainingData)
       .getModel()
@@ -332,7 +336,7 @@ object BaggerTest {
   }
 
 
-  def getStandardRMSE(testSet: Seq[(Vector[Any], Double)], model: BaggedModel): Double = {
+  def getStandardRMSE(testSet: Seq[(Vector[Any], Double)], model: BaggedModel[Any]): Double = {
     val predictions = model.transform(testSet.map(_._1))
     val pva = testSet.map(_._2).zip(
       predictions.getExpected().asInstanceOf[Seq[Double]].zip(

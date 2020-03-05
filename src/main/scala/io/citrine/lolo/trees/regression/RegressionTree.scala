@@ -2,10 +2,10 @@ package io.citrine.lolo.trees.regression
 
 import io.citrine.lolo.encoders.CategoricalEncoder
 import io.citrine.lolo.linear.GuessTheMeanLearner
+import io.citrine.lolo.trees.splits.{NoSplit, RegressionSplitter, Splitter}
 import io.citrine.lolo.trees.splits.{NoSplit, RegressionSplitter}
 import io.citrine.lolo.trees.{ModelNode, TrainingNode, TreeMeta}
 import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
-
 
 /**
   * Learner for regression trees
@@ -22,7 +22,7 @@ case class RegressionTreeLearner(
                                   maxDepth: Int = 30,
                                   minLeafInstances: Int = 1,
                                   leafLearner: Option[Learner] = None,
-                                  randomizePivotLocation: Boolean = false
+                                  splitter: Splitter[Double] = RegressionSplitter()
                                 ) extends Learner {
   /** Learner to use for training the leaves */
   @transient private lazy val myLeafLearner = leafLearner.getOrElse(GuessTheMeanLearner())
@@ -71,20 +71,20 @@ case class RegressionTreeLearner(
     }
 
     /* The tree is built of training nodes */
-    val (split, delta) = RegressionSplitter.getBestSplit(finalTraining, numFeaturesActual, minLeafInstances, randomizePivotLocation)
+    val (split, delta) = splitter.getBestSplit(finalTraining, numFeaturesActual, minLeafInstances)
     val rootTrainingNode: TrainingNode[AnyVal, Double] = if (split.isInstanceOf[NoSplit] || maxDepth == 0) {
       new RegressionTrainingLeaf(finalTraining, myLeafLearner, 0)
     } else {
       new RegressionTrainingNode(
         finalTraining,
         myLeafLearner,
+        splitter,
         split,
         delta,
         numFeaturesActual,
         minLeafInstances = minLeafInstances,
         remainingDepth = maxDepth - 1,
-        maxDepth,
-        randomizePivotLocation
+        maxDepth
       )
     }
 

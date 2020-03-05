@@ -67,11 +67,6 @@ class TestRF(TestCase):
         rf.clear_model()
         self.assertIsNone(rf.model_)
 
-        # Test removing Jackknife, which should produce equal uncertainties for all entries
-        rf.use_jackknife = False
-        rf.fit(X, y)
-        y_pred, y_std = rf.predict(X, return_std=True)
-        self.assertAlmostEqual(np.std(y_std), 0)
 
     def test_classifier(self):
         rf = RandomForestClassifier()
@@ -185,17 +180,6 @@ class TestRF(TestCase):
         rf = RandomForestRegressor()
         rf.fit(X[:16, :], y[:16])
         self.assertLess(r2_score(y, rf.predict(X)), 1.0)  # Should not fit the whole dataset perfectly
-
-        # Make sure the bias learner does something
-        rf = RandomForestRegressor(use_jackknife=False)
-        rf.fit(X, y)
-        y_pred, y_std = rf.predict(X, return_std=True)
-        self.assertAlmostEqual(0, max(y_std) - min(y_std))  # Should have same sigma for all predictions
-
-        rf = RandomForestRegressor(num_trees=16, use_jackknife=False, min_leaf_instances=8,
-                                   bias_learner=LinearRegression())
-        y_pred, y_std = rf.fit(X, y).predict(X, return_std=True)
-        self.assertGreater(max(y_std) - min(y_std), 0)   # Should have different sigma for some predictions
 
 
 if __name__ == "__main__":

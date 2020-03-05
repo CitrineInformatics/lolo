@@ -137,8 +137,8 @@ class StandardizerPrediction[T](baseResult: PredictionResult[T], trans: Seq[Opti
     *
     * @return uncertainty of each prediction
     */
-  override def getUncertainty(): Option[Seq[Any]] = {
-    baseResult.getUncertainty() match {
+  override def getUncertainty(includeNoise: Boolean = true): Option[Seq[Any]] = {
+    baseResult.getUncertainty(includeNoise) match {
       case Some(x) if trans.head.isDefined => Some(x.map(_.asInstanceOf[Double] * rescale))
       case x: Any => x
     }

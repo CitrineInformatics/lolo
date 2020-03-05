@@ -44,7 +44,7 @@ class LoloPyDataLoaderTest {
         1.0 :: 2.0 :: 3.0 :: Nil
       }
 
-      override def getUncertainty(): Option[Seq[Any]] = {
+      override def getUncertainty(includeNoise: Boolean = true): Option[Seq[Any]] = {
         Some(0.1 :: 0.2 :: 0.3 :: Nil)
       }
     }
@@ -72,7 +72,7 @@ class LoloPyDataLoaderTest {
         0 :: 1 :: 0 :: 1 :: Nil
       }
 
-      override def getUncertainty(): Option[Seq[Any]] = {
+      override def getUncertainty(includeNoise: Boolean = true): Option[Seq[Any]] = {
         Some(Map(0 -> 1.0) :: Map(1 -> 0.5, 0 -> 0.2, 2 -> 0.3) :: Map(0 -> 1.0) :: Map(1 -> 1.0) :: Nil)
       }
 

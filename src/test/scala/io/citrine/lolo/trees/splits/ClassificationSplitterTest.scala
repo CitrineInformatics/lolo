@@ -18,12 +18,12 @@ class ClassificationSplitterTest {
     */
   def testSplitterPerformance(): Unit = {
     val timeLarge = Stopwatch.time({
-      ClassificationSplitter.getBestSplit(ClassificationSplitterTest.encodedData, 12, 1)
+      ClassificationSplitter().getBestSplit(ClassificationSplitterTest.encodedData, 12, 1)
     })
 
     val timeSmall = Stopwatch.time({
       (0 until ClassificationSplitterTest.nRow / ClassificationSplitterTest.nSubset).foreach { i =>
-        ClassificationSplitter.getBestSplit(ClassificationSplitterTest.subset, 12, 1)
+        ClassificationSplitter().getBestSplit(ClassificationSplitterTest.subset, 12, 1)
       }
     })
     println(s"The normalized cost of splitting is ${timeLarge} and ${timeSmall} for large and small, resp.")
