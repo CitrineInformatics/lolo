@@ -3,7 +3,7 @@ package io.citrine.lolo.trees.regression
 import java.io.{File, FileOutputStream, ObjectOutputStream}
 
 import breeze.linalg.DenseVector
-import io.citrine.lolo.TestUtils
+import io.citrine.lolo.{Model, PredictionResult, TestUtils}
 import io.citrine.lolo.linear.LinearRegressionLearner
 import io.citrine.lolo.stats.functions.Friedman
 import io.citrine.lolo.trees.splits.{BoltzmannSplitter, RegressionSplitter}
@@ -271,6 +271,7 @@ class RegressionTreeTest {
     */
   @Test
   def testShapley(): Unit = {
+    // Example from Lundberg paper (https://arxiv.org/pdf/1802.03888.pdf)
     val trainingData1 = Seq(
       (Vector(1.0, 1.0), 80.0),
       (Vector(1.0, 0.0), 0.0),
@@ -280,6 +281,7 @@ class RegressionTreeTest {
     val expected1 = Array(30.0, 30.0)
     shapleyCompare(trainingData1, Vector[AnyVal](1.0, 1.0), expected1)
 
+    // Second example from Lundberg paper (https://arxiv.org/pdf/1802.03888.pdf)
     val trainingData2 = Seq(
       (Vector(1.0, 1.0), 90.0),
       (Vector(1.0, 0.0), 10.0),
@@ -289,6 +291,8 @@ class RegressionTreeTest {
     val expected2 = Array(35.0, 30.0)
     shapleyCompare(trainingData2, Vector[AnyVal](1.0, 1.0), expected2)
 
+    // Example with two splits on one feature
+    // Worked out with pen-and-paper from Lundberg Equation 2.
     val trainingData3 = Seq(
       (Vector(1.0, 1.0), 100.0),
       (Vector(1.0, 0.0), 80.0),
@@ -299,6 +303,8 @@ class RegressionTreeTest {
     )
     val expected3 = Array(45.8333333333333, 12.5)
     shapleyCompare(trainingData3, Vector[AnyVal](1.0, 1.0), expected3)
+
+    // TODO(grobinson): Test case with 5 or more features to exercise all factorial terms in Lundberg Equation 2.
   }
 }
 

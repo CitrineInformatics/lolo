@@ -38,6 +38,7 @@ trait ModelNode[T <: PredictionResult[Any]] extends Serializable {
   def transform(input: Vector[AnyVal]): (T, TreeMeta)
 
   /**
+    * Compute Shapley feature attributions for a given input in this node's subtree
     *
     * @param input for which to compute feature attributions.
     * @return array of vector-valued attributions for each feature
@@ -81,6 +82,7 @@ trait ModelNode[T <: PredictionResult[Any]] extends Serializable {
   * @param right branch node
   * @param numFeatures number of features, used for Shapley computation
   * @param outputDimension dimension of model output, used for Shapley computation
+  *                        1 for single-task regression, or equal to the number of classification categories.
   * @param trainingWeight weight of training data in subtree (i.e. size of unweighted training set)
   * @tparam T type of the output
   */
@@ -111,6 +113,7 @@ class InternalModelNode[T <: PredictionResult[Any]](
     *
     * @param input for which to compute feature attributions.
     * @return array of Shapley feature attributions, one per input feature.
+    *         One DenseVector[Double] per feature, each of length equal to the output dimension.
     */
   override def shapley(input: Vector[AnyVal]): Option[Array[DenseVector[Double]]] = {
     val importances = Array.fill[DenseVector[Double]](numFeatures)(elem=DenseVector.zeros[Double](outputDimension))

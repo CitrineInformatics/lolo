@@ -1,5 +1,6 @@
 package io.citrine.lolo.bags
 
+import breeze.linalg.DenseVector
 import breeze.stats.distributions.Poisson
 import io.citrine.lolo.stats.metrics.ClassificationMetrics
 import io.citrine.lolo.util.{Async, InterruptibleExecutionContext}
@@ -249,6 +250,28 @@ class BaggedModel[+T: ClassTag](
     }
 
     res.asInstanceOf[BaggedResult[T]]
+  }
+
+  /**
+    * Compute Shapley feature attributions for a given input
+    *
+    * @param input for which to compute feature attributions.
+    * @return array of Shapley feature attributions, one per input feature, each a vector of
+    *         One DenseVector[Double] per feature, each of length equal to the output dimension.
+    *         The output dimension is 1 for single-task regression, or equal to the number of classification categories.
+    */
+  override def shapley(input: Vector[AnyVal]): Option[Array[DenseVector[Double]]] = {
+    val ensembleShapley = models.map(model => model.shapley(input))
+    if (!ensembleShapley.head.isDefined) {
+      None
+    }
+    assert(ensembleShapley.forall(x=>x.isDefined))
+    def sumReducer(a: Option[Array[DenseVector[Double]]],
+                   b: Option[Array[DenseVector[Double]]]): Option[Array[DenseVector[Double]]] = {
+      (a ++ b).reduceOption[Array[DenseVector[Double]]]{case (x,y) => x.zip(y).map{case (v1,v2) => (v1 + v2)}}
+    }
+    val scale = 1.0/ensembleShapley.length
+    ensembleShapley.reduce(sumReducer).map{x=>x.map{y=>scale*y}}
   }
 }
 

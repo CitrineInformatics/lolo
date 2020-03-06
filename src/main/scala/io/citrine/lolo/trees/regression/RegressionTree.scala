@@ -144,9 +144,11 @@ class RegressionTree(
     * Compute Shapley feature attributions for a given input
     *
     * @param input for which to compute feature attributions.
-    * @return array of Shapley feature attributions, one per input feature.
+    * @return array of Shapley feature attributions, one per input feature, each a vector of
+    *         One DenseVector[Double] per feature, each of length equal to the output dimension.
+    *         The output dimension is 1 for single-task regression, or equal to the number of classification categories.
     */
-  def shapley(input: Vector[AnyVal]): Option[Array[DenseVector[Double]]] = {
+  override def shapley(input: Vector[AnyVal]): Option[Array[DenseVector[Double]]] = {
     root.shapley(input)
   }
 }
