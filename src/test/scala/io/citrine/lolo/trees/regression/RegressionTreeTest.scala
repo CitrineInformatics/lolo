@@ -249,11 +249,11 @@ class RegressionTreeTest {
   def shapleyCompare(
                      trainingData: Seq[(Vector[Double],Double)],
                      evalLocation: Vector[Any],
-                     expected: Array[Double]
+                     expected: Vector[Double]
                     ): Unit = {
     val actual = RegressionTreeLearner().train(trainingData).getModel().shapley(evalLocation) match {
       case None => fail("Unexpected None returned by shapley.")
-      case x: Option[Array[DenseVector[Double]]] => {
+      case x: Option[Vector[DenseVector[Double]]] => {
         val a = x.get
         assert(a.length == trainingData.head._1.length, "Expected one Shapley value per feature.")
         assert(a.head.length == 1, "Expected a single output dimension.")
@@ -278,7 +278,7 @@ class RegressionTreeTest {
       (Vector(0.0, 1.0), 0.0),
       (Vector(0.0, 0.0), 0.0)
     )
-    val expected1 = Array(30.0, 30.0)
+    val expected1 = Vector(30.0, 30.0)
     shapleyCompare(trainingData1, Vector[Any](1.0, 1.0), expected1)
 
     // Second example from Lundberg paper (https://arxiv.org/pdf/1802.03888.pdf)
@@ -288,7 +288,7 @@ class RegressionTreeTest {
       (Vector(0.0, 1.0), 0.0),
       (Vector(0.0, 0.0), 0.0)
     )
-    val expected2 = Array(35.0, 30.0)
+    val expected2 = Vector(35.0, 30.0)
     shapleyCompare(trainingData2, Vector[Any](1.0, 1.0), expected2)
 
     // Example with two splits on one feature
@@ -301,7 +301,7 @@ class RegressionTreeTest {
       (Vector(0.0, 0.2), 0.0),
       (Vector(0.0, 0.0), 0.0)
     )
-    val expected3 = Array(45.8333333333333, 12.5)
+    val expected3 = Vector(45.8333333333333, 12.5)
     shapleyCompare(trainingData3, Vector[Any](1.0, 1.0), expected3)
 
     // TODO(grobinson): Test case with 5 or more features to exercise all factorial terms in Lundberg Equation 2.
