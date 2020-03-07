@@ -148,8 +148,8 @@ class RegressionTree(
     *         One DenseVector[Double] per feature, each of length equal to the output dimension.
     *         The output dimension is 1 for single-task regression, or equal to the number of classification categories.
     */
-  override def shapley(input: Vector[AnyVal]): Option[Array[DenseVector[Double]]] = {
-    root.shapley(input)
+  override def shapley(input: Vector[Any]): Option[Vector[DenseVector[Double]]] = {
+    root.shapley(CategoricalEncoder.encodeInput(input, encoders))
   }
 }
 

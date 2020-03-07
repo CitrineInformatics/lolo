@@ -1,6 +1,7 @@
 package io.citrine.lolo.bags
 
 import breeze.linalg.DenseVector
+import breeze.numerics.abs
 import breeze.stats.distributions.Poisson
 import io.citrine.lolo.stats.metrics.ClassificationMetrics
 import io.citrine.lolo.util.{Async, InterruptibleExecutionContext}
@@ -201,6 +202,26 @@ class BaggedTrainingResult[+T : ClassTag](
     */
   override def getFeatureImportance(): Option[Vector[Double]] = featureImportance
 
+  /**
+    * Get mean absolute Shapley values across training data
+    *
+    * @return vector of mean absolute Shapley values
+    *         One DenseVector[Double] per feature, each of length equal to the output dimension.
+    */
+  override def getShapleyAggregate(): Option[Vector[DenseVector[Double]]] = {
+    val shaps = trainingData.map{d=>model.shapley(d._1)}
+    if (!shaps.head.isDefined) {
+      None
+    }
+    assert(shaps.forall(x=>x.isDefined))
+    def sumReducer(a: Option[Vector[DenseVector[Double]]],
+                   b: Option[Vector[DenseVector[Double]]]): Option[Vector[DenseVector[Double]]] = {
+      (a ++ b).reduceOption[Vector[DenseVector[Double]]]{case (x,y) => x.zip(y).map{case (v1,v2) => (abs(v1) + abs(v2))}}
+    }
+    val scale = 1.0/shaps.length
+    shaps.reduce(sumReducer).map{x=>x.map{y=>scale*y}.toVector}
+  }
+
   override def getModel(): BaggedModel[Any] = model
 
   override def getPredictedVsActual(): Option[Seq[(Vector[Any], Any, Any)]] = Some(predictedVsActual)
@@ -260,15 +281,15 @@ class BaggedModel[+T: ClassTag](
     *         One DenseVector[Double] per feature, each of length equal to the output dimension.
     *         The output dimension is 1 for single-task regression, or equal to the number of classification categories.
     */
-  override def shapley(input: Vector[AnyVal]): Option[Array[DenseVector[Double]]] = {
+  override def shapley(input: Vector[Any]): Option[Vector[DenseVector[Double]]] = {
     val ensembleShapley = models.map(model => model.shapley(input))
     if (!ensembleShapley.head.isDefined) {
       None
     }
     assert(ensembleShapley.forall(x=>x.isDefined))
-    def sumReducer(a: Option[Array[DenseVector[Double]]],
-                   b: Option[Array[DenseVector[Double]]]): Option[Array[DenseVector[Double]]] = {
-      (a ++ b).reduceOption[Array[DenseVector[Double]]]{case (x,y) => x.zip(y).map{case (v1,v2) => (v1 + v2)}}
+    def sumReducer(a: Option[Vector[DenseVector[Double]]],
+                   b: Option[Vector[DenseVector[Double]]]): Option[Vector[DenseVector[Double]]] = {
+      (a ++ b).reduceOption[Vector[DenseVector[Double]]]{case (x,y) => x.zip(y).map{case (v1,v2) => (v1 + v2)}}
     }
     val scale = 1.0/ensembleShapley.length
     ensembleShapley.reduce(sumReducer).map{x=>x.map{y=>scale*y}}

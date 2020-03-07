@@ -22,5 +22,5 @@ trait Model[+T <: PredictionResult[Any]] extends Serializable {
     * @return array of vector-valued attributions for each feature
     *         One DenseVector[Double] per feature, each of length equal to the output dimension.
     */
-  def shapley(input: Vector[AnyVal]): Option[Array[DenseVector[Double]]] = None
+  def shapley(input: Vector[Any]): Option[Vector[DenseVector[Double]]] = None
 }

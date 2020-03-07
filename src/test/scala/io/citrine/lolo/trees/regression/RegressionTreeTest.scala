@@ -248,7 +248,7 @@ class RegressionTreeTest {
 
   def shapleyCompare(
                      trainingData: Seq[(Vector[Double],Double)],
-                     evalLocation: Vector[AnyVal],
+                     evalLocation: Vector[Any],
                      expected: Array[Double]
                     ): Unit = {
     val actual = RegressionTreeLearner().train(trainingData).getModel().shapley(evalLocation) match {
@@ -279,7 +279,7 @@ class RegressionTreeTest {
       (Vector(0.0, 0.0), 0.0)
     )
     val expected1 = Array(30.0, 30.0)
-    shapleyCompare(trainingData1, Vector[AnyVal](1.0, 1.0), expected1)
+    shapleyCompare(trainingData1, Vector[Any](1.0, 1.0), expected1)
 
     // Second example from Lundberg paper (https://arxiv.org/pdf/1802.03888.pdf)
     val trainingData2 = Seq(
@@ -289,7 +289,7 @@ class RegressionTreeTest {
       (Vector(0.0, 0.0), 0.0)
     )
     val expected2 = Array(35.0, 30.0)
-    shapleyCompare(trainingData2, Vector[AnyVal](1.0, 1.0), expected2)
+    shapleyCompare(trainingData2, Vector[Any](1.0, 1.0), expected2)
 
     // Example with two splits on one feature
     // Worked out with pen-and-paper from Lundberg Equation 2.
@@ -302,7 +302,7 @@ class RegressionTreeTest {
       (Vector(0.0, 0.0), 0.0)
     )
     val expected3 = Array(45.8333333333333, 12.5)
-    shapleyCompare(trainingData3, Vector[AnyVal](1.0, 1.0), expected3)
+    shapleyCompare(trainingData3, Vector[Any](1.0, 1.0), expected3)
 
     // TODO(grobinson): Test case with 5 or more features to exercise all factorial terms in Lundberg Equation 2.
   }

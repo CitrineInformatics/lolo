@@ -159,7 +159,3 @@ class ClassificationResult(
     predictions.map(_._2.depth)
   }
 }
-
-
-
-

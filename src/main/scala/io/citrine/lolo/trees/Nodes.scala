@@ -44,7 +44,7 @@ trait ModelNode[T <: PredictionResult[Any]] extends Serializable {
     * @return array of vector-valued attributions for each feature
     *         One DenseVector[Double] per feature, each of length equal to the output dimension.
     */
-  def shapley(input: Vector[AnyVal]): Option[Array[DenseVector[Double]]]
+  def shapley(input: Vector[AnyVal]): Option[Vector[DenseVector[Double]]]
 
   /**
     * Get the Shapley feature attribution from a subtree
@@ -115,10 +115,10 @@ class InternalModelNode[T <: PredictionResult[Any]](
     * @return array of Shapley feature attributions, one per input feature.
     *         One DenseVector[Double] per feature, each of length equal to the output dimension.
     */
-  override def shapley(input: Vector[AnyVal]): Option[Array[DenseVector[Double]]] = {
+  override def shapley(input: Vector[AnyVal]): Option[Vector[DenseVector[Double]]] = {
     val importances = Array.fill[DenseVector[Double]](numFeatures)(elem=DenseVector.zeros[Double](outputDimension))
     shapleyRecurse(input, new FeaturePath(input.length), 1.0, 1.0, -1, importances)
-    Some(importances)
+    Some(importances.toVector)
   }
 
   /**
@@ -236,5 +236,5 @@ class ModelLeaf[T](model: Model[PredictionResult[T]], depth: Int, numFeatures: I
 
   override def getTrainingWeight(): Double = trainingWeight
 
-  override def shapley(input: Vector[AnyVal]): Option[Array[DenseVector[Double]]] = None
+  override def shapley(input: Vector[AnyVal]): Option[Vector[DenseVector[Double]]] = None
 }
