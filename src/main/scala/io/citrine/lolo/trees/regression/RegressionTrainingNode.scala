@@ -1,5 +1,7 @@
 package io.citrine.lolo.trees.regression
 
+import breeze.linalg.DenseVector
+import breeze.numerics.abs
 import io.citrine.lolo.trees.splits.{NoSplit, RegressionSplitter, Split, Splitter}
 import io.citrine.lolo.trees.{FeaturePath, InternalModelNode, ModelNode, TrainingLeaf, TrainingNode}
 import io.citrine.lolo.{Learner, PredictionResult}
@@ -55,6 +57,26 @@ class RegressionTrainingNode(
     val ans = leftChild.getFeatureImportance().zip(rightChild.getFeatureImportance()).map(p => p._1 + p._2)
     ans(split.getIndex()) = ans(split.getIndex()) + improvement
     ans
+  }
+
+  /**
+    * Get mean absolute Shapley values across training data
+    *
+    * @return vector of mean absolute Shapley values
+    *         One DenseVector[Double] per feature, each of length equal to the output dimension.
+    */
+  override def getShapley(): Option[Vector[DenseVector[Double]]] = {
+    val shaps = trainingData.map{d=>getNode().shapley(d._1)}
+    if (!shaps.head.isDefined) {
+      None
+    }
+    assert(shaps.forall(x=>x.isDefined))
+    def sumReducer(a: Option[Vector[DenseVector[Double]]],
+                   b: Option[Vector[DenseVector[Double]]]): Option[Vector[DenseVector[Double]]] = {
+      (a ++ b).reduceOption[Vector[DenseVector[Double]]]{case (x,y) => x.zip(y).map{case (v1,v2) => (abs(v1) + abs(v2))}}
+    }
+    val scale = 1.0/shaps.length
+    shaps.reduce(sumReducer).map{x=>x.map{y=>scale*y}}
   }
 }
 

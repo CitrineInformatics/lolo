@@ -1,6 +1,7 @@
 package io.citrine.lolo.trees
 
 import breeze.linalg.DenseVector
+import breeze.numerics.abs
 import io.citrine.lolo.trees.splits.Split
 import io.citrine.lolo.{Learner, Model, PredictionResult}
 
@@ -32,6 +33,14 @@ abstract class TrainingNode[T <: AnyVal, S](
     * @return feature importance as a vector
     */
   def getFeatureImportance(): mutable.ArraySeq[Double]
+
+  /**
+    * Get mean absolute Shapley values across training data
+    *
+    * @return vector of mean absolute Shapley values
+    *         One DenseVector[Double] per feature, each of length equal to the output dimension.
+    */
+  def getShapley(): Option[Vector[DenseVector[Double]]] = None
 }
 
 trait ModelNode[T <: PredictionResult[Any]] extends Serializable {
