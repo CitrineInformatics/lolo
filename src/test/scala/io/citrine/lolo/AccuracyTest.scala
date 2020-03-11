@@ -65,6 +65,7 @@ class AccuracyTest {
 
     val relativeDifference = 2.0 * Math.abs(errorAnnealingTree - errorStandardTree)/(errorAnnealingTree + errorStandardTree)
     // println(relativeDifference)
+    // THIS SHOULD PROBABLY RELIABLY FAIL
     assert(relativeDifference < 0.01)
   }
 }

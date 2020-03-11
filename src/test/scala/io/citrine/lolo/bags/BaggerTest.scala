@@ -3,6 +3,7 @@ package io.citrine.lolo.bags
 import java.util.concurrent.{Callable, CancellationException, Executors, Future, TimeUnit}
 
 import io.citrine.lolo.TestUtils
+import io.citrine.lolo.learners.RandomForest
 import io.citrine.lolo.linear.GuessTheMeanLearner
 import io.citrine.lolo.stats.functions.Friedman
 import io.citrine.lolo.transformers.Standardizer
@@ -46,6 +47,88 @@ class BaggerTest {
     /* The first feature should be the most important */
     val importances = RFMeta.getFeatureImportance().get
     assert(importances(1) == importances.max)
+  }
+
+  @Test
+  def testRegressionBaggerGetUncertainty(): Unit = {
+    val noiseLevel = 100.0
+    val nRows = 8
+    val trainingDataTmp = TestUtils.binTrainingData(
+      TestUtils.generateTrainingData(nRows, 2, noise = noiseLevel, function = _ => 0.0),
+      inputBins = Seq((0, 8))
+    )
+    val trainingData = trainingDataTmp
+    (1 to 10).foreach {i=>
+      //val DTLearner = RegressionTreeLearner(maxDepth = 1)
+      val DTLearner = GuessTheMeanLearner()
+      val baggedLearner = Bagger(DTLearner, numBags = nRows*100)
+      val RFMeta = baggedLearner.train(trainingData)
+      val RF = RFMeta.getModel()
+
+      val results = RF.transform(trainingData.take(1).map(_._1))
+      val sigmaObs: Seq[Double] = results.getUncertainty().get.asInstanceOf[Seq[Double]]
+      val sigmaMean: Seq[Double] = results.getUncertainty(observational = false).get.asInstanceOf[Seq[Double]]
+      val rtol = 0.01
+      println(sigmaObs(0) + "   " + sigmaMean(0))
+      //sigmaObs.foreach { s =>
+      //  assert(s > Math.sqrt(noiseLevel) - atol, "Observational StdDev getUncertainty() is too small.")
+      //  assert(s < Math.sqrt(noiseLevel) + atol, "Observational StdDev getUncertainty() is too large.")
+      //}
+      //sigmaObs.zip(sigmaMean).foreach { case (sObs, sMean) => assert(sObs > sMean, "Uncertainty should be greater when observational = true.") }
+    }
+  }
+
+  @Test
+  def testRegressionBaggerGetUncertainty2(): Unit = {
+    val noiseLevel = 1.0
+    val nRows = 100
+    val trainingDataTmp = TestUtils.generateTrainingData(nRows, 1, noise = noiseLevel, function = x => 2*x(0)+1)
+    val trainingData = trainingDataTmp ++ trainingDataTmp ++ trainingDataTmp ++ trainingDataTmp
+    (1 to 1).foreach {_=>
+      //val DTLearner = RegressionTreeLearner()
+      //val baggedLearner = Bagger(DTLearner, numBags = nRows)
+      val baggedLearner = RandomForest()
+      val RFMeta = baggedLearner.train(trainingData)
+      val RF = RFMeta.getModel()
+
+      val results = RF.transform(trainingData.take(10).map(_._1))
+      val sigmaObs: Seq[Double] = results.getUncertainty().get.asInstanceOf[Seq[Double]]
+      val sigmaMean: Seq[Double] = results.getUncertainty(observational = false).get.asInstanceOf[Seq[Double]]
+      sigmaObs.zip(sigmaMean).foreach { case (sObs, sMean) =>
+        println(sObs + "\t" + sMean)
+      }
+      //sigmaObs.foreach { s =>
+      //  assert(s > Math.sqrt(noiseLevel) - atol, "Observational StdDev getUncertainty() is too small.")
+      //  assert(s < Math.sqrt(noiseLevel) + atol, "Observational StdDev getUncertainty() is too large.")
+      //}
+      //sigmaObs.zip(sigmaMean).foreach { case (sObs, sMean) => assert(sObs > sMean, "Uncertainty should be greater when observational = true.") }
+    }
+  }
+
+  @Test
+  def testRegressionBaggerGetUncertainty3(): Unit = {
+    val noiseLevel = 1.0
+    val nRows = 100
+    val trainingDataTmp = TestUtils.generateTrainingData(nRows, 1, noise = noiseLevel, function = x => 2*x(0)+1)
+    val trainingData = trainingDataTmp
+    (1 to 1).foreach {_=>
+      val DTLearner = RegressionTreeLearner()
+      val baggedLearner = Bagger(DTLearner, numBags = nRows)
+      val RFMeta = baggedLearner.train(trainingData)
+      val RF = RFMeta.getModel()
+
+      val results = RF.transform(trainingData.take(10).map(_._1))
+      val sigmaObs: Seq[Double] = results.getUncertainty(observational = true).get.asInstanceOf[Seq[Double]]
+      val sigmaMean: Seq[Double] = results.getUncertainty(observational = false).get.asInstanceOf[Seq[Double]]
+      sigmaObs.zip(sigmaMean).foreach { case (sObs, sMean) =>
+        println(sObs + "   " + sMean)
+      }
+      //sigmaObs.foreach { s =>
+      //  assert(s > Math.sqrt(noiseLevel) - atol, "Observational StdDev getUncertainty() is too small.")
+      //  assert(s < Math.sqrt(noiseLevel) + atol, "Observational StdDev getUncertainty() is too large.")
+      //}
+      //sigmaObs.zip(sigmaMean).foreach { case (sObs, sMean) => assert(sObs > sMean, "Uncertainty should be greater when observational = true.") }
+    }
   }
 
   /**

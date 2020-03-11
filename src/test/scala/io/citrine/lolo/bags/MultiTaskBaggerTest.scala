@@ -67,6 +67,7 @@ class MultiTaskBaggerTest {
 
     val uncertainty = results.getUncertainty()
     assert(uncertainty.isDefined)
+    // THIS FAILS
     trainingData.map(_._2).zip(uncertainty.get).foreach { case (a, probs) =>
       val classProbabilities = probs.asInstanceOf[Map[Any, Double]]
       val maxProb = classProbabilities(a)
