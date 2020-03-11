@@ -58,7 +58,7 @@ case class BaggedSingleResult(
 
   private lazy val expected = treePredictions.sum / treePredictions.length
   private lazy val treeVariance: Double = {
-    assert(treePredictions.length > 2)
+    assert(treePredictions.length > 1, "Bootstrap variance undefined for fewer than 2 bootstrap samples." + treePredictions.length)
     treePredictions.map(x => Math.pow(x - expected, 2.0)).sum / (treePredictions.length - 1)
   }
 
