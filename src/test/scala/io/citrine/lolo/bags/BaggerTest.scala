@@ -80,14 +80,15 @@ class BaggerTest {
 
   @Test
   def testRegressionBaggerGetUncertainty(): Unit = {
-    val noiseLevel = 1.0
-    val nRows = 100
+    val noiseLevel = 100.0
+    val nRows = 30
     val rng = new Random(237485L)
-    val trainingDataTmp = TestUtils.generateTrainingData(nRows, 1, noise = 0.0, function = x => 2*x(0)+1)
-    val trainingData = (trainingDataTmp ++ trainingDataTmp ++ trainingDataTmp ++ trainingDataTmp).map{x => (x._1, x._2 + noiseLevel*rng.nextDouble())}
+    val trainingDataTmp = TestUtils.generateTrainingData(nRows, 1, noise = 0.0, function = _ => 0.0)
+    val trainingData = (trainingDataTmp).map{x => (x._1, x._2 + noiseLevel*rng.nextDouble())}
     //val trainingData = trainingDataTmp.map{x => (x._1, x._2 + noiseLevel*rng.nextDouble())}
-    val DTLearner = RegressionTreeLearner()
-    val baggedLearner = Bagger(DTLearner, numBags = nRows)
+    //val DTLearner = RegressionTreeLearner()
+    val DTLearner = GuessTheMeanLearner()
+    val baggedLearner = Bagger(DTLearner, numBags = 10*nRows, uncertaintyCalibration = true)
     val RFMeta = baggedLearner.train(trainingData)
     val RF = RFMeta.getModel()
 
