@@ -57,17 +57,24 @@ case class BaggedSingleResult(
   override def getExpected(): Seq[Double] = Seq(expected)
 
   private lazy val expected = treePredictions.sum / treePredictions.length
-  private lazy val treeVariance: Double = treePredictions.map(x => Math.pow(x - expected, 2.0)).sum / treePredictions.length
+  private lazy val treeVariance: Double = {
+    assert(treePredictions.length > 1, "Bootstrap variance undefined for fewer than 2 bootstrap samples." + treePredictions.length)
+    treePredictions.map(x => Math.pow(x - expected, 2.0)).sum / treePredictions.length
+  }
 
-  override def getStdDevObs(): Option[Seq[Double]] = Some(Seq(treeVariance))
+  override def getStdDevObs(): Option[Seq[Double]] = Some(Seq(scalarUncertainty))
 
-  override def getStdDevMean(): Option[Seq[Double]] = Some(Seq(scalarUncertainty))
+  override def getStdDevMean(): Option[Seq[Double]] = Some(Seq(Math.sqrt(treeVariance)))
 
   /**
    * For the sake of parity, we were using this method
    */
   override def getUncertainty(observational: Boolean): Option[Seq[Any]] = {
-    getStdDevMean()
+    if (observational) {
+      getStdDevObs()
+    } else {
+      getStdDevMean()
+    }
   }
 
   private lazy val scalarUncertainty: Double = {
@@ -177,19 +184,24 @@ case class BaggedMultiResult(
     */
   override def getExpected(): Seq[Double] = expected
 
-  override def getStdDevObs(): Option[Seq[Double]] = Some{
-    expectedMatrix.asInstanceOf[Seq[Seq[Double]]].zip(expected.asInstanceOf[Seq[Double]]).map{case (b, y) =>
-      b.map{x => Math.pow(x - y, 2.0)}.sum / b.size
+  override def getStdDevObs(): Option[Seq[Double]] = Some(uncertainty)
+
+  override def getStdDevMean(): Option[Seq[Double]] = Some{
+    expectedMatrix.asInstanceOf[Seq[Seq[Double]]].zip(expected.asInstanceOf[Seq[Double]]).map { case (b, y) =>
+      assert(b.size > 2)
+      Math.sqrt(b.map { x => Math.pow(x - y, 2.0) }.sum / (b.size - 1))
     }
   }
-
-  override def getStdDevMean(): Option[Seq[Double]] = Some(uncertainty)
 
   /**
    * For the sake of parity, we were using this method
    */
   override def getUncertainty(observational: Boolean): Option[Seq[Any]] = {
-    getStdDevMean()
+    if (observational) {
+      getStdDevObs()
+    } else {
+      getStdDevMean()
+    }
   }
 
   /**
