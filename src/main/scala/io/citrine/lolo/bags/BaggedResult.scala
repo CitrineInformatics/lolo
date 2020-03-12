@@ -64,7 +64,7 @@ case class BaggedSingleResult(
 
   override def getStdDevObs(): Option[Seq[Double]] = Some(Seq(scalarUncertainty))
 
-  override def getStdDevMean(): Option[Seq[Double]] = Some(Seq(Math.sqrt(treeVariance)))
+  override def getStdDevMean(): Option[Seq[Double]] = None
 
   /**
    * For the sake of parity, we were using this method
@@ -186,12 +186,7 @@ case class BaggedMultiResult(
 
   override def getStdDevObs(): Option[Seq[Double]] = Some(uncertainty)
 
-  override def getStdDevMean(): Option[Seq[Double]] = Some{
-    expectedMatrix.asInstanceOf[Seq[Seq[Double]]].zip(expected.asInstanceOf[Seq[Double]]).map { case (b, y) =>
-      assert(b.size > 2)
-      Math.sqrt(b.map { x => Math.pow(x - y, 2.0) }.sum / (b.size - 1))
-    }
-  }
+  override def getStdDevMean(): Option[Seq[Double]] = None
 
   /**
    * For the sake of parity, we were using this method
