@@ -5,7 +5,16 @@ import io.citrine.lolo.{Model, PredictionResult}
 
 import scala.collection.parallel.immutable.ParSeq
 
-case class BaggerHelper(
+/**
+  * Helper class to subsume shared functionality of Bagger and MultiTaskBagger.
+  *
+  * @param models collection of trained models
+  * @param trainingData on which models were trained
+  * @param Nib vector (over models) of vectors (over training data) of the number of repeats in each model's bag
+  * @param useJackknife whether to use jackknife for uncertainty quantification
+  * @param uncertaintyCalibration whether to apply empirical uncertainty calibration
+  */
+protected case class BaggerHelper(
                                    models: ParSeq[Model[PredictionResult[Any]]],
                                    trainingData: Seq[(Vector[Any],Any)],
                                    Nib: Vector[Vector[Int]],
@@ -18,6 +27,9 @@ case class BaggerHelper(
     case None => throw new IllegalArgumentException(s"Unable to find a non-null label")
   }
 
+  /**
+    * Seq of tuples containing training data paired with their out-of-bag residuals and uncertainty estimates.
+    */
   lazy val oobErrors: Seq[(Vector[Any], Double, Double)] = trainingData.indices.flatMap { idx =>
     val oobModels = models.zip(Nib.map(_ (idx))).filter(_._2 == 0).map(_._1).asInstanceOf[ParSeq[Model[PredictionResult[Double]]]]
     val label = trainingData(idx)._2
@@ -35,8 +47,10 @@ case class BaggerHelper(
     }
   }
 
-  /* Calculate the uncertainty calibration ratio, which is the 68th percentile of error/uncertainty
-   * for the training points. If a point has 0 uncertainty, the ratio is 1 iff error is also 0, otherwise infinity */
+  /**
+    * Calculate the uncertainty calibration ratio, which is the 68th percentile of error/uncertainty.
+    * for the training points. If a point has 0 uncertainty, the ratio is 1 iff error is also 0, or infinity otherwise.
+    */
   val ratio = if (uncertaintyCalibration && isRegression && useJackknife) {
     Async.canStop()
     oobErrors.map {
@@ -49,6 +63,9 @@ case class BaggerHelper(
   }
   assert(!ratio.isNaN && !ratio.isInfinity, s"Uncertainty calibration ratio is not real: $ratio")
 
+  /**
+    * Data on which to train a bias learner.
+    */
   lazy val biasTraining = oobErrors.map { case (f, e, u) =>
     // Math.E is only statistically correct.  It should be actualBags / Nib.transpose(i).count(_ == 0)
     // Or, better yet, filter the bags that don't include the training example
