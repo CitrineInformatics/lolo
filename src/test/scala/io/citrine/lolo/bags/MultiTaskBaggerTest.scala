@@ -1,6 +1,6 @@
 package io.citrine.lolo.bags
 
-import io.citrine.lolo.TestUtils
+import io.citrine.lolo.{RegressionResult, TestUtils}
 import io.citrine.lolo.linear.GuessTheMeanLearner
 import io.citrine.lolo.stats.functions.Friedman
 import io.citrine.lolo.stats.metrics.ClassificationMetrics
@@ -45,45 +45,72 @@ class MultiTaskBaggerTest {
   }
 
   /**
-    * Test UQ on multitask regression.
+    * Test UQ on multitask regression with a single regression problem.
     */
   @Test
   def testBaggedMultiTaskGetUncertainty(): Unit = {
     val noiseLevel = 100.0
     val rng = new Random(237485L)
-    Seq(MultiTaskTreeLearner()).foreach{ baseLearner =>
-      Seq(30,100,301).foreach { nRows =>
-        val trainingDataTmp = TestUtils.generateTrainingData(nRows, 1, noise = 0.0, function = _ => 0.0, seed = rng.nextLong())
-        val trainingData = trainingDataTmp.map { x => (x._1, x._2 + noiseLevel * rng.nextDouble()) }
-        val inputs = trainingData.map(_._1)
-        val labels = trainingData.map(_._2)
-        val baggedLearner = MultiTaskBagger(baseLearner, numBags = 2 * nRows, uncertaintyCalibration = true)
-        val RFMeta = baggedLearner.train(inputs, Seq(labels)).head
-        val RF = RFMeta.getModel()
 
-        val results = RF.transform(trainingData.take(1).map(_._1))
-        val sigmaObs: Seq[Double] = results.getUncertainty().get.asInstanceOf[Seq[Double]]
-//        val sigmaMean: Seq[Double] = results.getUncertainty(observational = false).get.asInstanceOf[Seq[Double]]
-// TODO(grobinson): enable this interface.
-//        sigmaMean.zip(results.asInstanceOf[RegressionResult].getStdDevMean().get).foreach{ case (a,b) =>
-//          assert(a == b, "Expected getUncertainty(observational=false)=getStdDevMean()")
-//        }
-//        sigmaObs.zip(results.asInstanceOf[RegressionResult].getStdDevObs().get).foreach{ case (a,b) =>
-//          assert(a == b, "Expected getUncertainty()=getStdDevObs()")
-//        }
-//        sigmaObs.zip(sigmaMean).foreach { case (sObs, sMean) => assert(sObs > sMean, "Uncertainty should be greater when observational = true.") }
+    Seq(MultiTaskTreeLearner()).foreach { baseLearner =>
+      // These are in Seqs as a convenience for repurposing this test as a diagnostic tool.
+      Seq(128).foreach { nRows =>
+        Seq(16).foreach { nCols =>
+          Seq(2).map { n => n * nRows }.foreach { nBags =>
+            // Used for error output.
+            val configDescription =s"learner=${baseLearner.getClass().toString()}\tnRows=$nRows\tnCols=$nCols\tnumBags=$nBags"
 
-        if (baseLearner.isInstanceOf[GuessTheMeanLearner]) {
-          val rtolLower = 5.0  // Future recalibration should decrease this number.
-          val rtolUpper = 1.0  // Future recalibration should increase this number.
-          sigmaObs.foreach { s =>
-            assert(rtolLower * s > noiseLevel, "Observational StdDev getUncertainty() is too small.")
-            assert(s < rtolUpper * noiseLevel, "Observational StdDev getUncertainty() is too large.")
+            // Count times getStdDevObs is > and < getStdDevMean
+            var countStdObsGtStdMean = 0.0
+            var countStdObsLtStdMean = 0.0
+
+            (1 to 10).foreach { _ =>
+              val trainingDataTmp = TestUtils.generateTrainingData(nRows, nCols, noise = 0.0, function = _ => 0.0, seed = rng.nextLong())
+              val trainingData = trainingDataTmp.map { x => (x._1, x._2 + noiseLevel * rng.nextDouble()) }
+              val inputs = trainingData.map(_._1)
+              val labels = trainingData.map(_._2)
+              val baggedLearner = MultiTaskBagger(baseLearner, numBags = nBags, uncertaintyCalibration = true)
+              val RFMeta = baggedLearner.train(inputs, Seq(labels)).head
+              val RF = RFMeta.getModel()
+              val results = RF.transform(trainingData.take(4).map(_._1))
+
+              val sigmaMean: Seq[Double] = results.getUncertainty(observational = false).get.asInstanceOf[Seq[Double]]
+              sigmaMean.zip(results.asInstanceOf[BaggedMultiResult].getStdDevMean().get).foreach{ case (a,b) =>
+                assert(a == b, s"Expected getUncertainty(observational=false)=getStdDevMean() for $configDescription")
+              }
+
+              val sigmaObs: Seq[Double] = results.getUncertainty().get.asInstanceOf[Seq[Double]]
+              sigmaObs.zip(results.asInstanceOf[BaggedMultiResult].getStdDevObs().get).foreach { case (a, b) =>
+                assert(a == b, s"Expected getUncertainty()=getStdDevObs() for $configDescription")
+              }
+
+              sigmaObs.zip(sigmaMean).foreach { case (sObs, sMean) =>
+                // Uncomment for diagnostic output.
+                // println(s"$configDescription\tsObs=$sObs\tsMean=$sMean")
+                if (sObs > sMean) {
+                  countStdObsGtStdMean += 1
+                } else {
+                  countStdObsLtStdMean += 1
+                }
+              }
+
+              // We have strong theoretical guarantees on the behavior of GuessTheMeanLearner, so let's exercise them.
+              // NOTE: these bounds reflect a ~3x systematic variance under-estimation in this particular test setting.
+              var rtolLower = if (baseLearner.isInstanceOf[GuessTheMeanLearner]) 3.5 else 10.0 // Future recalibration should decrease this number.
+              var rtolUpper = if (baseLearner.isInstanceOf[GuessTheMeanLearner]) 1.0 else 1.0 // Future recalibration should increase this number.
+              sigmaObs.foreach { s =>
+                assert(rtolLower * s > noiseLevel, s"Observational StdDev getUncertainty() is too small for $configDescription")
+                assert(s < rtolUpper * noiseLevel, s"Observational StdDev getUncertainty() is too large for $configDescription")
+              }
+              rtolLower = if (baseLearner.isInstanceOf[GuessTheMeanLearner]) 5.0 else 10.0 // Future recalibration should decrease this number.
+              rtolUpper = if (baseLearner.isInstanceOf[GuessTheMeanLearner]) 1.0 else 10.0 // Future recalibration should increase this number.
+              sigmaMean.foreach { s =>
+                assert(rtolLower * s > (noiseLevel / Math.sqrt(nRows)), s"Mean StdDev getUncertainty(observational=false) is too small for $configDescription.")
+                assert(s < (rtolUpper * noiseLevel / Math.sqrt(nRows)), s"Mean StdDev getUncertainty(observational=false) is too large for $configDescription")
+              }
+              assert(countStdObsGtStdMean / (countStdObsGtStdMean + countStdObsLtStdMean) > 0.9, s"Uncertainty should be greater when observational = true for $configDescription" )
+            }
           }
-//          sigmaMean.foreach { s =>
-//            assert(rtolLower * s > noiseLevel / Math.sqrt(nRows - 1), "Mean StdDev getUncertainty(observational=false) is too small.")
-//            assert(s < rtolUpper * noiseLevel / Math.sqrt(nRows - 1), "Mean StdDev getUncertainty(observational=false) is too large.")
-//          }
         }
       }
     }
