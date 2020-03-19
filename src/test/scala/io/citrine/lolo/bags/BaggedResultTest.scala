@@ -45,7 +45,7 @@ class BaggedResultTest {
         Seq(16).foreach { nCols =>
           Seq(2).map { n => n * nRows }.foreach { nBags =>
             // Used for error output.
-            val configDescription =s"learner=${baseLearner.getClass().toString()}\tnRows=$nRows\tnCols=$nCols\tnumBags=$nBags"
+            val configDescription = s"learner=${baseLearner.getClass().toString()}\tnRows=$nRows\tnCols=$nCols\tnumBags=$nBags"
 
             // Count times getStdDevObs is > and < getStdDevMean
             var countStdObsGtStdMean = 0.0
@@ -81,17 +81,33 @@ class BaggedResultTest {
 
               // We have strong theoretical guarantees on the behavior of GuessTheMeanLearner, so let's exercise them.
               // NOTE: these bounds reflect a ~3x systematic variance under-estimation in this particular test setting.
-              var rtolLower = if (baseLearner.isInstanceOf[GuessTheMeanLearner]) 3.5 else 10.0 // Future recalibration should decrease this number.
-              var rtolUpper = if (baseLearner.isInstanceOf[GuessTheMeanLearner]) 1.0 else 1.0 // Future recalibration should increase this number.
-              sigmaObs.foreach { s =>
-                assert(rtolLower * s > noiseLevel, s"Observational StdDev getUncertainty() is too small for $configDescription")
-                assert(s < rtolUpper * noiseLevel, s"Observational StdDev getUncertainty() is too large for $configDescription")
+              {
+                val rtolLower = baseLearner match {
+                  case _: GuessTheMeanLearner => 3.5
+                  case _: Any => 10.0
+                }
+                val rtolUpper = baseLearner match {
+                  case _: GuessTheMeanLearner => 1.0
+                  case _: Any => 1.0
+                }
+                sigmaObs.foreach { s =>
+                  assert(rtolLower * s > noiseLevel, s"Observational StdDev getUncertainty() is too small for $configDescription")
+                  assert(s < rtolUpper * noiseLevel, s"Observational StdDev getUncertainty() is too large for $configDescription")
+                }
               }
-              rtolLower = if (baseLearner.isInstanceOf[GuessTheMeanLearner]) 5.0 else 10.0 // Future recalibration should decrease this number.
-              rtolUpper = if (baseLearner.isInstanceOf[GuessTheMeanLearner]) 1.0 else 10.0 // Future recalibration should increase this number.
-              sigmaMean.foreach { s =>
-                assert(rtolLower * s > (noiseLevel / Math.sqrt(nRows)), s"Mean StdDev getUncertainty(observational=false) is too small for $configDescription.")
-                assert(s < (rtolUpper * noiseLevel / Math.sqrt(nRows)), s"Mean StdDev getUncertainty(observational=false) is too large for $configDescription")
+              {
+                val rtolLower = baseLearner match {
+                  case _: GuessTheMeanLearner => 5.0
+                  case _: Any => 10.0
+                }
+                val rtolUpper = baseLearner match {
+                  case _: GuessTheMeanLearner => 1.0
+                  case _: Any => 10.0
+                }
+                sigmaMean.foreach { s =>
+                  assert(rtolLower * s > (noiseLevel / Math.sqrt(nRows)), s"Mean StdDev getUncertainty(observational=false) is too small for $configDescription.")
+                  assert(s < (rtolUpper * noiseLevel / Math.sqrt(nRows)), s"Mean StdDev getUncertainty(observational=false) is too large for $configDescription")
+                }
               }
             assert(countStdObsGtStdMean / (countStdObsGtStdMean + countStdObsLtStdMean) > 0.9, s"Uncertainty should be greater when observational = true for $configDescription" )
           }
