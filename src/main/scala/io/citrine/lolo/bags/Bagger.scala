@@ -3,7 +3,7 @@ package io.citrine.lolo.bags
 import breeze.stats.distributions.Poisson
 import io.citrine.lolo.stats.metrics.ClassificationMetrics
 import io.citrine.lolo.util.{Async, InterruptibleExecutionContext}
-import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
+import io.citrine.lolo.{Learner, Model, PredictionResult, RegressionResult, TrainingResult}
 
 import scala.collection.parallel.ExecutionContextTaskSupport
 import scala.collection.parallel.immutable.ParSeq
@@ -112,7 +112,10 @@ case class Bagger(
         }, useJackknife)
         val predicted = model.transform(Seq(trainingData(idx)._1))
         val error = predicted.getExpected().head - trainingData(idx)._2.asInstanceOf[Double]
-        val uncertainty = predicted.getUncertainty().get.head.asInstanceOf[Double]
+        val uncertainty = predicted match {
+          case x: RegressionResult => x.getStdDevObs.get.head
+          case _: Any => throw new UnsupportedOperationException("Computing oobErrors for classification is not supported.")
+        }
         Some(trainingData(idx)._1, error, uncertainty)
       }
     }

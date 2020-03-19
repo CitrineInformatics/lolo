@@ -1,6 +1,6 @@
 package io.citrine.lolo.bags
 
-import io.citrine.lolo.{RegressionResult, TestUtils}
+import io.citrine.lolo.TestUtils
 import io.citrine.lolo.linear.GuessTheMeanLearner
 import io.citrine.lolo.stats.functions.Friedman
 import io.citrine.lolo.stats.metrics.ClassificationMetrics
