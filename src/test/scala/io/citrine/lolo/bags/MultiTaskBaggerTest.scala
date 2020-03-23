@@ -113,7 +113,7 @@ class MultiTaskBaggerTest {
                 // Uncomment for diagnostic output.
                 // sigmaObs.zip(sigmaMean).foreach { case (sObs, sMean) =>
                 //   println(s"$configDescription\tsObs=$sObs\tsMean=$sMean")
-                //}
+                // }
               }
 
               sigmaObs.zip(sigmaMean)
