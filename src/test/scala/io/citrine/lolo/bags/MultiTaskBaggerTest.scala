@@ -98,7 +98,7 @@ class MultiTaskBaggerTest {
               }
               {
                 val rtolLower = baseLearner match {
-                  case _: MultiTaskTreeLearner => 20.0
+                  case _: MultiTaskTreeLearner => 1e3
                   case _: Any => fail("Not implemented.")
                 }
                 val rtolUpper = baseLearner match {

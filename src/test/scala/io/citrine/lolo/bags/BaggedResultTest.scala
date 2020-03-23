@@ -85,7 +85,7 @@ class BaggedResultTest {
               {
                 val rtolLower = baseLearner match {
                   case _: GuessTheMeanLearner => 5.0
-                  case _: Any => 20.0
+                  case _: Any => 1e3
                 }
                 val rtolUpper = baseLearner match {
                   case _: GuessTheMeanLearner => 1.0
