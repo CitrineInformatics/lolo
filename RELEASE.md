@@ -1,6 +1,6 @@
-# v3.0.0 is released!
+# v3.0 is released!
 
-Lolo version 3.0.0 is released! Notably, this release introduces a shiny new interface for uncertainty quantification that provides new and improved granular uncertainty quantification (UQ). This release also introduces two new random forest features, and improves the accuracy of predictions and UQ on certain types of machine learning problems.
+Lolo version 3.0 is released! Notably, this release introduces a shiny new interface for uncertainty quantification that provides new and improved granular uncertainty quantification (UQ). This release also introduces two new random forest features, and improves the accuracy of predictions and UQ on certain types of machine learning problems.
 
 ### What’s New
 
@@ -17,3 +17,4 @@ Lolo version 3.0.0 is released! Notably, this release introduces a shiny new int
 
 * When training data contained identical inputs associated with more than one categorical label, or when trees were not grown to full depth, GuessTheMeanLearner, ClassificationTreeLearner, and RandomForest were biased toward predicting labels that appeared earlier in the training dataset.
 GuessTheMeanLearner now randomizes its tie-breaking choice of class label to predict. Consequently, GuessTheMeanLearner, ClassificationTreeLearner, and RandomForest are unbiased with respect to the order of training data and RandomForest performs substantially better on datasets with duplicated inputs. (#202)
+* Release 3.0.0 lacked a rescaling factor and a square root in getStdDevObs. Version 3.0.1 fixes this, improves test coverage, and introduces a Bessel correction.
