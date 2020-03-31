@@ -11,3 +11,6 @@ tests/
 doc/
 .DS_Store
 foobar
+python/lolopy.egg-info/
+python/lolopy/__pycache__/
+python/lolopy/jar/
