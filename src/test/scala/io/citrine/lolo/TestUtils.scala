@@ -79,6 +79,23 @@ object TestUtils {
     outputData
   }
 
+  /**
+    * Enumerate the cartesian product of items in baseGrids.
+    *
+    * @param baseGrids a sequence of 1-d mesh specifications, one for each dimension of the output vectors
+    * @return a sequence of vectors enumerating the cartesian product of items in baseGrids
+    */
+  def enumerateGrid(baseGrids: Seq[Seq[Double]]): Seq[Vector[Double]] = {
+    if (baseGrids.length == 1) {
+      baseGrids.head.map { x => Vector(x) }
+    } else {
+      baseGrids.head.flatMap { x =>
+        enumerateGrid(baseGrids.takeRight(baseGrids.length - 1)).map { n =>
+          x +: n
+        }
+      }
+    }
+  }
 }
 
 object RandomMethod extends Enumeration {
@@ -92,28 +109,3 @@ object RandomLoggerBehavior extends Enumeration {
   val LogArgs = Value(2)
   val LogResult = Value(4)
 }
-
-/**
-class MockRandom extends Random {
-  private val log = mutable.Queue[(RandomMethod.Value, Option[AnyVal], Option[AnyVal])]
-  private val expectations = mutable.Queue[(RandomMethod.Value, Option[AnyVal], Option[AnyVal])]
-
-  def expectShuffle[T, CC[X] <: TraversableOnce[X]](toShuffle: CC[T], out: CC[T])(implicit bf: CanBuildFrom[CC[T], T, CC[T]]): Unit = {
-    expectations.apply((RandomMethod.shuffle, Some(toShuffle), Some(out)))
-  }
-
-  def expect(method: RandomMethod.Value, args: Option[AnyVal], result: Option[AnyVal]): Unit = {
-    expectations.andThen((method, args, result))
-  }
-
-  override def shuffle[T, CC[X] <: TraversableOnce[X]](xs: CC[T])(implicit bf: CanBuildFrom[CC[T], T, CC[T]]): CC[T] = {
-    val res = super.shuffle(xs)
-    logCall(RandomMethod.shuffle, Option[AnyVal], Option[AnyVal])
-    res
-  }
-
-  override def nextDouble(): Double = {
-    super.nextDouble()
-  }
-}
-*/

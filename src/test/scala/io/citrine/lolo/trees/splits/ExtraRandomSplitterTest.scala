@@ -1,5 +1,6 @@
 package io.citrine.lolo.trees.splits
 
+import io.citrine.lolo.TestUtils
 import org.junit.Test
 import org.mockito.invocation.InvocationOnMock
 import org.mockito.MockitoSugar
@@ -47,18 +48,6 @@ class ExtraRandomSplitterTest extends MockitoSugar {
     splitter.getBestSplit(testData, 1, 1)
   }
 
-  def enumerateGrid(baseGrids: Seq[Seq[Double]]): Seq[Vector[Double]] = {
-    if (baseGrids.length == 1) {
-      baseGrids.head.map { x => Vector(x) }
-    } else {
-      baseGrids.head.flatMap { x =>
-        enumerateGrid(baseGrids.takeRight(baseGrids.length - 1)).map { n =>
-          x +: n
-        }
-      }
-    }
-  }
-
   /**
     * Test correctness of the split.
     */
@@ -67,7 +56,7 @@ class ExtraRandomSplitterTest extends MockitoSugar {
     val rng = new Random(34682L)
     val baseGrid = Seq(0.0, 1.2)
     Seq(1, 4, 8).foreach { numFeatures =>
-      Seq(enumerateGrid(Seq.fill(numFeatures)(baseGrid)), Seq.fill(64)(Vector.fill(numFeatures)(rng.nextGaussian()))).foreach { xTrain =>
+      Seq(TestUtils.enumerateGrid(Seq.fill(numFeatures)(baseGrid)), Seq.fill(64)(Vector.fill(numFeatures)(rng.nextGaussian()))).foreach { xTrain =>
         // Repetitions with the same configuration.
         Seq(4).foreach { _ =>
           val featureIndices = (0 until numFeatures).toVector
