@@ -257,7 +257,7 @@ class RandomForestMixin(BaseLoloLearner):
         """Initialize the RandomForest
 
         Args:
-            num_trees (int): Number of trees to use in the forest
+            num_trees (int): Number of trees to use in the forest (default of -1 sets the number of trees to the number of training rows)
             use_jackknife (bool): Whether to use jackknife based variance estimates
             bias_learner (BaseLoloLearner): Algorithm used to model bias (default: no model)
             leaf_learner (BaseLoloLearner): Learner used at each leaf of the random forest (default: GuessTheMean)
@@ -330,7 +330,7 @@ class ExtraRandomTreesMixIn(BaseLoloLearner):
         """Initialize the ExtraRandomTrees ensemble
 
         Args:
-            num_trees (int): Number of trees to use in the forest
+            num_trees (int): Number of trees to use in the forest (default of -1 sets the number of trees to the number of training rows)
             use_jackknife (bool): Whether to use jackknife based variance estimates
             bias_learner (BaseLoloLearner): Algorithm used to model bias (default: no model)
             leaf_learner (BaseLoloLearner): Learner used at each leaf of the random forest (default: GuessTheMean)

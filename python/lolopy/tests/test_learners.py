@@ -51,7 +51,7 @@ class TestRF(TestCase):
         self.assertGreater(score, 0.98)
 
         # Test with weights (make sure it doesn't crash)
-        rf.fit(X, y, [1.0]*len(y))
+        rf.fit(X, y, [2.0]*len(y))
 
         # Make sure feature importances are stored
         self.assertEqual(np.shape(rf.feature_importances_), (X.shape[1],))
@@ -210,7 +210,7 @@ class TestExtraRandomTrees(TestCase):
         self.assertGreater(score, 0.98)
 
         # Test with weights (make sure it doesn't crash)
-        rf.fit(X, y, [1.0]*len(y))
+        rf.fit(X, y, [2.0]*len(y))
 
         # Make sure feature importances are stored
         self.assertEqual(np.shape(rf.feature_importances_), (X.shape[1],))

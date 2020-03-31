@@ -15,7 +15,7 @@ import scala.reflect._
   * Created by maxhutch on 11/14/16.
   *
   * @param method  learner to train each model in the ensemble
-  * @param numBags number of models in the ensemble
+  * @param numBags number of base models to aggregate (default of -1 sets the number of models to the number of training rows)
   * @param useJackknife whether to enable jackknife uncertainty estimate
   * @param biasLearner learner to use for estimating bias
   * @param uncertaintyCalibration whether to enable empirical uncertainty calibration
@@ -84,7 +84,7 @@ case class Bagger(
       }.filter{nMat =>
         lazy val noAlwaysPresentTrainingData = nMat.transpose.forall{vec => vec.contains(0)}
         // Make sure that at least one learner is missing each training point
-        // This prevents a divide-by-zero error in the jackknife-after-bootstrap calcualtion
+        // This prevents a divide-by-zero error in the jackknife-after-bootstrap calculation
         !useJackknife || noAlwaysPresentTrainingData
       }.next()
     }
