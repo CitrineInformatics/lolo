@@ -60,8 +60,7 @@ class ExtraRandomSplitterTest extends MockitoSugar {
   }
 
   /**
-    * Test that very small random signals don't lead to exceptions.
-    *
+    * Test correctness of the split.
     */
   @Test
   def testCorrectSplit(): Unit = {
@@ -88,14 +87,14 @@ class ExtraRandomSplitterTest extends MockitoSugar {
           })
 
           val featureCoefficients = rng.shuffle(featureIndices).map { i => Math.pow((i + 1).toDouble, 2.0) }
-          val testData = xTrain.map { x =>
+          val trainingData = xTrain.map { x =>
             val y = x.zip(featureCoefficients).map { case (a, b) => a * b }.sum
             val weight = 1.0
             (x, y, weight)
           }
 
           val cutPoints = shuffledFeatureIndices.zip(randomUniforms).map { case (i, u) =>
-            val x = testData.map(_._1(i))
+            val x =  trainingData.map(_._1(i))
             val xmin = x.min
             val xmax = x.max
             val cutPoint = xmin + u * (xmax - xmin)
@@ -103,7 +102,7 @@ class ExtraRandomSplitterTest extends MockitoSugar {
           }.sortBy(_._1).map(_._2)
 
           val varianceReductions = featureIndices.map { k =>
-            testData.groupBy { v => v._1(k) < cutPoints(k) }.flatMap { case (_, subset) =>
+             trainingData.groupBy { v => v._1(k) < cutPoints(k) }.flatMap { case (_, subset) =>
               val mean = subset.map(_._2).sum / subset.length
               subset.map { case (_, yi, _) =>
                 Math.pow(yi - mean, 2)
@@ -116,7 +115,7 @@ class ExtraRandomSplitterTest extends MockitoSugar {
           }.minBy(_._2)._1
 
           val splitter = ExtraRandomSplitter(mockRng)
-          val bestSplit = splitter.getBestSplit(testData, numFeatures, 1)
+          val bestSplit = splitter.getBestSplit( trainingData, numFeatures, 1)
 
           // Verifying invocation order helps detect when code modifications have invalidated this test.
           val order = inOrder(mockRng)
