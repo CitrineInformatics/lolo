@@ -1,4 +1,4 @@
-from lolopy.learners import RandomForestRegressor, RandomForestClassifier, RegressionTreeLearner, LinearRegression
+from lolopy.learners import RandomForestRegressor, RandomForestClassifier, RegressionTreeLearner, LinearRegression, ExtraRandomTreesRegressor
 from sklearn.exceptions import NotFittedError
 from sklearn.metrics import r2_score, accuracy_score, log_loss
 from sklearn.datasets import load_boston, load_iris
@@ -180,6 +180,51 @@ class TestRF(TestCase):
         rf = RandomForestRegressor()
         rf.fit(X[:16, :], y[:16])
         self.assertLess(r2_score(y, rf.predict(X)), 1.0)  # Should not fit the whole dataset perfectly
+
+class TestExtraRandomTrees(TestCase):
+
+    def test_extra_random_trees_regressor(self):
+        rf = ExtraRandomTreesRegressor()
+
+        # Train the model
+        X, y = load_boston(True)
+
+        # Make sure we get a NotFittedError
+        with self.assertRaises(NotFittedError):
+            rf.predict(X)
+
+        # Fit the model
+        rf.fit(X, y)
+
+        # Run some predictions
+        y_pred = rf.predict(X)
+        self.assertEqual(len(y_pred), len(y))
+
+        # Test the ability to get importance scores
+        y_import = rf.get_importance_scores(X[:100, :])
+        self.assertEqual((100, len(X)), y_import.shape)
+
+        # Basic test for functionality. R^2 above 0.98 was measured on 27Dec18
+        score = r2_score(y_pred, y)
+        print('R^2:', score)
+        self.assertGreater(score, 0.98)
+
+        # Test with weights (make sure it doesn't crash)
+        rf.fit(X, y, [1.0]*len(y))
+
+        # Make sure feature importances are stored
+        self.assertEqual(np.shape(rf.feature_importances_), (X.shape[1],))
+        self.assertAlmostEqual(1.0, np.sum(rf.feature_importances_))
+
+        # Run predictions with std dev
+        y_pred, y_std = rf.predict(X, return_std=True)
+        self.assertEqual(len(y_pred), len(y_std))
+        self.assertTrue((y_std >= 0).all())  # They must be positive
+        self.assertGreater(np.std(y_std), 0)  # Must have a variety of values
+
+        # Make sure the detach operation functions
+        rf.clear_model()
+        self.assertIsNone(rf.model_)
 
 
 if __name__ == "__main__":

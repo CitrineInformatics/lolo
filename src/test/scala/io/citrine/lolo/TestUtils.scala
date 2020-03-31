@@ -2,6 +2,8 @@ package io.citrine.lolo
 
 import io.citrine.lolo.stats.functions.Friedman
 
+import scala.collection.generic.CanBuildFrom
+import scala.collection.mutable
 import scala.util.{Random, Try}
 
 /**
@@ -78,3 +80,40 @@ object TestUtils {
   }
 
 }
+
+object RandomMethod extends Enumeration {
+  val shuffle = Value("Shuffle")
+  val nextGaussian = Value("nextGaussian")
+  val nextDouble = Value("nextDouble")
+}
+
+object RandomLoggerBehavior extends Enumeration {
+  val LogCall = Value(1)
+  val LogArgs = Value(2)
+  val LogResult = Value(4)
+}
+
+/**
+class MockRandom extends Random {
+  private val log = mutable.Queue[(RandomMethod.Value, Option[AnyVal], Option[AnyVal])]
+  private val expectations = mutable.Queue[(RandomMethod.Value, Option[AnyVal], Option[AnyVal])]
+
+  def expectShuffle[T, CC[X] <: TraversableOnce[X]](toShuffle: CC[T], out: CC[T])(implicit bf: CanBuildFrom[CC[T], T, CC[T]]): Unit = {
+    expectations.apply((RandomMethod.shuffle, Some(toShuffle), Some(out)))
+  }
+
+  def expect(method: RandomMethod.Value, args: Option[AnyVal], result: Option[AnyVal]): Unit = {
+    expectations.andThen((method, args, result))
+  }
+
+  override def shuffle[T, CC[X] <: TraversableOnce[X]](xs: CC[T])(implicit bf: CanBuildFrom[CC[T], T, CC[T]]): CC[T] = {
+    val res = super.shuffle(xs)
+    logCall(RandomMethod.shuffle, Option[AnyVal], Option[AnyVal])
+    res
+  }
+
+  override def nextDouble(): Double = {
+    super.nextDouble()
+  }
+}
+*/

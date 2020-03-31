@@ -16,13 +16,18 @@ import scala.reflect._
   *
   * @param method  learner to train each model in the ensemble
   * @param numBags number of models in the ensemble
-  */
+  * @param useJackknife whether to enable jackknife uncertainty estimate
+  * @param biasLearner learner to use for estimating bias
+  * @param uncertaintyCalibration whether to enable empirical uncertainty calibration
+  * @param disableBootstrap whether to disable bootstrap (useful when `method` implements its own randomization)
+  * */
 case class Bagger(
                    method: Learner,
                    numBags: Int = -1,
                    useJackknife: Boolean = true,
                    biasLearner: Option[Learner] = None,
-                   uncertaintyCalibration: Boolean = false
+                   uncertaintyCalibration: Boolean = false,
+                   disableBootstrap: Boolean = false
                  ) extends Learner {
 
   /**
@@ -67,18 +72,22 @@ case class Bagger(
 
     /* Compute the number of instances of each training row in each training sample */
     val dist = new Poisson(1.0)
-    val Nib: Vector[Vector[Int]] = Iterator.continually{
-      // Generate Poisson distributed weights, filtering out any that don't have the minimum required number
-      // of non-zero training weights
-      Iterator.continually {
-        Vector.fill(trainingData.size)(dist.draw())
-      }.filter(_.count(_ > 0) >= Bagger.minimumNonzeroWeightSize).take(actualBags).toVector
-    }.filter{nMat =>
-      lazy val noAlwaysPresentTrainingData = nMat.transpose.forall{vec => vec.contains(0)}
-      // Make sure that at least one learner is missing each training point
-      // This prevents a divide-by-zero error in the jackknife-after-bootstrap calcualtion
-      !useJackknife || noAlwaysPresentTrainingData
-    }.next()
+    val Nib: Vector[Vector[Int]] = if (disableBootstrap) {
+      Vector.fill[Vector[Int]](actualBags)(Vector.fill[Int](trainingData.size)(1))
+    } else {
+      Iterator.continually{
+        // Generate Poisson distributed weights, filtering out any that don't have the minimum required number
+        // of non-zero training weights
+        Iterator.continually {
+          Vector.fill(trainingData.size)(dist.draw())
+        }.filter(_.count(_ > 0) >= Bagger.minimumNonzeroWeightSize).take(actualBags).toVector
+      }.filter{nMat =>
+        lazy val noAlwaysPresentTrainingData = nMat.transpose.forall{vec => vec.contains(0)}
+        // Make sure that at least one learner is missing each training point
+        // This prevents a divide-by-zero error in the jackknife-after-bootstrap calcualtion
+        !useJackknife || noAlwaysPresentTrainingData
+      }.next()
+    }
 
     /* Learn the actual models in parallel */
     val parIterator = (0 until actualBags).par
