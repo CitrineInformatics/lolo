@@ -5,7 +5,10 @@ import io.citrine.lolo.trees.impurity.VarianceCalculator
 import scala.util.Random
 
 /**
-  * Find the best split for regression problems.
+  * A splitter that defines Extremely Randomized Trees
+  *
+  * This is based on Geurts, P., Ernst, D. & Wehenkel, L. Extremely randomized trees. Mach Learn 63, 3–42 (2006).
+  * https://doi.org/10.1007/s10994-006-6226-1.
   *
   * @param rng random number generator
   */

@@ -9,6 +9,9 @@ import io.citrine.lolo.{Learner, TrainingResult}
 /**
   * Extremely randomized tree ensemble
   *
+  * This is based on Geurts, P., Ernst, D. & Wehenkel, L. Extremely randomized trees. Mach Learn 63, 3–42 (2006).
+  * https://doi.org/10.1007/s10994-006-6226-1.
+  *
   * @param numTrees       number of trees to use (-1 => number of training instances)
   * @param useJackknife   whether to use jackknife based variance estimates
   * @param biasLearner    learner to model bias (absolute residual)
