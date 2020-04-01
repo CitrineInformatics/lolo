@@ -324,7 +324,7 @@ class RandomForestClassifier(BaseLoloClassifier, RandomForestMixin):
 class RegressionTreeLearner(BaseLoloRegressor):
     """Regression tree learner, based on the RandomTree algorithm."""
 
-    def __init__(self, num_features=-1, max_depth=30, min_leaf_instances=1, leaf_learner=None):
+    def __init__(self, num_features=-1, max_depth=30, min_leaf_instances=1, leaf_learner=None, random_seed=None):
         """Initialize the learner
 
         Args:
@@ -338,6 +338,7 @@ class RegressionTreeLearner(BaseLoloRegressor):
         self.max_depth = max_depth
         self.min_leaf_instances = min_leaf_instances
         self.leaf_learner = leaf_learner
+        self.random_seed = random_seed
 
     def _make_learner(self):
         if self.leaf_learner is None:
@@ -355,9 +356,15 @@ class RegressionTreeLearner(BaseLoloRegressor):
             "$lessinit$greater$default$5"
         )()
 
+        rng = self.gateway.jvm.scala.Random(
+            getattr(self.gateway.jvm.scala.Random,
+                    "$lessinit$greater$default$1")() if self.random_seed is None
+            else self.gateway.jvm.scala.Random(self.random_seed)
+        )
+
         return self.gateway.jvm.io.citrine.lolo.trees.regression.RegressionTreeLearner(
             self.num_features, self.max_depth, self.min_leaf_instances,
-            leaf_learner, splitter
+            leaf_learner, splitter, rng
         )
 
 class LinearRegression(BaseLoloRegressor):
