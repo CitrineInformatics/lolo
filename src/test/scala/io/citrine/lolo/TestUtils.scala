@@ -79,6 +79,6 @@ object TestUtils {
     outputData
   }
 
-  def getBreezeRandBasis(seed: Long) = new RandBasis(new ThreadLocalRandomGenerator(new MersenneTwister(seed)))
+  def getBreezeRandBasis(seed: Long): RandBasis = new RandBasis(new ThreadLocalRandomGenerator(new MersenneTwister(seed)))
 
 }
