@@ -1,6 +1,6 @@
 package io.citrine.lolo.bags
 
-import breeze.stats.distributions.Poisson
+import breeze.stats.distributions.{Poisson, Rand, RandBasis}
 import io.citrine.lolo._
 import io.citrine.lolo.util.{Async, InterruptibleExecutionContext}
 
@@ -18,7 +18,8 @@ case class MultiTaskBagger(
                             numBags: Int = -1,
                             useJackknife: Boolean = true,
                             biasLearner: Option[Learner] = None,
-                            uncertaintyCalibration: Boolean = false
+                            uncertaintyCalibration: Boolean = false,
+                            randBasis: RandBasis = Rand
                           ) extends MultiTaskLearner {
 
   private def combineImportance(v1: Option[Vector[Double]], v2: Option[Vector[Double]]): Option[Vector[Double]] = {
@@ -52,7 +53,7 @@ case class MultiTaskBagger(
     }
 
     /* Compute the number of instances of each training row in each training sample */
-    val dist = new Poisson(1.0)
+    val dist = new Poisson(1.0)(randBasis)
     val Nib = Vector.tabulate(actualBags) { _ =>
       Vector.tabulate(inputs.size) { _ =>
         dist.draw()

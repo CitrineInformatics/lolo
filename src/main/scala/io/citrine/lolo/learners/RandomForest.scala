@@ -1,11 +1,15 @@
 package io.citrine.lolo.learners
 
+import breeze.stats.distributions.{RandBasis, ThreadLocalRandomGenerator}
 import io.citrine.lolo.bags.Bagger
 import io.citrine.lolo.transformers.FeatureRotator
 import io.citrine.lolo.trees.classification.ClassificationTreeLearner
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
 import io.citrine.lolo.trees.splits.{ClassificationSplitter, RegressionSplitter}
 import io.citrine.lolo.{Learner, TrainingResult}
+import org.apache.commons.math3.random.MersenneTwister
+
+import scala.util.Random
 
 /**
   * Standard random forest as a wrapper around bagged decision trees
@@ -22,6 +26,7 @@ import io.citrine.lolo.{Learner, TrainingResult}
   * @param uncertaintyCalibration whether to empirically recalibrate the predicted uncertainties (default: false)
   * @param randomizePivotLocation whether generate splits randomly between the data points (default: false)
   * @param randomlyRotateFeatures whether to randomly rotate real features for each tree in the forest (default: false)
+  * @param randomSeed     to use for stochastic functionality (default of Long.MaxValue sets a new random seed for each invocation)
   */
 case class RandomForest(
                          numTrees: Int = -1,
@@ -33,8 +38,16 @@ case class RandomForest(
                          maxDepth: Int = Integer.MAX_VALUE,
                          uncertaintyCalibration: Boolean = false,
                          randomizePivotLocation: Boolean = false,
-                         randomlyRotateFeatures: Boolean = false
+                         randomlyRotateFeatures: Boolean = false,
+                         randomSeed: Long = Long.MaxValue
                        ) extends Learner {
+
+  val rng: Random = if (randomSeed == Long.MaxValue) {
+    new Random()
+  } else {
+    new Random(randomSeed)
+  }
+
   /**
     * Train a random forest model
     *
@@ -46,6 +59,8 @@ case class RandomForest(
     * @return training result containing a model
     */
   override def train(trainingData: Seq[(Vector[Any], Any)], weights: Option[Seq[Double]]): TrainingResult = {
+    val breezeRandBasis: RandBasis = new RandBasis(new ThreadLocalRandomGenerator(new MersenneTwister(rng.nextLong())))
+
     trainingData.head._2 match {
       case _: Double =>
         val numFeatures: Int = subsetStrategy match {
@@ -68,13 +83,16 @@ case class RandomForest(
           numFeatures = numFeatures,
           minLeafInstances = minLeafInstances,
           maxDepth = maxDepth,
-          splitter = RegressionSplitter(randomizePivotLocation)
+          splitter = RegressionSplitter(randomizePivotLocation),
+          rng = rng
         )
+
         val bagger = Bagger(if (randomlyRotateFeatures) FeatureRotator(DTLearner) else DTLearner,
           numBags = numTrees,
           useJackknife = useJackknife,
           biasLearner = biasLearner,
-          uncertaintyCalibration = uncertaintyCalibration
+          uncertaintyCalibration = uncertaintyCalibration,
+          randBasis = breezeRandBasis
         )
         bagger.train(trainingData, weights)
       case _: Any =>
@@ -98,10 +116,13 @@ case class RandomForest(
           numFeatures = numFeatures,
           minLeafInstances = minLeafInstances,
           maxDepth = maxDepth,
-          splitter = ClassificationSplitter(randomizePivotLocation)
+          splitter = ClassificationSplitter(randomizePivotLocation),
+          rng = rng
         )
-        val bagger = Bagger(if (randomlyRotateFeatures) FeatureRotator(DTLearner) else DTLearner,
-          numBags = numTrees
+        val bagger = Bagger(
+          if (randomlyRotateFeatures) FeatureRotator(DTLearner) else DTLearner,
+          numBags = numTrees,
+          randBasis = breezeRandBasis
         )
         bagger.train(trainingData, weights)
     }

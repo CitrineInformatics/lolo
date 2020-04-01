@@ -37,7 +37,7 @@ trait Merit[T] {
 /**
   * Square root of the mean square error. For an unbiased estimator, this is equal to the standard deviation of the difference between predicted and actual values.
   */
-case object RootMeanSquareError extends Merit[Double] {
+case class RootMeanSquareError() extends Merit[Double] {
   override def evaluate(predictionResult: PredictionResult[Double], actual: Seq[Double]): Double = {
     Math.sqrt(
       (predictionResult.getExpected(), actual).zipped.map {
@@ -50,7 +50,7 @@ case object RootMeanSquareError extends Merit[Double] {
 /**
   * R2 = 1 - MSE(y) / Var(y), where y is the predicted variable
   */
-case object CoefficientOfDetermination extends Merit[Double] {
+case class CoefficientOfDetermination() extends Merit[Double] {
   override def evaluate(predictionResult: PredictionResult[Double], actual: Seq[Double]): Double = {
     val averageActual = actual.sum / actual.size
     val sumOfSquares = actual.map(x => Math.pow(x - averageActual, 2)).sum
@@ -62,7 +62,7 @@ case object CoefficientOfDetermination extends Merit[Double] {
 /**
   * The fraction of predictions that fall within the predicted uncertainty
   */
-case object StandardConfidence extends Merit[Double] {
+case class StandardConfidence() extends Merit[Double] {
   override def evaluate(predictionResult: PredictionResult[Double], actual: Seq[Double]): Double = {
     if (predictionResult.getUncertainty().isEmpty) return 0.0
 
@@ -96,7 +96,7 @@ case class StandardError(rescale: Double = 1.0) extends Merit[Double] {
   * In the absence of a closed form for that coefficient, it is model empirically by drawing from N(0, x) to produce
   * an "ideal" error series from which the correlation coefficient can be estimated.
   */
-case object UncertaintyCorrelation extends Merit[Double] {
+case class UncertaintyCorrelation(rng: Random = Random) extends Merit[Double] {
   override def evaluate(predictionResult: PredictionResult[Double], actual: Seq[Double]): Double = {
     val predictedUncertaintyActual: Seq[(Double, Double, Double)] = (
       predictionResult.getExpected(),
@@ -105,7 +105,7 @@ case object UncertaintyCorrelation extends Merit[Double] {
     ).zipped.toSeq
 
     val ideal = predictedUncertaintyActual.map { case (_, uncertainty, actual) =>
-      val error = Random.nextGaussian() * uncertainty
+      val error = rng.nextGaussian() * uncertainty
       (actual + error, uncertainty, actual)
     }
 

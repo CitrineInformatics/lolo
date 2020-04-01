@@ -1,6 +1,8 @@
 package io.citrine.lolo
 
+import breeze.stats.distributions.{RandBasis, ThreadLocalRandomGenerator}
 import io.citrine.lolo.stats.functions.Friedman
+import org.apache.commons.math3.random.MersenneTwister
 
 import scala.util.{Random, Try}
 
@@ -76,5 +78,7 @@ object TestUtils {
     }
     outputData
   }
+
+  def getBreezeRandBasis(seed: Long) = new RandBasis(new ThreadLocalRandomGenerator(new MersenneTwister(seed)))
 
 }

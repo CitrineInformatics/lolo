@@ -15,9 +15,10 @@ import scala.util.Random
   */
 @Test
 class MultiTaskTreeTest {
+  val rng = new Random(1012795L)
 
   /* Setup some data */
-  val raw: Seq[(Vector[Double], Double)] = TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman)
+  val raw: Seq[(Vector[Double], Double)] = TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, seed = rng.nextLong())
   val inputs: Seq[Vector[Double]] = raw.map(_._1)
   val realLabel: Seq[Double] = raw.map(_._2)
   val catLabel: Seq[Boolean] = raw.map(_._2 > realLabel.max / 2.0)
@@ -27,7 +28,7 @@ class MultiTaskTreeTest {
     */
   @Test
   def testTwoLabels(): Unit = {
-    val learner = new MultiTaskTreeLearner()
+    val learner = MultiTaskTreeLearner()
     val models = learner.train(inputs, Seq(realLabel, catLabel)).map(_.getModel())
     assert(models.size == 2)
     assert(models.head.isInstanceOf[RegressionTree])
@@ -45,14 +46,14 @@ class MultiTaskTreeTest {
   @Test
   def testSparseExact(): Unit = {
     val sparseCat = catLabel.map(x =>
-      if (Random.nextBoolean()) {
+      if (rng.nextBoolean()) {
         null
       } else {
         x
       }
     )
 
-    val learner = new MultiTaskTreeLearner()
+    val learner = MultiTaskTreeLearner()
     val models = learner.train(inputs, Seq(realLabel, sparseCat)).map(_.getModel())
     val realResults = models.head.transform(inputs).getExpected().asInstanceOf[Seq[Double]]
     val catResults = models.last.transform(inputs).getExpected().asInstanceOf[Seq[Boolean]]
@@ -67,7 +68,7 @@ class MultiTaskTreeTest {
   @Test
   def testSparseQuantitative(): Unit = {
     val sparseCat = catLabel.map(x =>
-      if (Random.nextDouble() > 0.125) {
+      if (rng.nextDouble() > 0.125) {
         null
       } else {
         x

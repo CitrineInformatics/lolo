@@ -7,7 +7,7 @@ import scala.util.Random
 /**
   * Methods tha use cross-validation to calculate predicted-vs-actual data and metric estimates
   */
-object CrossValidation {
+case class CrossValidation(rng: Random = Random) {
 
   /**
     * Driver to apply named metrics to k-fold cross-validated predicted-vs-actual
@@ -51,7 +51,7 @@ object CrossValidation {
                  ): Iterable[(PredictionResult[T], Seq[T])] = {
     val nTest: Int = Math.ceil(trainingData.size.toDouble / k).toInt
     (0 until nTrial).flatMap { _ =>
-      val folds: Seq[Seq[(Vector[Any], T)]] = Random.shuffle(trainingData).grouped(nTest).toSeq
+      val folds: Seq[Seq[(Vector[Any], T)]] = rng.shuffle(trainingData).grouped(nTest).toSeq
 
       folds.indices.map { idx =>
         val (testFolds, trainFolds) = folds.zipWithIndex.partition(_._2 == idx)

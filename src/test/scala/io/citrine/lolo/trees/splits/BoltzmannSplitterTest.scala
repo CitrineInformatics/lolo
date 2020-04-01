@@ -5,15 +5,16 @@ import org.junit.Test
 import scala.util.Random
 
 class BoltzmannSplitterTest {
+  val rng = new Random(45321L)
 
   /**
     * Test that uniform labels result in "NoSplit" with zero reduced impurity
     */
   @Test
   def testZeroVariance(): Unit = {
-    val splitter = BoltzmannSplitter(1.0e-9)
+    val splitter = BoltzmannSplitter(1.0e-9, rng = rng)
     val testData = Seq.fill(64){
-      val x = Random.nextDouble()
+      val x = rng.nextDouble()
       val y = 1.0
       val weight = 1.0
       (Vector(x), y, weight)
@@ -32,10 +33,10 @@ class BoltzmannSplitterTest {
     */
   @Test
   def testLowVariance(): Unit = {
-    val splitter = BoltzmannSplitter(1.0e-18)
+    val splitter = BoltzmannSplitter(1.0e-18, rng = rng)
     val testData = Seq.fill(256){
-      val x = Random.nextDouble()
-      val y = Random.nextGaussian() * 1.0e-9 + 1.0
+      val x = rng.nextDouble()
+      val y = rng.nextGaussian() * 1.0e-9 + 1.0
       val weight = 1.0
       (Vector(x), y, weight)
     }

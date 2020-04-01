@@ -6,6 +6,8 @@ import io.citrine.lolo.trees.splits.{BoltzmannSplitter, RegressionSplitter}
 import io.citrine.theta.Stopwatch
 import org.junit.Test
 
+import scala.util.Random
+
 /**
   * Created by maxhutch on 7/10/17.
   */
@@ -32,7 +34,7 @@ class AccuracyTest {
     */
   @Test
   def testRandomForest(): Unit = {
-    val baseLearner = RegressionTreeLearner(numFeatures = nFeat / 3, minLeafInstances = minInstances)
+    val baseLearner = RegressionTreeLearner(numFeatures = nFeat / 3, minLeafInstances = minInstances, rng = new Random(1232346L))
     val learner = new Bagger(baseLearner, numBags = nRow * nScal)
     val error = computeMetrics(learner)
     assert(error > noiseLevel, s"Can't do better than noise")
@@ -47,7 +49,8 @@ class AccuracyTest {
     val errorStandardTree = {
       val baseLearner = RegressionTreeLearner(
         numFeatures = nFeat,
-        splitter = RegressionSplitter(randomizePivotLocation = true)
+        splitter = RegressionSplitter(randomizePivotLocation = true, rng = new Random(47346L)),
+        rng = new Random(47346L)
       )
       val learner = new Bagger(baseLearner, numBags = nRow * 16)
       // println(s"Normal train time: ${Stopwatch.time(computeMetrics(learner))}")
@@ -56,7 +59,8 @@ class AccuracyTest {
     val errorAnnealingTree = {
       val baseLearner = RegressionTreeLearner(
         numFeatures = nFeat,
-        splitter = BoltzmannSplitter(temperature = Float.MinPositiveValue)
+        splitter = BoltzmannSplitter(temperature = Float.MinPositiveValue, rng = new Random(47346L)),
+        rng = new Random(47346L)
       )
       val learner = new Bagger(baseLearner, numBags = nRow * 16)
       // println(s"Annealing train time: ${Stopwatch.time(computeMetrics(learner))}")
@@ -102,7 +106,8 @@ object AccuracyTest {
     val baseLearner = RegressionTreeLearner(
       numFeatures = nFeatSub,
       splitter = splitter,
-      minLeafInstances = minInstances
+      minLeafInstances = minInstances,
+      rng = new Random(247895L)
     )
     val learner = new Bagger(baseLearner, numBags = nRow * nScal, biasLearner = None)
     val model = learner.train(trainingData).getModel()

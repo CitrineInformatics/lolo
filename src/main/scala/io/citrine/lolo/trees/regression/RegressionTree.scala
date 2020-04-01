@@ -7,6 +7,8 @@ import io.citrine.lolo.trees.splits.{NoSplit, RegressionSplitter}
 import io.citrine.lolo.trees.{ModelNode, TrainingNode, TreeMeta}
 import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
 
+import scala.util.Random
+
 /**
   * Learner for regression trees
   *
@@ -22,10 +24,11 @@ case class RegressionTreeLearner(
                                   maxDepth: Int = 30,
                                   minLeafInstances: Int = 1,
                                   leafLearner: Option[Learner] = None,
-                                  splitter: Splitter[Double] = RegressionSplitter()
+                                  splitter: Splitter[Double] = RegressionSplitter(),
+                                  rng: Random = Random
                                 ) extends Learner {
   /** Learner to use for training the leaves */
-  @transient private lazy val myLeafLearner = leafLearner.getOrElse(GuessTheMeanLearner())
+  @transient private lazy val myLeafLearner = leafLearner.getOrElse(GuessTheMeanLearner(rng))
 
   /**
     * Train the tree by recursively partitioning (splitting) the training data on a single feature

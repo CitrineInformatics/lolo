@@ -5,7 +5,10 @@ import io.citrine.lolo.learners.RandomForest
 import io.citrine.lolo.stats.functions.Friedman
 import org.junit.Test
 
+import scala.util.Random
+
 class CrossValidationTest {
+  val rng = new Random(92486L)
 
   /**
     * Test that CV results are consistent with out-of-bag estimates from the bagged learner
@@ -15,10 +18,10 @@ class CrossValidationTest {
   @Test
   def testCompareToOutOfBag(): Unit = {
     val learner = RandomForest()
-    val data = TestUtils.generateTrainingData(128, 8, Friedman.friedmanSilverman)
+    val data = TestUtils.generateTrainingData(128, 8, Friedman.friedmanSilverman, seed = rng.nextLong())
 
-    val metric = RootMeanSquareError
-    val (rmseFromCV, uncertainty) = CrossValidation.kFoldCrossvalidation(data, learner, Map("rmse" -> metric), k = 3)("rmse")
+    val metric = RootMeanSquareError()
+    val (rmseFromCV, uncertainty) = CrossValidation(rng = rng).kFoldCrossvalidation(data, learner, Map("rmse" -> metric), k = 3)("rmse")
 
     val trainingResult = learner.train(data)
     val rmseFromPVA = Math.sqrt(

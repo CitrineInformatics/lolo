@@ -12,6 +12,7 @@ import scala.collection.JavaConverters._
 import scala.util.Random
 
 object CalibrationStudy {
+  val rng = new Random(372845L)
 
   def main(args: Array[String]): Unit = {
 
@@ -48,13 +49,13 @@ object CalibrationStudy {
                                  ratios: Seq[Int] = Seq(1, 2, 4)
                                ): Unit = {
     val nFeature = 8
-    val data = TestUtils.iterateTrainingData(nFeature, Friedman.friedmanSilverman, seed = Random.nextLong())
+    val data = TestUtils.iterateTrainingData(nFeature, Friedman.friedmanSilverman, seed = rng.nextLong())
 
     ratios.foreach { ratio =>
       val chart = Merit.plotMeritScan(
         "Number of training rows",
         Seq(16, 32, 64, 128, 256, 512),
-        Map("R2" -> CoefficientOfDetermination, "confidence" -> StandardConfidence, "standard error / 4" -> StandardError(0.25), "sigmaCorr" -> UncertaintyCorrelation),
+        Map("R2" -> CoefficientOfDetermination(), "confidence" -> StandardConfidence(), "standard error / 4" -> StandardError(0.25), "sigmaCorr" -> UncertaintyCorrelation()),
         logScale = true,
         yMin = Some(0.0),
         yMax = Some(1.0)
@@ -68,7 +69,7 @@ object CalibrationStudy {
           useJackknife = true,
           uncertaintyCalibration = false
         )
-        StatisticalValidation.generativeValidation[Double](
+        StatisticalValidation(rng = rng).generativeValidation[Double](
           data,
           learner,
           nTrain = nTrain.toInt,
@@ -84,12 +85,12 @@ object CalibrationStudy {
                                         calibrated: Boolean = false
                                       ): Unit = {
     val nFeature = 8
-    val data = TestUtils.iterateTrainingData(nFeature, Friedman.friedmanSilverman, seed = Random.nextLong())
+    val data = TestUtils.iterateTrainingData(nFeature, Friedman.friedmanSilverman, seed = rng.nextLong())
     sizes.foreach { nTrain =>
       val chart = Merit.plotMeritScan(
         "Number of trees",
         Seq(16, 32, 64, 128, 256, 512, 1024, 2048, 4096),
-        Map("R2" -> CoefficientOfDetermination, "confidence" -> StandardConfidence, "standard error / 4" -> StandardError(0.25), "sigmaCorr" -> UncertaintyCorrelation),
+        Map("R2" -> CoefficientOfDetermination(), "confidence" -> StandardConfidence(), "standard error / 4" -> StandardError(0.25), "sigmaCorr" -> UncertaintyCorrelation()),
         logScale = true,
         yMin = Some(0.0),
         yMax = Some(1.0)
@@ -102,7 +103,7 @@ object CalibrationStudy {
           useJackknife = true,
           uncertaintyCalibration = calibrated
         )
-        StatisticalValidation.generativeValidation[Double](
+        StatisticalValidation(rng = rng).generativeValidation[Double](
           data,
           learner,
           nTrain = nTrain.toInt,
@@ -125,12 +126,12 @@ object CalibrationStudy {
                                      funcName: String = "fs"
                                    ): Unit = {
     val nFeature = 8
-    val data = TestUtils.iterateTrainingData(nFeature, func, seed = Random.nextLong())
+    val data = TestUtils.iterateTrainingData(nFeature, func, seed = rng.nextLong())
     sizes.foreach { nTree =>
       val chart = Merit.plotMeritScan(
         "Number of training points",
         Seq(16, 32, 64, 128, 256, 512, 1024),
-        Map("R2" -> CoefficientOfDetermination, "confidence" -> StandardConfidence, "standard error / 4" -> StandardError(0.25), "sigmaCorr" -> UncertaintyCorrelation),
+        Map("R2" -> CoefficientOfDetermination(), "confidence" -> StandardConfidence(), "standard error / 4" -> StandardError(0.25), "sigmaCorr" -> UncertaintyCorrelation()),
         logScale = true,
         yMin = Some(0.0),
         yMax = Some(1.0)
@@ -143,7 +144,7 @@ object CalibrationStudy {
           useJackknife = true,
           uncertaintyCalibration = calibrated
         )
-        StatisticalValidation.generativeValidation[Double](
+        StatisticalValidation(rng = rng).generativeValidation[Double](
           data,
           learner,
           nTrain = nTrain.toInt,
@@ -170,7 +171,7 @@ object CalibrationStudy {
                                ignoreDims: Int = 0
                              ): Map[String, (Double, Double)] = {
 
-    val data = TestUtils.iterateTrainingData(nFeature, func, seed = Random.nextLong())
+    val data = TestUtils.iterateTrainingData(nFeature, func, seed = rng.nextLong())
       .map{case (x, y) => (x.drop(ignoreDims), y)}
     val learner = Bagger(
       RegressionTreeLearner(
@@ -182,7 +183,7 @@ object CalibrationStudy {
       biasLearner = None // Some(RegressionTreeLearner(maxDepth = (Math.log(nTrain) / Math.log(2) / 2).toInt))
     )
 
-    val fullStream = StatisticalValidation.generativeValidation[Double](
+    val fullStream = StatisticalValidation(rng = rng).generativeValidation[Double](
       data,
       learner,
       nTrain,
@@ -198,7 +199,7 @@ object CalibrationStudy {
     )
     BitmapEncoder.saveBitmap(chart, s"./stdres_${funcName}-nTrain.${nTrain}-nTree.${nTree}", BitmapFormat.PNG)
 
-    val dataStream = StatisticalValidation.generativeValidation[Double](
+    val dataStream = StatisticalValidation(rng = rng).generativeValidation[Double](
       data,
       learner,
       nTrain,
@@ -208,7 +209,7 @@ object CalibrationStudy {
     BitmapEncoder.saveBitmap(pva, s"./pva_${funcName}-nTrain.${nTrain}-nTree.${nTree}", BitmapFormat.PNG)
     Merit.estimateMerits(
       dataStream.iterator,
-      Map("R2" -> CoefficientOfDetermination, "confidence" -> StandardConfidence, "error / 4" -> StandardError(0.25), "sigmaCorr" -> UncertaintyCorrelation)
+      Map("R2" -> CoefficientOfDetermination(), "confidence" -> StandardConfidence(), "error / 4" -> StandardError(0.25), "sigmaCorr" -> UncertaintyCorrelation())
     )
   }
 
@@ -279,7 +280,7 @@ object CalibrationStudy {
       val chart = Merit.plotMeritScan(
         "Number of training points",
         Seq(16, 32, 64, 128, 256, 512, 1024),
-        Map("R2" -> CoefficientOfDetermination, "confidence" -> StandardConfidence, "standard error / 4" -> StandardError(0.25), "sigmaCorr" -> UncertaintyCorrelation),
+        Map("R2" -> CoefficientOfDetermination(), "confidence" -> StandardConfidence(), "standard error / 4" -> StandardError(0.25), "sigmaCorr" -> UncertaintyCorrelation()),
         logScale = true,
         yMin = Some(0.0),
         yMax = Some(1.0)
@@ -292,7 +293,7 @@ object CalibrationStudy {
           useJackknife = true,
           uncertaintyCalibration = calibrated
         )
-        StatisticalValidation.generativeValidation[Double](
+        StatisticalValidation(rng = rng).generativeValidation[Double](
           trainingData,
           learner,
           nTrain = nTrain.toInt,
@@ -327,7 +328,7 @@ object CalibrationStudy {
       uncertaintyCalibration = false
     )
 
-    val fullStream = StatisticalValidation.generativeValidation[Double](
+    val fullStream = StatisticalValidation(rng = rng).generativeValidation[Double](
       trainingData,
       learner,
       nTrain,
@@ -342,7 +343,7 @@ object CalibrationStudy {
     )
     BitmapEncoder.saveBitmap(chart, s"./stdres_hcep-nTrain.${nTrain}-nTree.${nTree}", BitmapFormat.PNG)
 
-    val dataStream = StatisticalValidation.generativeValidation[Double](
+    val dataStream = StatisticalValidation(rng = rng).generativeValidation[Double](
       trainingData,
       learner,
       nTrain,
@@ -352,7 +353,7 @@ object CalibrationStudy {
     BitmapEncoder.saveBitmap(pva, s"./pva_hcep-nTrain.${nTrain}-nTree.${nTree}", BitmapFormat.PNG)
     Merit.estimateMerits(
       dataStream.iterator,
-      Map("R2" -> CoefficientOfDetermination, "confidence" -> StandardConfidence, "error / 4" -> StandardError(0.25), "sigmaCorr" -> UncertaintyCorrelation)
+      Map("R2" -> CoefficientOfDetermination(), "confidence" -> StandardConfidence(), "error / 4" -> StandardError(0.25), "sigmaCorr" -> UncertaintyCorrelation())
     )
   }
 

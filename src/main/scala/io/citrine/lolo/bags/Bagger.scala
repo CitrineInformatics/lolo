@@ -1,6 +1,6 @@
 package io.citrine.lolo.bags
 
-import breeze.stats.distributions.Poisson
+import breeze.stats.distributions.{Poisson, Rand, RandBasis}
 import io.citrine.lolo.stats.metrics.ClassificationMetrics
 import io.citrine.lolo.util.{Async, InterruptibleExecutionContext}
 import io.citrine.lolo.{Learner, Model, PredictionResult, RegressionResult, TrainingResult}
@@ -22,7 +22,8 @@ case class Bagger(
                    numBags: Int = -1,
                    useJackknife: Boolean = true,
                    biasLearner: Option[Learner] = None,
-                   uncertaintyCalibration: Boolean = false
+                   uncertaintyCalibration: Boolean = false,
+                   randBasis: RandBasis = Rand
                  ) extends Learner {
 
   /**
@@ -66,7 +67,7 @@ case class Bagger(
     )
 
     /* Compute the number of instances of each training row in each training sample */
-    val dist = new Poisson(1.0)
+    val dist = new Poisson(1.0)(randBasis)
     val Nib: Vector[Vector[Int]] = Iterator.continually{
       // Generate Poisson distributed weights, filtering out any that don't have the minimum required number
       // of non-zero training weights
