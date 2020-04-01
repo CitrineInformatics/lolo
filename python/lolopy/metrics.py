@@ -27,7 +27,11 @@ def _call_lolo_merit(metric_name, y_true, y_pred, y_std=None, *args):
 
     # Get the metric object
     gateway = get_java_gateway()
-    metric = getattr(gateway.jvm.io.citrine.lolo.validation, metric_name)(*args)
+    metric = getattr(gateway.jvm.io.citrine.lolo.validation, metric_name)
+    if len(args) > 0:
+        metric = metric(*args)
+    else:
+        metric = metric()
 
     # Convert the data arrays to Java
     y_true_java = send_1D_array(gateway, y_true, True)
@@ -83,7 +87,7 @@ def standard_error(y_true, y_pred, y_std, rescale=1.0):
     return _call_lolo_merit('StandardError', y_true, y_pred, y_std, float(rescale))
 
 
-def uncertainty_correlation(y_true, y_pred, y_std):
+def uncertainty_correlation(y_true, y_pred, y_std, random_seed=None):
     """Measure of the correlation between the predicted uncertainty and error magnitude
     
     Args:
@@ -94,6 +98,8 @@ def uncertainty_correlation(y_true, y_pred, y_std):
         (double):
     """
 
-    return _call_lolo_merit('UncertaintyCorrelation', y_true, y_pred, y_std)
+    gateway = get_java_gateway()
+    rng = gateway.jvm.scala.util.Random() if random_seed is None else self.gateway.jvm.scala.util.Random(random_seed)
+    return _call_lolo_merit('UncertaintyCorrelation', y_true, y_pred, y_std, rng)
 
 
