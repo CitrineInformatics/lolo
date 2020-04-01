@@ -292,11 +292,7 @@ class RandomForestMixin(BaseLoloLearner):
         self.random_seed = random_seed
 
     def _make_learner(self):
-        rng = self.gateway.jvm.scala.util.Random(
-            getattr(self.gateway.jvm.scala.util.Random,
-                    "$lessinit$greater$default$1")() if self.random_seed is None
-            else self.gateway.jvm.scala.util.Random(self.random_seed)
-        )
+        rng = self.gateway.jvm.scala.util.Random() if self.random_seed is None else self.gateway.jvm.scala.util.Random(self.random_seed)
 
         #  TODO: Figure our a more succinct way of dealing with optional arguments/Option values
         #  TODO: that ^^, please
@@ -314,7 +310,7 @@ class RandomForestMixin(BaseLoloLearner):
             self.uncertainty_calibration,
             self.randomize_pivot_location,
             self.randomly_rotate_features,
-            self.rng
+            rng
         )
         return learner
 
@@ -362,11 +358,7 @@ class RegressionTreeLearner(BaseLoloRegressor):
             "$lessinit$greater$default$5"
         )()
 
-        rng = self.gateway.jvm.scala.util.Random(
-            getattr(self.gateway.jvm.scala.util.Random,
-                    "$lessinit$greater$default$1")() if self.random_seed is None
-            else self.gateway.jvm.scala.util.Random(self.random_seed)
-        )
+        rng = self.gateway.jvm.scala.util.Random() if self.random_seed is None else self.gateway.jvm.scala.util.Random(self.random_seed)
 
         return self.gateway.jvm.io.citrine.lolo.trees.regression.RegressionTreeLearner(
             self.num_features, self.max_depth, self.min_leaf_instances,
