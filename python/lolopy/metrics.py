@@ -16,7 +16,7 @@ def _call_lolo_merit(metric_name, y_true, y_pred, y_std=None, *args):
         y_true ([double]): True value
         y_pred ([double]): Predicted values
         y_uncert ([double]): Prediction uncertainties
-        *args (list): Any paramters to the constructor of the Metric
+        *args (list): Any parameters to the constructor of the Metric
     Returns:
         (double): Metric score
     """
@@ -27,9 +27,7 @@ def _call_lolo_merit(metric_name, y_true, y_pred, y_std=None, *args):
 
     # Get the metric object
     gateway = get_java_gateway()
-    metric = getattr(gateway.jvm.io.citrine.lolo.validation, metric_name)
-    if len(args) > 0:
-        metric = metric(*args)
+    metric = getattr(gateway.jvm.io.citrine.lolo.validation, metric_name)(*args)
 
     # Convert the data arrays to Java
     y_true_java = send_1D_array(gateway, y_true, True)
