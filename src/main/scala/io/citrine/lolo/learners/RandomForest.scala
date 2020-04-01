@@ -26,7 +26,7 @@ import scala.util.Random
   * @param uncertaintyCalibration whether to empirically recalibrate the predicted uncertainties (default: false)
   * @param randomizePivotLocation whether generate splits randomly between the data points (default: false)
   * @param randomlyRotateFeatures whether to randomly rotate real features for each tree in the forest (default: false)
-  * @param randomSeed     to use for stochastic functionality (default of Long.MaxValue sets a new random seed for each invocation)
+  * @param rng            random number generator to use for stochastic functionality
   */
 case class RandomForest(
                          numTrees: Int = -1,
@@ -39,14 +39,8 @@ case class RandomForest(
                          uncertaintyCalibration: Boolean = false,
                          randomizePivotLocation: Boolean = false,
                          randomlyRotateFeatures: Boolean = false,
-                         randomSeed: Long = Long.MaxValue
+                         rng: Random = Random
                        ) extends Learner {
-
-  val rng: Random = if (randomSeed == Long.MaxValue) {
-    new Random()
-  } else {
-    new Random(randomSeed)
-  }
 
   /**
     * Train a random forest model
