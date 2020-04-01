@@ -12,6 +12,7 @@ import scala.util.Random
   * Created by maxhutch on 7/10/17.
   */
 class AccuracyTest {
+  val rng = new Random(234785L)
 
   val noiseLevel: Double = 0.000
   val nFeat: Int = 10
@@ -34,7 +35,7 @@ class AccuracyTest {
     */
   @Test
   def testRandomForest(): Unit = {
-    val baseLearner = RegressionTreeLearner(numFeatures = nFeat / 3, minLeafInstances = minInstances, rng = new Random(1232346L))
+    val baseLearner = RegressionTreeLearner(numFeatures = nFeat / 3, minLeafInstances = minInstances, rng = rng)
     val learner = new Bagger(baseLearner, numBags = nRow * nScal)
     val error = computeMetrics(learner)
     assert(error > noiseLevel, s"Can't do better than noise")
@@ -49,20 +50,20 @@ class AccuracyTest {
     val errorStandardTree = {
       val baseLearner = RegressionTreeLearner(
         numFeatures = nFeat,
-        splitter = RegressionSplitter(randomizePivotLocation = true, rng = new Random(47346L)),
-        rng = new Random(47346L)
+        splitter = RegressionSplitter(randomizePivotLocation = true, rng = rng),
+        rng = rng
       )
-      val learner = new Bagger(baseLearner, numBags = nRow * 16)
+      val learner = new Bagger(baseLearner, numBags = nRow * 16, randBasis = TestUtils.getBreezeRandBasis(rng.nextLong()))
       // println(s"Normal train time: ${Stopwatch.time(computeMetrics(learner))}")
       computeMetrics(learner)
     }
     val errorAnnealingTree = {
       val baseLearner = RegressionTreeLearner(
         numFeatures = nFeat,
-        splitter = BoltzmannSplitter(temperature = Float.MinPositiveValue, rng = new Random(47346L)),
-        rng = new Random(47346L)
+        splitter = BoltzmannSplitter(temperature = Float.MinPositiveValue, rng = rng),
+        rng = rng
       )
-      val learner = new Bagger(baseLearner, numBags = nRow * 16)
+      val learner = new Bagger(baseLearner, numBags = nRow * 16, randBasis = TestUtils.getBreezeRandBasis(rng.nextLong()))
       // println(s"Annealing train time: ${Stopwatch.time(computeMetrics(learner))}")
       computeMetrics(learner)
     }
