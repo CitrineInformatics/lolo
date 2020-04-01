@@ -3,6 +3,7 @@ from abc import abstractmethod, ABCMeta
 import numpy as np
 from lolopy.loloserver import get_java_gateway
 from lolopy.utils import send_feature_array, send_1D_array
+import random
 from sklearn.base import BaseEstimator, RegressorMixin, ClassifierMixin, is_regressor
 from sklearn.exceptions import NotFittedError
 
@@ -253,7 +254,7 @@ class RandomForestMixin(BaseLoloLearner):
     def __init__(self, num_trees=-1, use_jackknife=True, bias_learner=None,
                  leaf_learner=None, subset_strategy="auto", min_leaf_instances=1,
                  max_depth=2**30, uncertainty_calibration=False, randomize_pivot_location=False,
-                 randomly_rotate_features=False):
+                 randomly_rotate_features=False, random_seed=None):
         """Initialize the RandomForest
 
         Args:
@@ -273,6 +274,7 @@ class RandomForestMixin(BaseLoloLearner):
             uncertainty_calibration (bool): whether to re-calibrate the predicted uncertainty based on out-of-bag residuals
             randomize_pivot_location (bool): whether to draw pivots randomly or always select the midpoint
             randomly_rotate_features (bool): whether to randomly rotate real features for each tree in the forest
+            random_seed (int): random number generator seed used for nondeterministic functionality
         """
         super(RandomForestMixin, self).__init__()
 
@@ -287,6 +289,7 @@ class RandomForestMixin(BaseLoloLearner):
         self.uncertainty_calibration = uncertainty_calibration
         self.randomize_pivot_location = randomize_pivot_location
         self.randomly_rotate_features = randomly_rotate_features
+        self.random_seed = random_seed
 
     def _make_learner(self):
         #  TODO: Figure our a more succinct way of dealing with optional arguments/Option values
@@ -304,7 +307,8 @@ class RandomForestMixin(BaseLoloLearner):
             self.max_depth,
             self.uncertainty_calibration,
             self.randomize_pivot_location,
-            self.randomly_rotate_features
+            self.randomly_rotate_features,
+            random.getrandbits(64) if self.random_seed is None else self.random_seed
         )
         return learner
 
