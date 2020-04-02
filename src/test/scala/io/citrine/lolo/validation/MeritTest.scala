@@ -66,7 +66,7 @@ class MeritTest {
   @Test
   def testRMSE(): Unit = {
     val pva = getNormalPVA(batchSize = 256, numBatch = 32)
-    val (rmse, uncertainty) = RootMeanSquareError().estimate(pva)
+    val (rmse, uncertainty) = RootMeanSquareError.estimate(pva)
     assert(Math.abs(rmse - 1.0) < 3 * uncertainty, "RMSE estimate was not accurate enough")
     assert(uncertainty < 0.05, s"RMSE estimate was not precise enough")
   }
@@ -80,7 +80,7 @@ class MeritTest {
   def testCoefficientOfDeterminization(): Unit = {
     val pva = getNormalPVA(noiseScale = 0.1, batchSize = 256, numBatch = 32)
     val expected = 1 - 12 * 0.1 * 0.1
-    val (r2, uncertainty) = CoefficientOfDetermination().estimate(pva)
+    val (r2, uncertainty) = CoefficientOfDetermination.estimate(pva)
     assert(Math.abs(r2 - expected) < 3 * uncertainty, "R^2 estimate was not accurate enough")
     assert(uncertainty < 0.05, s"R^2 estimate was not precise enough")
   }
@@ -94,7 +94,7 @@ class MeritTest {
   def testStandardConfidence(): Unit = {
     val pva = getNormalPVA(uncertaintyCorrelation = 1.0, batchSize = 256, numBatch = 32)
     val expected = 0.68
-    val (confidence, uncertainty) = StandardConfidence().estimate(pva)
+    val (confidence, uncertainty) = StandardConfidence.estimate(pva)
     assert(Math.abs(confidence - expected) < 3 * uncertainty, "Confidence estimate was not accurate enough")
     assert(uncertainty < 0.05, s"Confidence estimate was not precise enough")
   }
@@ -123,7 +123,7 @@ class MeritTest {
   def testPerfectUncertaintyCorrelation(): Unit = {
     val pva = getNormalPVA(noiseScale = 0.01, uncertaintyCorrelation = 1.0, batchSize = 256, numBatch = 32)
     val expected = 1.0
-    val (corr, uncertainty) = UncertaintyCorrelation().estimate(pva)
+    val (corr, uncertainty) = UncertaintyCorrelation.estimate(pva)
     assert(Math.abs(corr - expected) < 3 * uncertainty, "Uncertainty correlation estimate was not accurate enough")
     assert(uncertainty < 0.05, s"Uncertainty correlation estimate was not precise enough")
   }
@@ -137,7 +137,7 @@ class MeritTest {
   def testZeroUncertaintyCorrelation(): Unit = {
     val pva = getNormalPVA(noiseScale = 0.01, uncertaintyCorrelation = 0.0, batchSize = 256, numBatch = 32)
     val expected = 0.0
-    val (corr, uncertainty) = UncertaintyCorrelation().estimate(pva)
+    val (corr, uncertainty) = UncertaintyCorrelation.estimate(pva)
     assert(Math.abs(corr - expected) < 3 * uncertainty, "Uncertainty correlation estimate was not accurate enough")
     assert(uncertainty < 0.05, s"Uncertainty correlation estimate was not precise enough")
   }

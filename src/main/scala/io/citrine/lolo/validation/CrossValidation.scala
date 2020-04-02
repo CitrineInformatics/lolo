@@ -7,7 +7,7 @@ import scala.util.Random
 /**
   * Methods tha use cross-validation to calculate predicted-vs-actual data and metric estimates
   */
-case class CrossValidation(rng: Random = Random) {
+case object CrossValidation {
 
   /**
     * Driver to apply named metrics to k-fold cross-validated predicted-vs-actual
@@ -17,6 +17,7 @@ case class CrossValidation(rng: Random = Random) {
     * @param metrics      apply to the predicted-vs-actual data
     * @param k            number of folds
     * @param nTrial       number of times to refold the data to improve statistics
+    * @param rng          random number generator to use in choosing folds
     * @tparam T type of the response, e.g. Double for scalar regression
     * @return a Map from the name of the metric to its mean value and the error in that mean
     */
@@ -25,11 +26,13 @@ case class CrossValidation(rng: Random = Random) {
                                learner: Learner,
                                metrics: Map[String, Merit[T]],
                                k: Int = 8,
-                               nTrial: Int = 1
+                               nTrial: Int = 1,
+                               rng: Random = Random
                              ): Map[String, (Double, Double)] = {
     Merit.estimateMerits(
-      kFoldPvA(trainingData, learner, k, nTrial).iterator,
-      metrics
+      kFoldPvA(trainingData, learner, k, nTrial, rng).iterator,
+      metrics,
+      rng
     )
   }
 
@@ -47,7 +50,8 @@ case class CrossValidation(rng: Random = Random) {
                    trainingData: Seq[(Vector[Any], T)],
                    learner: Learner,
                    k: Int = 8,
-                   nTrial: Int = 1
+                   nTrial: Int = 1,
+                   rng: Random = Random
                  ): Iterable[(PredictionResult[T], Seq[T])] = {
     val nTest: Int = Math.ceil(trainingData.size.toDouble / k).toInt
     (0 until nTrial).flatMap { _ =>

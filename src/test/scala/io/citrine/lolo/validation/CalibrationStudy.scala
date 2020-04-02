@@ -55,10 +55,11 @@ object CalibrationStudy {
       val chart = Merit.plotMeritScan(
         "Number of training rows",
         Seq(16, 32, 64, 128, 256, 512),
-        Map("R2" -> CoefficientOfDetermination(), "confidence" -> StandardConfidence(), "standard error / 4" -> StandardError(0.25), "sigmaCorr" -> UncertaintyCorrelation()),
+        Map("R2" -> CoefficientOfDetermination, "confidence" -> StandardConfidence, "standard error / 4" -> StandardError(0.25), "sigmaCorr" -> UncertaintyCorrelation),
         logScale = true,
         yMin = Some(0.0),
-        yMax = Some(1.0)
+        yMax = Some(1.0),
+        rng = rng
       ) { nTrain: Double =>
         val nTree = ratio * nTrain
         val learner = Bagger(
@@ -90,10 +91,11 @@ object CalibrationStudy {
       val chart = Merit.plotMeritScan(
         "Number of trees",
         Seq(16, 32, 64, 128, 256, 512, 1024, 2048, 4096),
-        Map("R2" -> CoefficientOfDetermination(), "confidence" -> StandardConfidence(), "standard error / 4" -> StandardError(0.25), "sigmaCorr" -> UncertaintyCorrelation()),
+        Map("R2" -> CoefficientOfDetermination, "confidence" -> StandardConfidence, "standard error / 4" -> StandardError(0.25), "sigmaCorr" -> UncertaintyCorrelation),
         logScale = true,
         yMin = Some(0.0),
-        yMax = Some(1.0)
+        yMax = Some(1.0),
+        rng = rng
       ) { nTree: Double =>
         val learner = Bagger(
           RegressionTreeLearner(
@@ -131,10 +133,11 @@ object CalibrationStudy {
       val chart = Merit.plotMeritScan(
         "Number of training points",
         Seq(16, 32, 64, 128, 256, 512, 1024),
-        Map("R2" -> CoefficientOfDetermination(), "confidence" -> StandardConfidence(), "standard error / 4" -> StandardError(0.25), "sigmaCorr" -> UncertaintyCorrelation()),
+        Map("R2" -> CoefficientOfDetermination, "confidence" -> StandardConfidence, "standard error / 4" -> StandardError(0.25), "sigmaCorr" -> UncertaintyCorrelation),
         logScale = true,
         yMin = Some(0.0),
-        yMax = Some(1.0)
+        yMax = Some(1.0),
+        rng = rng
       ) { nTrain: Double =>
         val learner = Bagger(
           RegressionTreeLearner(
@@ -209,7 +212,8 @@ object CalibrationStudy {
     BitmapEncoder.saveBitmap(pva, s"./pva_${funcName}-nTrain.${nTrain}-nTree.${nTree}", BitmapFormat.PNG)
     Merit.estimateMerits(
       dataStream.iterator,
-      Map("R2" -> CoefficientOfDetermination(), "confidence" -> StandardConfidence(), "error / 4" -> StandardError(0.25), "sigmaCorr" -> UncertaintyCorrelation())
+      Map("R2" -> CoefficientOfDetermination, "confidence" -> StandardConfidence, "error / 4" -> StandardError(0.25), "sigmaCorr" -> UncertaintyCorrelation),
+      rng = rng
     )
   }
 
@@ -280,10 +284,11 @@ object CalibrationStudy {
       val chart = Merit.plotMeritScan(
         "Number of training points",
         Seq(16, 32, 64, 128, 256, 512, 1024),
-        Map("R2" -> CoefficientOfDetermination(), "confidence" -> StandardConfidence(), "standard error / 4" -> StandardError(0.25), "sigmaCorr" -> UncertaintyCorrelation()),
+        Map("R2" -> CoefficientOfDetermination, "confidence" -> StandardConfidence, "standard error / 4" -> StandardError(0.25), "sigmaCorr" -> UncertaintyCorrelation),
         logScale = true,
         yMin = Some(0.0),
-        yMax = Some(1.0)
+        yMax = Some(1.0),
+        rng = rng
       ) { nTrain: Double =>
         val learner = Bagger(
           RegressionTreeLearner(
@@ -353,7 +358,8 @@ object CalibrationStudy {
     BitmapEncoder.saveBitmap(pva, s"./pva_hcep-nTrain.${nTrain}-nTree.${nTree}", BitmapFormat.PNG)
     Merit.estimateMerits(
       dataStream.iterator,
-      Map("R2" -> CoefficientOfDetermination(), "confidence" -> StandardConfidence(), "error / 4" -> StandardError(0.25), "sigmaCorr" -> UncertaintyCorrelation())
+      Map("R2" -> CoefficientOfDetermination, "confidence" -> StandardConfidence, "error / 4" -> StandardError(0.25), "sigmaCorr" -> UncertaintyCorrelation),
+      rng = rng
     )
   }
 

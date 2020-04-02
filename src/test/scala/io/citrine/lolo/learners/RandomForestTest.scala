@@ -5,11 +5,14 @@ import io.citrine.lolo.TestUtils
 import io.citrine.lolo.stats.functions.Friedman
 import org.junit.Test
 
+import scala.util.Random
+
 /**
   * Created by maxhutch on 1/9/17.
   */
 @Test
 class RandomForestTest {
+  val rng = new Random(92345L)
 
   /**
     * Test that the regression forest does the same thing as the regression bagger
@@ -17,19 +20,19 @@ class RandomForestTest {
   @Test
   def testRegressionForest(): Unit = {
     val trainingData = TestUtils.binTrainingData(
-      TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman),
+      TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, seed = rng.nextLong()),
       inputBins = Seq((0, 8))
     )
 
     Seq(true, false).foreach { randomlyRotateFeatures =>
-      val RFMeta = RandomForest(randomlyRotateFeatures = randomlyRotateFeatures)
+      val RFMeta = RandomForest(randomlyRotateFeatures = randomlyRotateFeatures, rng = rng)
         .train(trainingData)
       val RF = RFMeta.getModel()
 
       assert(RFMeta.getLoss().get < 1.0, "Loss of bagger is larger than expected")
 
       val results = RF.transform(trainingData.map(_._1))
-      val means = results.getExpected()
+      // val means = results.getExpected()
       val sigma: Seq[Double] = results.getUncertainty().get.asInstanceOf[Seq[Double]]
       assert(sigma.forall(_ >= 0.0))
 
@@ -49,12 +52,12 @@ class RandomForestTest {
   @Test
   def testClassificationForest(): Unit = {
     val trainingData = TestUtils.binTrainingData(
-      TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman),
+      TestUtils.generateTrainingData(128, 12, noise = 0.1, function = Friedman.friedmanSilverman, seed = rng.nextLong()),
       inputBins = Seq((0, 8)), responseBins = Some(8)
     )
 
     Seq(true, false).foreach { randomlyRotateFeatures =>
-      val RFMeta = new RandomForest(numTrees = trainingData.size * 2, randomlyRotateFeatures = randomlyRotateFeatures)
+      val RFMeta = RandomForest(numTrees = trainingData.size * 2, randomlyRotateFeatures = randomlyRotateFeatures, rng = rng)
         .train(trainingData)
       val RF = RFMeta.getModel()
 
@@ -79,10 +82,10 @@ class RandomForestTest {
     */
   @Test
   def testClassificationForestUnbiased(): Unit = {
-    val numTrials = 30
-    val (winsSuffixed, winsPrefixed): (Int,Int) = (0 until numTrials).map {case i: Int =>
+    val numTrials = 20
+    val (winsSuffixed, winsPrefixed): (Int,Int) = (0 until numTrials).map { _ =>
       val mainTrainingData = TestUtils.binTrainingData(
-        TestUtils.generateTrainingData(128, 5, noise = 0.1, function = Friedman.friedmanSilverman, seed = i),
+        TestUtils.generateTrainingData(64, 5, noise = 0.1, function = Friedman.friedmanSilverman, seed = rng.nextLong()),
         responseBins = Some(2)
       )
       val dupeLabel = "DUPE"
@@ -93,8 +96,8 @@ class RandomForestTest {
         (mainTrainingData.head._1, dupeLabel)
       ) ++ mainTrainingData
 
-      val RFSuffixed = RandomForest(numTrees = trainingDataSuffixed.size * 2).train(trainingDataSuffixed)
-      val RFPrefixed = RandomForest(numTrees = trainingDataPrefixed.size * 2).train(trainingDataPrefixed)
+      val RFSuffixed = RandomForest(numTrees = trainingDataSuffixed.size * 2, rng = rng).train(trainingDataSuffixed)
+      val RFPrefixed = RandomForest(numTrees = trainingDataPrefixed.size * 2, rng = rng).train(trainingDataPrefixed)
       val predictedSuffixed = RFSuffixed.getModel().transform(mainTrainingData.map(_._1))
       val predictedPrefixed = RFPrefixed.getModel().transform(mainTrainingData.map(_._1))
       val extraLabelCountSuffixed = predictedSuffixed.getExpected().count { case p: String => p == dupeLabel }
@@ -127,10 +130,10 @@ class RandomForestTest {
     // Generate a linear signal in one dimension: 2 * x
     val trainingData: Seq[(Vector[Double], Double)] = TestUtils.generateTrainingData(32, 1, function = {x =>
       x.head * 2.0
-    })
+    }, seed = rng.nextLong())
 
     // Create a consistent set of parameters
-    val baseForest = RandomForest(numTrees = 16384, useJackknife = false)
+    val baseForest = RandomForest(numTrees = 16384, useJackknife = false, rng = rng)
 
     // Turn off split randomization and compute the loss (out-of-bag error)
     val lossWithoutRandomization: Double = baseForest.copy(randomizePivotLocation = false)
@@ -153,7 +156,7 @@ class RandomForestTest {
     val trainingData = TestUtils.generateTrainingData(8, 1)
     // the number of trees is the number of times we generate weights
     // so this has the effect of creating lots of different sets of weights
-    val learner = RandomForest(numTrees = 16384)
+    val learner = RandomForest(numTrees = 16384, rng = rng)
     // the test is that this training doesn't throw an exception
     learner.train(trainingData).getModel()
   }

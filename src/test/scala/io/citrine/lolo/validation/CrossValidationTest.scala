@@ -20,8 +20,8 @@ class CrossValidationTest {
     val learner = RandomForest()
     val data = TestUtils.generateTrainingData(128, 8, Friedman.friedmanSilverman, seed = rng.nextLong())
 
-    val metric = RootMeanSquareError()
-    val (rmseFromCV, uncertainty) = CrossValidation(rng = rng).kFoldCrossvalidation(data, learner, Map("rmse" -> metric), k = 3)("rmse")
+    val metric = RootMeanSquareError
+    val (rmseFromCV, uncertainty) = CrossValidation.kFoldCrossvalidation(data, learner, Map("rmse" -> metric), k = 3)("rmse")
 
     val trainingResult = learner.train(data)
     val rmseFromPVA = Math.sqrt(

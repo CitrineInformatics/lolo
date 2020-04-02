@@ -55,7 +55,7 @@ class BaggerTest {
   @Test
   def testClassificationBagger(): Unit = {
     val trainingData = TestUtils.binTrainingData(
-      TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman),
+      TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, seed = rng.nextLong()),
       inputBins = Seq((0, 8)), responseBins = Some(8)
     )
     val DTLearner = ClassificationTreeLearner()

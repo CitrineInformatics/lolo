@@ -28,7 +28,7 @@ case class RegressionTreeLearner(
                                   rng: Random = Random
                                 ) extends Learner {
   /** Learner to use for training the leaves */
-  @transient private lazy val myLeafLearner = leafLearner.getOrElse(GuessTheMeanLearner(rng))
+  @transient private lazy val myLeafLearner = leafLearner.getOrElse(GuessTheMeanLearner(rng = rng))
 
   /**
     * Train the tree by recursively partitioning (splitting) the training data on a single feature

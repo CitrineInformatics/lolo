@@ -55,7 +55,7 @@ class MultiTaskBaggerTest {
 
     Seq(MultiTaskTreeLearner()).foreach { baseLearner =>
       // These are in Seqs as a convenience for repurposing this test as a diagnostic tool.
-      Seq(128).foreach { nRows =>
+      Seq(64).foreach { nRows =>
         Seq(16).foreach { nCols =>
           Seq(2).map { n => n * nRows }.foreach { nBags =>
             // Used for error output.
