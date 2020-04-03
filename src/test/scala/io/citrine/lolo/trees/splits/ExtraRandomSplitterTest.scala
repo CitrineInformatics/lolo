@@ -2,12 +2,10 @@ package io.citrine.lolo.trees.splits
 
 import io.citrine.lolo.TestUtils
 import org.junit.Test
-import org.mockito.invocation.InvocationOnMock
-import org.mockito.MockitoSugar
 
 import scala.util.Random
 
-class ExtraRandomSplitterTest extends MockitoSugar {
+class ExtraRandomSplitterTest {
 
   /**
     * Test that uniform labels result in "NoSplit" with zero reduced impurity
@@ -62,10 +60,10 @@ class ExtraRandomSplitterTest extends MockitoSugar {
       Seq(TestUtils.enumerateGrid(Seq.fill(numFeatures)(baseGrid)), Seq.fill(64)(Vector.fill(numFeatures)(rng.nextGaussian()))).foreach { xTrain =>
         // Have ExtraRandomSplitter.getBestSplit choose a split from this number of randomly-chosen features.
         (1 to numFeatures by Math.max(numFeatures/2,1)).foreach { numFeaturesToConsider =>
-          // Repeat with the same training inputs.
-          (1 to 4).foreach { _ =>
-            // Feature indices, which will be used
-            // This is stored as a Vector because mockRng.shuffle was having trouble with a Seq; possibly a type erasure issue.
+          // Repeat with the same training inputs a few times with different random number streams.
+          (1 to 4).foreach { repetitionNumber =>
+            // Feature indices, which will be used to determine which features will be considered by the splitter (and in which order).
+            // This is stored as a Vector because rng.shuffle was having trouble with a Seq; possibly a type erasure issue.
             val featureIndices = (0 until numFeatures).toVector
 
             // Generate linear training data, using xTrain from above as inputs, starting by selecting coefficients for each feature.
@@ -76,24 +74,13 @@ class ExtraRandomSplitterTest extends MockitoSugar {
               (x, y, weight)
             }
 
-            // Mock random so that it produces the same shuffle() and nextDouble() sequence we achieved above.
-            // It would be simpler to do this by resetting rng to the same initial seed. Using a mock, on the other hand, enables us to
-            // detect when the test becomes invalid solely on the basis of functionally inconsequential refactoring that changes the
-            // sequence of rng invocations.
-            val mockRng = mock[Random]
+            // Determine exactly what shuffle() and nextDouble() will return within getBestSplit by resetting to a common rng seed.
+            val sharedSeed = 238745L + repetitionNumber
+            rng.setSeed(sharedSeed)
             // This is the set of shuffled indices to return when getBestSplit calls the RNG's shuffle method.
             val shuffledFeatureIndices = rng.shuffle(featureIndices)
-            // Inject shuffledFeatureIndices as the value to be returned upon calling mockRng.shuffle.
-            doReturn(shuffledFeatureIndices).when(mockRng).shuffle(featureIndices)
-            // Precompute a the sequence of numbers to return when getBestSplit calls the RNG's nextDouble method to select cut points.
+            // Precompute the sequence of numbers returned when getBestSplit calls the RNG's nextDouble method to select cut points.
             val randomUniforms = Seq.fill(numFeatures)(rng.nextDouble())
-            // Count the number of mockRng.nextDouble invocations.
-            var nextDoubleInvocationCounter = 0
-            // Inject randomUniforms as the values to be returned in sequence upon seriatim calls to mockRng.nextDouble.
-            when(mockRng.nextDouble) thenAnswer ((_: InvocationOnMock) => {
-              nextDoubleInvocationCounter += 1
-              randomUniforms(nextDoubleInvocationCounter - 1)
-            })
 
             // Compute where the cut points should be placed, based on the the sequence of randomUniforms.
             val cutPoints = shuffledFeatureIndices.zip(randomUniforms).map { case (i, u) =>
@@ -119,24 +106,25 @@ class ExtraRandomSplitterTest extends MockitoSugar {
               (i, varianceSums(i))
             }.minBy(_._2)._1
 
-            // Instantiate the splitter to test, passing in the mock random number generator.
-            val splitter = ExtraRandomSplitter(mockRng)
+            // Instantiate the splitter to test, passing in the random number generator that is reset to its former state used above.
+            rng.setSeed(sharedSeed)
+            val splitter = ExtraRandomSplitter(rng)
             // Ask the splitter what it chose as a split.
             val bestSplit = splitter.getBestSplit(trainingData, numFeaturesToConsider, 1)
 
-            // Verify RNG invocation order to help detect when code modifications have invalidated this test.
-            val order = inOrder(mockRng)
-            order.verify(mockRng, times(1)).shuffle(featureIndices)
-            order.verify(mockRng, times(numFeaturesToConsider)).nextDouble()
-            verifyNoMoreInteractions(mockRng)
-
-            // Finally, we can ensure that the index on which we split is correct.
-            assert(bestSplit._1.getIndex() == indexOfBest)
+            // Finally, we can ensure that the index on which we split is correct...
+            val testCaveatMessage = "NOTE: this test may inaccurately fail due to changes in the sequence of rng calls."
+            assert(bestSplit._1.getIndex() == indexOfBest, s"Incorrect index of best split. $testCaveatMessage")
+            // Do a sanity check about the directionality of turnLeft to ensure this test is valid.
+            assert(bestSplit._1.turnLeft(Vector.fill(numFeatures)(xTrain.flatten.min)),
+              s"Unexpected directionality of turnLeft, which is probably a bug with the test itself.")
+            assert(!bestSplit._1.turnLeft(Vector.fill(numFeatures)(xTrain.flatten.max)),
+              s"Unexpected directionality of turnLeft, which is probably a bug with the test itself.")
             // And ensure that we're turning at the right place.
-            assert(bestSplit._1.turnLeft(Vector.fill(numFeatures)(xTrain.flatten.min)))
-            assert(!bestSplit._1.turnLeft(Vector.fill(numFeatures)(xTrain.flatten.max)))
-            assert(bestSplit._1.turnLeft(Vector.fill(numFeatures)(cutPoints(indexOfBest) - 1e-8)))
-            assert(!bestSplit._1.turnLeft(Vector.fill(numFeatures)(cutPoints(indexOfBest) + 1e-8)))
+            assert(bestSplit._1.turnLeft(Vector.fill(numFeatures)(cutPoints(indexOfBest) - 1e-8)),
+              s"Split not placed at correct location. $testCaveatMessage")
+            assert(!bestSplit._1.turnLeft(Vector.fill(numFeatures)(cutPoints(indexOfBest) + 1e-8)),
+              s"Split not placed at correct location. $testCaveatMessage")
           }
         }
       }
@@ -144,4 +132,3 @@ class ExtraRandomSplitterTest extends MockitoSugar {
   }
 
 }
-
