@@ -18,7 +18,7 @@ trait Merit[T] {
     *
     * @return the value of the figure of merit
     */
-  def evaluate(predictionResult: PredictionResult[T], actual: Seq[T]): Double
+  def evaluate(predictionResult: PredictionResult[T], actual: Seq[T], rng: Random = Random): Double
 
   /**
     * Estimate the merit and the uncertainty in the merit over batches of predicted and ground-truth values
@@ -26,8 +26,8 @@ trait Merit[T] {
     * @param pva predicted-vs-actual data as an iterable over [[PredictionResult]] and ground-truth tuples
     * @return the estimate of the merit value and the uncertainty in that estimate
     */
-  def estimate(pva: Iterable[(PredictionResult[T], Seq[T])]): (Double, Double) = {
-    val samples = pva.map { case (prediction, actual) => evaluate(prediction, actual) }
+  def estimate(pva: Iterable[(PredictionResult[T], Seq[T])], rng: Random = Random): (Double, Double) = {
+    val samples = pva.map { case (prediction, actual) => evaluate(prediction, actual, rng) }
     val mean: Double = samples.sum / samples.size
     val variance: Double = (samples.size / (samples.size - 1)) * samples.map(x => Math.pow(x - mean, 2)).sum / samples.size
     (mean, Math.sqrt(variance / samples.size))
@@ -38,7 +38,7 @@ trait Merit[T] {
   * Square root of the mean square error. For an unbiased estimator, this is equal to the standard deviation of the difference between predicted and actual values.
   */
 case object RootMeanSquareError extends Merit[Double] {
-  override def evaluate(predictionResult: PredictionResult[Double], actual: Seq[Double]): Double = {
+  override def evaluate(predictionResult: PredictionResult[Double], actual: Seq[Double], rng: Random = Random): Double = {
     Math.sqrt(
       (predictionResult.getExpected(), actual).zipped.map {
         case (x, y) => Math.pow(x - y, 2)
@@ -51,7 +51,7 @@ case object RootMeanSquareError extends Merit[Double] {
   * R2 = 1 - MSE(y) / Var(y), where y is the predicted variable
   */
 case object CoefficientOfDetermination extends Merit[Double] {
-  override def evaluate(predictionResult: PredictionResult[Double], actual: Seq[Double]): Double = {
+  override def evaluate(predictionResult: PredictionResult[Double], actual: Seq[Double], rng: Random = Random): Double = {
     val averageActual = actual.sum / actual.size
     val sumOfSquares = actual.map(x => Math.pow(x - averageActual, 2)).sum
     val sumOfResiduals = predictionResult.getExpected().zip(actual).map { case (x, y) => Math.pow(x - y, 2.0) }.sum
@@ -63,7 +63,7 @@ case object CoefficientOfDetermination extends Merit[Double] {
   * The fraction of predictions that fall within the predicted uncertainty
   */
 case object StandardConfidence extends Merit[Double] {
-  override def evaluate(predictionResult: PredictionResult[Double], actual: Seq[Double]): Double = {
+  override def evaluate(predictionResult: PredictionResult[Double], actual: Seq[Double], rng: Random = Random): Double = {
     if (predictionResult.getUncertainty().isEmpty) return 0.0
 
     (predictionResult.getExpected(), predictionResult.getUncertainty().get, actual).zipped.count {
@@ -76,7 +76,7 @@ case object StandardConfidence extends Merit[Double] {
   * Root mean square of (the error divided by the predicted uncertainty)
   */
 case class StandardError(rescale: Double = 1.0) extends Merit[Double] {
-  override def evaluate(predictionResult: PredictionResult[Double], actual: Seq[Double]): Double = {
+  override def evaluate(predictionResult: PredictionResult[Double], actual: Seq[Double], rng: Random = Random): Double = {
     if (predictionResult.getUncertainty().isEmpty) return Double.PositiveInfinity
     val standardized = (predictionResult.getExpected(), predictionResult.getUncertainty().get, actual).zipped.map {
       case (x, sigma: Double, y) => (x - y) / sigma
@@ -97,7 +97,7 @@ case class StandardError(rescale: Double = 1.0) extends Merit[Double] {
   * an "ideal" error series from which the correlation coefficient can be estimated.
   */
 case object UncertaintyCorrelation extends Merit[Double] {
-  override def evaluate(predictionResult: PredictionResult[Double], actual: Seq[Double]): Double = {
+  override def evaluate(predictionResult: PredictionResult[Double], actual: Seq[Double], rng: Random = Random): Double = {
     val predictedUncertaintyActual: Seq[(Double, Double, Double)] = (
       predictionResult.getExpected(),
       predictionResult.getUncertainty().get.asInstanceOf[Seq[Double]],
@@ -105,7 +105,7 @@ case object UncertaintyCorrelation extends Merit[Double] {
     ).zipped.toSeq
 
     val ideal = predictedUncertaintyActual.map { case (_, uncertainty, actual) =>
-      val error = Random.nextGaussian() * uncertainty
+      val error = rng.nextGaussian() * uncertainty
       (actual + error, uncertainty, actual)
     }
 
@@ -145,12 +145,13 @@ object Merit {
     */
   def estimateMerits[T](
                           pva: Iterator[(PredictionResult[T], Seq[T])],
-                          merits: Map[String, Merit[T]]
+                          merits: Map[String, Merit[T]],
+                          rng: Random = Random
                         ): Map[String, (Double, Double)] = {
 
     pva.flatMap { case (predictions, actual) =>
       // apply all the merits to the batch at the same time so the batch can fall out of memory
-      merits.mapValues(f => f.evaluate(predictions, actual)).toSeq
+      merits.mapValues(f => f.evaluate(predictions, actual, rng)).toSeq
     }.toIterable.groupBy(_._1).mapValues { x =>
       val meritResults = x.map(_._2)
       val mean = meritResults.sum / meritResults.size
@@ -167,6 +168,7 @@ object Merit {
     * @param merits          to apply at each parameter value
     * @param logScale        whether the parameters should be plotted on a log scale
     * @param pvaBuilder      function that takes the parameter to predicted-vs-actual data
+    * @param rng             random number generator to use
     * @return an [[XYChart]] that plots the merits vs the parameter value
     */
   def plotMeritScan[T](
@@ -175,7 +177,8 @@ object Merit {
                          merits: Map[String, Merit[T]],
                          logScale: Boolean = false,
                          yMin: Option[Double] = None,
-                         yMax: Option[Double] = None
+                         yMax: Option[Double] = None,
+                         rng: Random = Random
                        )(
                          pvaBuilder: Double => Iterator[(PredictionResult[T], Seq[T])]
                        ): XYChart = {
@@ -189,7 +192,7 @@ object Merit {
 
     parameterValues.foreach { param =>
       val pva = pvaBuilder(param)
-      val meritResults = Merit.estimateMerits(pva, merits)
+      val meritResults = Merit.estimateMerits(pva, merits, rng)
       meritResults.foreach { case (name, (mean, err)) =>
         seriesData(name).add(mean)
         seriesData(s"${name}_err").add(err)

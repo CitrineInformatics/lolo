@@ -5,19 +5,22 @@ import io.citrine.lolo.learners.RandomForest
 import io.citrine.lolo.stats.functions.Friedman
 import org.junit.Test
 
+import scala.util.Random
+
 class StatisticalValidationTest {
+  val rng = new Random(783443769L)
 
   @Test
   def testCompareToKFolds(): Unit = {
     val learner = RandomForest()
-    val dataSet = TestUtils.generateTrainingData(128, 8, Friedman.friedmanSilverman)
+    val dataSet = TestUtils.generateTrainingData(128, 8, Friedman.friedmanSilverman, seed = rng.nextLong())
     val dataGenerator = TestUtils.iterateTrainingData(8, Friedman.friedmanSilverman)
 
     val metrics = Map("rmse" -> RootMeanSquareError)
     val (rmseFromCV, uncertaintyFromCV) = CrossValidation.kFoldCrossvalidation(dataSet, learner, metrics, k = 4, nTrial = 4)("rmse")
 
     val (rmseFromStats, uncertaintyFromStats) = Merit.estimateMerits(
-      StatisticalValidation.generativeValidation(dataGenerator, learner, 96, 32, 16),
+      StatisticalValidation(rng = rng).generativeValidation(dataGenerator, learner, 96, 32, 16),
       metrics
     )("rmse")
 

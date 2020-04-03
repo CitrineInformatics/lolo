@@ -6,10 +6,13 @@ import io.citrine.lolo.trees.splits.{BoltzmannSplitter, RegressionSplitter}
 import io.citrine.theta.Stopwatch
 import org.junit.Test
 
+import scala.util.Random
+
 /**
   * Created by maxhutch on 7/10/17.
   */
 class AccuracyTest {
+  val rng = new Random(234785L)
 
   val noiseLevel: Double = 0.000
   val nFeat: Int = 10
@@ -28,11 +31,61 @@ class AccuracyTest {
   }
 
   /**
+    * Test that setting rng yields repeatable results.
+    */
+  /**
+    * DISABLED until implementing perfect reproducibility.
+  @Test
+  def testRepeatable(): Unit = {
+    val (errorsStandardTree, errorsAnnealingTree, errorsUnrandomizedTree) = (1 to 4).map { _ =>
+      val seed = 354128L
+      val rng = new Random(seed)
+      val errorStandardTree = {
+        val baseLearner = RegressionTreeLearner(
+          numFeatures = nFeat,
+          splitter = RegressionSplitter(randomizePivotLocation = true, rng = rng),
+          rng = rng
+        )
+        val learner = new Bagger(baseLearner, numBags = nRow * 8, randBasis = TestUtils.getBreezeRandBasis(rng.nextLong()))
+        computeMetrics(learner)
+      }
+      rng.setSeed(seed)
+      val errorAnnealingTree = {
+        val baseLearner = RegressionTreeLearner(
+          numFeatures = nFeat,
+          splitter = BoltzmannSplitter(temperature = Float.MinPositiveValue, rng = rng),
+          rng = rng
+        )
+        val learner = new Bagger(baseLearner, numBags = nRow * 8, randBasis = TestUtils.getBreezeRandBasis(rng.nextLong()))
+        computeMetrics(learner)
+      }
+      rng.setSeed(seed)
+      val randBasis = TestUtils.getBreezeRandBasis(rng.nextLong())
+      val errorUnrandomizedTree = {
+        val baseLearner = RegressionTreeLearner(
+          numFeatures = nFeat,
+          splitter = RegressionSplitter(randomizePivotLocation = false, rng = rng),
+          rng = rng
+        )
+        val learner = new Bagger(baseLearner, numBags = nRow * 8, randBasis = randBasis)
+        computeMetrics(learner)
+      }
+      (errorStandardTree, errorAnnealingTree, errorUnrandomizedTree)
+    }.unzip3
+
+    val atol = 1e-12
+    assert(errorsStandardTree.forall{ e => Math.abs(e - errorsStandardTree.head) < atol })
+    assert(errorsAnnealingTree.forall{ e => Math.abs(e - errorsStandardTree.head) < atol })
+    assert(errorsUnrandomizedTree.forall{ e => Math.abs(e - errorsUnrandomizedTree.head) < atol })
+  }
+  */
+
+  /**
     * Quick sanity check of the test setup
     */
   @Test
   def testRandomForest(): Unit = {
-    val baseLearner = RegressionTreeLearner(numFeatures = nFeat / 3, minLeafInstances = minInstances)
+    val baseLearner = RegressionTreeLearner(numFeatures = nFeat / 3, minLeafInstances = minInstances, rng = rng)
     val learner = new Bagger(baseLearner, numBags = nRow * nScal)
     val error = computeMetrics(learner)
     assert(error > noiseLevel, s"Can't do better than noise")
@@ -47,18 +100,20 @@ class AccuracyTest {
     val errorStandardTree = {
       val baseLearner = RegressionTreeLearner(
         numFeatures = nFeat,
-        splitter = RegressionSplitter(randomizePivotLocation = true)
+        splitter = RegressionSplitter(randomizePivotLocation = true, rng = rng),
+        rng = rng
       )
-      val learner = new Bagger(baseLearner, numBags = nRow * 16)
+      val learner = new Bagger(baseLearner, numBags = nRow * 16, randBasis = TestUtils.getBreezeRandBasis(rng.nextLong()))
       // println(s"Normal train time: ${Stopwatch.time(computeMetrics(learner))}")
       computeMetrics(learner)
     }
     val errorAnnealingTree = {
       val baseLearner = RegressionTreeLearner(
         numFeatures = nFeat,
-        splitter = BoltzmannSplitter(temperature = Float.MinPositiveValue)
+        splitter = BoltzmannSplitter(temperature = Float.MinPositiveValue, rng = rng),
+        rng = rng
       )
-      val learner = new Bagger(baseLearner, numBags = nRow * 16)
+      val learner = new Bagger(baseLearner, numBags = nRow * 16, randBasis = TestUtils.getBreezeRandBasis(rng.nextLong()))
       // println(s"Annealing train time: ${Stopwatch.time(computeMetrics(learner))}")
       computeMetrics(learner)
     }
@@ -78,7 +133,7 @@ class AccuracyTest {
 object AccuracyTest {
 
   val trainingDataFull: Seq[(Vector[Any], Double)] = TestUtils.binTrainingData(
-    TestUtils.generateTrainingData(2048, 48),
+    TestUtils.generateTrainingData(2048, 48, seed = 283467L),
     inputBins = Seq((2, 32)) // bin the 3rd feature into a categorical
   ).asInstanceOf[Seq[(Vector[Any], Double)]]
 
@@ -102,7 +157,8 @@ object AccuracyTest {
     val baseLearner = RegressionTreeLearner(
       numFeatures = nFeatSub,
       splitter = splitter,
-      minLeafInstances = minInstances
+      minLeafInstances = minInstances,
+      rng = new Random(247895L)
     )
     val learner = new Bagger(baseLearner, numBags = nRow * nScal, biasLearner = None)
     val model = learner.train(trainingData).getModel()

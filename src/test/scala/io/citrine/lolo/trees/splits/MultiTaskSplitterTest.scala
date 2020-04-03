@@ -3,12 +3,15 @@ package io.citrine.lolo.trees.splits
 import io.citrine.lolo.trees.impurity.MultiImpurityCalculator
 import org.junit.Test
 
+import scala.util.Random
+
 
 /**
   * Created by maxhutch on 12/1/16.
   */
 @Test
 class MultiTaskSplitterTest {
+  val rng = new Random(38945L)
 
   /**
     * Test that the real split goes in the right place
@@ -23,7 +26,8 @@ class MultiTaskSplitterTest {
     )
     val calculator = MultiImpurityCalculator.build(data.map(_._2), data.map(_._3))
 
-    val (pivot, impurity) = MultiTaskSplitter.getBestRealSplit(data, calculator, 0, 1)
+    val splitter = MultiTaskSplitter(rng = rng)
+    val (pivot, impurity) = splitter.getBestRealSplit(data, calculator, 0, 1)
     val turns = data.map(x => pivot.turnLeft(x._1))
     assert(turns == Seq(true, false, false, false))
     assert(impurity == 0.5)
@@ -42,7 +46,8 @@ class MultiTaskSplitterTest {
     )
     val calculator = MultiImpurityCalculator.build(data.map(_._2), data.map(_._3))
 
-    val (pivot, impurity) = MultiTaskSplitter.getBestCategoricalSplit(data, calculator, 0, 1)
+    val splitter = MultiTaskSplitter(rng = rng)
+    val (pivot, impurity) = splitter.getBestCategoricalSplit(data, calculator, 0, 1)
     val turns = data.map(x => pivot.turnLeft(x._1)).take(3)
     println(turns)
     assert(turns == Seq(true, false, false))
@@ -63,7 +68,8 @@ class MultiTaskSplitterTest {
     val data = inputs.indices.map { i =>
       (inputs(i), labels(i).asInstanceOf[Array[AnyVal]], weights(i))
     }
-    val (pivot, impurity) = MultiTaskSplitter.getBestSplit(data, data.head._1.size, 1)
+    val splitter = MultiTaskSplitter(rng = rng)
+    val (pivot, impurity) = splitter.getBestSplit(data, data.head._1.size, 1)
     assert(!pivot.isInstanceOf[NoSplit])
   }
 }

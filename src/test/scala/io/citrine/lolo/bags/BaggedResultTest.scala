@@ -11,6 +11,7 @@ import org.scalatest.Assertions._
 import scala.util.Random
 
 class BaggedResultTest {
+  val rng = new Random(278945L)
 
   @Test
   def testSingleMultiConsistency(): Unit = {
@@ -19,8 +20,8 @@ class BaggedResultTest {
       inputBins = Seq((0, 8))
     )
 
-    val DTLearner = RegressionTreeLearner(numFeatures = 12)
-    val biasLearner = RegressionTreeLearner(maxDepth = 5, leafLearner = Some(GuessTheMeanLearner()))
+    val DTLearner = RegressionTreeLearner(numFeatures = 12, rng = rng)
+    val biasLearner = RegressionTreeLearner(maxDepth = 5, leafLearner = Some(GuessTheMeanLearner(rng = rng)))
 
     Array(
       Bagger(DTLearner, numBags = 64, biasLearner = None, uncertaintyCalibration = false, useJackknife = true),
@@ -38,9 +39,8 @@ class BaggedResultTest {
   @Test
   def testBaggedSingleResultGetUncertainty(): Unit = {
     val noiseLevel = 100.0
-    val rng = new Random(237485L)
 
-    Seq(RegressionTreeLearner(), GuessTheMeanLearner()).foreach { baseLearner =>
+    Seq(RegressionTreeLearner(), GuessTheMeanLearner(rng = rng)).foreach { baseLearner =>
       // These are in Seqs as a convenience for repurposing this test as a diagnostic tool.
       Seq(128).foreach { nRows =>
         Seq(16).foreach { nCols =>
@@ -126,7 +126,7 @@ class BaggedResultTest {
     * @param model        The trained model
     */
   private def testConsistency(trainingData: Seq[(Vector[Any], Any)], model: BaggedModel[Any]): Unit = {
-    val testSubset = Random.shuffle(trainingData).take(16)
+    val testSubset = rng.shuffle(trainingData).take(16)
     val (singleValues, singleUncertainties) = testSubset.map { case (x, _) =>
       val res = model.transform(Seq(x))
       (res.getExpected().head.asInstanceOf[Double], res.getUncertainty().get.head.asInstanceOf[Double])
