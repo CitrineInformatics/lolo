@@ -11,7 +11,7 @@ import scala.util.Random
   * calls.
   * Created by maxhutch on 12/7/16.
   */
-class RandomHyperOptimizer() extends HyperOptimizer {
+class RandomHyperOptimizer(rng: Random = Random) extends HyperOptimizer {
 
   /** Keep track of the best hypers outside of the optimize call so it persists across calls */
   var best: Map[String, Any] = Map()
@@ -29,7 +29,7 @@ class RandomHyperOptimizer() extends HyperOptimizer {
     /* Just draw numIteration times */
     (0 until numIterations).foreach { i =>
       val testHypers = hyperGrids.map { case (n, v) =>
-        n -> Random.shuffle(v).head
+        n -> rng.shuffle(v).head
       }
       val testLearner = builder(testHypers)
       val res = testLearner.train(trainingData)

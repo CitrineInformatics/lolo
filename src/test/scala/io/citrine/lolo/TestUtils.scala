@@ -1,6 +1,8 @@
 package io.citrine.lolo
 
+import breeze.stats.distributions.{RandBasis, ThreadLocalRandomGenerator}
 import io.citrine.lolo.stats.functions.Friedman
+import org.apache.commons.math3.random.MersenneTwister
 
 import scala.collection.generic.CanBuildFrom
 import scala.collection.mutable
@@ -96,16 +98,7 @@ object TestUtils {
       }
     }
   }
+
+  def getBreezeRandBasis(seed: Long): RandBasis = new RandBasis(new ThreadLocalRandomGenerator(new MersenneTwister(seed)))
 }
 
-object RandomMethod extends Enumeration {
-  val shuffle = Value("Shuffle")
-  val nextGaussian = Value("nextGaussian")
-  val nextDouble = Value("nextDouble")
-}
-
-object RandomLoggerBehavior extends Enumeration {
-  val LogCall = Value(1)
-  val LogArgs = Value(2)
-  val LogResult = Value(4)
-}

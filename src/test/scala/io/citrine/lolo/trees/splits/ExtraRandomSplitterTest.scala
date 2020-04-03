@@ -74,7 +74,7 @@ class ExtraRandomSplitterTest {
               (x, y, weight)
             }
 
-            // Determine exactly what shuffle() and nextDouble() will return within getBestSplit by resetting to a common rng seed.
+            // Determine exactly what shuffle() and nextDouble() will return within getBestSplit by resetting rng to a common rng seed.
             val sharedSeed = 238745L + repetitionNumber
             rng.setSeed(sharedSeed)
             // This is the set of shuffled indices to return when getBestSplit calls the RNG's shuffle method.
