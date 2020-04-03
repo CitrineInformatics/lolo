@@ -3,6 +3,7 @@ from abc import abstractmethod, ABCMeta
 import numpy as np
 from lolopy.loloserver import get_java_gateway
 from lolopy.utils import send_feature_array, send_1D_array
+import random
 from sklearn.base import BaseEstimator, RegressorMixin, ClassifierMixin, is_regressor
 from sklearn.exceptions import NotFittedError
 
@@ -253,7 +254,7 @@ class RandomForestMixin(BaseLoloLearner):
     def __init__(self, num_trees=-1, use_jackknife=True, bias_learner=None,
                  leaf_learner=None, subset_strategy="auto", min_leaf_instances=1,
                  max_depth=2**30, uncertainty_calibration=False, randomize_pivot_location=False,
-                 randomly_rotate_features=False):
+                 randomly_rotate_features=False, random_seed=None):
         """Initialize the RandomForest
 
         Args:
@@ -273,6 +274,7 @@ class RandomForestMixin(BaseLoloLearner):
             uncertainty_calibration (bool): whether to re-calibrate the predicted uncertainty based on out-of-bag residuals
             randomize_pivot_location (bool): whether to draw pivots randomly or always select the midpoint
             randomly_rotate_features (bool): whether to randomly rotate real features for each tree in the forest
+            random_seed (int): random number generator seed used for nondeterministic functionality
         """
         super(RandomForestMixin, self).__init__()
 
@@ -287,8 +289,11 @@ class RandomForestMixin(BaseLoloLearner):
         self.uncertainty_calibration = uncertainty_calibration
         self.randomize_pivot_location = randomize_pivot_location
         self.randomly_rotate_features = randomly_rotate_features
+        self.random_seed = random_seed
 
     def _make_learner(self):
+        rng = self.gateway.jvm.scala.util.Random() if self.random_seed is None else self.gateway.jvm.scala.util.Random(self.random_seed)
+
         #  TODO: Figure our a more succinct way of dealing with optional arguments/Option values
         #  TODO: that ^^, please
         learner = self.gateway.jvm.io.citrine.lolo.learners.RandomForest(
@@ -304,7 +309,8 @@ class RandomForestMixin(BaseLoloLearner):
             self.max_depth,
             self.uncertainty_calibration,
             self.randomize_pivot_location,
-            self.randomly_rotate_features
+            self.randomly_rotate_features,
+            rng
         )
         return learner
 
@@ -320,7 +326,7 @@ class RandomForestClassifier(BaseLoloClassifier, RandomForestMixin):
 class RegressionTreeLearner(BaseLoloRegressor):
     """Regression tree learner, based on the RandomTree algorithm."""
 
-    def __init__(self, num_features=-1, max_depth=30, min_leaf_instances=1, leaf_learner=None):
+    def __init__(self, num_features=-1, max_depth=30, min_leaf_instances=1, leaf_learner=None, random_seed=None):
         """Initialize the learner
 
         Args:
@@ -334,6 +340,7 @@ class RegressionTreeLearner(BaseLoloRegressor):
         self.max_depth = max_depth
         self.min_leaf_instances = min_leaf_instances
         self.leaf_learner = leaf_learner
+        self.random_seed = random_seed
 
     def _make_learner(self):
         if self.leaf_learner is None:
@@ -351,9 +358,11 @@ class RegressionTreeLearner(BaseLoloRegressor):
             "$lessinit$greater$default$5"
         )()
 
+        rng = self.gateway.jvm.scala.util.Random() if self.random_seed is None else self.gateway.jvm.scala.util.Random(self.random_seed)
+
         return self.gateway.jvm.io.citrine.lolo.trees.regression.RegressionTreeLearner(
             self.num_features, self.max_depth, self.min_leaf_instances,
-            leaf_learner, splitter
+            leaf_learner, splitter, rng
         )
 
 class LinearRegression(BaseLoloRegressor):

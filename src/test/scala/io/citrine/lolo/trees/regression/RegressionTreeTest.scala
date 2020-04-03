@@ -16,6 +16,7 @@ import scala.util.Random
   */
 @Test
 class RegressionTreeTest {
+  val rng = new Random(90476L)
 
   /**
     * Trivial models with no splits should have finite feature importance.
@@ -215,7 +216,7 @@ class RegressionTreeTest {
     val linearLearner = LinearRegressionLearner(regParam = Some(1.0))
     val DTLearner = RegressionTreeLearner(leafLearner = Some(linearLearner), maxDepth = 1)
     val DTMeta = DTLearner.train(trainingData, weights = Some(Seq.fill(trainingData.size) {
-      Random.nextInt(8)
+      rng.nextInt(8)
     }))
     val DT = DTMeta.getModel()
 

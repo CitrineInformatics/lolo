@@ -18,6 +18,7 @@ import scala.util.Random
   */
 @Test
 class MultiTaskBaggerTest {
+  val rng = new Random(37895L)
 
   /**
     * Test that we get a reasonable output on a single regression problem
@@ -31,7 +32,7 @@ class MultiTaskBaggerTest {
     val inputs = trainingData.map(_._1)
     val labels = trainingData.map(_._2)
     val DTLearner = MultiTaskTreeLearner()
-    val baggedLearner = MultiTaskBagger(DTLearner, numBags = trainingData.size)
+    val baggedLearner = MultiTaskBagger(DTLearner, numBags = trainingData.size, randBasis = TestUtils.getBreezeRandBasis(10478L))
     val RFMeta = baggedLearner.train(inputs, Seq(labels)).head
     val RF = RFMeta.getModel()
 
@@ -51,11 +52,10 @@ class MultiTaskBaggerTest {
   @Test
   def testBaggedMultiTaskGetUncertainty(): Unit = {
     val noiseLevel = 100.0
-    val rng = new Random(237485L)
 
     Seq(MultiTaskTreeLearner()).foreach { baseLearner =>
       // These are in Seqs as a convenience for repurposing this test as a diagnostic tool.
-      Seq(128).foreach { nRows =>
+      Seq(64).foreach { nRows =>
         Seq(16).foreach { nCols =>
           Seq(2).map { n => n * nRows }.foreach { nBags =>
             // Used for error output.
@@ -66,7 +66,7 @@ class MultiTaskBaggerTest {
               val trainingData = trainingDataTmp.map { x => (x._1, x._2 + noiseLevel * rng.nextDouble()) }
               val inputs = trainingData.map(_._1)
               val labels = trainingData.map(_._2)
-              val baggedLearner = MultiTaskBagger(baseLearner, numBags = nBags, uncertaintyCalibration = true)
+              val baggedLearner = MultiTaskBagger(baseLearner, numBags = nBags, uncertaintyCalibration = true, randBasis = TestUtils.getBreezeRandBasis(7835178L))
               val RFMeta = baggedLearner.train(inputs, Seq(labels)).head
               val RF = RFMeta.getModel()
               val results = RF.transform(trainingData.take(4).map(_._1))
@@ -144,7 +144,7 @@ class MultiTaskBaggerTest {
     val inputs = trainingData.map(_._1)
     val labels = trainingData.map(_._2)
     val DTLearner = MultiTaskTreeLearner()
-    val baggedLearner = MultiTaskBagger(DTLearner, numBags = trainingData.size)
+    val baggedLearner = MultiTaskBagger(DTLearner, numBags = trainingData.size, randBasis = TestUtils.getBreezeRandBasis(478L))
     val RFMeta = baggedLearner.train(inputs, Seq(labels)).head
     val RF = RFMeta.getModel()
 
@@ -176,7 +176,7 @@ class MultiTaskBaggerTest {
     val realLabel: Seq[Double] = raw.map(_._2)
     val catLabel: Seq[Boolean] = raw.map(_._2 > realLabel.max / 2.0)
     val DTLearner = MultiTaskTreeLearner()
-    val baggedLearner = MultiTaskBagger(DTLearner, numBags = inputs.size, biasLearner = Some(new RegressionTreeLearner(maxDepth = 2)))
+    val baggedLearner = MultiTaskBagger(DTLearner, numBags = inputs.size, biasLearner = Some(new RegressionTreeLearner(maxDepth = 2)), randBasis = TestUtils.getBreezeRandBasis(78495L))
     val RFMeta = baggedLearner.train(inputs, Seq(realLabel, catLabel)).last
     val RF = RFMeta.getModel()
 
@@ -196,14 +196,14 @@ class MultiTaskBaggerTest {
     val realLabel: Seq[Double] = raw.map(_._2)
     val catLabel: Seq[Boolean] = raw.map(_._2 > realLabel.max / 2.0)
     val sparseCat = catLabel.map(x =>
-      if (Random.nextDouble() > 0.125) {
+      if (rng.nextDouble() > 0.125) {
         null
       } else {
         x
       }
     )
     val sparseReal = realLabel.map(x =>
-      if (Random.nextDouble() > 0.5) {
+      if (rng.nextDouble() > 0.5) {
         Double.NaN
       } else {
         x
@@ -211,7 +211,7 @@ class MultiTaskBaggerTest {
     )
 
     val DTLearner = MultiTaskTreeLearner()
-    val baggedLearner = MultiTaskBagger(DTLearner, numBags = inputs.size, biasLearner = Some(new GuessTheMeanLearner))
+    val baggedLearner = MultiTaskBagger(DTLearner, numBags = inputs.size, biasLearner = Some(GuessTheMeanLearner(rng = rng)), randBasis = TestUtils.getBreezeRandBasis(7839L))
     val trainingResult = baggedLearner.train(inputs, Seq(sparseReal, sparseCat))
     val RFMeta = trainingResult.last
     val RF = RFMeta.getModel()

@@ -21,10 +21,10 @@ object Linear {
     * @param magnitude of the gradient (default: 1)
     * @return linear function with specified gradient magnitude in a random direction
     */
-  def randomDirection(nDim: Int, magnitude: Double = 1.0): Linear = {
+  def randomDirection(nDim: Int, magnitude: Double = 1.0, rng: Random = Random): Linear = {
     val gradient = {
       // Draw guassian so the direction is random rather than preferring corners
-      val unnormalized = Seq.fill(nDim){Random.nextGaussian()}
+      val unnormalized = Seq.fill(nDim){rng.nextGaussian()}
       val norm = Math.sqrt(unnormalized.map(Math.pow(_, 2)).sum)
       unnormalized.map(x => x * magnitude / norm)
     }

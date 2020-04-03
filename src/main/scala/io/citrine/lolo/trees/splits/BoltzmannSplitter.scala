@@ -30,7 +30,7 @@ import scala.util.Random
   * @param temperature used to control how sensitive the probability of a split is to its change in variance.
   *                    The temperature can be thought of as a hyperparameter.
   */
-case class BoltzmannSplitter(temperature: Double) extends Splitter[Double] {
+case class BoltzmannSplitter(temperature: Double, rng: Random = Random) extends Splitter[Double] {
   require(temperature >= Float.MinPositiveValue, s"Temperature must be >= ${Float.MinPositiveValue} to avoid numerical underflows")
 
   /**
@@ -58,11 +58,11 @@ case class BoltzmannSplitter(temperature: Double) extends Splitter[Double] {
     /* Try every feature index */
     val featureIndices: Seq[Int] = rep._1.indices
 
-    val possibleSplits: Seq[SplitterResult] = Random.shuffle(featureIndices).take(numFeatures).flatMap { index =>
+    val possibleSplits: Seq[SplitterResult] = rng.shuffle(featureIndices).take(numFeatures).flatMap { index =>
       /* Use different spliters for each type */
       rep._1(index) match {
-        case _: Double => BoltzmannSplitter.getBestRealSplit(data, calculator, index, minInstances, beta)
-        case _: Char => BoltzmannSplitter.getBestCategoricalSplit(data, calculator, index, minInstances, beta)
+        case _: Double => BoltzmannSplitter.getBestRealSplit(data, calculator, index, minInstances, beta, rng)
+        case _: Char => BoltzmannSplitter.getBestCategoricalSplit(data, calculator, index, minInstances, beta, rng)
         case _: Any => throw new IllegalArgumentException("Trying to split unknown feature type")
       }
     }
@@ -79,7 +79,7 @@ case class BoltzmannSplitter(temperature: Double) extends Splitter[Double] {
 
     // select from a discrete probability distribution by drawing a random number and then computing the CDF
     // where the "draw" is the bin for which the CDF crosses the drawn number
-    val draw = Random.nextDouble() * totalProbability
+    val draw = rng.nextDouble() * totalProbability
     // could be a scanLeft + find, but this is more readable
     var cumSum: Double = 0.0
     possibleSplits.foreach { case SplitterResult(split, variance, score, base) =>
@@ -125,7 +125,8 @@ object BoltzmannSplitter {
                         calculator: VarianceCalculator,
                         index: Int,
                         minCount: Int,
-                        beta: Double
+                        beta: Double,
+                        rng: Random
                       ): Option[SplitterResult] = {
     /* Pull out the feature that's considered here and sort by it */
     val thinData = data.map(dat => (dat._1(index).asInstanceOf[Double], dat._2, dat._3)).sortBy(_._1)
@@ -144,7 +145,7 @@ object BoltzmannSplitter {
       val right = thinData(j)._1
       if (j + 1 >= minCount && Splitter.isDifferent(left, right)) {
         val score = -totalVariance * beta
-        val pivot = (left - right) * Random.nextDouble() + right
+        val pivot = (left - right) * rng.nextDouble() + right
         Some(score, pivot, totalVariance)
       } else {
         None
@@ -157,7 +158,7 @@ object BoltzmannSplitter {
 
     val base: Double = possibleSplits.map(_._1).max
     val totalScore = possibleSplits.map { case (s, _, _) => Math.exp(s - base) }.sum
-    val draw = Random.nextDouble() * totalScore
+    val draw = rng.nextDouble() * totalScore
     var cumSum: Double = 0.0
     possibleSplits.foreach { case (score, pivot, variance) =>
       cumSum = cumSum + Math.exp(score - base)
@@ -184,7 +185,8 @@ object BoltzmannSplitter {
                                calculator: VarianceCalculator,
                                index: Int,
                                minCount: Int,
-                               beta: Double
+                               beta: Double,
+                               rng: Random
                              ): Option[SplitterResult] = {
     /* Extract the features at the index */
     val thinData = data.map(dat => (dat._1(index).asInstanceOf[Char], dat._2, dat._3))
@@ -230,7 +232,7 @@ object BoltzmannSplitter {
 
     val base: Double = possibleSplits.map(_._1).max
     val totalScore = possibleSplits.map { case (s, _, _) => Math.exp(s - base) }.sum
-    val draw = Random.nextDouble() * totalScore
+    val draw = rng.nextDouble() * totalScore
     var cumSum: Double = 0.0
     possibleSplits.foreach { case (score, includeSet, variance) =>
       cumSum = cumSum + Math.exp(score - base)
