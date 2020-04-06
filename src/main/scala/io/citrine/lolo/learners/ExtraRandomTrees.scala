@@ -1,10 +1,14 @@
 package io.citrine.lolo.learners
 
+import breeze.stats.distributions.{RandBasis, ThreadLocalRandomGenerator}
 import io.citrine.lolo.bags.Bagger
 import io.citrine.lolo.transformers.FeatureRotator
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
 import io.citrine.lolo.trees.splits.ExtraRandomSplitter
 import io.citrine.lolo.{Learner, TrainingResult}
+import org.apache.commons.math3.random.MersenneTwister
+
+import scala.util.Random
 
 /**
   * Extremely randomized tree ensemble
@@ -21,7 +25,6 @@ import io.citrine.lolo.{Learner, TrainingResult}
   * @param minLeafInstances minimum number of instances per leave in each tree
   * @param maxDepth       maximum depth of each tree in the forest (default: unlimited)
   * @param uncertaintyCalibration whether to empirically recalibrate the predicted uncertainties (default: false)
-  * @param randomizePivotLocation whether generate splits randomly between the data points (default: false)
   * @param randomlyRotateFeatures whether to randomly rotate real features for each tree in the forest (default: false)
   */
 case class ExtraRandomTrees(
@@ -33,8 +36,8 @@ case class ExtraRandomTrees(
                              minLeafInstances: Int = 1,
                              maxDepth: Int = Integer.MAX_VALUE,
                              uncertaintyCalibration: Boolean = false,
-                             randomizePivotLocation: Boolean = false,
-                             randomlyRotateFeatures: Boolean = false
+                             randomlyRotateFeatures: Boolean = false,
+                             rng: Random = Random
                            ) extends Learner {
     /**
     * Train an extremely randomized tree ensemble model
@@ -44,37 +47,77 @@ case class ExtraRandomTrees(
     * @return training result containing a model
     */
   override def train(trainingData: Seq[(Vector[Any], Any)], weights: Option[Seq[Double]]): TrainingResult = {
+    val breezeRandBasis: RandBasis = new RandBasis(new MersenneTwister(rng.nextLong()))
+
     trainingData.head._2 match {
       case _: Double =>
-        val numFeatures: Int = subsetStrategy match {
-          case x: String =>
-            x match {
-              case "auto" => trainingData.head._1.size
-              case "sqrt" => Math.ceil(Math.sqrt(trainingData.head._1.size)).toInt
-              case "log2" => Math.ceil(Math.log(trainingData.head._1.size) / Math.log(2)).toInt
+        trainingData.head._2 match {
+          case _: Double =>
+            val numFeatures: Int = subsetStrategy match {
               case x: String =>
-                println(s"Unrecognized subsetStrategy ${x}; using auto")
-                trainingData.head._1.size
+                x match {
+                  case "auto" => trainingData.head._1.size
+                  case "sqrt" => Math.ceil(Math.sqrt(trainingData.head._1.size)).toInt
+                  case "log2" => Math.ceil(Math.log(trainingData.head._1.size) / Math.log(2)).toInt
+                  case x: String =>
+                    println(s"Unrecognized subsetStrategy ${x}; using auto")
+                    trainingData.head._1.size
+                }
+              case x: Int =>
+                x
+              case x: Double =>
+                (trainingData.head._1.size * x).toInt
             }
-          case x: Int =>
-            x
-          case x: Double =>
-            (trainingData.head._1.size * x).toInt
+            val DTLearner = RegressionTreeLearner(
+              leafLearner = leafLearner,
+              numFeatures = numFeatures,
+              minLeafInstances = minLeafInstances,
+              maxDepth = maxDepth,
+              splitter = ExtraRandomSplitter(rng)
+            )
+            val bagger = Bagger(if (randomlyRotateFeatures) FeatureRotator(DTLearner) else DTLearner,
+              numBags = numTrees,
+              useJackknife = useJackknife,
+              biasLearner = biasLearner,
+              uncertaintyCalibration = uncertaintyCalibration,
+              randBasis = breezeRandBasis
+            )
+            bagger.train(trainingData, weights)
         }
-        val DTLearner = RegressionTreeLearner(
-          leafLearner = leafLearner,
-          numFeatures = numFeatures,
-          minLeafInstances = minLeafInstances,
-          maxDepth = maxDepth,
-          splitter = ExtraRandomSplitter()
-        )
-        val bagger = Bagger(if (randomlyRotateFeatures) FeatureRotator(DTLearner) else DTLearner,
-          numBags = numTrees,
-          useJackknife = useJackknife,
-          biasLearner = biasLearner,
-          uncertaintyCalibration = uncertaintyCalibration
-        )
-        bagger.train(trainingData, weights)
+      case _: Any =>
+        trainingData.head._2 match {
+          case _: Double =>
+            val numFeatures: Int = subsetStrategy match {
+              case x: String =>
+                x match {
+                  case "auto" => Math.ceil(Math.sqrt(trainingData.head._1.size)).toInt
+                  case "sqrt" => Math.ceil(Math.sqrt(trainingData.head._1.size)).toInt
+                  case "log2" => Math.ceil(Math.log(trainingData.head._1.size) / Math.log(2)).toInt
+                  case x: String =>
+                    println(s"Unrecognized subsetStrategy ${x}; using auto")
+                    trainingData.head._1.size
+                }
+              case x: Int =>
+                x
+              case x: Double =>
+                (trainingData.head._1.size * x).toInt
+            }
+            val DTLearner = RegressionTreeLearner(
+              leafLearner = leafLearner,
+              numFeatures = numFeatures,
+              minLeafInstances = minLeafInstances,
+              maxDepth = maxDepth,
+              splitter = ExtraRandomSplitter(rng)
+            )
+            val bagger = Bagger(if (randomlyRotateFeatures) FeatureRotator(DTLearner) else DTLearner,
+              numBags = numTrees,
+              useJackknife = useJackknife,
+              biasLearner = biasLearner,
+              uncertaintyCalibration = uncertaintyCalibration,
+              randBasis = breezeRandBasis
+            )
+            bagger.train(trainingData, weights)
+        }
     }
   }
 }

@@ -7,7 +7,7 @@ import random
 from sklearn.base import BaseEstimator, RegressorMixin, ClassifierMixin, is_regressor
 from sklearn.exceptions import NotFittedError
 
-__all__ = ['RandomForestRegressor', 'RandomForestClassifier', 'ExtraRandomTreesRegressor']
+__all__ = ['RandomForestRegressor', 'RandomForestClassifier', 'ExtraRandomTreesRegressor', 'ExtraRandomTreesClassifier']
 
 
 class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
@@ -292,7 +292,7 @@ class RandomForestMixin(BaseLoloLearner):
         self.random_seed = random_seed
 
     def _make_learner(self):
-        rng = self.gateway.jvm.scala.util.Random() if self.random_seed is None else self.gateway.jvm.scala.util.Random(self.random_seed)
+        rng = self.gateway.jvm.scala.util.Random(self.random_seed) if self.random_seed else self.gateway.jvm.scala.util.Random()
 
         #  TODO: Figure our a more succinct way of dealing with optional arguments/Option values
         #  TODO: that ^^, please
@@ -331,8 +331,8 @@ class ExtraRandomTreesMixIn(BaseLoloLearner):
 
     def __init__(self, num_trees=-1, use_jackknife=True, bias_learner=None,
                  leaf_learner=None, subset_strategy="auto", min_leaf_instances=1,
-                 max_depth=2**30, uncertainty_calibration=False, randomize_pivot_location=False,
-                 randomly_rotate_features=False):
+                 max_depth=2**30, uncertainty_calibration=False,
+                 randomly_rotate_features=False, random_seed=None):
         """Initialize the ExtraRandomTrees ensemble
 
         Args:
@@ -357,6 +357,7 @@ class ExtraRandomTreesMixIn(BaseLoloLearner):
 
         # Store the variables
         self.num_trees = num_trees
+
         self.use_jackknife = use_jackknife
         self.bias_learner = bias_learner
         self.leaf_learner = leaf_learner
@@ -364,12 +365,15 @@ class ExtraRandomTreesMixIn(BaseLoloLearner):
         self.min_leaf_instances = min_leaf_instances
         self.max_depth = max_depth
         self.uncertainty_calibration = uncertainty_calibration
-        self.randomize_pivot_location = randomize_pivot_location
         self.randomly_rotate_features = randomly_rotate_features
+        self.random_seed = random_seed
 
     def _make_learner(self):
         #  TODO: Figure our a more succinct way of dealing with optional arguments/Option values
         #  TODO: that ^^, please
+
+        rng = self.gateway.jvm.scala.util.Random(self.random_seed) if self.random_seed else self.gateway.jvm.scala.util.Random()
+
         learner = self.gateway.jvm.io.citrine.lolo.learners.ExtraRandomTrees(
             self.num_trees, self.use_jackknife,
             getattr(self.gateway.jvm.io.citrine.lolo.learners.ExtraRandomTrees,
@@ -382,13 +386,17 @@ class ExtraRandomTreesMixIn(BaseLoloLearner):
             self.min_leaf_instances,
             self.max_depth,
             self.uncertainty_calibration,
-            self.randomize_pivot_location,
-            self.randomly_rotate_features
+            self.randomly_rotate_features,
+            rng
         )
         return learner
 
 
 class ExtraRandomTreesRegressor(BaseLoloRegressor, RandomForestMixin):
+    """Random Forest model used for regression"""
+
+
+class ExtraRandomTreesClassifier(BaseLoloClassifier, RandomForestMixin):
     """Random Forest model used for regression"""
 
 

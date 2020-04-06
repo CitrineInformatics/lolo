@@ -1,4 +1,11 @@
-from lolopy.learners import RandomForestRegressor, RandomForestClassifier, RegressionTreeLearner, LinearRegression, ExtraRandomTreesRegressor
+from lolopy.learners import (
+    RandomForestRegressor,
+    RandomForestClassifier,
+    RegressionTreeLearner,
+    LinearRegression,
+    ExtraRandomTreesRegressor,
+    ExtraRandomTreesClassifier
+)
 from sklearn.exceptions import NotFittedError
 from sklearn.metrics import r2_score, accuracy_score, log_loss
 from sklearn.datasets import load_boston, load_iris
@@ -25,7 +32,7 @@ def _make_linear_data():
 class TestRF(TestCase):
 
     def test_rf_regressor(self):
-        rf = RandomForestRegressor()
+        rf = RandomForestRegressor(random_seed = 31247895)
 
         # Train the model
         X, y = load_boston(True)
@@ -67,9 +74,8 @@ class TestRF(TestCase):
         rf.clear_model()
         self.assertIsNone(rf.model_)
 
-
     def test_classifier(self):
-        rf = RandomForestClassifier()
+        rf = RandomForestClassifier(random_seed = 34789)
 
         # Load in the iris dataset
         X, y = load_iris(True)
@@ -89,10 +95,10 @@ class TestRF(TestCase):
         self.assertEqual(len(X), len(y_pred))
         acc = accuracy_score(y, y_pred)
         print('Accuracy:', acc)
-        self.assertAlmostEqual(acc, 1)  # Given default settings, we should get perfect fittness to training data
+        self.assertAlmostEqual(acc, 1)  # Given default settings, we should get perfect fitness to training data
 
     def test_serialization(self):
-        rf = RandomForestClassifier()
+        rf = RandomForestClassifier(random_seed = 234785)
 
         # Make sure this doesn't error without a model training
         data = pkl.dumps(rf)
@@ -173,18 +179,19 @@ class TestRF(TestCase):
         self.assertAlmostEqual(1.0, r2_score(y, tree.predict(X)))  # Linear leaves means perfect fit
 
         # Test whether changing leaf learner does something
-        rf = RandomForestRegressor(leaf_learner=LinearRegression(), min_leaf_instances=16)
+        rf = RandomForestRegressor(leaf_learner=LinearRegression(), min_leaf_instances=16, random_seed = 23478)
         rf.fit(X[:16, :], y[:16])  # Train only on a subset
         self.assertAlmostEqual(1.0, r2_score(y, rf.predict(X)))  # Should fit perfectly on whole dataset
 
-        rf = RandomForestRegressor()
+        rf = RandomForestRegressor(random_seed = 7834)
         rf.fit(X[:16, :], y[:16])
         self.assertLess(r2_score(y, rf.predict(X)), 1.0)  # Should not fit the whole dataset perfectly
+
 
 class TestExtraRandomTrees(TestCase):
 
     def test_extra_random_trees_regressor(self):
-        rf = ExtraRandomTreesRegressor()
+        rf = ExtraRandomTreesRegressor(random_seed = 378456)
 
         # Train the model
         X, y = load_boston(True)
@@ -204,9 +211,9 @@ class TestExtraRandomTrees(TestCase):
         y_import = rf.get_importance_scores(X[:100, :])
         self.assertEqual((100, len(X)), y_import.shape)
 
-        # Basic test for functionality. R^2 above 0.98 was measured on 27Dec18
+        # Basic test for functionality. R^2 above 0.98 was measured on 2020-04-06
         score = r2_score(y_pred, y)
-        print('R^2:', score)
+        print("R2: ", score)
         self.assertGreater(score, 0.98)
 
         # Test with weights (make sure it doesn't crash)
@@ -225,6 +232,49 @@ class TestExtraRandomTrees(TestCase):
         # Make sure the detach operation functions
         rf.clear_model()
         self.assertIsNone(rf.model_)
+
+    def test_extra_random_trees_classifier(self):
+        rf = ExtraRandomTreesClassifier(random_seed = 378456)
+
+        # Load in the iris dataset
+        X, y = load_iris(True)
+        rf.fit(X, y)
+
+        # Predict the probability of membership in each class
+        y_prob = rf.predict_proba(X)
+        self.assertEqual((len(X), 3), np.shape(y_prob))
+        self.assertAlmostEqual(len(X), np.sum(y_prob))
+        ll_score = log_loss(y, y_prob)
+        print('Log loss:', ll_score)
+        self.assertLess(ll_score, 0.03)  # Measured at 0.026 on 2020-04-06
+
+        # Test just getting the predicted class
+        y_pred = rf.predict(X)
+        self.assertTrue(np.isclose(np.argmax(y_prob, 1), y_pred).all())
+        self.assertEqual(len(X), len(y_pred))
+        acc = accuracy_score(y, y_pred)
+        print('Accuracy:', acc)
+        self.assertAlmostEqual(acc, 1)  # Given default settings, we should get perfect fitness to training data
+
+    def test_serialization(self):
+        rf = ExtraRandomTreesClassifier(random_seed = 378945)
+
+        # Make sure this doesn't error without a model training
+        data = pkl.dumps(rf)
+        rf2 = pkl.loads(data)
+
+        # Load in the iris dataset and train model
+        X, y = load_iris(True)
+        rf.fit(X, y)
+
+        # Try saving and loading the model
+        data = pkl.dumps(rf)
+        rf2 = pkl.loads(data)
+
+        # Make sure it yields the same predictions as the first model
+        probs1 = rf.predict_proba(X)
+        probs2 = rf2.predict_proba(X)
+        self.assertTrue(np.isclose(probs1, probs2).all())
 
 
 if __name__ == "__main__":
