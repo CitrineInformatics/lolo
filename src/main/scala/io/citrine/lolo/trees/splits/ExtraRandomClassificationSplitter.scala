@@ -1,6 +1,6 @@
 package io.citrine.lolo.trees.splits
 
-import io.citrine.lolo.trees.impurity.VarianceCalculator
+import io.citrine.lolo.trees.impurity.{GiniCalculator, ImpurityCalculator}
 
 import scala.util.Random
 
@@ -12,9 +12,9 @@ import scala.util.Random
   *
   * @param rng random number generator
   */
-case class ExtraRandomSplitter(
-                               rng: Random = Random
-                              ) extends Splitter[Double] {
+case class ExtraRandomClassificationSplitter(
+                                              rng: Random = Random
+                                            ) extends Splitter[Char] {
 
   /**
     * Get the best split, considering numFeature random features (w/o replacement)
@@ -24,12 +24,12 @@ case class ExtraRandomSplitter(
     * @return a split object that optimally divides data
     */
   def getBestSplit(
-                    data: Seq[(Vector[AnyVal], Double, Double)],
+                    data: Seq[(Vector[AnyVal], Char, Double)],
                     numFeatures: Int,
                     minInstances: Int
                   ): (Split, Double) = {
 
-    val calculator = VarianceCalculator.build(data.map(_._2), data.map(_._3))
+    val calculator = GiniCalculator.build(data.map{ p => (p._2, p._3) })
     val initialVariance = calculator.getImpurity
     var bestSplit: Split = new NoSplit()
     var bestVariance = Double.MaxValue
@@ -69,8 +69,8 @@ case class ExtraRandomSplitter(
     * @return the best split of this feature
     */
   def getBestRealSplit(
-                        data: Seq[(Vector[AnyVal], Double, Double)],
-                        calculator: VarianceCalculator,
+                        data: Seq[(Vector[AnyVal], Char, Double)],
+                        calculator: ImpurityCalculator[Char],
                         index: Int,
                         minCount: Int
                       ): (RealSplit, Double) = {
@@ -101,8 +101,8 @@ case class ExtraRandomSplitter(
     * @return the best split of this feature
     */
   def getBestCategoricalSplit(
-                               data: Seq[(Vector[AnyVal], Double, Double)],
-                               calculator: VarianceCalculator,
+                               data: Seq[(Vector[AnyVal], Char, Double)],
+                               calculator: ImpurityCalculator[Char],
                                index: Int,
                                minCount: Int
                              ): (Split, Double) = {

@@ -5,7 +5,7 @@ import org.junit.Test
 
 import scala.util.Random
 
-class ExtraRandomSplitterTest {
+class ExtraRandomRegressionSplitterTest {
 
   /**
     * Test that uniform labels result in "NoSplit" with zero reduced impurity
@@ -13,7 +13,7 @@ class ExtraRandomSplitterTest {
   @Test
   def testZeroVariance(): Unit = {
     val rng = new Random(278345L)
-    val splitter = ExtraRandomSplitter(rng)
+    val splitter = ExtraRandomRegressionSplitter(rng)
     val testData = Seq.fill(64){
       val x = rng.nextDouble()
       val y = 1.0
@@ -35,7 +35,7 @@ class ExtraRandomSplitterTest {
   @Test
   def testLowVariance(): Unit = {
     val rng = new Random(278345L)
-    val splitter = ExtraRandomSplitter(rng)
+    val splitter = ExtraRandomRegressionSplitter(rng)
     val testData = Seq.fill(256){
       val x = rng.nextDouble()
       val y = rng.nextGaussian() * 1.0e-9 + 1.0
@@ -108,7 +108,7 @@ class ExtraRandomSplitterTest {
 
             // Instantiate the splitter to test, passing in the random number generator that is reset to its former state used above.
             rng.setSeed(sharedSeed)
-            val splitter = ExtraRandomSplitter(rng)
+            val splitter = ExtraRandomRegressionSplitter(rng)
             // Ask the splitter what it chose as a split.
             val bestSplit = splitter.getBestSplit(trainingData, numFeaturesToConsider, 1)
 
