@@ -26,7 +26,9 @@ import scala.util.Random
   * @param minLeafInstances minimum number of instances per leave in each tree
   * @param maxDepth       maximum depth of each tree in the forest (default: unlimited)
   * @param uncertaintyCalibration whether to empirically recalibrate the predicted uncertainties (default: false)
+  * @param disableBootstrap whether to disable bootstrap (default: true)
   * @param randomlyRotateFeatures whether to randomly rotate real features for each tree in the forest (default: false)
+  * @param rng            random number generator to use
   */
 case class ExtraRandomTrees(
                              numTrees: Int = -1,
@@ -37,6 +39,7 @@ case class ExtraRandomTrees(
                              minLeafInstances: Int = 1,
                              maxDepth: Int = Integer.MAX_VALUE,
                              uncertaintyCalibration: Boolean = false,
+                             disableBootstrap: Boolean = true,
                              randomlyRotateFeatures: Boolean = false,
                              rng: Random = Random
                            ) extends Learner {
@@ -79,6 +82,7 @@ case class ExtraRandomTrees(
           useJackknife = useJackknife,
           biasLearner = biasLearner,
           uncertaintyCalibration = uncertaintyCalibration,
+          disableBootstrap = disableBootstrap,
           randBasis = breezeRandBasis
         )
         bagger.train(trainingData, weights)
@@ -111,6 +115,7 @@ case class ExtraRandomTrees(
           useJackknife = useJackknife,
           biasLearner = biasLearner,
           uncertaintyCalibration = uncertaintyCalibration,
+          disableBootstrap = disableBootstrap,
           randBasis = breezeRandBasis
         )
         bagger.train(trainingData, weights)

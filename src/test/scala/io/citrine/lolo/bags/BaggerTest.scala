@@ -283,13 +283,23 @@ class BaggerTest {
       uncertaintyCalibration = true, randBasis = TestUtils.getBreezeRandBasis(rng.nextLong()))
       .train(trainingData)
       .getModel()
+
+    try {
+      val _: BaggedModel[Any] = Bagger(DTLearner, numBags = 16, useJackknife = true,
+        uncertaintyCalibration = true, disableBootstrap = true, randBasis = TestUtils.getBreezeRandBasis(rng.nextLong()))
+        .train(trainingData)
+        .getModel()
+      fail("Setting both uncertaintyCalibration and disableBootstrap should throw an exception.")
+    } catch {
+      case _: Throwable =>
+    }
   }
 
   /**
     * Test that the uncertainty is always positive (and non-zero)
     *
     * This happens randomly, so let's repeat a test many times to make sure we catch it.  On my machine, this fails
-    * in the first couple thousand times and takes runs for 13 seconds once its resolved, so I don't think
+    * in the first couple thousand times and takes runs for 13 seconds once it's resolved, so I don't think
     * that's too much overhead.
     */
   @Test

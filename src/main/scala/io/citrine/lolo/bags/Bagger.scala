@@ -20,6 +20,7 @@ import scala.reflect._
   * @param biasLearner learner to use for estimating bias
   * @param uncertaintyCalibration whether to enable empirical uncertainty calibration
   * @param disableBootstrap whether to disable bootstrap (useful when `method` implements its own randomization)
+  * @param randBasis breeze RandBasis to use for generating breeze random numbers
   * */
 case class Bagger(
                    method: Learner,
@@ -30,6 +31,9 @@ case class Bagger(
                    disableBootstrap: Boolean = false,
                    randBasis: RandBasis = Rand
                  ) extends Learner {
+  require(
+    !(uncertaintyCalibration && disableBootstrap),
+    "Options uncertaintyCalibration and disableBootstrap are incompatible. At most one may be set true.")
 
   /**
     * Draw with replacement from the training data for each model
@@ -256,9 +260,9 @@ class BaggedModel[+T: ClassTag](
       // In the special case of a single prediction on a real value, emit an optimized BaggedSingleResult
       BaggedSingleResult(ensemblePredictions.map(_.asInstanceOf[PredictionResult[Double]]), Nib, bias.map(_.head), rescale)
     } else if (isRegression) {
-      new BaggedMultiResult(ensemblePredictions.map(_.asInstanceOf[PredictionResult[Double]]), Nib, bias, rescale)
+      BaggedMultiResult(ensemblePredictions.map(_.asInstanceOf[PredictionResult[Double]]), Nib, bias, rescale)
     } else {
-      new BaggedClassificationResult(ensemblePredictions)
+      BaggedClassificationResult(ensemblePredictions)
     }
 
     res.asInstanceOf[BaggedResult[T]]
