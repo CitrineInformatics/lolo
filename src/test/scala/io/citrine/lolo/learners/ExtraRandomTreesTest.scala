@@ -70,7 +70,7 @@ class ExtraRandomTreesTest {
 
     Seq(true, false).foreach { randomlyRotateFeatures =>
       Seq(true, false).foreach { disableBootstrap =>
-        Seq(1, 3).foreach { minLeafInstances =>
+        Seq(1, 2).foreach { minLeafInstances =>
           rng.setSeed(238834L)
 
           val RFMeta = ExtraRandomTrees(numTrees = trainingData.size * 4, randomlyRotateFeatures = randomlyRotateFeatures,
