@@ -8,6 +8,7 @@ import io.citrine.lolo.{Learner, Model, PredictionResult, RegressionResult, Trai
 import scala.collection.parallel.ExecutionContextTaskSupport
 import scala.collection.parallel.immutable.ParSeq
 import scala.reflect._
+import _root_.io.citrine.lolo.validation.CrossValidation
 
 /**
   * A bagger creates an ensemble of models by training the learner on random samples of the training data
@@ -123,7 +124,7 @@ case class Bagger(
         Async.canStop()
         val model = new BaggedModel(oobModels, Nib.filter {
           _ (idx) == 0
-        }, useJackknife)
+        }, useJackknife, disableBootstrap = disableBootstrap)
         val predicted = model.transform(Seq(trainingData(idx)._1))
         val error = predicted.getExpected().head - trainingData(idx)._2.asInstanceOf[Double]
         val uncertainty = predicted match {
@@ -152,9 +153,9 @@ case class Bagger(
     if (biasLearner.isEmpty || oobErrors.isEmpty) {
       Async.canStop()
       if (isRegression) {
-        new BaggedTrainingResult(models.asInstanceOf[ParSeq[Model[PredictionResult[Double]]]], averageImportance, Nib, trainingData, useJackknife, None, ratio)
+        new BaggedTrainingResult(models.asInstanceOf[ParSeq[Model[PredictionResult[Double]]]], averageImportance, Nib, trainingData, useJackknife, None, ratio, disableBootstrap)
       } else {
-        new BaggedTrainingResult(models, averageImportance, Nib, trainingData, useJackknife, None, ratio)
+        new BaggedTrainingResult(models, averageImportance, Nib, trainingData, useJackknife, None, ratio, disableBootstrap)
       }
     } else {
       val biasTraining = oobErrors.map { case (f, e, u) =>
@@ -168,9 +169,9 @@ case class Bagger(
       Async.canStop()
 
       if (isRegression) {
-        new BaggedTrainingResult[Double](models.asInstanceOf[ParSeq[Model[PredictionResult[Double]]]], averageImportance, Nib, trainingData, useJackknife, Some(biasModel), ratio)
+        new BaggedTrainingResult[Double](models.asInstanceOf[ParSeq[Model[PredictionResult[Double]]]], averageImportance, Nib, trainingData, useJackknife, Some(biasModel), ratio, disableBootstrap)
       } else {
-        new BaggedTrainingResult[Any](models, averageImportance, Nib, trainingData, useJackknife, None, ratio)
+        new BaggedTrainingResult[Any](models, averageImportance, Nib, trainingData, useJackknife, None, ratio, disableBootstrap)
       }
     }
   }
@@ -183,15 +184,21 @@ class BaggedTrainingResult[+T : ClassTag](
                             trainingData: Seq[(Vector[Any], Any)],
                             useJackknife: Boolean,
                             biasModel: Option[Model[PredictionResult[T]]] = None,
-                            rescale: Double = 1.0
+                            rescale: Double = 1.0,
+                            disableBootstrap: Boolean = false
                           )
   extends TrainingResult {
 
   lazy val NibT = Nib.transpose
-  lazy val model = new BaggedModel[T](models, Nib, useJackknife, biasModel, rescale)
+  lazy val model = new BaggedModel[T](models, Nib, useJackknife, biasModel, rescale, disableBootstrap)
   lazy val rep = trainingData.find(_._2 != null).get._2
   lazy val predictedVsActual = trainingData.zip(NibT).flatMap { case ((f, l), nb) =>
-    val oob = models.zip(nb).filter(_._2 == 0)
+    val oob = if (disableBootstrap) {
+      models.zip(nb)
+    } else {
+      models.zip(nb).filter(_._2 == 0)
+    }
+
     if (oob.isEmpty || l == null || (l.isInstanceOf[Double] && l.asInstanceOf[Double].isNaN)) {
       Seq()
     } else {
@@ -221,7 +228,13 @@ class BaggedTrainingResult[+T : ClassTag](
 
   override def getPredictedVsActual(): Option[Seq[(Vector[Any], Any, Any)]] = Some(predictedVsActual)
 
-  override def getLoss(): Option[Double] = Some(loss)
+  override def getLoss(): Option[Double] = {
+    if (predictedVsActual.nonEmpty) {
+      Some(loss)
+    } else {
+      None
+    }
+  }
 }
 
 /**
@@ -235,7 +248,8 @@ class BaggedModel[+T: ClassTag](
                    Nib: Vector[Vector[Int]],
                    useJackknife: Boolean,
                    biasModel: Option[Model[PredictionResult[T]]] = None,
-                   rescale: Double = 1.0
+                   rescale: Double = 1.0,
+                   disableBootstrap: Boolean = false
                  ) extends Model[BaggedResult[T]] {
 
 
@@ -258,9 +272,9 @@ class BaggedModel[+T: ClassTag](
 
     val res = if (inputs.size == 1 && isRegression) {
       // In the special case of a single prediction on a real value, emit an optimized BaggedSingleResult
-      BaggedSingleResult(ensemblePredictions.map(_.asInstanceOf[PredictionResult[Double]]), Nib, bias.map(_.head), rescale)
+      BaggedSingleResult(ensemblePredictions.map(_.asInstanceOf[PredictionResult[Double]]), Nib, bias.map(_.head), rescale, disableBootstrap)
     } else if (isRegression) {
-      BaggedMultiResult(ensemblePredictions.map(_.asInstanceOf[PredictionResult[Double]]), Nib, bias, rescale)
+      BaggedMultiResult(ensemblePredictions.map(_.asInstanceOf[PredictionResult[Double]]), Nib, bias, rescale, disableBootstrap)
     } else {
       BaggedClassificationResult(ensemblePredictions)
     }

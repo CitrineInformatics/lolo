@@ -18,7 +18,7 @@ class ExtraRandomTreesTest {
   def testRegression(): Unit = {
     rng.setSeed(982534L)
     val trainingData = TestUtils.binTrainingData(
-      TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, seed = rng.nextLong()),
+      TestUtils.generateTrainingData(256, 5, noise = 0.1, function = Friedman.friedmanSilverman, seed = rng.nextLong()),
       inputBins = Seq((0, 8))
     )
 
@@ -27,12 +27,16 @@ class ExtraRandomTreesTest {
         .train(trainingData)
       val RF = RFMeta.getModel()
 
-      assert(RFMeta.getLoss().get < 1.0, "Loss of bagger is larger than expected")
+      val loss = RFMeta.getLoss().get
+      assert(0 <= loss && loss < 1e-8, "Expected zero loss.")
 
       val results = RF.transform(trainingData.map(_._1))
       // val means = results.getExpected()
-      val sigma: Seq[Double] = results.getUncertainty().get.asInstanceOf[Seq[Double]]
+      val sigma: Seq[Double] = results.getUncertainty(observational = false).get.asInstanceOf[Seq[Double]]
       assert(sigma.forall(_ >= 0.0))
+
+      assert(results.getUncertainty(observational = true).isEmpty,
+        "Observational uncertainty should be empty, since jackknife is disabled.")
 
       assert(results.getGradient().isEmpty, "Returned a gradient when there shouldn't be one")
 
@@ -51,7 +55,7 @@ class ExtraRandomTreesTest {
   def testClassification(): Unit = {
     rng.setSeed(25723478834L)
 
-    val nTrain = 256
+    val nTrain = 64
     val nTest = nTrain
     val nBins = 8
     val trainingData = TestUtils.binTrainingData(
@@ -69,8 +73,9 @@ class ExtraRandomTreesTest {
         Seq(1, 3).foreach { minLeafInstances =>
           rng.setSeed(238834L)
 
-          val RFMeta = ExtraRandomTrees(numTrees = trainingData.size * 4, randomlyRotateFeatures = randomlyRotateFeatures, disableBootstrap = disableBootstrap, rng = rng, minLeafInstances = minLeafInstances)
-            .train(trainingData)
+          val RFMeta = ExtraRandomTrees(numTrees = trainingData.size * 4, randomlyRotateFeatures = randomlyRotateFeatures,
+            disableBootstrap = disableBootstrap, rng = rng, minLeafInstances = minLeafInstances
+          ).train(trainingData)
           val RF = RFMeta.getModel()
 
           /* Inspect the results on the training set */

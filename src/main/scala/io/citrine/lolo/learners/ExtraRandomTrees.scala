@@ -32,7 +32,7 @@ import scala.util.Random
   */
 case class ExtraRandomTrees(
                              numTrees: Int = -1,
-                             useJackknife: Boolean = true,
+                             useJackknife: Boolean = false,
                              biasLearner: Option[Learner] = None,
                              leafLearner: Option[Learner] = None,
                              subsetStrategy: Any = "auto",

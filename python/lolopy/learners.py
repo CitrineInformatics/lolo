@@ -329,15 +329,15 @@ class ExtraRandomTreesMixIn(BaseLoloLearner):
     Implements the _make_learner operation and the __init__ function with options specific to the ExtraRandomTrees
     class in Lolo"""
 
-    def __init__(self, num_trees=-1, use_jackknife=True, bias_learner=None,
+    def __init__(self, num_trees=-1, use_jackknife=False, bias_learner=None,
                  leaf_learner=None, subset_strategy="auto", min_leaf_instances=1,
-                 max_depth=2**30, uncertainty_calibration=False,
+                 max_depth=2**30, uncertainty_calibration=False, disable_bootstrap=True,
                  randomly_rotate_features=False, random_seed=None):
         """Initialize the ExtraRandomTrees ensemble
 
         Args:
             num_trees (int): Number of trees to use in the forest (default of -1 sets the number of trees to the number of training rows)
-            use_jackknife (bool): Whether to use jackknife based variance estimates
+            use_jackknife (bool): Whether to use jackknife based variance estimates (default: False)
             bias_learner (BaseLoloLearner): Algorithm used to model bias (default: no model)
             leaf_learner (BaseLoloLearner): Learner used at each leaf of the random forest (default: GuessTheMean)
             subset_strategy (Union[string,int,float]): Strategy used to determine number of features used at each split
@@ -386,6 +386,7 @@ class ExtraRandomTreesMixIn(BaseLoloLearner):
             self.min_leaf_instances,
             self.max_depth,
             self.uncertainty_calibration,
+            self.disable_bootstrap,
             self.randomly_rotate_features,
             rng
         )
