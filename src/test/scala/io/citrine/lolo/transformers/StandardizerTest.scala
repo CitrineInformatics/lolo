@@ -15,9 +15,10 @@ import scala.util.Random
   */
 @Test
 class StandardizerTest {
+  val rng = new Random(823478686L)
 
   val data: Vector[(Vector[Double], Double)] = TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman)
-  val weights: Vector[Double] = Vector.fill(data.size)(if (Random.nextBoolean()) Random.nextDouble() else 0.0)
+  val weights: Vector[Double] = Vector.fill(data.size)(if (rng.nextBoolean()) rng.nextDouble() else 0.0)
 
   // Creating another dataset which has 1 feature that has 0 variance.
   val dataWithConstant: Vector[(Vector[Double], Double)] = data.map(d => (0.0 +: d._1, d._2))
@@ -53,11 +54,11 @@ class StandardizerTest {
     */
   @Test
   def testStandardGTM(): Unit = {
-    val learner = GuessTheMeanLearner()
+    val learner = GuessTheMeanLearner(rng = rng)
     val model = learner.train(data).getModel()
     val result = model.transform(data.map(_._1)).getExpected()
 
-    val standardLearner = Standardizer(GuessTheMeanLearner())
+    val standardLearner = Standardizer(GuessTheMeanLearner(rng = rng))
     val standardModel = standardLearner.train(data).getModel()
     val standardResult = standardModel.transform(data.map(_._1)).getExpected()
 
@@ -177,7 +178,7 @@ class StandardizerTest {
     val catLabel = inputs.map(x => Friedman.friedmanGrosseSilverman(x) > 15.0)
 
     // Sparsify the categorical labels
-    val sparseCatLabel = catLabel.map(x => if (Random.nextBoolean()) x else null)
+    val sparseCatLabel = catLabel.map(x => if (rng.nextBoolean()) x else null)
 
     // Screw up the scale of the double labels
     val scale = 10000.0

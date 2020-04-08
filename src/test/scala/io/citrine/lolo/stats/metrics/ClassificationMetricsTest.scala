@@ -9,6 +9,7 @@ import scala.util.Random
   */
 @Test
 class ClassificationMetricsTest {
+  val rng = new Random(9230L)
 
   /**
     * Test that the metric works on a sparse confusion matrix
@@ -17,7 +18,7 @@ class ClassificationMetricsTest {
     val N = 512
     /* Make random predictions */
     val pva = Seq.tabulate(N) { i =>
-      (Vector(0.0), Random.nextInt(N).toString, Random.nextInt(N).toString)
+      (Vector(0.0), rng.nextInt(N).toString, rng.nextInt(N).toString)
     }
     val loss = ClassificationMetrics.f1scores(pva)
     /* The loss should be in (0.0, 1.0) */

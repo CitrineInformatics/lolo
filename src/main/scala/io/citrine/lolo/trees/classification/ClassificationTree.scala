@@ -6,6 +6,8 @@ import io.citrine.lolo.trees.splits.{ClassificationSplitter, NoSplit, Splitter}
 import io.citrine.lolo.trees.{ModelNode, TrainingLeaf, TrainingNode, TreeMeta}
 import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
 
+import scala.util.Random
+
 
 /**
   * Created by maxhutch on 12/2/16.
@@ -21,10 +23,11 @@ case class ClassificationTreeLearner(
                                       maxDepth: Int = 30,
                                       minLeafInstances: Int = 1,
                                       leafLearner: Option[Learner] = None,
-                                      splitter: Splitter[Char] = ClassificationSplitter()
+                                      splitter: Splitter[Char] = ClassificationSplitter(),
+                                      rng: Random = Random
                                     ) extends Learner {
 
-  @transient private lazy val myLeafLearner: Learner = leafLearner.getOrElse(new GuessTheMeanLearner)
+  @transient private lazy val myLeafLearner: Learner = leafLearner.getOrElse(GuessTheMeanLearner(rng = rng))
 
   /**
     * Train classification tree

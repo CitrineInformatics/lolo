@@ -18,11 +18,13 @@ import scala.util.Random
 @Test
 class FeatureRotatorTest {
 
+  val rng = new Random(1297843L)
+
   val data: Seq[(Vector[Any], Any)] = TestUtils.binTrainingData(
     TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman),
     inputBins = Seq((0, 8))
   )
-  val weights: Vector[Double] = Vector.fill(data.size)(if (Random.nextBoolean()) Random.nextDouble() else 0.0)
+  val weights: Vector[Double] = Vector.fill(data.size)(if (rng.nextBoolean()) rng.nextDouble() else 0.0)
 
   @Test
   def testRandomRotation(): Unit = {
@@ -106,11 +108,11 @@ class FeatureRotatorTest {
     */
   @Test
   def testRotatedGTM(): Unit = {
-    val learner = GuessTheMeanLearner()
+    val learner = GuessTheMeanLearner(rng = rng)
     val model = learner.train(data).getModel()
     val result = model.transform(data.map(_._1)).getExpected()
 
-    val rotatedLearner = FeatureRotator(GuessTheMeanLearner())
+    val rotatedLearner = FeatureRotator(GuessTheMeanLearner(rng = rng))
     val rotatedModel = rotatedLearner.train(data).getModel()
     val rotatedResult = rotatedModel.transform(data.map(_._1)).getExpected()
 
@@ -245,7 +247,7 @@ class FeatureRotatorTest {
     val catLabel = inputs.map(x => Friedman.friedmanGrosseSilverman(x) > 15.0)
 
     // Sparsify the categorical labels
-    val sparseCatLabel = catLabel.map(x => if (Random.nextBoolean()) x else null)
+    val sparseCatLabel = catLabel.map(x => if (rng.nextBoolean()) x else null)
 
     // Train and evaluate rotated models on original and rotated features
     val baseLearner = new MultiTaskTreeLearner()

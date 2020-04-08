@@ -8,7 +8,7 @@ import scala.util.Random
   *
   * Created by maxhutch on 11/29/16.
   */
-object MultiTaskSplitter {
+case class MultiTaskSplitter(rng: Random = Random) {
 
   /**
     * Get the best split, considering numFeature random features (w/o replacement)
@@ -33,7 +33,7 @@ object MultiTaskSplitter {
 
     /* Try every feature index */
     val featureIndices: Seq[Int] = rep._1.indices
-    Random.shuffle(featureIndices).take(numFeatures).foreach { index =>
+    rng.shuffle(featureIndices).take(numFeatures).foreach { index =>
 
       /* Use different spliters for each type */
       val (possibleSplit, possibleImpurity) = rep._1(index) match {
@@ -82,7 +82,7 @@ object MultiTaskSplitter {
         val left = features(j + 1)
         val right = features(j)
         val pivot = if (randomizePivotLocation) {
-          (left - right) * Random.nextDouble() + right
+          (left - right) * rng.nextDouble() + right
         } else {
           (left + right) / 2.0
         }

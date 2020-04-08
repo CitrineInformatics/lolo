@@ -2,10 +2,10 @@ package io.citrine.lolo.bags
 
 import breeze.linalg.DenseVector
 import breeze.numerics.abs
-import breeze.stats.distributions.Poisson
+import breeze.stats.distributions.{Poisson, Rand, RandBasis}
 import io.citrine.lolo.stats.metrics.ClassificationMetrics
 import io.citrine.lolo.util.{Async, InterruptibleExecutionContext}
-import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
+import io.citrine.lolo.{Learner, Model, PredictionResult, RegressionResult, TrainingResult}
 
 import scala.collection.parallel.ExecutionContextTaskSupport
 import scala.collection.parallel.immutable.ParSeq
@@ -24,7 +24,8 @@ case class Bagger(
                    numBags: Int = -1,
                    useJackknife: Boolean = true,
                    biasLearner: Option[Learner] = None,
-                   uncertaintyCalibration: Boolean = false
+                   uncertaintyCalibration: Boolean = false,
+                   randBasis: RandBasis = Rand
                  ) extends Learner {
 
   /**
@@ -68,7 +69,7 @@ case class Bagger(
     )
 
     /* Compute the number of instances of each training row in each training sample */
-    val dist = new Poisson(1.0)
+    val dist = new Poisson(1.0)(randBasis)
     val Nib: Vector[Vector[Int]] = Iterator.continually{
       // Generate Poisson distributed weights, filtering out any that don't have the minimum required number
       // of non-zero training weights
@@ -114,7 +115,10 @@ case class Bagger(
         }, useJackknife)
         val predicted = model.transform(Seq(trainingData(idx)._1))
         val error = predicted.getExpected().head - trainingData(idx)._2.asInstanceOf[Double]
-        val uncertainty = predicted.getUncertainty().get.head.asInstanceOf[Double]
+        val uncertainty = predicted match {
+          case x: RegressionResult => x.getStdDevObs.get.head
+          case _: Any => throw new UnsupportedOperationException("Computing oobErrors for classification is not supported.")
+        }
         Some(trainingData(idx)._1, error, uncertainty)
       }
     }

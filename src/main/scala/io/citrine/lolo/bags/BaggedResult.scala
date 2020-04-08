@@ -57,25 +57,31 @@ case class BaggedSingleResult(
   override def getExpected(): Seq[Double] = Seq(expected)
 
   private lazy val expected = treePredictions.sum / treePredictions.length
-  private lazy val treeVariance: Double = treePredictions.map(x => Math.pow(x - expected, 2.0)).sum / treePredictions.length
+  private lazy val treeVariance: Double = {
+    assert(treePredictions.length > 1, "Bootstrap variance undefined for fewer than 2 bootstrap samples.")
+    treePredictions.map(x => Math.pow(x - expected, 2.0)).sum / (treePredictions.length - 1)
+  }
 
-  override def getStdDevObs(): Option[Seq[Double]] = Some(Seq(treeVariance))
+  override def getStdDevMean(): Option[Seq[Double]] = Some(Seq(stdDevMean))
 
-  override def getStdDevMean(): Option[Seq[Double]] = Some(Seq(scalarUncertainty))
+  override def getStdDevObs(): Option[Seq[Double]] = Some(Seq(stdDevObs))
 
   /**
    * For the sake of parity, we were using this method
    */
   override def getUncertainty(observational: Boolean): Option[Seq[Any]] = {
-    getStdDevMean()
+    if (observational) {
+      getStdDevObs()
+    } else {
+      getStdDevMean()
+    }
   }
 
-  private lazy val scalarUncertainty: Double = {
-    // make sure the variance is non-negative after the stochastic correction
-    val rectified = BaggedResult.rectifyEstimatedVariance(singleScores)
-    Math.sqrt(rectified * Math.pow(rescale, 2.0) + Math.pow(bias.getOrElse(0.0), 2.0))
-  } ensuring(_ >= 0.0)
+  private lazy val stdDevMean: Double = Math.sqrt(BaggedResult.rectifyEstimatedVariance(singleScores))
 
+  private lazy val stdDevObs: Double = {
+    rescale * Math.sqrt(treeVariance)
+  } ensuring(_ >= 0.0)
 
   /**
     * The importances are computed as an average of bias-corrected jackknife-after-bootstrap
@@ -86,8 +92,9 @@ case class BaggedSingleResult(
   override def getImportanceScores(): Option[Seq[Seq[Double]]] = Some(Seq(singleScores))
 
   private lazy val singleScores: Vector[Double] = {
-    // Compute the variance of the ensemble of predicted values and divide by the size of the ensemble an extra time
-    val varT = treeVariance / treePredictions.length
+    // Compute the Bessel-uncorrected variance of the ensemble of predicted values,
+    // and then divide by the size of the ensemble an extra time
+    val varT = treeVariance * (treePredictions.length - 1.0) / (treePredictions.length * treePredictions.length)
 
     // This will be more convenient later
     val nMat = NibIn.transpose
@@ -177,19 +184,19 @@ case class BaggedMultiResult(
     */
   override def getExpected(): Seq[Double] = expected
 
-  override def getStdDevObs(): Option[Seq[Double]] = Some{
-    expectedMatrix.asInstanceOf[Seq[Seq[Double]]].zip(expected.asInstanceOf[Seq[Double]]).map{case (b, y) =>
-      b.map{x => Math.pow(x - y, 2.0)}.sum / b.size
-    }
-  }
+  override def getStdDevObs(): Option[Seq[Double]] = Some(varObs.map{v => Math.sqrt(v)})
 
-  override def getStdDevMean(): Option[Seq[Double]] = Some(uncertainty)
+  override def getStdDevMean(): Option[Seq[Double]] = Some(stdDevMean)
 
   /**
    * For the sake of parity, we were using this method
    */
   override def getUncertainty(observational: Boolean): Option[Seq[Any]] = {
-    getStdDevMean()
+    if (observational) {
+      getStdDevObs()
+    } else {
+      getStdDevMean()
+    }
   }
 
   /**
@@ -236,11 +243,13 @@ case class BaggedMultiResult(
     }.toArray
   )
 
-  /* Compute the uncertainties one prediction at a time */
-  lazy val uncertainty: Seq[Double] = {
-    val sigma2: Seq[Double] = variance(expected.asInstanceOf[Seq[Double]].toVector, expectedMatrix, NibJMat, NibIJMat)
-    val rescale2 = rescale * rescale
-    sigma2.zip(bias.getOrElse(Seq.fill(expected.size)(0.0))).map { case (variance, b) => Math.sqrt(b * b + variance * rescale2) }
+  /* This represents the variance of the estimate of the mean. */
+  lazy val stdDevMean: Seq[Double] = variance(expected.asInstanceOf[Seq[Double]].toVector, expectedMatrix, NibJMat, NibIJMat).map{Math.sqrt}
+
+  /* This estimates the variance of predictive distribution. */
+  lazy val varObs: Seq[Double] = expectedMatrix.asInstanceOf[Seq[Seq[Double]]].zip(expected.asInstanceOf[Seq[Double]]).map { case (b, y) =>
+    assert(Nib.size > 1, "Bootstrap variance undefined for fewer than 2 bootstrap samples.")
+    b.map { x => rescale * rescale * Math.pow(x - y, 2.0) }.sum / (b.size - 1)
   }
 
   /* Compute the scores one prediction at a time */

@@ -7,7 +7,7 @@ import scala.util.Random
 /**
   * Methods that draw data from a distribution and compute predicted-vs-actual data
   */
-object StatisticalValidation {
+case class StatisticalValidation(rng: Random = Random) {
 
   /**
     * Generate predicted-vs-actual data given a source of ground truth data and a learner
@@ -69,7 +69,7 @@ object StatisticalValidation {
                                nRound: Int
                              ): Iterator[(PredictionResult[T], Seq[T])] = {
     Iterator.tabulate(nRound) { _ =>
-      val subset = Random.shuffle(source).take(nTrain + nTest)
+      val subset = rng.shuffle(source).take(nTrain + nTest)
       val (trainingData: Seq[(Vector[Any], T)], testData: Seq[(Vector[Any], T)]) = subset.splitAt(nTrain)
       val model = learner.train(trainingData).getModel()
       val predictions: PredictionResult[T] = model.transform(testData.map(_._1)).asInstanceOf[PredictionResult[T]]
