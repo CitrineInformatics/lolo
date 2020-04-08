@@ -4,6 +4,8 @@ import breeze.stats.distributions.{RandBasis, ThreadLocalRandomGenerator}
 import io.citrine.lolo.stats.functions.Friedman
 import org.apache.commons.math3.random.MersenneTwister
 
+import scala.collection.generic.CanBuildFrom
+import scala.collection.mutable
 import scala.util.{Random, Try}
 
 /**
@@ -79,6 +81,24 @@ object TestUtils {
     outputData
   }
 
-  def getBreezeRandBasis(seed: Long): RandBasis = new RandBasis(new ThreadLocalRandomGenerator(new MersenneTwister(seed)))
+  /**
+    * Enumerate the cartesian product of items in baseGrids.
+    *
+    * @param baseGrids a sequence of 1-d mesh specifications, one for each dimension of the output vectors
+    * @return a sequence of vectors enumerating the cartesian product of items in baseGrids
+    */
+  def enumerateGrid(baseGrids: Seq[Seq[Double]]): Seq[Vector[Double]] = {
+    if (baseGrids.length == 1) {
+      baseGrids.head.map { x => Vector(x) }
+    } else {
+      baseGrids.head.flatMap { x =>
+        enumerateGrid(baseGrids.takeRight(baseGrids.length - 1)).map { n =>
+          x +: n
+        }
+      }
+    }
+  }
 
+  def getBreezeRandBasis(seed: Long): RandBasis = new RandBasis(new ThreadLocalRandomGenerator(new MersenneTwister(seed)))
 }
+

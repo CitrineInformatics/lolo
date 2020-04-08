@@ -7,7 +7,7 @@ import random
 from sklearn.base import BaseEstimator, RegressorMixin, ClassifierMixin, is_regressor
 from sklearn.exceptions import NotFittedError
 
-__all__ = ['RandomForestRegressor', 'RandomForestClassifier']
+__all__ = ['RandomForestRegressor', 'RandomForestClassifier', 'ExtraRandomTreesRegressor', 'ExtraRandomTreesClassifier']
 
 
 class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
@@ -258,7 +258,7 @@ class RandomForestMixin(BaseLoloLearner):
         """Initialize the RandomForest
 
         Args:
-            num_trees (int): Number of trees to use in the forest
+            num_trees (int): Number of trees to use in the forest (default of -1 sets the number of trees to the number of training rows)
             use_jackknife (bool): Whether to use jackknife based variance estimates
             bias_learner (BaseLoloLearner): Algorithm used to model bias (default: no model)
             leaf_learner (BaseLoloLearner): Learner used at each leaf of the random forest (default: GuessTheMean)
@@ -292,7 +292,7 @@ class RandomForestMixin(BaseLoloLearner):
         self.random_seed = random_seed
 
     def _make_learner(self):
-        rng = self.gateway.jvm.scala.util.Random() if self.random_seed is None else self.gateway.jvm.scala.util.Random(self.random_seed)
+        rng = self.gateway.jvm.scala.util.Random(self.random_seed) if self.random_seed else self.gateway.jvm.scala.util.Random()
 
         #  TODO: Figure our a more succinct way of dealing with optional arguments/Option values
         #  TODO: that ^^, please
@@ -321,6 +321,85 @@ class RandomForestRegressor(BaseLoloRegressor, RandomForestMixin):
 
 class RandomForestClassifier(BaseLoloClassifier, RandomForestMixin):
     """Random Forest model used for classification"""
+
+
+class ExtraRandomTreesMixIn(BaseLoloLearner):
+    """Extra Random Trees base class
+
+    Implements the _make_learner operation and the __init__ function with options specific to the ExtraRandomTrees
+    class in Lolo"""
+
+    def __init__(self, num_trees=-1, use_jackknife=False, bias_learner=None,
+                 leaf_learner=None, subset_strategy="auto", min_leaf_instances=1,
+                 max_depth=2**30, uncertainty_calibration=False, disable_bootstrap=True,
+                 randomly_rotate_features=False, random_seed=None):
+        """Initialize the ExtraRandomTrees ensemble
+
+        Args:
+            num_trees (int): Number of trees to use in the forest (default of -1 sets the number of trees to the number of training rows)
+            use_jackknife (bool): Whether to use jackknife based variance estimates (default: False)
+            bias_learner (BaseLoloLearner): Algorithm used to model bias (default: no model)
+            leaf_learner (BaseLoloLearner): Learner used at each leaf of the random forest (default: GuessTheMean)
+            subset_strategy (Union[string,int,float]): Strategy used to determine number of features used at each split
+                Available options:
+                    "auto": Use the default for lolo (all features for regression; classification not supported)
+                    "log2": Use the base 2 log of the number of features
+                    "sqrt": Use the square root of the number of features
+                    integer: Set the number of features explicitly
+                    float: Use a certain fraction of the features
+            min_leaf_instances (int): Minimum number of features used at each leaf
+            max_depth (int): Maximum depth to which to allow the decision trees to grow
+            uncertainty_calibration (bool): whether to re-calibrate the predicted uncertainty based on out-of-bag residuals
+            randomize_pivot_location (bool): whether to draw pivots randomly or always select the midpoint
+            disable_bootstrap (bool): whether to disable bootstrapping (default: true)
+            randomly_rotate_features (bool): whether to randomly rotate real features for each tree in the forest
+        """
+        super(ExtraRandomTreesMixIn, self).__init__()
+
+        # Store the variables
+        self.num_trees = num_trees
+
+        self.use_jackknife = use_jackknife
+        self.bias_learner = bias_learner
+        self.leaf_learner = leaf_learner
+        self.subset_strategy = subset_strategy
+        self.min_leaf_instances = min_leaf_instances
+        self.max_depth = max_depth
+        self.uncertainty_calibration = uncertainty_calibration
+        self.randomly_rotate_features = randomly_rotate_features
+        self.random_seed = random_seed
+
+    def _make_learner(self):
+        #  TODO: Figure our a more succinct way of dealing with optional arguments/Option values
+        #  TODO: that ^^, please
+
+        rng = self.gateway.jvm.scala.util.Random(self.random_seed) if self.random_seed else self.gateway.jvm.scala.util.Random()
+
+        learner = self.gateway.jvm.io.citrine.lolo.learners.ExtraRandomTrees(
+            self.num_trees, self.use_jackknife,
+            getattr(self.gateway.jvm.io.citrine.lolo.learners.ExtraRandomTrees,
+                    "$lessinit$greater$default$3")() if self.bias_learner is None
+            else self.gateway.jvm.scala.Some(self.bias_learner._make_learner()),
+            getattr(self.gateway.jvm.io.citrine.lolo.learners.ExtraRandomTrees,
+                    "$lessinit$greater$default$4")() if self.leaf_learner is None
+            else self.gateway.jvm.scala.Some(self.leaf_learner._make_learner()),
+            self.subset_strategy,
+            self.min_leaf_instances,
+            self.max_depth,
+            self.uncertainty_calibration,
+            self.disable_bootstrap,
+            self.randomly_rotate_features,
+            rng
+        )
+        return learner
+
+
+class ExtraRandomTreesRegressor(BaseLoloRegressor, RandomForestMixin):
+    """Random Forest model used for regression"""
+
+
+class ExtraRandomTreesClassifier(BaseLoloClassifier, RandomForestMixin):
+    """Random Forest model used for regression"""
 
 
 class RegressionTreeLearner(BaseLoloRegressor):
