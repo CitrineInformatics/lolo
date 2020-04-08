@@ -351,6 +351,7 @@ class ExtraRandomTreesMixIn(BaseLoloLearner):
             max_depth (int): Maximum depth to which to allow the decision trees to grow
             uncertainty_calibration (bool): whether to re-calibrate the predicted uncertainty based on out-of-bag residuals
             randomize_pivot_location (bool): whether to draw pivots randomly or always select the midpoint
+            disable_bootstrap (bool): whether to disable bootstrapping (default: true)
             randomly_rotate_features (bool): whether to randomly rotate real features for each tree in the forest
         """
         super(ExtraRandomTreesMixIn, self).__init__()

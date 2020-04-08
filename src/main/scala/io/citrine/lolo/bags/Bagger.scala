@@ -8,7 +8,6 @@ import io.citrine.lolo.{Learner, Model, PredictionResult, RegressionResult, Trai
 import scala.collection.parallel.ExecutionContextTaskSupport
 import scala.collection.parallel.immutable.ParSeq
 import scala.reflect._
-import _root_.io.citrine.lolo.validation.CrossValidation
 
 /**
   * A bagger creates an ensemble of models by training the learner on random samples of the training data
