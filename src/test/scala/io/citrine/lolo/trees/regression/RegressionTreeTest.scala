@@ -321,7 +321,7 @@ class RegressionTreeTest {
       (Vector(0.0, 1.0, 0.0, 0.0, 0.0), 4.0),
       (Vector(0.0, 0.0, 1.0, 0.0, 0.0), 8.0),
       (Vector(0.0, 0.0, 0.0, 1.0, 0.0), 16.0),
-      (Vector(0.0, 0.0, 0.0, 0.0, 1.0), 32.0),
+      (Vector(0.0, 0.0, 0.0, 0.0, 1.0), 32.0)
     )
     val expected4 = Vector(0.0333333333333333, 0.2, 0.8666666666666667, 3.533333333333333, 16.866666666666667)
     shapleyCompare(trainingData4, Vector.fill[Any](5)(1.0), expected4)
