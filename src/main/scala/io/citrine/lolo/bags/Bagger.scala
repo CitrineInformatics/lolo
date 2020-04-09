@@ -225,26 +225,6 @@ class BaggedTrainingResult[+T : ClassTag](
     */
   override def getFeatureImportance(): Option[Vector[Double]] = featureImportance
 
-  /**
-    * Get mean absolute Shapley values across training data
-    *
-    * @return vector of mean absolute Shapley values
-    *         One DenseVector[Double] per feature, each of length equal to the output dimension.
-    */
-  override def getShapleyAggregate(): Option[Vector[DenseVector[Double]]] = {
-    val shaps = trainingData.map{d=>model.shapley(d._1)}
-    if (!shaps.head.isDefined) {
-      None
-    }
-    assert(shaps.forall(x=>x.isDefined))
-    def sumReducer(a: Option[Vector[DenseVector[Double]]],
-                   b: Option[Vector[DenseVector[Double]]]): Option[Vector[DenseVector[Double]]] = {
-      (a ++ b).reduceOption[Vector[DenseVector[Double]]]{case (x,y) => x.zip(y).map{case (v1,v2) => (abs(v1) + abs(v2))}}
-    }
-    val scale = 1.0/shaps.length
-    shaps.reduce(sumReducer).map{x=>x.map{y=>scale*y}.toVector}
-  }
-
   override def getModel(): BaggedModel[Any] = model
 
   override def getPredictedVsActual(): Option[Seq[(Vector[Any], Any, Any)]] = Some(predictedVsActual)
@@ -272,7 +252,6 @@ class BaggedModel[+T: ClassTag](
                    rescale: Double = 1.0,
                    disableBootstrap: Boolean = false
                  ) extends Model[BaggedResult[T]] {
-
 
   /**
     * Apply each model to the outputs and wrap them up
@@ -307,12 +286,13 @@ class BaggedModel[+T: ClassTag](
     * Compute Shapley feature attributions for a given input
     *
     * @param input for which to compute feature attributions.
+    * @param omitFeatures feature indices to omit in computing Shapley values
     * @return array of Shapley feature attributions, one per input feature, each a vector of
     *         One DenseVector[Double] per feature, each of length equal to the output dimension.
     *         The output dimension is 1 for single-task regression, or equal to the number of classification categories.
     */
-  override def shapley(input: Vector[Any]): Option[Vector[DenseVector[Double]]] = {
-    val ensembleShapley = models.map(model => model.shapley(input))
+  override def shapley(input: Vector[Any], omitFeatures: Set[Int] = Set()): Option[Vector[DenseVector[Double]]] = {
+    val ensembleShapley = models.map(model => model.shapley(input, omitFeatures))
     if (!ensembleShapley.head.isDefined) {
       None
     }

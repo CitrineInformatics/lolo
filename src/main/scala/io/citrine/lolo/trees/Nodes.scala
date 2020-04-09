@@ -40,7 +40,7 @@ abstract class TrainingNode[T <: AnyVal, S](
     * @return vector of mean absolute Shapley values
     *         One DenseVector[Double] per feature, each of length equal to the output dimension.
     */
-  def getShapley(): Option[Vector[DenseVector[Double]]] = None
+  def getShapley(omitFeatures: Set[Int] = Set()): Option[Vector[DenseVector[Double]]] = None
 }
 
 trait ModelNode[T <: PredictionResult[Any]] extends Serializable {
@@ -53,7 +53,7 @@ trait ModelNode[T <: PredictionResult[Any]] extends Serializable {
     * @return array of vector-valued attributions for each feature
     *         One DenseVector[Double] per feature, each of length equal to the output dimension.
     */
-  def shapley(input: Vector[AnyVal]): Option[Vector[DenseVector[Double]]]
+  def shapley(input: Vector[AnyVal], omitFeatures: Set[Int] = Set()): Option[Vector[DenseVector[Double]]]
 
   /**
     * Get the Shapley feature attribution from a subtree
@@ -68,6 +68,7 @@ trait ModelNode[T <: PredictionResult[Any]] extends Serializable {
     */
   private[lolo] def shapleyRecurse(
                       input: Vector[AnyVal],
+                      omitFeatures: Set[Int] = Set(),
                       parentPath: FeaturePath,
                       parentZeroFraction: Double,
                       parentOneFraction: Double,
@@ -124,9 +125,9 @@ class InternalModelNode[T <: PredictionResult[Any]](
     * @return array of Shapley feature attributions, one per input feature.
     *         One DenseVector[Double] per feature, each of length equal to the output dimension.
     */
-  override def shapley(input: Vector[AnyVal]): Option[Vector[DenseVector[Double]]] = {
-    val importances = Array.fill[DenseVector[Double]](numFeatures)(elem=DenseVector.zeros[Double](outputDimension))
-    shapleyRecurse(input, new FeaturePath(input.length), 1.0, 1.0, -1, importances)
+  override def shapley(input: Vector[AnyVal], omitFeatures: Set[Int] = Set()): Option[Vector[DenseVector[Double]]] = {
+    val importances = Array.fill[DenseVector[Double]](input.length)(elem=DenseVector.zeros[Double](outputDimension))
+    shapleyRecurse(input, omitFeatures, new FeaturePath(input.length), 1.0, 1.0, -1, importances)
     Some(importances.toVector)
   }
 
@@ -143,40 +144,54 @@ class InternalModelNode[T <: PredictionResult[Any]](
     */
   def shapleyRecurse(
                       input: Vector[AnyVal],
+                      omitFeatures: Set[Int],
                       parentPath: FeaturePath,
                       parentZeroFraction: Double,
                       parentOneFraction: Double,
                       parentFeatureIndex: Int,
                       importances: Array[DenseVector[Double]]
                     ): Unit = {
-    var path = parentPath.copy().extend(parentZeroFraction, parentOneFraction, parentFeatureIndex)
-
     val (hot, cold) = if (this.split.turnLeft(input)) {
       (left,right)
     } else {
       (right,left)
     }
-    var incomingZeroFraction = 1.0
-    var incomingOneFraction = 1.0
 
-    val k = path.path.take(path.length + 1).indexWhere{x => x.featureIndex == split.getIndex() && x.featureIndex > -1}
-    if (k > 0) {
-      incomingZeroFraction = path.path(k).zeroFraction
-      incomingOneFraction = path.path(k).oneFraction
-      path = path.unwind(k)
-    }
-    var x = hot match {
-      case node: ModelNode[T] => node.shapleyRecurse(
-        input, path, incomingZeroFraction*node.getTrainingWeight()/trainingWeight, incomingOneFraction, split.getIndex(), importances)
-      case leaf: ModelLeaf[T] => leaf.shapleyRecurse(
-        input, path, incomingZeroFraction*leaf.getTrainingWeight()/trainingWeight, incomingOneFraction, split.getIndex(), importances)
-      case _ => None
-    }
-    x = cold match {
-      case node: ModelNode[T] => node.shapleyRecurse(
-        input, path, incomingZeroFraction*node.getTrainingWeight()/trainingWeight, 0.0, split.getIndex(), importances)
-      case leaf: ModelLeaf[T] => leaf.shapleyRecurse(
-        input, path, incomingZeroFraction*leaf.getTrainingWeight()/trainingWeight, 0.0, split.getIndex(), importances)
+    if (omitFeatures.contains(parentFeatureIndex)) {
+      hot match {
+        case _: ModelNode[T] | _: ModelLeaf[T] => hot.shapleyRecurse(
+          input, omitFeatures, parentPath, parentZeroFraction*hot.getTrainingWeight()/trainingWeight, parentOneFraction*hot.getTrainingWeight()/trainingWeight, split.getIndex(), importances)
+        case _ => None
+      }
+      cold match {
+        case _: ModelNode[T] | _: ModelLeaf[T] => hot.shapleyRecurse(
+          input, omitFeatures, parentPath, parentZeroFraction*cold.getTrainingWeight()/trainingWeight, parentOneFraction*cold.getTrainingWeight()/trainingWeight, split.getIndex(), importances)
+        case _ => None
+      }
+    } else {
+
+      var path = parentPath.copy().extend(parentZeroFraction, parentOneFraction, parentFeatureIndex)
+
+      var incomingZeroFraction = 1.0
+      var incomingOneFraction = 1.0
+
+      val k = path.path.take(path.length + 1).indexWhere { x => x.featureIndex == split.getIndex() && x.featureIndex > -1 }
+      if (k > 0) {
+        incomingZeroFraction = path.path(k).zeroFraction
+        incomingOneFraction = path.path(k).oneFraction
+        path = path.unwind(k)
+      }
+
+      hot match {
+        case _: ModelNode[T] | _: ModelLeaf[T] => hot.shapleyRecurse(
+          input, omitFeatures, path, incomingZeroFraction * hot.getTrainingWeight() / trainingWeight, incomingOneFraction, split.getIndex(), importances)
+        case _ => None
+      }
+      cold match {
+        case _: ModelNode[T] | _: ModelLeaf[T] => cold.shapleyRecurse(
+          input, omitFeatures, path, incomingZeroFraction * cold.getTrainingWeight() / trainingWeight, 0.0, split.getIndex(), importances)
+        case _ => None
+      }
     }
   }
 
@@ -226,13 +241,18 @@ class ModelLeaf[T](model: Model[PredictionResult[T]], depth: Int, numFeatures: I
     */
   def shapleyRecurse(
                       input: Vector[AnyVal],
+                      omitFeatures: Set[Int],
                       parentPath: FeaturePath,
                       parentZeroFraction: Double,
                       parentOneFraction: Double,
                       parentFeatureIndex: Int,
                       importances: Array[DenseVector[Double]]
                     ): Unit = {
-    val path = parentPath.copy().extend(parentZeroFraction, parentOneFraction, parentFeatureIndex)
+    val path = if (!omitFeatures.contains(parentFeatureIndex)) {
+      parentPath.copy().extend(parentZeroFraction, parentOneFraction, parentFeatureIndex)
+    } else {
+      parentPath.copy()
+    }
     (1 until path.length + 1).foreach { i =>
       val w = path.unwind(i).path.take(path.length).map(_.pathWeight).sum
       this.model.transform(Seq(input)).getExpected().head match {
@@ -245,5 +265,5 @@ class ModelLeaf[T](model: Model[PredictionResult[T]], depth: Int, numFeatures: I
 
   override def getTrainingWeight(): Double = trainingWeight
 
-  override def shapley(input: Vector[AnyVal]): Option[Vector[DenseVector[Double]]] = None
+  override def shapley(input: Vector[AnyVal], omitFeatures: Set[Int] = Set()): Option[Vector[DenseVector[Double]]] = None
 }

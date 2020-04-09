@@ -22,14 +22,6 @@ trait TrainingResult extends Serializable {
   def getFeatureImportance(): Option[Vector[Double]] = None
 
   /**
-    * Get mean absolute Shapley values across training data
-    *
-    * @return vector of mean absolute Shapley values
-    *         One DenseVector[Double] per feature, each of length equal to the output dimension.
-    */
-  def getShapleyAggregate(): Option[Vector[DenseVector[Double]]] = None
-
-  /**
     * Get a measure of the loss of the model, e.g. RMS OOB error
     *
     * @return

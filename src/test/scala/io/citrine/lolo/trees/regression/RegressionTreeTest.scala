@@ -247,12 +247,20 @@ class RegressionTreeTest {
     }
   }
 
+  /**
+    * Convenience method to compare the Shapley value at a test location for a tree trained on trainingData to a known reference.
+    *
+    * @param trainingData on which to train a regression tree
+    * @param evalLocation at which to evaluate the Shapley value
+    * @param expected     known reference Shapley value to which to compare (fails upon mismatch)
+    */
   def shapleyCompare(
                      trainingData: Seq[(Vector[Double],Double)],
                      evalLocation: Vector[Any],
-                     expected: Vector[Double]
+                     expected: Vector[Double],
+                     omitFeatures: Set[Int] = Set()
                     ): Unit = {
-    val actual = RegressionTreeLearner().train(trainingData).getModel().shapley(evalLocation) match {
+    val actual = RegressionTreeLearner().train(trainingData).getModel().shapley(evalLocation, omitFeatures) match {
       case None => fail("Unexpected None returned by shapley.")
       case x: Option[Vector[DenseVector[Double]]] => {
         val a = x.get
@@ -262,9 +270,9 @@ class RegressionTreeTest {
       }
       case _ => fail("Unexpected return type.")
     }
-    expected.zip(actual).foreach {
-      case (e: Double, a: Double) => assert(Math.abs(e - a) < 1e-12)
-    }
+    assert(expected.zip(actual).forall{
+      case (e: Double, a: Double) => Math.abs(e - a) < 1e-12
+    }, s"Shapley value ${actual} does not match reference ${expected}.")
   }
 
   /**
@@ -305,7 +313,31 @@ class RegressionTreeTest {
     val expected3 = Vector(45.8333333333333, 12.5)
     shapleyCompare(trainingData3, Vector[Any](1.0, 1.0), expected3)
 
-    // TODO(grobinson): Test case with 5 or more features to exercise all factorial terms in Lundberg Equation 2.
+    // Example with 5 features, to exercise all the factorials in Lundberg equation 2.
+    // Referenced against the shap package on a sklearn decision tree.
+    val trainingData4 = Seq(
+      (Vector(0.0, 0.0, 0.0, 0.0, 0.0), 1.0),
+      (Vector(1.0, 0.0, 0.0, 0.0, 0.0), 2.0),
+      (Vector(0.0, 1.0, 0.0, 0.0, 0.0), 4.0),
+      (Vector(0.0, 0.0, 1.0, 0.0, 0.0), 8.0),
+      (Vector(0.0, 0.0, 0.0, 1.0, 0.0), 16.0),
+      (Vector(0.0, 0.0, 0.0, 0.0, 1.0), 32.0),
+    )
+    val expected4 = Vector(0.0333333333333333, 0.2, 0.8666666666666667, 3.533333333333333, 16.866666666666667)
+    shapleyCompare(trainingData4, Vector.fill[Any](5)(1.0), expected4)
+
+    // Test omitted features
+    val expected1a = Vector(0.0, 40.0)
+    shapleyCompare(trainingData1, Vector[Any](1.0, 1.0), expected1a, omitFeatures = Set(0))
+    val expected1b = Vector(40.0, 0.0)
+    shapleyCompare(trainingData1, Vector[Any](1.0, 1.0), expected1b, omitFeatures = Set(1))
+    val expected2a = Vector(0.0, 45.0)
+    shapleyCompare(trainingData2, Vector[Any](1.0, 1.0), expected2a, omitFeatures = Set(0))
+    val expected2b = Vector(50.0, 0.0)
+    shapleyCompare(trainingData2, Vector[Any](1.0, 1.0), expected2b, omitFeatures = Set(1))
+
+    // Ensure we don't crash when restricting number of features.
+    RegressionTreeLearner(numFeatures = 1).train(trainingData4).getModel().shapley(Vector.fill[Any](5)(0.0), Set())
   }
 }
 

@@ -65,8 +65,8 @@ class RegressionTrainingNode(
     * @return vector of mean absolute Shapley values
     *         One DenseVector[Double] per feature, each of length equal to the output dimension.
     */
-  override def getShapley(): Option[Vector[DenseVector[Double]]] = {
-    val shaps = trainingData.map{d=>getNode().shapley(d._1)}
+  override def getShapley(omitFeatures: Set[Int] = Set()): Option[Vector[DenseVector[Double]]] = {
+    val shaps = trainingData.map{d=>getNode().shapley(d._1, omitFeatures)}
     if (!shaps.head.isDefined) {
       None
     }
