@@ -304,6 +304,9 @@ class BaggedModel[+T: ClassTag](
     val scale = 1.0/ensembleShapley.length
     ensembleShapley.reduce(sumReducer).map{x=>x.map{y=>scale*y}}
   }
+
+  // Accessor useful for testing.
+  private[bags] def getModels(): ParSeq[Model[PredictionResult[T]]] = models
 }
 
 object Bagger {

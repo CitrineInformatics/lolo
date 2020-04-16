@@ -360,17 +360,29 @@ class BaggerTest {
   def testShapley(): Unit = {
     rng.setSeed(24795L)
     val nCols = 5
-    val trainingData = TestUtils.generateTrainingData(1024, nCols, noise = 0.0, function = Friedman.friedmanSilverman, seed = rng.nextLong())
-    val DTLearner = RegressionTreeLearner(numFeatures = 2, rng = rng)
+    val trainingData = TestUtils.generateTrainingData(64, nCols, noise = 0.0, function = Friedman.friedmanSilverman, seed = rng.nextLong())
+    val DTLearner = RegressionTreeLearner(numFeatures = nCols, rng = rng)
     val model = Bagger(DTLearner, randBasis = TestUtils.getBreezeRandBasis(rng.nextLong()))
       .train(trainingData)
       .getModel()
+    val trees = model.getModels()
     trainingData.foreach { case (x, _) =>
       val shapley = model.shapley(x).get
+
+      // Do a quick sanity check on the output format.
       assert(shapley.length == nCols)
       assert(shapley.forall {
         _.length == 1
       })
+
+      // Compute the mean shap value over trees and ensure the bagged model gives the same result.
+      val treeMean = trees.map { t =>
+        t.shapley(x).get.map { _(0) / trees.length }
+      }.toVector.transpose.map { case ts: Seq[Double] => ts.reduce[Double] { case (y1: Double, y2: Double) => y1 + y2 } }
+      val atol = 1e-8
+      assert(
+        treeMean.zip(shapley).forall { case (tm, s) => Math.abs(tm - s(0)) < atol }
+      )
     }
   }
 }
