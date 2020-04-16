@@ -58,26 +58,6 @@ class RegressionTrainingNode(
     ans(split.getIndex()) = ans(split.getIndex()) + improvement
     ans
   }
-
-  /**
-    * Get mean absolute Shapley values across training data
-    *
-    * @return vector of mean absolute Shapley values
-    *         One DenseVector[Double] per feature, each of length equal to the output dimension.
-    */
-  override def getShapley(omitFeatures: Set[Int] = Set()): Option[Vector[DenseVector[Double]]] = {
-    val shaps = trainingData.map{d=>getNode().shapley(d._1, omitFeatures)}
-    if (!shaps.head.isDefined) {
-      None
-    }
-    assert(shaps.forall(x=>x.isDefined))
-    def sumReducer(a: Option[Vector[DenseVector[Double]]],
-                   b: Option[Vector[DenseVector[Double]]]): Option[Vector[DenseVector[Double]]] = {
-      (a ++ b).reduceOption[Vector[DenseVector[Double]]]{case (x,y) => x.zip(y).map{case (v1,v2) => (abs(v1) + abs(v2))}}
-    }
-    val scale = 1.0/shaps.length
-    shaps.reduce(sumReducer).map{x=>x.map{y=>scale*y}}
-  }
 }
 
 /**
