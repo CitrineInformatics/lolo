@@ -50,6 +50,8 @@ trait ModelNode[T <: PredictionResult[Any]] extends Serializable {
   /**
     * Get the Shapley feature attribution from a subtree
     *
+    * This uses the TreeShap algorithm given in https://arxiv.org/abs/1802.03888
+    *
     * @param input for which to compute feature attributions.
     * @param parentPath path of unique features arriving at parent node.
     * @param parentZeroFraction fraction of zero (cold) paths flowing to parent node.
