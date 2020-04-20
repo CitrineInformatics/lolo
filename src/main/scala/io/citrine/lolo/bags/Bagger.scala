@@ -1,7 +1,6 @@
 package io.citrine.lolo.bags
 
 import breeze.linalg.DenseVector
-import breeze.numerics.abs
 import breeze.stats.distributions.{Poisson, Rand, RandBasis}
 import io.citrine.lolo.stats.metrics.ClassificationMetrics
 import io.citrine.lolo.util.{Async, InterruptibleExecutionContext}
@@ -297,11 +296,13 @@ class BaggedModel[+T: ClassTag](
       None
     }
     assert(ensembleShapley.forall(x=>x.isDefined))
+
     def sumReducer(a: Option[Vector[DenseVector[Double]]],
                    b: Option[Vector[DenseVector[Double]]]): Option[Vector[DenseVector[Double]]] = {
       (a ++ b).reduceOption[Vector[DenseVector[Double]]]{case (x,y) => x.zip(y).map{case (v1,v2) => (v1 + v2)}}
     }
     val scale = 1.0/ensembleShapley.length
+
     ensembleShapley.reduce(sumReducer).map{x=>x.map{y=>scale*y}}
   }
 

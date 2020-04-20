@@ -166,10 +166,10 @@ class RandomForestTest {
   def shapleyCompare(
                       trainingData: Seq[(Vector[Any],Double)],
                       evalLocation: Vector[Any],
-                      expected: Vector[Double]
+                      expected: Vector[Double],
+                      rtol: Double = 5e-2
                     ): Unit = {
-    assert(trainingData.length >= 256, "This test is likely to fail randomly when training data are too small.")
-    val actual = RandomForest().train(trainingData).getModel().shapley(evalLocation) match {
+    val actual = RandomForest(rng = rng).train(trainingData).getModel().shapley(evalLocation) match {
       case None => fail("Unexpected None returned by shapley.")
       case x: Option[Vector[DenseVector[Double]]] => {
         val a = x.get
@@ -180,7 +180,7 @@ class RandomForestTest {
       case _ => fail("Unexpected return type.")
     }
     expected.zip(actual).foreach {
-      case (e: Double, a: Double) => assert(Math.abs(e - a) < 1)
+      case (e: Double, a: Double) => assert(Math.abs(e - a)/a < rtol)
     }
   }
 
@@ -189,6 +189,8 @@ class RandomForestTest {
     */
   @Test
   def testShapley(): Unit = {
+    rng.setSeed(3751L)
+
     // Example from Lundberg paper (https://arxiv.org/pdf/1802.03888.pdf)
     val trainingData1 = Seq(
       (Vector(1.0, 1.0), 80.0),
@@ -197,7 +199,7 @@ class RandomForestTest {
       (Vector(0.0, 0.0), 0.0)
     )
     val expected1 = Vector(30.0, 30.0)
-    shapleyCompare((1 to 64).map(_=>trainingData1).flatten, Vector[Any](1.0, 1.0), expected1)
+    shapleyCompare((1 to 8).map(_=>trainingData1).flatten, Vector[Any](1.0, 1.0), expected1)
 
     // Second example from Lundberg paper (https://arxiv.org/pdf/1802.03888.pdf)
     val trainingData2 = Seq(
@@ -207,7 +209,7 @@ class RandomForestTest {
       (Vector(0.0, 0.0), 0.0)
     )
     val expected2 = Vector(35.0, 30.0)
-    shapleyCompare((1 to 64).map(_=>trainingData2).flatten, Vector[Any](1.0, 1.0), expected2)
+    shapleyCompare((1 to 8).map(_=>trainingData2).flatten, Vector[Any](1.0, 1.0), expected2)
 
     // Example with two splits on one feature
     // Worked out with pen-and-paper from Lundberg Equation 2.
@@ -220,9 +222,20 @@ class RandomForestTest {
       (Vector(0.0, 0.0), 0.0)
     )
     val expected3 = Vector(45.8333333333333, 12.5)
-    shapleyCompare((1 to 64).map(_=>trainingData3).flatten, Vector[Any](1.0, 1.0), expected3)
+    shapleyCompare((1 to 8).map(_=>trainingData3).flatten, Vector[Any](1.0, 1.0), expected3)
 
-    // TODO(grobinson): Test case with 5 or more features to exercise all factorial terms in Lundberg Equation 2.
+    // Example with 5 features, to exercise all the factorials in Lundberg equation 2.
+    // Referenced against the shap package on a sklearn decision tree.
+    val trainingData4 = Seq(
+      (Vector(0.0, 0.0, 0.0, 0.0, 0.0), 1.0),
+      (Vector(1.0, 0.0, 0.0, 0.0, 0.0), 2.0),
+      (Vector(0.0, 1.0, 0.0, 0.0, 0.0), 4.0),
+      (Vector(0.0, 0.0, 1.0, 0.0, 0.0), 8.0),
+      (Vector(0.0, 0.0, 0.0, 1.0, 0.0), 16.0),
+      (Vector(0.0, 0.0, 0.0, 0.0, 1.0), 32.0)
+    )
+    val expected4 = Vector(0.0333333333333333, 0.2, 0.8666666666666667, 3.533333333333333, 16.866666666666667)
+    shapleyCompare((1 to 8).map{_=>trainingData4}.flatten, Vector.fill[Any](5)(1.0), expected4)
   }
 }
 

@@ -94,7 +94,7 @@ class FeaturePath(numFeatures: Int) {
     val newPath = new FeaturePath(this.numFeatures)
     newPath.length = this.length
     newPath.path = this.path.map{x => x.copy()}
-    return newPath
+    newPath
   }
 
 }

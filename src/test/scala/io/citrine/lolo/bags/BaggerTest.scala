@@ -354,7 +354,7 @@ class BaggerTest {
   }
 
   /**
-    * Test Shapley values are correctly averaged.
+    * Test Shapley values are correctly averaged over trees.
     */
   @Test
   def testShapley(): Unit = {
@@ -378,7 +378,7 @@ class BaggerTest {
       // Compute the mean shap value over trees and ensure the bagged model gives the same result.
       val treeMean = trees.map { t =>
         t.shapley(x).get.map { _(0) / trees.length }
-      }.toVector.transpose.map { case ts: Seq[Double] => ts.reduce[Double] { case (y1: Double, y2: Double) => y1 + y2 } }
+      }.toVector.transpose.map { case ts: Seq[Double] => ts.sum }
       val atol = 1e-8
       assert(
         treeMean.zip(shapley).forall { case (tm, s) => Math.abs(tm - s(0)) < atol }
