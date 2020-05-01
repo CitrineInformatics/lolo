@@ -171,8 +171,7 @@ class InternalModelNode[T <: PredictionResult[Any]](
       val (incomingZeroFraction: Double, incomingOneFraction: Double) = if (k > 0) {
         val out = (
           path.path(k).zeroFraction,  // Proportion of zero paths for this feature that flow down to this branch.
-          path.path(k).oneFraction    // Proportion of one paths for this feature that flow down to this branch.
-        )
+          path.path(k).oneFraction)   // Proportion of one paths for this feature that flow down to this branch.
         path = path.unwind(k)
         out
       } else {
