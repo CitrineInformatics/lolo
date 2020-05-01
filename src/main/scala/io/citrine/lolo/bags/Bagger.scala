@@ -1,6 +1,6 @@
 package io.citrine.lolo.bags
 
-import breeze.linalg.DenseVector
+import breeze.linalg.DenseMatrix
 import breeze.stats.distributions.{Poisson, Rand, RandBasis}
 import io.citrine.lolo.stats.metrics.ClassificationMetrics
 import io.citrine.lolo.util.{Async, InterruptibleExecutionContext}
@@ -286,24 +286,24 @@ class BaggedModel[+T: ClassTag](
     *
     * @param input for which to compute feature attributions.
     * @param omitFeatures feature indices to omit in computing Shapley values
-    * @return array of Shapley feature attributions, one per input feature, each a vector of
-    *         One DenseVector[Double] per feature, each of length equal to the output dimension.
+    * @return matrix of attributions for each feature and output
+    *         One row per feature, each of length equal to the output dimension.
     *         The output dimension is 1 for single-task regression, or equal to the number of classification categories.
     */
-  override def shapley(input: Vector[Any], omitFeatures: Set[Int] = Set()): Option[Vector[DenseVector[Double]]] = {
+  override def shapley(input: Vector[Any], omitFeatures: Set[Int] = Set()): Option[DenseMatrix[Double]] = {
     val ensembleShapley = models.map(model => model.shapley(input, omitFeatures))
     if (!ensembleShapley.head.isDefined) {
       None
     }
     assert(ensembleShapley.forall(x => x.isDefined))
 
-    def sumReducer(a: Option[Vector[DenseVector[Double]]],
-                   b: Option[Vector[DenseVector[Double]]]): Option[Vector[DenseVector[Double]]] = {
-      (a ++ b).reduceOption[Vector[DenseVector[Double]]]{ case (x, y) => x.zip(y).map{ case (v1, v2) => v1 + v2 } }
+    def sumReducer(a: Option[DenseMatrix[Double]],
+                   b: Option[DenseMatrix[Double]]): Option[DenseMatrix[Double]] = {
+      Some(a.get + b.get)
     }
     val scale = 1.0 / ensembleShapley.length
 
-    ensembleShapley.reduce(sumReducer).map{ x => x.map{ y => scale * y } }
+    Some(scale * ensembleShapley.reduce(sumReducer).get)
   }
 
   // Accessor useful for testing.

@@ -1,6 +1,6 @@
 package io.citrine.lolo
 
-import breeze.linalg.{DenseMatrix, DenseVector}
+import breeze.linalg.DenseMatrix
 
 /**
   * Created by maxhutch on 11/14/16.
@@ -20,12 +20,13 @@ trait Model[+T <: PredictionResult[Any]] extends Serializable {
     *
     * @param input for which to compute feature attributions.
     * @param omitFeatures feature indices to omit in computing Shapley values
-    * @return array of vector-valued attributions for each feature
-    *         One DenseVector[Double] per feature, each of length equal to the output dimension.
+    * @return matrix of attributions for each feature and output
+    *         One row per feature, each of length equal to the output dimension.
+    *         The output dimension is 1 for single-task regression, or equal to the number of classification categories.
     */
   def shapley(
                input: Vector[Any],
                omitFeatures: Set[Int] = Set()
-             ): Option[Vector[DenseVector[Double]]] = None
+             ): Option[DenseMatrix[Double]] = None
 
 }

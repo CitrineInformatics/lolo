@@ -1,7 +1,6 @@
 package io.citrine.lolo.trees
 
-import breeze.linalg.DenseVector
-import breeze.numerics.abs
+import breeze.linalg.DenseMatrix
 import io.citrine.lolo.trees.splits.Split
 import io.citrine.lolo.{Learner, Model, PredictionResult}
 
@@ -43,9 +42,9 @@ trait ModelNode[T <: PredictionResult[Any]] extends Serializable {
     *
     * @param input for which to compute feature attributions.
     * @return array of vector-valued attributions for each feature
-    *         One DenseVector[Double] per feature, each of length equal to the output dimension.
+    *         One Vector[Double] per feature, each of length equal to the output dimension.
     */
-  def shapley(input: Vector[AnyVal], omitFeatures: Set[Int] = Set()): Option[Vector[DenseVector[Double]]]
+  def shapley(input: Vector[AnyVal], omitFeatures: Set[Int] = Set()): Option[DenseMatrix[Double]]
 
   /**
     * Get the Shapley feature attribution from a subtree
@@ -57,8 +56,9 @@ trait ModelNode[T <: PredictionResult[Any]] extends Serializable {
     * @param parentZeroFraction fraction of zero (cold) paths flowing to parent node.
     * @param parentOneFraction fraction of one (hot) paths flowing to parent node.
     * @param parentFeatureIndex index of feature on which the parent node splits.
-    * @param importances array of feature attributions to modify.
-    *                    One DenseVector[Double] per feature, each of length equal to the output dimension.
+    * @return matrix of attributions for each feature and output
+    *         One row per feature, each of length equal to the output dimension.
+    *         The output dimension is 1 for single-task regression, or equal to the number of classification categories.
     */
   private[lolo] def shapleyRecurse(
                       input: Vector[AnyVal],
@@ -67,8 +67,7 @@ trait ModelNode[T <: PredictionResult[Any]] extends Serializable {
                       parentZeroFraction: Double,
                       parentOneFraction: Double,
                       parentFeatureIndex: Int,
-                      importances: Array[DenseVector[Double]]
-                    ): Unit
+                    ): DenseMatrix[Double]
 
   /**
     * Weight of training data in subtree, specifically the number of data for unweighted training sets
@@ -116,13 +115,12 @@ class InternalModelNode[T <: PredictionResult[Any]](
     * Compute Shapley feature attributions for a given input
     *
     * @param input for which to compute feature attributions.
-    * @return array of Shapley feature attributions, one per input feature.
-    *         One DenseVector[Double] per feature, each of length equal to the output dimension.
+    * @return matrix of attributions for each feature and output
+    *         One row per feature, each of length equal to the output dimension.
+    *         The output dimension is 1 for single-task regression, or equal to the number of classification categories.
     */
-  override def shapley(input: Vector[AnyVal], omitFeatures: Set[Int] = Set()): Option[Vector[DenseVector[Double]]] = {
-    val importances = Array.fill[DenseVector[Double]](input.length)(elem=DenseVector.zeros[Double](outputDimension))
-    shapleyRecurse(input, omitFeatures, new FeaturePath(input.length), 1.0, 1.0, -1, importances)
-    Some(importances.toVector)
+  override def shapley(input: Vector[AnyVal], omitFeatures: Set[Int] = Set()): Option[DenseMatrix[Double]] = {
+    Some(shapleyRecurse(input, omitFeatures, new FeaturePath(input.length), 1.0, 1.0, -1))
   }
 
   /**
@@ -133,8 +131,9 @@ class InternalModelNode[T <: PredictionResult[Any]](
     * @param parentZeroFraction fraction of zero (cold) paths flowing to parent node.
     * @param parentOneFraction fraction of one (hot) paths flowing to parent node.
     * @param parentFeatureIndex index of feature on which the parent node splits.
-    * @param importances array of feature attributions to modify.
-    *                    One DenseVector[Double] per feature, each of length equal to the output dimension.
+    * @return matrix of attributions for each feature and output
+    *         One row per feature, each of length equal to the output dimension.
+    *         The output dimension is 1 for single-task regression, or equal to the number of classification categories.
     */
   def shapleyRecurse(
                       input: Vector[AnyVal],
@@ -142,9 +141,8 @@ class InternalModelNode[T <: PredictionResult[Any]](
                       parentPath: FeaturePath,
                       parentZeroFraction: Double,
                       parentOneFraction: Double,
-                      parentFeatureIndex: Int,
-                      importances: Array[DenseVector[Double]]
-                    ): Unit = {
+                      parentFeatureIndex: Int
+                    ): DenseMatrix[Double] = {
     val (hot, cold) = if (this.split.turnLeft(input)) {
       (left,right)
     } else {
@@ -152,16 +150,19 @@ class InternalModelNode[T <: PredictionResult[Any]](
     }
 
     if (omitFeatures.contains(split.getIndex())) {
-      hot match {
+      val hotPortion = hot.getTrainingWeight() / trainingWeight
+      val coldPortion = cold.getTrainingWeight() / trainingWeight
+      val hotContrib = hot match {  // Traverse one subtree.
         case _: ModelNode[T] | _: ModelLeaf[T] => hot.shapleyRecurse(
-          input, omitFeatures, parentPath, parentZeroFraction*hot.getTrainingWeight()/trainingWeight, parentOneFraction*hot.getTrainingWeight()/trainingWeight, parentFeatureIndex, importances)
-        case _ => None
+          input, omitFeatures, parentPath, parentZeroFraction, parentOneFraction, parentFeatureIndex)
+        case _ => throw new RuntimeException("Tree children must be of type ModelNode[T] or ModelLeaf[T].")
       }
-      cold match {
+      val coldContrib = cold match {  // Traverse the other subtree.
         case _: ModelNode[T] | _: ModelLeaf[T] => cold.shapleyRecurse(
-          input, omitFeatures, parentPath, parentZeroFraction*cold.getTrainingWeight()/trainingWeight, parentOneFraction*cold.getTrainingWeight()/trainingWeight, parentFeatureIndex, importances)
-        case _ => None
+          input, omitFeatures, parentPath, parentZeroFraction, parentOneFraction, parentFeatureIndex)
+        case _ => throw new RuntimeException("Tree children must be of type ModelNode[T] or ModelLeaf[T].")
       }
+      hotPortion * hotContrib + coldPortion * coldContrib
     } else {
       var path = parentPath.copy().extend(parentZeroFraction, parentOneFraction, parentFeatureIndex)
 
@@ -179,18 +180,19 @@ class InternalModelNode[T <: PredictionResult[Any]](
         (1.0, 1.0)
       }
 
-      // Traverse one subtree.
-      hot match {
+      val hotContrib = hot match {  // Traverse one subtree.
         case _: ModelNode[T] | _: ModelLeaf[T] => hot.shapleyRecurse(
-          input, omitFeatures, path, incomingZeroFraction * hot.getTrainingWeight() / trainingWeight, incomingOneFraction, split.getIndex(), importances)
-        case _ => None
+          input, omitFeatures, path, incomingZeroFraction * hot.getTrainingWeight() / trainingWeight, incomingOneFraction, split.getIndex())
+        case _ => throw new RuntimeException("Tree children must be of type ModelNode[T] or ModelLeaf[T].")
       }
-      // Traverse the other subtree.
-      cold match {
+
+      val coldContrib = cold match {  // Traverse the other subtree.
         case _: ModelNode[T] | _: ModelLeaf[T] => cold.shapleyRecurse(
-          input, omitFeatures, path, incomingZeroFraction * cold.getTrainingWeight() / trainingWeight, 0.0, split.getIndex(), importances)
-        case _ => None
+          input, omitFeatures, path, incomingZeroFraction * cold.getTrainingWeight() / trainingWeight, 0.0, split.getIndex())
+        case _ => throw new RuntimeException("Tree children must be of type ModelNode[T] or ModelLeaf[T].")
       }
+
+      coldContrib + hotContrib
     }
   }
 
@@ -235,8 +237,9 @@ class ModelLeaf[T](model: Model[PredictionResult[T]], depth: Int, numFeatures: I
     * @param parentZeroFraction fraction of zero (cold) paths flowing to parent node.
     * @param parentOneFraction fraction of one (hot) paths flowing to parent node.
     * @param parentFeatureIndex index of feature on which the parent node splits.
-    * @param importances array of feature attributions to modify.
-    *                    One DenseVector[Double] per feature, each of length equal to the output dimension.
+    * @return matrix of attributions for each feature and output
+    *         One row per feature, each of length equal to the output dimension.
+    *         The output dimension is 1 for single-task regression, or equal to the number of classification categories.
     */
   def shapleyRecurse(
                       input: Vector[AnyVal],
@@ -244,25 +247,26 @@ class ModelLeaf[T](model: Model[PredictionResult[T]], depth: Int, numFeatures: I
                       parentPath: FeaturePath,
                       parentZeroFraction: Double,
                       parentOneFraction: Double,
-                      parentFeatureIndex: Int,
-                      importances: Array[DenseVector[Double]]
-                    ): Unit = {
+                      parentFeatureIndex: Int
+                    ): DenseMatrix[Double] = {
     val path = if (!omitFeatures.contains(parentFeatureIndex)) {
       parentPath.copy().extend(parentZeroFraction, parentOneFraction, parentFeatureIndex)
     } else {
       parentPath.copy()
     }
+    val out = DenseMatrix.zeros[Double](1, input.length)
     (1 until path.length + 1).foreach { i =>
       val w = path.unwind(i).path.take(path.length).map(_.pathWeight).sum
       this.model.transform(Seq(input)).getExpected().head match {
         case v: Double =>
-          importances(path.path(i).featureIndex) = importances(path.path(i).featureIndex) + w * (path.path(i).oneFraction - path.path(i).zeroFraction) * v
+          out(0, path.path(i).featureIndex) = w * (path.path(i).oneFraction - path.path(i).zeroFraction) * v
         case _ => throw new NotImplementedError()
       }
     }
+    out
   }
 
   override def getTrainingWeight(): Double = trainingWeight
 
-  override def shapley(input: Vector[AnyVal], omitFeatures: Set[Int] = Set()): Option[Vector[DenseVector[Double]]] = None
+  override def shapley(input: Vector[AnyVal], omitFeatures: Set[Int] = Set()): Option[DenseMatrix[Double]] = None
 }

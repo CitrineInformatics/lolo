@@ -1,6 +1,6 @@
 package io.citrine.lolo.learners
 
-import breeze.linalg.DenseVector
+import breeze.linalg.{DenseMatrix, DenseVector}
 import breeze.stats.distributions.Beta
 import io.citrine.lolo.TestUtils
 import io.citrine.lolo.stats.functions.Friedman
@@ -171,11 +171,11 @@ class RandomForestTest {
                     ): Unit = {
     val actual = RandomForest(rng = rng).train(trainingData).getModel().shapley(evalLocation) match {
       case None => fail("Unexpected None returned by shapley.")
-      case x: Option[Vector[DenseVector[Double]]] => {
+      case x: Option[DenseMatrix[Double]] => {
         val a = x.get
-        assert(a.length == trainingData.head._1.length, "Expected one Shapley value per feature.")
-        assert(a.head.length == 1, "Expected a single output dimension.")
-        a.map{_(0)}
+        assert(a.cols == trainingData.head._1.length, "Expected one Shapley value per feature.")
+        assert(a.rows == 1, "Expected a single output dimension.")
+        a.toDenseVector.toScalaVector
       }
       case _ => fail("Unexpected return type.")
     }

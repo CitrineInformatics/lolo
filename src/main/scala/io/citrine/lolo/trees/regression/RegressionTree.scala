@@ -1,6 +1,6 @@
 package io.citrine.lolo.trees.regression
 
-import breeze.linalg.DenseVector
+import breeze.linalg.DenseMatrix
 import io.citrine.lolo.encoders.CategoricalEncoder
 import io.citrine.lolo.linear.GuessTheMeanLearner
 import io.citrine.lolo.trees.splits.{NoSplit, RegressionSplitter, Splitter}
@@ -149,10 +149,10 @@ class RegressionTree(
     * @param input for which to compute feature attributions.
     * @param omitFeatures feature indices to omit in computing Shapley values
     * @return array of Shapley feature attributions, one per input feature, each a vector of
-    *         One DenseVector[Double] per feature, each of length equal to the output dimension.
+    *         One Vector[Double] per feature, each of length equal to the output dimension.
     *         The output dimension is 1 for single-task regression, or equal to the number of classification categories.
     */
-  override def shapley(input: Vector[Any], omitFeatures: Set[Int] = Set()): Option[Vector[DenseVector[Double]]] = {
+  override def shapley(input: Vector[Any], omitFeatures: Set[Int] = Set()): Option[DenseMatrix[Double]] = {
     root.shapley(CategoricalEncoder.encodeInput(input, encoders), omitFeatures)
   }
 

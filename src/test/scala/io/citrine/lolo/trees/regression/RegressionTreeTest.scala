@@ -2,8 +2,8 @@ package io.citrine.lolo.trees.regression
 
 import java.io.{File, FileOutputStream, ObjectOutputStream}
 
-import breeze.linalg.DenseVector
-import io.citrine.lolo.{Model, PredictionResult, TestUtils}
+import breeze.linalg.DenseMatrix
+import io.citrine.lolo.TestUtils
 import io.citrine.lolo.linear.LinearRegressionLearner
 import io.citrine.lolo.stats.functions.Friedman
 import io.citrine.lolo.trees.splits.{BoltzmannSplitter, RegressionSplitter}
@@ -262,11 +262,11 @@ class RegressionTreeTest {
                     ): Unit = {
     val actual = RegressionTreeLearner().train(trainingData).getModel().shapley(evalLocation, omitFeatures) match {
       case None => fail("Unexpected None returned by shapley.")
-      case x: Option[Vector[DenseVector[Double]]] => {
+      case x: Option[DenseMatrix[Double]] => {
         val a = x.get
-        assert(a.length == trainingData.head._1.length, "Expected one Shapley value per feature.")
-        assert(a.head.length == 1, "Expected a single output dimension.")
-        a.map{_(0)}
+        assert(a.cols == trainingData.head._1.length, "Expected one Shapley value per feature.")
+        assert(a.rows == 1, "Expected a single output dimension.")
+        a.toDenseVector.toScalaVector
       }
       case _ => fail("Unexpected return type.")
     }
@@ -328,9 +328,9 @@ class RegressionTreeTest {
 
     // Test omitted features
     val expected2a = Vector(0.0, 20.0)
-    //shapleyCompare(trainingData2, Vector[Any](1.0, 1.0), expected2a, omitFeatures = Set(0))
-    //val expected2b = Vector(25.0, 0.0)
-    //shapleyCompare(trainingData2, Vector[Any](1.0, 1.0), expected2b, omitFeatures = Set(1))
+    shapleyCompare(trainingData2, Vector[Any](1.0, 1.0), expected2a, omitFeatures = Set(0))
+    val expected2b = Vector(25.0, 0.0)
+    shapleyCompare(trainingData2, Vector[Any](1.0, 1.0), expected2b, omitFeatures = Set(1))
 
     // Ensure we don't crash when restricting number of features.
     RegressionTreeLearner(numFeatures = 1).train(trainingData4).getModel().shapley(Vector.fill[Any](5)(0.0), Set())

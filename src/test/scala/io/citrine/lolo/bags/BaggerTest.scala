@@ -2,6 +2,7 @@ package io.citrine.lolo.bags
 
 import java.util.concurrent.{Callable, CancellationException, Executors, Future, TimeUnit}
 
+import breeze.linalg.{DenseMatrix, sum}
 import io.citrine.lolo.TestUtils
 import io.citrine.lolo.linear.GuessTheMeanLearner
 import io.citrine.lolo.stats.functions.Friedman
@@ -370,18 +371,18 @@ class BaggerTest {
       val shapley = model.shapley(x).get
 
       // Do a quick sanity check on the output format.
-      assert(shapley.length == nCols)
-      assert(shapley.forall {
-        _.length == 1
-      })
+      assert(shapley.cols == nCols)
+      assert(shapley.rows == 1)
 
       // Compute the mean shap value over trees and ensure the bagged model gives the same result.
-      val treeMean = trees.map { t =>
-        t.shapley(x).get.map { _(0) / trees.length }
-      }.toVector.transpose.map { case ts: Seq[Double] => ts.sum }
+      val treeMean = (1.0 / trees.length) * trees.map { t =>
+        t.shapley(x).get
+      }.reduce[DenseMatrix[Double]] { case (a: DenseMatrix[Double], b: DenseMatrix[Double]) =>
+        a +:+ b
+      }
       val atol = 1e-8
       assert(
-        treeMean.zip(shapley).forall { case (tm, s) => Math.abs(tm - s(0)) < atol }
+        (treeMean - shapley).toDenseVector.toScalaVector.forall { x => Math.abs(x) < atol }
       )
     }
   }
