@@ -28,6 +28,7 @@ class FeatureNode(
   * @param numFeatures number of features in the input space.
   */
 class FeaturePath(numFeatures: Int) {
+  // pre-allocation of this whole array is an attempted performance optimization.
   var path: Array[FeatureNode] = Array.fill[FeatureNode](numFeatures + 2)(new FeatureNode(-1, 1, 1, 1))
   var length: Int = -1  // Start at -1 since first path extension accounts for 0 active features.
 
@@ -36,7 +37,7 @@ class FeaturePath(numFeatures: Int) {
     *
     * @param zeroFraction fraction of paths flowing through this node with this feature excluded.
     * @param oneFraction fraction of one paths flowing through this node with this feature included.
-    * @param featureIndex index of feature used in this split with which to extend the path.
+    * @param featureIndex index of feature, within the vector of inputs, used in this split with which to extend the path.
     * @return this.
     */
   def extend(
@@ -61,25 +62,25 @@ class FeaturePath(numFeatures: Int) {
   /**
     * Undo a previous extension of the feature path.
     *
-    * @param featureIndex index within the path to unwind.
+    * @param pathIndex index, within the array of FeatureNodes, of the feature to unwind.
     * @return unwound copy of this path.
     */
-  def unwind(featureIndex: Int): FeaturePath = {
+  def unwind(pathIndex: Int): FeaturePath = {
     val out = this.copy()
     val newPath = out.path
     var n = newPath(length).pathWeight
 
     (length-1 to 0 by -1).foreach{j=>
-      if (newPath(featureIndex).oneFraction != 0.0) {
+      if (newPath(pathIndex).oneFraction != 0.0) {
         val t = newPath(j).pathWeight
-        newPath(j).pathWeight = n*(length + 1)/((j + 1)*newPath(featureIndex).oneFraction)
-        n = t - newPath(j).pathWeight * newPath(featureIndex).zeroFraction * ((length - j).toDouble/(length + 1))
+        newPath(j).pathWeight = n*(length + 1)/((j + 1)*newPath(pathIndex).oneFraction)
+        n = t - newPath(j).pathWeight * newPath(pathIndex).zeroFraction * ((length - j).toDouble/(length + 1))
       } else {
-        newPath(j).pathWeight = newPath(j).pathWeight*(length + 1).toDouble/(newPath(featureIndex).zeroFraction*(length - j))
+        newPath(j).pathWeight = newPath(j).pathWeight*(length + 1).toDouble/(newPath(pathIndex).zeroFraction*(length - j))
       }
     }
 
-    (featureIndex until length).foreach{ i=>
+    (pathIndex until length).foreach{ i=>
       newPath(i).featureIndex = newPath(i + 1).featureIndex
       newPath(i).zeroFraction = newPath(i + 1).zeroFraction
       newPath(i).oneFraction = newPath(i + 1).oneFraction

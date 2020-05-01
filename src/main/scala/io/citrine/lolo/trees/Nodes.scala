@@ -151,36 +151,41 @@ class InternalModelNode[T <: PredictionResult[Any]](
       (right,left)
     }
 
-    if (omitFeatures.contains(parentFeatureIndex)) {
+    if (omitFeatures.contains(split.getIndex())) {
       hot match {
         case _: ModelNode[T] | _: ModelLeaf[T] => hot.shapleyRecurse(
-          input, omitFeatures, parentPath, parentZeroFraction*hot.getTrainingWeight()/trainingWeight, parentOneFraction*hot.getTrainingWeight()/trainingWeight, split.getIndex(), importances)
+          input, omitFeatures, parentPath, parentZeroFraction*hot.getTrainingWeight()/trainingWeight, parentOneFraction*hot.getTrainingWeight()/trainingWeight, parentFeatureIndex, importances)
         case _ => None
       }
       cold match {
-        case _: ModelNode[T] | _: ModelLeaf[T] => hot.shapleyRecurse(
-          input, omitFeatures, parentPath, parentZeroFraction*cold.getTrainingWeight()/trainingWeight, parentOneFraction*cold.getTrainingWeight()/trainingWeight, split.getIndex(), importances)
+        case _: ModelNode[T] | _: ModelLeaf[T] => cold.shapleyRecurse(
+          input, omitFeatures, parentPath, parentZeroFraction*cold.getTrainingWeight()/trainingWeight, parentOneFraction*cold.getTrainingWeight()/trainingWeight, parentFeatureIndex, importances)
         case _ => None
       }
     } else {
-
       var path = parentPath.copy().extend(parentZeroFraction, parentOneFraction, parentFeatureIndex)
 
-      var incomingZeroFraction = 1.0
-      var incomingOneFraction = 1.0
-
+      // If this node in the tree splits on a feature that is already present in the feature path, unwind that feature from the path to prevent duplication.
       val k = path.path.take(path.length + 1).indexWhere { x => x.featureIndex == split.getIndex() && x.featureIndex > -1 }
-      if (k > 0) {
-        incomingZeroFraction = path.path(k).zeroFraction
-        incomingOneFraction = path.path(k).oneFraction
+      val (incomingZeroFraction: Double, incomingOneFraction: Double) = if (k > 0) {
+        val out = (
+          path.path(k).zeroFraction,  // Proportion of zero paths for this feature that flow down to this branch.
+          path.path(k).oneFraction    // Proportion of one paths for this feature that flow down to this branch.
+        )
         path = path.unwind(k)
+        out
+      } else {
+        // This is the first split on this feature in the present branch's ancestry, so all of the zero and one paths flow down to it.
+        (1.0, 1.0)
       }
 
+      // Traverse one subtree.
       hot match {
         case _: ModelNode[T] | _: ModelLeaf[T] => hot.shapleyRecurse(
           input, omitFeatures, path, incomingZeroFraction * hot.getTrainingWeight() / trainingWeight, incomingOneFraction, split.getIndex(), importances)
         case _ => None
       }
+      // Traverse the other subtree.
       cold match {
         case _: ModelNode[T] | _: ModelLeaf[T] => cold.shapleyRecurse(
           input, omitFeatures, path, incomingZeroFraction * cold.getTrainingWeight() / trainingWeight, 0.0, split.getIndex(), importances)

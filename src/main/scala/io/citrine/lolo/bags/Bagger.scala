@@ -295,15 +295,15 @@ class BaggedModel[+T: ClassTag](
     if (!ensembleShapley.head.isDefined) {
       None
     }
-    assert(ensembleShapley.forall(x=>x.isDefined))
+    assert(ensembleShapley.forall(x => x.isDefined))
 
     def sumReducer(a: Option[Vector[DenseVector[Double]]],
                    b: Option[Vector[DenseVector[Double]]]): Option[Vector[DenseVector[Double]]] = {
-      (a ++ b).reduceOption[Vector[DenseVector[Double]]]{case (x,y) => x.zip(y).map{case (v1,v2) => (v1 + v2)}}
+      (a ++ b).reduceOption[Vector[DenseVector[Double]]]{ case (x, y) => x.zip(y).map{ case (v1, v2) => v1 + v2 } }
     }
-    val scale = 1.0/ensembleShapley.length
+    val scale = 1.0 / ensembleShapley.length
 
-    ensembleShapley.reduce(sumReducer).map{x=>x.map{y=>scale*y}}
+    ensembleShapley.reduce(sumReducer).map{ x => x.map{ y => scale * y } }
   }
 
   // Accessor useful for testing.
