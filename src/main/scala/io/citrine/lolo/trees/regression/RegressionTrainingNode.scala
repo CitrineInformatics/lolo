@@ -3,7 +3,7 @@ package io.citrine.lolo.trees.regression
 import breeze.linalg.DenseVector
 import breeze.numerics.abs
 import io.citrine.lolo.trees.splits.{NoSplit, RegressionSplitter, Split, Splitter}
-import io.citrine.lolo.trees.{FeaturePath, InternalModelNode, ModelNode, TrainingLeaf, TrainingNode}
+import io.citrine.lolo.trees.{DecisionPath, InternalModelNode, ModelNode, TrainingLeaf, TrainingNode}
 import io.citrine.lolo.{Learner, PredictionResult}
 
 /**

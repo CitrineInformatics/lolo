@@ -61,12 +61,12 @@ trait ModelNode[T <: PredictionResult[Any]] extends Serializable {
     *         The output dimension is 1 for single-task regression, or equal to the number of classification categories.
     */
   private[lolo] def shapleyRecurse(
-                      input: Vector[AnyVal],
-                      omitFeatures: Set[Int] = Set(),
-                      parentPath: FeaturePath,
-                      parentZeroFraction: Double,
-                      parentOneFraction: Double,
-                      parentFeatureIndex: Int
+                                    input: Vector[AnyVal],
+                                    omitFeatures: Set[Int] = Set(),
+                                    parentPath: DecisionPath,
+                                    parentZeroFraction: Double,
+                                    parentOneFraction: Double,
+                                    parentFeatureIndex: Int
                     ): DenseMatrix[Double]
 
   /**
@@ -120,7 +120,8 @@ class InternalModelNode[T <: PredictionResult[Any]](
     *         The output dimension is 1 for single-task regression, or equal to the number of classification categories.
     */
   override def shapley(input: Vector[AnyVal], omitFeatures: Set[Int] = Set()): Option[DenseMatrix[Double]] = {
-    Some(shapleyRecurse(input, omitFeatures, new FeaturePath(input.length), 1.0, 1.0, -1))
+    // the featureIndex = -1 signals that this is the base case
+    Some(shapleyRecurse(input, omitFeatures, new DecisionPath(input.length), 1.0, 1.0, -1))
   }
 
   /**
@@ -138,7 +139,7 @@ class InternalModelNode[T <: PredictionResult[Any]](
   def shapleyRecurse(
                       input: Vector[AnyVal],
                       omitFeatures: Set[Int],
-                      parentPath: FeaturePath,
+                      parentPath: DecisionPath,
                       parentZeroFraction: Double,
                       parentOneFraction: Double,
                       parentFeatureIndex: Int
@@ -167,17 +168,17 @@ class InternalModelNode[T <: PredictionResult[Any]](
       var path = parentPath.copy().extend(parentZeroFraction, parentOneFraction, parentFeatureIndex)
 
       // If this node in the tree splits on a feature that is already present in the feature path, unwind that feature from the path to prevent duplication.
-      val k = path.path.take(path.length + 1).indexWhere { x => x.featureIndex == split.getIndex() && x.featureIndex > -1 }
-      val (incomingZeroFraction: Double, incomingOneFraction: Double) = if (k > 0) {
-        val out = (
-          path.path(k).zeroFraction,  // Proportion of zero paths for this feature that flow down to this branch.
-          path.path(k).oneFraction    // Proportion of one paths for this feature that flow down to this branch.
-        )
-        path = path.unwind(k)
-        out
-      } else {
-        // This is the first split on this feature in the present branch's ancestry, so all of the zero and one paths flow down to it.
-        (1.0, 1.0)
+      val previousNode = path.features.find(_.featureIndex == split.getIndex())
+      val (incomingZeroFraction: Double, incomingOneFraction: Double) = previousNode match {
+        case Some(node) =>
+          path = path.unwind(node.featureIndex)
+          (
+            node.weightWhenExcluded,  // Proportion of zero paths for this feature that flow down to this branch.
+            node.weightWhenIncluded    // Proportion of one paths for this feature that flow down to this branch.
+          )
+        case None =>
+          // This is the first split on this feature in the present branch's ancestry, so all of the zero and one paths flow down to it.
+          (1.0, 1.0)
       }
 
       val hotContrib = hot match {  // Traverse one subtree.
@@ -244,22 +245,29 @@ class ModelLeaf[T](model: Model[PredictionResult[T]], depth: Int, numFeatures: I
   def shapleyRecurse(
                       input: Vector[AnyVal],
                       omitFeatures: Set[Int],
-                      parentPath: FeaturePath,
+                      parentPath: DecisionPath,
                       parentZeroFraction: Double,
                       parentOneFraction: Double,
                       parentFeatureIndex: Int
                     ): DenseMatrix[Double] = {
+
+    // First, account for the split that led into this leaf
     val path = if (!omitFeatures.contains(parentFeatureIndex)) {
       parentPath.copy().extend(parentZeroFraction, parentOneFraction, parentFeatureIndex)
     } else {
       parentPath.copy()
     }
+
+    // For each feature in the decision path, unwind that feature to remove its impact on the combinatorial factors
+    // and then compute its contribution to the shapley value of that feature as:
+    // (difference in the weights when included and excluded) * (weight and combinatorial factor from other features) * predicted value
+
     val out = DenseMatrix.zeros[Double](1, input.length)
-    (1 until path.length + 1).foreach { i =>
-      val w = path.unwind(i).path.take(path.length).map(_.pathWeight).sum
+    path.features.foreach { node =>
+      val w = path.unwind(node.featureIndex).totalWeight
       this.model.transform(Seq(input)).getExpected().head match {
         case v: Double =>
-          out(0, path.path(i).featureIndex) = w * (path.path(i).oneFraction - path.path(i).zeroFraction) * v
+          out(0, node.featureIndex) = w * (node.weightWhenIncluded - node.weightWhenExcluded) * v
         case _ => throw new NotImplementedError()
       }
     }
