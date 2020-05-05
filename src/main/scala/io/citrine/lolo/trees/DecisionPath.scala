@@ -16,15 +16,15 @@ import scala.collection.mutable
   * the factor of the weight of the node due to this feature when the feature is excluded (i.e. unknown).  It is always
   * strictly greater than 0 and strictly less than 1.
   *
-  * @param featureIndex index of the feature this node describes.
+  * @param featureIndex       index of the feature this node describes.
   * @param weightWhenExcluded fraction of paths flowing through this node with this feature excluded.
   * @param weightWhenIncluded fraction of one paths flowing through this node with this feature included.
   */
 case class FeatureWeightFactor(
-                          featureIndex: Int,
-                          weightWhenExcluded: Double,
-                          weightWhenIncluded: Double
-                 ) {
+                                featureIndex: Int,
+                                weightWhenExcluded: Double,
+                                weightWhenIncluded: Double
+                              ) {
   require(weightWhenIncluded == 0.0 || weightWhenIncluded == 1.0,
     s"Got weightWhenIncluded=$weightWhenIncluded, but should only ever be 0.0 or 1.0")
   require(weightWhenExcluded > 0 && weightWhenExcluded < 1,
@@ -52,14 +52,14 @@ class DecisionPath(numFeatures: Int) {
   // pre-allocation of this whole array is an attempted performance optimization.
   var features: mutable.Set[FeatureWeightFactor] = mutable.Set.empty
   val weightBySubsetSize: Array[Double] = Array(1.0) ++ Array.fill[Double](numFeatures + 1)(0.0)
-  var size: Int = -1  // Start at -1 since first path extension accounts for 0 active features.
+  var size: Int = -1 // Start at -1 since first path extension accounts for 0 active features.
 
   /**
     * Extend the path by adding a new feature (in-place)
     *
     * @param weightWhenExcluded fraction of paths flowing through this node with this feature excluded
     * @param weightWhenIncluded fraction of one paths flowing through this node with this feature included
-    * @param featureIndex index of feature, within the vector of inputs, used in this split with which to extend the path.
+    * @param featureIndex       index of feature, within the vector of inputs, used in this split with which to extend the path.
     * @return this (in-place)
     */
   def extend(
@@ -73,9 +73,9 @@ class DecisionPath(numFeatures: Int) {
       features.add(FeatureWeightFactor(featureIndex, weightWhenExcluded, weightWhenIncluded))
     }
 
-    (size-1 to 0 by -1).foreach{ i =>
-      weightBySubsetSize(i+1) += weightWhenIncluded * weightBySubsetSize(i) * ((i + 1).toDouble/(size + 1))
-      weightBySubsetSize(i) = weightWhenExcluded * weightBySubsetSize(i) * ((size - i).toDouble/(size + 1))
+    (size - 1 to 0 by -1).foreach { i =>
+      weightBySubsetSize(i + 1) += weightWhenIncluded * weightBySubsetSize(i) * ((i + 1).toDouble / (size + 1))
+      weightBySubsetSize(i) = weightWhenExcluded * weightBySubsetSize(i) * ((size - i).toDouble / (size + 1))
     }
 
     this
@@ -104,13 +104,13 @@ class DecisionPath(numFeatures: Int) {
 
     // reverse the procedure in extend
     var n = out.weightBySubsetSize(size)
-    (size-1 to 0 by -1).foreach{ j=>
+    (size - 1 to 0 by -1).foreach { j =>
       if (toRemove.weightWhenIncluded != 0.0) {
         val t = out.weightBySubsetSize(j)
-        out.weightBySubsetSize(j) = n*(size + 1)/((j + 1)*toRemove.weightWhenIncluded)
-        n = t - out.weightBySubsetSize(j) * toRemove.weightWhenExcluded * ((size - j).toDouble/(size + 1))
+        out.weightBySubsetSize(j) = n * (size + 1) / ((j + 1) * toRemove.weightWhenIncluded)
+        n = t - out.weightBySubsetSize(j) * toRemove.weightWhenExcluded * ((size - j).toDouble / (size + 1))
       } else {
-        out.weightBySubsetSize(j) = out.weightBySubsetSize(j)*(size + 1).toDouble/(toRemove.weightWhenExcluded*(size - j))
+        out.weightBySubsetSize(j) = out.weightBySubsetSize(j) * (size + 1).toDouble / (toRemove.weightWhenExcluded * (size - j))
       }
     }
 
@@ -128,7 +128,7 @@ class DecisionPath(numFeatures: Int) {
     val newPath = new DecisionPath(this.numFeatures)
     newPath.size = this.size
     this.features.foreach(x => newPath.features.add(x.copy()))
-    this.weightBySubsetSize.zipWithIndex.foreach{case (x, i) => newPath.weightBySubsetSize(i) = x}
+    this.weightBySubsetSize.zipWithIndex.foreach { case (x, i) => newPath.weightBySubsetSize(i) = x }
     newPath
   }
 

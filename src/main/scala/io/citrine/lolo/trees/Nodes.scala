@@ -51,10 +51,10 @@ trait ModelNode[T <: PredictionResult[Any]] extends Serializable {
     *
     * This uses the TreeShap algorithm given in https://arxiv.org/abs/1802.03888
     *
-    * @param input for which to compute feature attributions.
-    * @param parentPath path of unique features arriving at parent node.
+    * @param input              for which to compute feature attributions.
+    * @param parentPath         path of unique features arriving at parent node.
     * @param parentZeroFraction fraction of zero (cold) paths flowing to parent node.
-    * @param parentOneFraction fraction of one (hot) paths flowing to parent node.
+    * @param parentOneFraction  fraction of one (hot) paths flowing to parent node.
     * @param parentFeatureIndex index of feature on which the parent node splits.
     * @return matrix of attributions for each feature and output
     *         One row per feature, each of length equal to the output dimension.
@@ -67,7 +67,7 @@ trait ModelNode[T <: PredictionResult[Any]] extends Serializable {
                                     parentZeroFraction: Double,
                                     parentOneFraction: Double,
                                     parentFeatureIndex: Int
-                    ): DenseMatrix[Double]
+                                  ): DenseMatrix[Double]
 
   /**
     * Weight of training data in subtree, specifically the number of data for unweighted training sets
@@ -80,13 +80,13 @@ trait ModelNode[T <: PredictionResult[Any]] extends Serializable {
 /**
   * Internal node in the decision tree
   *
-  * @param split to decide which branch to take
-  * @param left  branch node
-  * @param right branch node
-  * @param numFeatures number of features, used for Shapley computation
+  * @param split           to decide which branch to take
+  * @param left            branch node
+  * @param right           branch node
+  * @param numFeatures     number of features, used for Shapley computation
   * @param outputDimension dimension of model output, used for Shapley computation
   *                        1 for single-task regression, or equal to the number of classification categories.
-  * @param trainingWeight weight of training data in subtree (i.e. size of unweighted training set)
+  * @param trainingWeight  weight of training data in subtree (i.e. size of unweighted training set)
   * @tparam T type of the output
   */
 class InternalModelNode[T <: PredictionResult[Any]](
@@ -127,10 +127,10 @@ class InternalModelNode[T <: PredictionResult[Any]](
   /**
     * Get the Shapley feature attribution from a subtree
     *
-    * @param input for which to compute feature attributions.
-    * @param parentPath path of unique features arriving at parent node.
+    * @param input              for which to compute feature attributions.
+    * @param parentPath         path of unique features arriving at parent node.
     * @param parentZeroFraction fraction of zero (cold) paths flowing to parent node.
-    * @param parentOneFraction fraction of one (hot) paths flowing to parent node.
+    * @param parentOneFraction  fraction of one (hot) paths flowing to parent node.
     * @param parentFeatureIndex index of feature on which the parent node splits.
     * @return matrix of attributions for each feature and output
     *         One row per feature, each of length equal to the output dimension.
@@ -145,20 +145,20 @@ class InternalModelNode[T <: PredictionResult[Any]](
                       parentFeatureIndex: Int
                     ): DenseMatrix[Double] = {
     val (hot, cold) = if (this.split.turnLeft(input)) {
-      (left,right)
+      (left, right)
     } else {
-      (right,left)
+      (right, left)
     }
 
     if (omitFeatures.contains(split.getIndex())) {
       val hotPortion = hot.getTrainingWeight() / trainingWeight
       val coldPortion = cold.getTrainingWeight() / trainingWeight
-      val hotContrib = hot match {  // Traverse one subtree.
+      val hotContrib = hot match { // Traverse one subtree.
         case _: ModelNode[T] | _: ModelLeaf[T] => hot.shapleyRecurse(
           input, omitFeatures, parentPath, parentZeroFraction, parentOneFraction, parentFeatureIndex)
         case _ => throw new RuntimeException("Tree children must be of type ModelNode[T] or ModelLeaf[T].")
       }
-      val coldContrib = cold match {  // Traverse the other subtree.
+      val coldContrib = cold match { // Traverse the other subtree.
         case _: ModelNode[T] | _: ModelLeaf[T] => cold.shapleyRecurse(
           input, omitFeatures, parentPath, parentZeroFraction, parentOneFraction, parentFeatureIndex)
         case _ => throw new RuntimeException("Tree children must be of type ModelNode[T] or ModelLeaf[T].")
@@ -173,21 +173,21 @@ class InternalModelNode[T <: PredictionResult[Any]](
         case Some(node) =>
           path = path.unwind(node.featureIndex)
           (
-            node.weightWhenExcluded,  // Proportion of zero paths for this feature that flow down to this branch.
-            node.weightWhenIncluded    // Proportion of one paths for this feature that flow down to this branch.
+            node.weightWhenExcluded, // Proportion of zero paths for this feature that flow down to this branch.
+            node.weightWhenIncluded // Proportion of one paths for this feature that flow down to this branch.
           )
         case None =>
           // This is the first split on this feature in the present branch's ancestry, so all of the zero and one paths flow down to it.
           (1.0, 1.0)
       }
 
-      val hotContrib = hot match {  // Traverse one subtree.
+      val hotContrib = hot match { // Traverse one subtree.
         case _: ModelNode[T] | _: ModelLeaf[T] => hot.shapleyRecurse(
           input, omitFeatures, path, incomingZeroFraction * hot.getTrainingWeight() / trainingWeight, incomingOneFraction, split.getIndex())
         case _ => throw new RuntimeException("Tree children must be of type ModelNode[T] or ModelLeaf[T].")
       }
 
-      val coldContrib = cold match {  // Traverse the other subtree.
+      val coldContrib = cold match { // Traverse the other subtree.
         case _: ModelNode[T] | _: ModelLeaf[T] => cold.shapleyRecurse(
           input, omitFeatures, path, incomingZeroFraction * cold.getTrainingWeight() / trainingWeight, 0.0, split.getIndex())
         case _ => throw new RuntimeException("Tree children must be of type ModelNode[T] or ModelLeaf[T].")
@@ -210,9 +210,9 @@ class TrainingLeaf[T](
                        leafLearner: Learner,
                        depth: Int
                      ) extends TrainingNode(
-                       trainingData = trainingData,
-                       remainingDepth = 0
-                     ) {
+  trainingData = trainingData,
+  remainingDepth = 0
+) {
   /**
     * Average the training data
     *
@@ -233,10 +233,10 @@ class ModelLeaf[T](model: Model[PredictionResult[T]], depth: Int, numFeatures: I
   /**
     * Get the Shapley feature attribution from a subtree
     *
-    * @param input for which to compute feature attributions.
-    * @param parentPath path of unique features arriving at parent node.
+    * @param input              for which to compute feature attributions.
+    * @param parentPath         path of unique features arriving at parent node.
     * @param parentZeroFraction fraction of zero (cold) paths flowing to parent node.
-    * @param parentOneFraction fraction of one (hot) paths flowing to parent node.
+    * @param parentOneFraction  fraction of one (hot) paths flowing to parent node.
     * @param parentFeatureIndex index of feature on which the parent node splits.
     * @return matrix of attributions for each feature and output
     *         One row per feature, each of length equal to the output dimension.
