@@ -99,7 +99,7 @@ class DecisionPath(numFeatures: Int) {
         out.features.remove(x)
         x
       case None =>
-        throw new IllegalArgumentException(s"Cannot remove featureIndex=$featureIndex; it doesn't exist")
+        throw new IllegalArgumentException(s"Cannot remove featureIndex=$featureIndex; it doesn't exist in the FeaturePath.")
     }
 
     // reverse the procedure in extend
