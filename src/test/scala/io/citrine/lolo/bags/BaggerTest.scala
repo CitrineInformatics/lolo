@@ -1,8 +1,9 @@
 package io.citrine.lolo.bags
 
+import java.io.{File, PrintWriter}
 import java.util.concurrent.{Callable, CancellationException, Executors, Future, TimeUnit}
 
-import breeze.linalg.{DenseMatrix, sum}
+import breeze.linalg.DenseMatrix
 import io.citrine.lolo.TestUtils
 import io.citrine.lolo.linear.GuessTheMeanLearner
 import io.citrine.lolo.stats.functions.Friedman
@@ -398,10 +399,41 @@ object BaggerTest {
     * @param argv args
     */
   def main(argv: Array[String]): Unit = {
-    new BaggerTest()
-      .testUncertaintyCalibration()
+    measureShapleyPerf()
   }
 
+  /**
+    * Simple driver for running a performance test of BaggedModel.shapley().
+    */
+  def measureShapleyPerf(): Unit = {
+    val rng = new Random(278345L)
+    val pw = new PrintWriter(new File(s"/tmp/shapley-perf_${new Random().nextInt()}.tsv"))
+    pw.write("nCols\tnRows\trepNum\trowIdx\tns\n")
+    (256 to 1024 by 256).foreach { nCols =>
+      //(4 to 10 by 2).foreach { nRowsLog: Int =>
+      (4 to 8 by 2).foreach { nRowsLog: Int =>
+        val nRows = 1 << nRowsLog
+        (1 to 3).foreach { repNum =>
+          val trainingData = TestUtils.generateTrainingData(nRows, nCols, noise = 0.0, function = Friedman.friedmanSilverman, seed = rng.nextLong())
+          val DTLearner = RegressionTreeLearner(numFeatures = nCols, rng = rng)
+          println(s"Training model nCols=$nCols\tnRows=$nRows\trepNum=$repNum")
+          val model = Bagger(DTLearner, randBasis = TestUtils.getBreezeRandBasis(rng.nextLong()))
+            .train(trainingData)
+            .getModel()
+          println(s"Trained")
+
+          rng.shuffle(trainingData).take(16).zipWithIndex.foreach { case (x, i) =>
+            val t0 = System.nanoTime()
+            val shapley = model.shapley(x._1).get
+            val t1 = System.nanoTime()
+            pw.write(s"$nCols\t$nRows\t$repNum\t$i\t${t1-t0}\n")
+            pw.flush()
+          }
+        }
+      }
+    }
+    pw.close()
+  }
 
   def getStandardRMSE(testSet: Seq[(Vector[Any], Double)], model: BaggedModel[Any]): Double = {
     val predictions = model.transform(testSet.map(_._1))
