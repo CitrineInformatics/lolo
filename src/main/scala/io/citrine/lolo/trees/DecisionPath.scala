@@ -50,28 +50,21 @@ case class FeatureWeightFactor(
   */
 class DecisionPath(numFeatures: Int) {
   // pre-allocation of this whole array is an attempted performance optimization.
-  var features: mutable.Set[FeatureWeightFactor] = mutable.Set.empty
   val weightBySubsetSize: Array[Double] = Array(1.0) ++ Array.fill[Double](numFeatures + 1)(0.0)
-  var size: Int = -1 // Start at -1 since first path extension accounts for 0 active features.
+  var size: Int = 0
 
   /**
     * Extend the path by adding a new feature (in-place)
     *
     * @param weightWhenExcluded fraction of paths flowing through this node with this feature excluded
     * @param weightWhenIncluded fraction of one paths flowing through this node with this feature included
-    * @param featureIndex       index of feature, within the vector of inputs, used in this split with which to extend the path.
     * @return this (in-place)
     */
   def extend(
               weightWhenExcluded: Double,
               weightWhenIncluded: Double,
-              featureIndex: Int
             ): DecisionPath = {
     size += 1
-    // This handles the base case when shapely is first called in the trunk of the tree
-    if (featureIndex >= 0) {
-      features.add(FeatureWeightFactor(featureIndex, weightWhenExcluded, weightWhenIncluded))
-    }
 
     (size - 1 to 0 by -1).foreach { i =>
       weightBySubsetSize(i + 1) += weightWhenIncluded * weightBySubsetSize(i) * ((i + 1).toDouble / (size + 1))
@@ -86,37 +79,47 @@ class DecisionPath(numFeatures: Int) {
     *
     * This method is probably better called "remove", but it is called unwind in the paper
     *
-    * @param featureIndex index of the feature to remove (same as when extending)
     * @return unwound copy of this path.
     */
-  def unwind(featureIndex: Int): DecisionPath = {
+  def unwind(weightWhenExcluded: Double, weightWhenIncluded: Double): DecisionPath = {
     // make a copy so this is out of place
     val out = this.copy()
-
-    // find the FeatureWeightFactor to remove, and remove it
-    val toRemove = features.find(_.featureIndex == featureIndex) match {
-      case Some(x) =>
-        out.features.remove(x)
-        x
-      case None =>
-        throw new IllegalArgumentException(s"Cannot remove featureIndex=$featureIndex; it doesn't exist in the FeaturePath.")
-    }
 
     // reverse the procedure in extend
     var n = out.weightBySubsetSize(size)
     (size - 1 to 0 by -1).foreach { j =>
-      if (toRemove.weightWhenIncluded != 0.0) {
+      if (weightWhenIncluded != 0.0) {
         val t = out.weightBySubsetSize(j)
-        out.weightBySubsetSize(j) = n * (size + 1) / ((j + 1) * toRemove.weightWhenIncluded)
-        n = t - out.weightBySubsetSize(j) * toRemove.weightWhenExcluded * ((size - j).toDouble / (size + 1))
+        out.weightBySubsetSize(j) = n * (size + 1) / ((j + 1) * weightWhenIncluded)
+        n = t - out.weightBySubsetSize(j) * weightWhenExcluded * ((size - j).toDouble / (size + 1))
       } else {
-        out.weightBySubsetSize(j) = out.weightBySubsetSize(j) * (size + 1).toDouble / (toRemove.weightWhenExcluded * (size - j))
+        out.weightBySubsetSize(j) = out.weightBySubsetSize(j) * (size + 1).toDouble / (weightWhenExcluded * (size - j))
       }
     }
 
     // bookkeeping
     out.size -= 1
     out
+  }
+
+  def unwoundWeight(weightWhenExcluded: Double, weightWhenIncluded: Double): Double = {
+    var res = 0.0
+    // reverse the procedure in extend
+
+    if (weightWhenIncluded != 0.0) {
+      var n = weightBySubsetSize(size)
+      (size - 1 to 0 by -1).foreach { j =>
+        val x = n * (size + 1) / ((j + 1) * weightWhenIncluded)
+        res += x
+        n = weightBySubsetSize(j) - x * weightWhenExcluded * ((size - j).toDouble / (size + 1))
+      }
+    } else {
+      (0 until size).foreach { j =>
+        res += weightBySubsetSize(j) * (size + 1).toDouble / (weightWhenExcluded * (size - j))
+      }
+    }
+
+    res
   }
 
   /**
@@ -127,10 +130,7 @@ class DecisionPath(numFeatures: Int) {
   def copy(): DecisionPath = {
     val newPath = new DecisionPath(this.numFeatures)
     newPath.size = this.size
-    this.features.foreach(x => newPath.features.add(x.copy()))
     this.weightBySubsetSize.zipWithIndex.foreach { case (x, i) => newPath.weightBySubsetSize(i) = x }
     newPath
   }
-
-
 }

@@ -63,7 +63,7 @@ trait ModelNode[T <: PredictionResult[Any]] extends Serializable {
   private[lolo] def shapleyRecurse(
                                     input: Vector[AnyVal],
                                     omitFeatures: Set[Int] = Set(),
-                                    parentPath: DecisionPath,
+                                    parentPath: Map[Int, FeatureWeightFactor],
                                     parentZeroFraction: Double,
                                     parentOneFraction: Double,
                                     parentFeatureIndex: Int
@@ -121,7 +121,7 @@ class InternalModelNode[T <: PredictionResult[Any]](
     */
   override def shapley(input: Vector[AnyVal], omitFeatures: Set[Int] = Set()): Option[DenseMatrix[Double]] = {
     // the featureIndex = -1 signals that this is the base case
-    Some(shapleyRecurse(input, omitFeatures, new DecisionPath(input.length), 1.0, 1.0, -1))
+    Some(shapleyRecurse(input, omitFeatures, Map(), 1.0, 1.0, -1))
   }
 
   /**
@@ -139,7 +139,7 @@ class InternalModelNode[T <: PredictionResult[Any]](
   def shapleyRecurse(
                       input: Vector[AnyVal],
                       omitFeatures: Set[Int],
-                      parentPath: DecisionPath,
+                      parentPath: Map[Int, FeatureWeightFactor],
                       parentZeroFraction: Double,
                       parentOneFraction: Double,
                       parentFeatureIndex: Int
@@ -165,31 +165,35 @@ class InternalModelNode[T <: PredictionResult[Any]](
       }
       hotPortion * hotContrib + coldPortion * coldContrib
     } else {
-      var path = parentPath.copy().extend(parentZeroFraction, parentOneFraction, parentFeatureIndex)
+      val newPath = if (parentFeatureIndex >= 0) {
+        parentPath.updated(parentFeatureIndex, FeatureWeightFactor(parentFeatureIndex, parentZeroFraction, parentOneFraction))
+      } else {
+        parentPath
+      }
 
       // If this node in the tree splits on a feature that is already present in the feature path, unwind that feature from the path to prevent duplication.
-      val previousNode = path.features.find(_.featureIndex == split.getIndex())
-      val (incomingZeroFraction: Double, incomingOneFraction: Double) = previousNode match {
+      val previousNode = newPath.get(split.getIndex())
+      val (incomingZeroFraction: Double, incomingOneFraction: Double, finalPath: Map[Int, FeatureWeightFactor]) = previousNode match {
         case Some(node) =>
-          path = path.unwind(node.featureIndex)
           (
             node.weightWhenExcluded, // Proportion of zero paths for this feature that flow down to this branch.
-            node.weightWhenIncluded // Proportion of one paths for this feature that flow down to this branch.
+            node.weightWhenIncluded, // Proportion of one paths for this feature that flow down to this branch.
+            newPath - node.featureIndex
           )
         case None =>
           // This is the first split on this feature in the present branch's ancestry, so all of the zero and one paths flow down to it.
-          (1.0, 1.0)
+          (1.0, 1.0, newPath)
       }
 
       val hotContrib = hot match { // Traverse one subtree.
         case _: ModelNode[T] | _: ModelLeaf[T] => hot.shapleyRecurse(
-          input, omitFeatures, path, incomingZeroFraction * hot.getTrainingWeight() / trainingWeight, incomingOneFraction, split.getIndex())
+          input, omitFeatures, finalPath, incomingZeroFraction * hot.getTrainingWeight() / trainingWeight, incomingOneFraction, split.getIndex())
         case _ => throw new RuntimeException("Tree children must be of type ModelNode[T] or ModelLeaf[T].")
       }
 
       val coldContrib = cold match { // Traverse the other subtree.
         case _: ModelNode[T] | _: ModelLeaf[T] => cold.shapleyRecurse(
-          input, omitFeatures, path, incomingZeroFraction * cold.getTrainingWeight() / trainingWeight, 0.0, split.getIndex())
+          input, omitFeatures, finalPath, incomingZeroFraction * cold.getTrainingWeight() / trainingWeight, 0.0, split.getIndex())
         case _ => throw new RuntimeException("Tree children must be of type ModelNode[T] or ModelLeaf[T].")
       }
 
@@ -245,17 +249,17 @@ class ModelLeaf[T](model: Model[PredictionResult[T]], depth: Int, numFeatures: I
   def shapleyRecurse(
                       input: Vector[AnyVal],
                       omitFeatures: Set[Int],
-                      parentPath: DecisionPath,
+                      parentPath: Map[Int, FeatureWeightFactor],
                       parentZeroFraction: Double,
                       parentOneFraction: Double,
                       parentFeatureIndex: Int
                     ): DenseMatrix[Double] = {
 
     // First, account for the split that led into this leaf
-    val path = if (!omitFeatures.contains(parentFeatureIndex)) {
-      parentPath.copy().extend(parentZeroFraction, parentOneFraction, parentFeatureIndex)
+    val factors = if (!omitFeatures.contains(parentFeatureIndex) && parentFeatureIndex >= 0) {
+      parentPath.updated(parentFeatureIndex, FeatureWeightFactor(parentFeatureIndex, parentZeroFraction, parentOneFraction))
     } else {
-      parentPath.copy()
+      parentPath
     }
 
     // For each feature in the decision path, unwind that feature to remove its impact on the combinatorial factors
@@ -263,13 +267,17 @@ class ModelLeaf[T](model: Model[PredictionResult[T]], depth: Int, numFeatures: I
     // (difference in the weights when included and excluded) * (weight and combinatorial factor from other features) * predicted value
 
     val out = DenseMatrix.zeros[Double](1, input.length)
-    path.features.foreach { node =>
-      val w = path.unwind(node.featureIndex).totalWeight
-      this.model.transform(Seq(input)).getExpected().head match {
-        case v: Double =>
+    val path = new DecisionPath(factors.size)
+    factors.values.foreach{case FeatureWeightFactor(_, exclude, include) => path.extend(exclude, include)}
+
+
+    this.model.transform(Seq(input)).getExpected().head match {
+      case v: Double =>
+        factors.values.foreach { node =>
+          val w = path.unwoundWeight(node.weightWhenExcluded, node.weightWhenIncluded)
           out(0, node.featureIndex) = w * (node.weightWhenIncluded - node.weightWhenExcluded) * v
-        case _ => throw new NotImplementedError()
-      }
+        }
+      case _ => throw new NotImplementedError()
     }
     out
   }
