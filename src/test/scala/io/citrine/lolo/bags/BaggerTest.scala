@@ -409,9 +409,9 @@ object BaggerTest {
     val rng = new Random(278345L)
     val pw = new PrintWriter(new File(s"/tmp/shapley-perf_${new Random().nextInt()}.tsv"))
     pw.write("nCols\tnRows\trepNum\trowIdx\tns\n")
-    Seq(128).foreach { nCols =>
-      // (4 to 10 by 2).foreach { nRowsLog: Int =>
-      Seq(10).foreach { nRowsLog: Int =>
+    (256 to 1024 by 256).foreach { nCols =>
+      //(4 to 10 by 2).foreach { nRowsLog: Int =>
+      (4 to 8 by 2).foreach { nRowsLog: Int =>
         val nRows = 1 << nRowsLog
         (1 to 3).foreach { repNum =>
           val trainingData = TestUtils.generateTrainingData(nRows, nCols, noise = 0.0, function = Friedman.friedmanSilverman, seed = rng.nextLong())
@@ -423,11 +423,10 @@ object BaggerTest {
           println(s"Trained")
 
           rng.shuffle(trainingData).take(16).zipWithIndex.foreach { case (x, i) =>
-            val t0 = System.nanoTime() * 1.0e-9
+            val t0 = System.nanoTime()
             val shapley = model.shapley(x._1).get
-            val t1 = System.nanoTime() * 1.0e-9
+            val t1 = System.nanoTime()
             pw.write(s"$nCols\t$nRows\t$repNum\t$i\t${t1-t0}\n")
-            print(s"$nCols\t$nRows\t$repNum\t$i\t${t1-t0}\n")
             pw.flush()
           }
         }
