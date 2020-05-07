@@ -61,7 +61,7 @@ class FeaturePowerSetTerms(maxFeatures: Int) {
     */
   def extend(
               weightWhenExcluded: Double,
-              weightWhenIncluded: Double,
+              weightWhenIncluded: Double
             ): FeaturePowerSetTerms = {
     size += 1
 

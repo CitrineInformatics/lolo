@@ -65,7 +65,7 @@ trait ModelNode[T <: PredictionResult[Any]] extends Serializable {
   private[lolo] def shapleyRecurse(
                                     input: Vector[AnyVal],
                                     omitFeatures: Set[Int] = Set(),
-                                    featureWeights: Map[Int, FeatureWeightFactor],
+                                    featureWeights: Map[Int, FeatureWeightFactor]
                                   ): DenseMatrix[Double]
 
   /**
@@ -126,7 +126,7 @@ class InternalModelNode[T <: PredictionResult[Any]](
   def shapleyRecurse(
                       input: Vector[AnyVal],
                       omitFeatures: Set[Int],
-                      featureWeights: Map[Int, FeatureWeightFactor],
+                      featureWeights: Map[Int, FeatureWeightFactor]
                     ): DenseMatrix[Double] = {
     val featureIndex = split.getIndex()
 
@@ -220,7 +220,7 @@ class ModelLeaf[T](model: Model[PredictionResult[T]], depth: Int, numFeatures: I
   def shapleyRecurse(
                       input: Vector[AnyVal],
                       omitFeatures: Set[Int],
-                      featureWeights: Map[Int, FeatureWeightFactor],
+                      featureWeights: Map[Int, FeatureWeightFactor]
                     ): DenseMatrix[Double] = {
     // Start with an empty matrix, into which we'll set the non-zero contributions
     val shapValues = DenseMatrix.zeros[Double](1, input.length)
