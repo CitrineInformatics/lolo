@@ -1,6 +1,6 @@
 package io.citrine.lolo.trees.regression
 
-import io.citrine.lolo.trees.{DecisionPath, ModelLeaf, ModelNode, TrainingNode}
+import io.citrine.lolo.trees.{ModelLeaf, ModelNode, TrainingNode}
 import io.citrine.lolo.{Learner, Model, PredictionResult}
 
 import scala.collection.mutable

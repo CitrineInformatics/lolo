@@ -49,13 +49,15 @@ trait ModelNode[T <: PredictionResult[Any]] extends Serializable {
   /**
     * Get the Shapley feature attribution from a subtree
     *
-    * This uses the TreeShap algorithm given in https://arxiv.org/abs/1802.03888
+    * This uses an algorithm based on TreeShap from https://arxiv.org/abs/1802.03888
     *
-    * @param input              for which to compute feature attributions.
-    * @param parentPath         path of unique features arriving at parent node.
-    * @param parentZeroFraction fraction of zero (cold) paths flowing to parent node.
-    * @param parentOneFraction  fraction of one (hot) paths flowing to parent node.
-    * @param parentFeatureIndex index of feature on which the parent node splits.
+    * The algorithm recursively tracks the feature that is used for each split and the share of the training data
+    * that went to the left and the right of the split.  In the leaves, these features and their weights are used
+    * to construct the leaf's contribution to the SHAP values, which are then summed
+    *
+    * @param input          for which to compute feature attributions.
+    * @param featureWeights Map from feature index to [[FeatureWeightFactor]], which stores the weight of the child
+    *                       of the split when the feature is known vs unknown
     * @return matrix of attributions for each feature and output
     *         One row per feature, each of length equal to the output dimension.
     *         The output dimension is 1 for single-task regression, or equal to the number of classification categories.
@@ -63,10 +65,7 @@ trait ModelNode[T <: PredictionResult[Any]] extends Serializable {
   private[lolo] def shapleyRecurse(
                                     input: Vector[AnyVal],
                                     omitFeatures: Set[Int] = Set(),
-                                    parentPath: Map[Int, FeatureWeightFactor],
-                                    parentZeroFraction: Double,
-                                    parentOneFraction: Double,
-                                    parentFeatureIndex: Int
+                                    featureWeights: Map[Int, FeatureWeightFactor],
                                   ): DenseMatrix[Double]
 
   /**
@@ -111,92 +110,70 @@ class InternalModelNode[T <: PredictionResult[Any]](
     }
   }
 
-  /**
-    * Compute Shapley feature attributions for a given input
-    *
-    * @param input for which to compute feature attributions.
-    * @return matrix of attributions for each feature and output
-    *         One row per feature, each of length equal to the output dimension.
-    *         The output dimension is 1 for single-task regression, or equal to the number of classification categories.
-    */
   override def shapley(input: Vector[AnyVal], omitFeatures: Set[Int] = Set()): Option[DenseMatrix[Double]] = {
-    // the featureIndex = -1 signals that this is the base case
-    Some(shapleyRecurse(input, omitFeatures, Map(), 1.0, 1.0, -1))
+    // Kick off a recursive procedure, the base case of which is an empty map
+    Some(shapleyRecurse(input, omitFeatures, Map()))
   }
 
   /**
-    * Get the Shapley feature attribution from a subtree
+    * On the way down: append this node to the set of features that have been encountered in this path
+    * through the decision tree unless this feature is in the omitted features list.
     *
-    * @param input              for which to compute feature attributions.
-    * @param parentPath         path of unique features arriving at parent node.
-    * @param parentZeroFraction fraction of zero (cold) paths flowing to parent node.
-    * @param parentOneFraction  fraction of one (hot) paths flowing to parent node.
-    * @param parentFeatureIndex index of feature on which the parent node splits.
-    * @return matrix of attributions for each feature and output
-    *         One row per feature, each of length equal to the output dimension.
-    *         The output dimension is 1 for single-task regression, or equal to the number of classification categories.
+    * On the way up: sum the contributions from the two children of this node.  If the feature that this node splits
+    * on is in the omitted features list, then multiply the contributions by the share of the training data that
+    * went to each child in lieu of including the feature on the way down.
     */
   def shapleyRecurse(
                       input: Vector[AnyVal],
                       omitFeatures: Set[Int],
-                      parentPath: Map[Int, FeatureWeightFactor],
-                      parentZeroFraction: Double,
-                      parentOneFraction: Double,
-                      parentFeatureIndex: Int
+                      featureWeights: Map[Int, FeatureWeightFactor],
                     ): DenseMatrix[Double] = {
+    val featureIndex = split.getIndex()
+
+    // The hot node is the one that is selected when the feature is present
     val (hot, cold) = if (this.split.turnLeft(input)) {
       (left, right)
     } else {
       (right, left)
     }
 
-    if (omitFeatures.contains(split.getIndex())) {
-      val hotPortion = hot.getTrainingWeight() / trainingWeight
-      val coldPortion = cold.getTrainingWeight() / trainingWeight
-      val hotContrib = hot match { // Traverse one subtree.
-        case _: ModelNode[T] | _: ModelLeaf[T] => hot.shapleyRecurse(
-          input, omitFeatures, parentPath, parentZeroFraction, parentOneFraction, parentFeatureIndex)
-        case _ => throw new RuntimeException("Tree children must be of type ModelNode[T] or ModelLeaf[T].")
-      }
-      val coldContrib = cold match { // Traverse the other subtree.
-        case _: ModelNode[T] | _: ModelLeaf[T] => cold.shapleyRecurse(
-          input, omitFeatures, parentPath, parentZeroFraction, parentOneFraction, parentFeatureIndex)
-        case _ => throw new RuntimeException("Tree children must be of type ModelNode[T] or ModelLeaf[T].")
-      }
-      hotPortion * hotContrib + coldPortion * coldContrib
+    // If the feature is omitted or unknown, then the weight assigned to each child is taken
+    // as the share of the training data that got split into each child
+    val hotPortion = hot.getTrainingWeight() / trainingWeight
+    val coldPortion = cold.getTrainingWeight() / trainingWeight
+
+    if (omitFeatures.contains(featureIndex)) {
+      // Don't add the feature to the featureWeights
+      // Multiply the child contributions by the hotPortion and coldPortion instead
+      val hotContrib = hotPortion * hot.shapleyRecurse(input, omitFeatures, featureWeights)
+      val coldContrib = coldPortion * cold.shapleyRecurse(input, omitFeatures, featureWeights)
+
+      // Finally sum
+      hotContrib + coldContrib
     } else {
-      val newPath = if (parentFeatureIndex >= 0) {
-        parentPath.updated(parentFeatureIndex, FeatureWeightFactor(parentZeroFraction, parentOneFraction))
-      } else {
-        parentPath
-      }
-
-      // If this node in the tree splits on a feature that is already present in the feature path, unwind that feature from the path to prevent duplication.
-      val previousNode = newPath.get(split.getIndex())
-      val (incomingZeroFraction: Double, incomingOneFraction: Double, finalPath: Map[Int, FeatureWeightFactor]) = previousNode match {
-        case Some(node) =>
-          (
-            node.weightWhenExcluded, // Proportion of zero paths for this feature that flow down to this branch.
-            node.weightWhenIncluded, // Proportion of one paths for this feature that flow down to this branch.
-            newPath - split.getIndex()
-          )
+      // Check if the feature in this node has been used already (on the way down)
+      val (hotFactor, coldFactor) = featureWeights.get(featureIndex) match {
         case None =>
-          // This is the first split on this feature in the present branch's ancestry, so all of the zero and one paths flow down to it.
-          (1.0, 1.0, newPath)
+          // If this is the first time the feature is being split on,
+          // then when the feature is excluded the weights are hotPortion and coldPortion
+          // and when the feature is included they are 1.0 and 0.0
+          (
+            FeatureWeightFactor(hotPortion, 1.0),
+            FeatureWeightFactor(coldPortion, 0.0)
+          )
+        case Some(previousWeights) =>
+          // If the feature has been split on before, then multiply the previous weights by the new ones
+          (
+            FeatureWeightFactor(hotPortion * previousWeights.weightWhenExcluded, previousWeights.weightWhenIncluded),
+            FeatureWeightFactor(coldPortion * previousWeights.weightWhenExcluded, 0.0)
+          )
       }
 
-      val hotContrib = hot match { // Traverse one subtree.
-        case _: ModelNode[T] | _: ModelLeaf[T] => hot.shapleyRecurse(
-          input, omitFeatures, finalPath, incomingZeroFraction * hot.getTrainingWeight() / trainingWeight, incomingOneFraction, split.getIndex())
-        case _ => throw new RuntimeException("Tree children must be of type ModelNode[T] or ModelLeaf[T].")
-      }
+      // Add the features to the featureWeights map and recurse down
+      val hotContrib = hot.shapleyRecurse(input, omitFeatures, featureWeights.updated(featureIndex, hotFactor))
+      val coldContrib = cold.shapleyRecurse(input, omitFeatures, featureWeights.updated(featureIndex, coldFactor))
 
-      val coldContrib = cold match { // Traverse the other subtree.
-        case _: ModelNode[T] | _: ModelLeaf[T] => cold.shapleyRecurse(
-          input, omitFeatures, finalPath, incomingZeroFraction * cold.getTrainingWeight() / trainingWeight, 0.0, split.getIndex())
-        case _ => throw new RuntimeException("Tree children must be of type ModelNode[T] or ModelLeaf[T].")
-      }
-
+      // Simple sum on the way up
       coldContrib + hotContrib
     }
   }
@@ -235,50 +212,37 @@ class ModelLeaf[T](model: Model[PredictionResult[T]], depth: Int, numFeatures: I
   }
 
   /**
-    * Get the Shapley feature attribution from a subtree
-    *
-    * @param input              for which to compute feature attributions.
-    * @param parentPath         path of unique features arriving at parent node.
-    * @param parentZeroFraction fraction of zero (cold) paths flowing to parent node.
-    * @param parentOneFraction  fraction of one (hot) paths flowing to parent node.
-    * @param parentFeatureIndex index of feature on which the parent node splits.
-    * @return matrix of attributions for each feature and output
-    *         One row per feature, each of length equal to the output dimension.
-    *         The output dimension is 1 for single-task regression, or equal to the number of classification categories.
+    * Compute the contribution to SHAP in the leaf based on the features that were encountered between the root node
+    * and this leaf.  Note that the order of these features does *not* matter.
+    * The contributions are based on a tricky combinatorial factor that can be computed using dynamic programming
+    * For details of this procedure, see [[FeaturePowerSetTerms]]
     */
   def shapleyRecurse(
                       input: Vector[AnyVal],
                       omitFeatures: Set[Int],
-                      parentPath: Map[Int, FeatureWeightFactor],
-                      parentZeroFraction: Double,
-                      parentOneFraction: Double,
-                      parentFeatureIndex: Int
+                      featureWeights: Map[Int, FeatureWeightFactor],
                     ): DenseMatrix[Double] = {
+    // Start with an empty matrix, into which we'll set the non-zero contributions
+    val shapValues = DenseMatrix.zeros[Double](1, input.length)
 
-    // First, account for the split that led into this leaf
-    val factors = if (!omitFeatures.contains(parentFeatureIndex) && parentFeatureIndex >= 0) {
-      parentPath.updated(parentFeatureIndex, FeatureWeightFactor(parentZeroFraction, parentOneFraction))
-    } else {
-      parentPath
-    }
+    // Load all of the features into the set, which performs a dynamic programming calculation
+    val set = new FeaturePowerSetTerms(featureWeights.size)
+    featureWeights.values.foreach { case FeatureWeightFactor(exclude, include) => set.extend(exclude, include) }
 
-    // For each feature in the decision path, unwind that feature to remove its impact on the combinatorial factors
-    // and then compute its contribution to the shapley value of that feature as:
-    // (difference in the weights when included and excluded) * (weight and combinatorial factor from other features) * predicted value
-    val out = DenseMatrix.zeros[Double](1, input.length)
-
-    val path = new DecisionPath(factors.size)
-    factors.values.foreach { case FeatureWeightFactor(exclude, include) => path.extend(exclude, include) }
-
+    // The contribution is proportional to the leaf's prediction, so grab that
     this.model.transform(Seq(input)).getExpected().head match {
       case v: Double =>
-        factors.foreach { case (featureIndex, node) =>
-          val w = path.unwoundWeight(node.weightWhenExcluded, node.weightWhenIncluded)
-          out(0, featureIndex) = w * (node.weightWhenIncluded - node.weightWhenExcluded) * v
+        // For each feature, compute the contribution and store it in shapValues
+        featureWeights.foreach { case (featureIndex, node) =>
+          // Compute the weight of the contribution by removing this feature from the set and then computing the weights
+          // These two steps are fused to avoid an extra memory allocation
+          // This is equivalent to `set.unwind(node.weightWhenExcluded, node.weightWhenIncluded).totalWeight`
+          val w = set.unwoundTotalWeight(node.weightWhenExcluded, node.weightWhenIncluded)
+          shapValues(0, featureIndex) = w * (node.weightWhenIncluded - node.weightWhenExcluded) * v
         }
       case _ => throw new NotImplementedError()
     }
-    out
+    shapValues
   }
 
   override def getTrainingWeight(): Double = trainingWeight
