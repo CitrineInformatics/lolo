@@ -166,7 +166,7 @@ class InternalModelNode[T <: PredictionResult[Any]](
       hotPortion * hotContrib + coldPortion * coldContrib
     } else {
       val newPath = if (parentFeatureIndex >= 0) {
-        parentPath.updated(parentFeatureIndex, FeatureWeightFactor(parentFeatureIndex, parentZeroFraction, parentOneFraction))
+        parentPath.updated(parentFeatureIndex, FeatureWeightFactor(parentZeroFraction, parentOneFraction))
       } else {
         parentPath
       }
@@ -178,7 +178,7 @@ class InternalModelNode[T <: PredictionResult[Any]](
           (
             node.weightWhenExcluded, // Proportion of zero paths for this feature that flow down to this branch.
             node.weightWhenIncluded, // Proportion of one paths for this feature that flow down to this branch.
-            newPath - node.featureIndex
+            newPath - split.getIndex()
           )
         case None =>
           // This is the first split on this feature in the present branch's ancestry, so all of the zero and one paths flow down to it.
@@ -257,7 +257,7 @@ class ModelLeaf[T](model: Model[PredictionResult[T]], depth: Int, numFeatures: I
 
     // First, account for the split that led into this leaf
     val factors = if (!omitFeatures.contains(parentFeatureIndex) && parentFeatureIndex >= 0) {
-      parentPath.updated(parentFeatureIndex, FeatureWeightFactor(parentFeatureIndex, parentZeroFraction, parentOneFraction))
+      parentPath.updated(parentFeatureIndex, FeatureWeightFactor(parentZeroFraction, parentOneFraction))
     } else {
       parentPath
     }
@@ -265,17 +265,16 @@ class ModelLeaf[T](model: Model[PredictionResult[T]], depth: Int, numFeatures: I
     // For each feature in the decision path, unwind that feature to remove its impact on the combinatorial factors
     // and then compute its contribution to the shapley value of that feature as:
     // (difference in the weights when included and excluded) * (weight and combinatorial factor from other features) * predicted value
-
     val out = DenseMatrix.zeros[Double](1, input.length)
-    val path = new DecisionPath(factors.size)
-    factors.values.foreach{case FeatureWeightFactor(_, exclude, include) => path.extend(exclude, include)}
 
+    val path = new DecisionPath(factors.size)
+    factors.values.foreach { case FeatureWeightFactor(exclude, include) => path.extend(exclude, include) }
 
     this.model.transform(Seq(input)).getExpected().head match {
       case v: Double =>
-        factors.values.foreach { node =>
+        factors.foreach { case (featureIndex, node) =>
           val w = path.unwoundWeight(node.weightWhenExcluded, node.weightWhenIncluded)
-          out(0, node.featureIndex) = w * (node.weightWhenIncluded - node.weightWhenExcluded) * v
+          out(0, featureIndex) = w * (node.weightWhenIncluded - node.weightWhenExcluded) * v
         }
       case _ => throw new NotImplementedError()
     }

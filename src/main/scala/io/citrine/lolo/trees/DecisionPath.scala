@@ -1,7 +1,5 @@
 package io.citrine.lolo.trees
 
-import scala.collection.mutable
-
 /**
   * Description of a feature's effect on the weight ascribed to the node
   *
@@ -16,12 +14,10 @@ import scala.collection.mutable
   * the factor of the weight of the node due to this feature when the feature is excluded (i.e. unknown).  It is always
   * strictly greater than 0 and strictly less than 1.
   *
-  * @param featureIndex       index of the feature this node describes.
   * @param weightWhenExcluded fraction of paths flowing through this node with this feature excluded.
   * @param weightWhenIncluded fraction of one paths flowing through this node with this feature included.
   */
 case class FeatureWeightFactor(
-                                featureIndex: Int,
                                 weightWhenExcluded: Double,
                                 weightWhenIncluded: Double
                               ) {
@@ -50,7 +46,8 @@ case class FeatureWeightFactor(
   */
 class DecisionPath(numFeatures: Int) {
   // pre-allocation of this whole array is an attempted performance optimization.
-  val weightBySubsetSize: Array[Double] = Array(1.0) ++ Array.fill[Double](numFeatures + 1)(0.0)
+  val weightBySubsetSize: Array[Double] = Array.fill[Double](numFeatures + 1)(0.0)
+  weightBySubsetSize(0) = 1.0
   var size: Int = 0
 
   /**
@@ -66,9 +63,13 @@ class DecisionPath(numFeatures: Int) {
             ): DecisionPath = {
     size += 1
 
-    (size - 1 to 0 by -1).foreach { i =>
-      weightBySubsetSize(i + 1) += weightWhenIncluded * weightBySubsetSize(i) * ((i + 1).toDouble / (size + 1))
-      weightBySubsetSize(i) = weightWhenExcluded * weightBySubsetSize(i) * ((size - i).toDouble / (size + 1))
+    // use a single scratch variable so we can do a forward in-place update
+    var register: Double = weightBySubsetSize(0)
+    weightBySubsetSize(0) = weightWhenExcluded * weightBySubsetSize(0) * ((size - 0).toDouble / (size + 1))
+    (1 until size + 1).foreach { i =>
+      val contrib = weightWhenIncluded * register * (i.toDouble / (size + 1))
+      register = weightBySubsetSize(i)
+      weightBySubsetSize(i) = weightWhenExcluded * weightBySubsetSize(i) * ((size - i).toDouble / (size + 1)) + contrib
     }
 
     this
@@ -111,14 +112,13 @@ class DecisionPath(numFeatures: Int) {
       (size - 1 to 0 by -1).foreach { j =>
         val x = n * (size + 1) / ((j + 1) * weightWhenIncluded)
         res += x
-        n = weightBySubsetSize(j) - x * weightWhenExcluded * ((size - j).toDouble / (size + 1))
+        n = weightBySubsetSize(j) - x * weightWhenExcluded * (size - j) / (size + 1)
       }
     } else {
       (0 until size).foreach { j =>
-        res += weightBySubsetSize(j) * (size + 1).toDouble / (weightWhenExcluded * (size - j))
+        res += weightBySubsetSize(j) * (size + 1) / (weightWhenExcluded * (size - j))
       }
     }
-
     res
   }
 
