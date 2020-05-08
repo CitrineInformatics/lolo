@@ -35,11 +35,12 @@ class FeaturePowerSetTermsTest {
   @Test
   def testExtendOrderInvariant(): Unit = {
     val N = 8
-    val factors = Seq.fill(N)((Random.nextDouble(), if (Random.nextBoolean()) 1.0 else 0.0))
+    val rng = new Random(378654L)
+    val factors = Seq.fill(N)((rng.nextDouble(), if (rng.nextBoolean()) 1.0 else 0.0))
 
     val results = Seq.fill(N) {
       val set = new FeaturePowerSetTerms(N)
-      Random.shuffle(factors).foreach(x => set.extend(x._1, x._2))
+      rng.shuffle(factors).foreach(x => set.extend(x._1, x._2))
       // make dense vectors so we can take norms
       new DenseVector(set.weightBySubsetSize)
     }
@@ -74,8 +75,9 @@ class FeaturePowerSetTermsTest {
   @Test
   def testUnwind(): Unit = {
     val N = 8
-    val firstFactors = Seq.fill(N)((Random.nextDouble(), if (Random.nextBoolean()) 1.0 else 0.0))
-    val secondFactors = Seq.fill(N)((Random.nextDouble(), if (Random.nextBoolean()) 1.0 else 0.0))
+    val rng = new Random(83647L)
+    val firstFactors = Seq.fill(N)((rng.nextDouble(), if (rng.nextBoolean()) 1.0 else 0.0))
+    val secondFactors = Seq.fill(N)((rng.nextDouble(), if (rng.nextBoolean()) 1.0 else 0.0))
 
     // add both sets of factors to the set (note that we test that extend order doesn't matter already
     val set = new FeaturePowerSetTerms(firstFactors.size + secondFactors.size)
