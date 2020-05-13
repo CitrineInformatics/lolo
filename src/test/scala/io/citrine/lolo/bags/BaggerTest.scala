@@ -410,7 +410,6 @@ object BaggerTest {
     val pw = new PrintWriter(new File(s"/tmp/shapley-perf_${new Random().nextInt()}.tsv"))
     pw.write("nCols\tnRows\trepNum\trowIdx\tns\n")
     (256 to 1024 by 256).foreach { nCols =>
-      // (4 to 10 by 2).foreach { nRowsLog: Int =>
       (4 to 8 by 2).foreach { nRowsLog: Int =>
         val nRows = 1 << nRowsLog
         (1 to 3).foreach { repNum =>

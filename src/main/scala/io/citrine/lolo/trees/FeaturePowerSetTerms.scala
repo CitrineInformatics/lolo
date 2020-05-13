@@ -37,7 +37,7 @@ case class FeatureWeightFactor(
   * and so on and so forth.  The final element represents the single term where all of the features are "turned on".
   *
   * The calculation is performed efficiently using a dynamic programming technique that runs in quadratic time with
-  * the number of features.  It is described in the `extend` and `unwind` methods
+  * the number of features.  It is described in the `extend` and `unwind` methods.
   *
   * @param maxFeatures number of features to allocate space for
   */
@@ -65,7 +65,6 @@ class FeaturePowerSetTerms(maxFeatures: Int) {
             ): FeaturePowerSetTerms = {
     size += 1
 
-
     // use a single scratch variable so we can do a forward in-place update
     var register: Double = weightBySubsetSize(0)
 
@@ -85,12 +84,11 @@ class FeaturePowerSetTerms(maxFeatures: Int) {
   /**
     * Remove a feature from the power set, reversing the action of the `extend` method
     *
-    * This method is probably better called "remove", but it is called unwind in the paper.  Its not pretty, but it
-    * simply inverts `extend`.  If you think about extend as multiplying by a matrix with weightWhenExcluded+ on the
-    * diagonal and weightWhenIncluded+ on the lower diagonal.  This method is performing a fast linear solve on that
+    * This method is probably better called "remove", but it is called unwind in the paper.  It's not pretty, but it
+    * simply inverts `extend`.  If you think about extend as multiplying by a matrix with weightWhenExcluded... on the
+    * diagonal and weightWhenIncluded... on the lower diagonal.  This method is performing a fast linear solve on that
     * banded system, with the two logical branches corresponding to the banded vs purely diagonal case.
-    *
-    * +and some combinatorial factors
+    * The ... above denotes some combinatorial terms also present.
     *
     * @return feature power set with a feature removed (out-of-place)
     */

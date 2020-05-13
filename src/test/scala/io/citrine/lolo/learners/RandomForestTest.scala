@@ -1,6 +1,6 @@
 package io.citrine.lolo.learners
 
-import breeze.linalg.{DenseMatrix, DenseVector}
+import breeze.linalg.DenseMatrix
 import breeze.stats.distributions.Beta
 import io.citrine.lolo.TestUtils
 import io.citrine.lolo.stats.functions.Friedman

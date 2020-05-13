@@ -53,7 +53,7 @@ trait ModelNode[T <: PredictionResult[Any]] extends Serializable {
     *
     * The algorithm recursively tracks the feature that is used for each split and the share of the training data
     * that went to the left and the right of the split.  In the leaves, these features and their weights are used
-    * to construct the leaf's contribution to the SHAP values, which are then summed
+    * to construct the leaf's contribution to the SHAP values, which are then summed.
     *
     * @param input          for which to compute feature attributions.
     * @param featureWeights Map from feature index to [[FeatureWeightFactor]], which stores the weight of the child
@@ -214,8 +214,9 @@ class ModelLeaf[T](model: Model[PredictionResult[T]], depth: Int, numFeatures: I
   /**
     * Compute the contribution to SHAP in the leaf based on the features that were encountered between the root node
     * and this leaf.  Note that the order of these features does *not* matter.
-    * The contributions are based on a tricky combinatorial factor that can be computed using dynamic programming
-    * For details of this procedure, see [[FeaturePowerSetTerms]]
+    *
+    * The contributions are based on a tricky combinatorial factor that can be computed using dynamic programming.
+    * For details of this procedure, see [[FeaturePowerSetTerms]].
     */
   def shapleyRecurse(
                       input: Vector[AnyVal],
