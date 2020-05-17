@@ -1,5 +1,6 @@
 package io.citrine.lolo.bags
 
+import breeze.linalg.DenseMatrix
 import breeze.stats.distributions.{Poisson, Rand, RandBasis}
 import io.citrine.lolo.stats.metrics.ClassificationMetrics
 import io.citrine.lolo.util.{Async, InterruptibleExecutionContext}
@@ -251,7 +252,6 @@ class BaggedModel[+T: ClassTag](
                    disableBootstrap: Boolean = false
                  ) extends Model[BaggedResult[T]] {
 
-
   /**
     * Apply each model to the outputs and wrap them up
     *
@@ -280,6 +280,34 @@ class BaggedModel[+T: ClassTag](
 
     res.asInstanceOf[BaggedResult[T]]
   }
+
+  /**
+    * Compute Shapley feature attributions for a given input
+    *
+    * @param input for which to compute feature attributions.
+    * @param omitFeatures feature indices to omit in computing Shapley values
+    * @return matrix of attributions for each feature and output
+    *         One row per feature, each of length equal to the output dimension.
+    *         The output dimension is 1 for single-task regression, or equal to the number of classification categories.
+    */
+  override def shapley(input: Vector[Any], omitFeatures: Set[Int] = Set()): Option[DenseMatrix[Double]] = {
+    val ensembleShapley = models.map(model => model.shapley(input, omitFeatures))
+    if (!ensembleShapley.head.isDefined) {
+      None
+    }
+    assert(ensembleShapley.forall(x => x.isDefined))
+
+    def sumReducer(a: Option[DenseMatrix[Double]],
+                   b: Option[DenseMatrix[Double]]): Option[DenseMatrix[Double]] = {
+      Some(a.get + b.get)
+    }
+    val scale = 1.0 / ensembleShapley.length
+
+    Some(scale * ensembleShapley.reduce(sumReducer).get)
+  }
+
+  // Accessor useful for testing.
+  private[bags] def getModels(): ParSeq[Model[PredictionResult[T]]] = models
 }
 
 object Bagger {

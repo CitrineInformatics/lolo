@@ -49,14 +49,20 @@ class MultiTaskTrainingNode(
         new InternalModelNode[PredictionResult[Double]](
           split,
           leftChild.get.getNode(index).asInstanceOf[ModelNode[PredictionResult[Double]]],
-          rightChild.get.getNode(index).asInstanceOf[ModelNode[PredictionResult[Double]]]
+          rightChild.get.getNode(index).asInstanceOf[ModelNode[PredictionResult[Double]]],
+          numFeatures=inputs.head._1.length,
+          outputDimension = 0,  // Don't support multitask SHAP at this time.
+          trainingWeight = reducedData.length.toDouble
         )
       } else {
         if (!label.isInstanceOf[Char]) throw new IllegalArgumentException("Training data wasn't double or char")
         new InternalModelNode[PredictionResult[Char]](
           split,
           leftChild.get.getNode(index).asInstanceOf[ModelNode[PredictionResult[Char]]],
-          rightChild.get.getNode(index).asInstanceOf[ModelNode[PredictionResult[Char]]]
+          rightChild.get.getNode(index).asInstanceOf[ModelNode[PredictionResult[Char]]],
+          numFeatures=inputs.head._1.length,
+          outputDimension = 0,  // Don't support multitask SHAP at this time.
+          trainingWeight = reducedData.length.toDouble
         )
       }
     } else if (leftChild.isDefined && left.nonEmpty) {

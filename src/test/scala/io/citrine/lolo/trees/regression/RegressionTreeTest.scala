@@ -2,6 +2,7 @@ package io.citrine.lolo.trees.regression
 
 import java.io.{File, FileOutputStream, ObjectOutputStream}
 
+import breeze.linalg.DenseMatrix
 import io.citrine.lolo.TestUtils
 import io.citrine.lolo.linear.LinearRegressionLearner
 import io.citrine.lolo.stats.functions.Friedman
@@ -246,6 +247,94 @@ class RegressionTreeTest {
     }
   }
 
+  /**
+    * Convenience method to compare the Shapley value at a test location for a tree trained on trainingData to a known reference.
+    *
+    * @param trainingData on which to train a regression tree
+    * @param evalLocation at which to evaluate the Shapley value
+    * @param expected     known reference Shapley value to which to compare (fails upon mismatch)
+    */
+  def shapleyCompare(
+                     trainingData: Seq[(Vector[Double],Double)],
+                     evalLocation: Vector[Any],
+                     expected: Vector[Double],
+                     omitFeatures: Set[Int] = Set()
+                    ): Unit = {
+    val actual = RegressionTreeLearner().train(trainingData).getModel().shapley(evalLocation, omitFeatures) match {
+      case None => fail("Unexpected None returned by shapley.")
+      case x: Option[DenseMatrix[Double]] => {
+        val a = x.get
+        assert(a.cols == trainingData.head._1.length, "Expected one Shapley value per feature.")
+        assert(a.rows == 1, "Expected a single output dimension.")
+        a.toDenseVector.toScalaVector
+      }
+      case _ => fail("Unexpected return type.")
+    }
+    assert(expected.zip(actual).forall{
+      case (e: Double, a: Double) => Math.abs(e - a) < 1e-12
+    }, s"Shapley value ${actual} does not match reference ${expected}.")
+  }
+
+  /**
+    * Test Shapley value for  a simple tree.
+    */
+  @Test
+  def testShapley(): Unit = {
+    // Example from Lundberg paper (https://arxiv.org/pdf/1802.03888.pdf)
+    val trainingData1 = Seq(
+      (Vector(1.0, 1.0), 80.0),
+      (Vector(1.0, 0.0), 0.0),
+      (Vector(0.0, 1.0), 0.0),
+      (Vector(0.0, 0.0), 0.0)
+    )
+    val expected1 = Vector(30.0, 30.0)
+    shapleyCompare(trainingData1, Vector[Any](1.0, 1.0), expected1)
+
+    // Second example from Lundberg paper (https://arxiv.org/pdf/1802.03888.pdf)
+    val trainingData2 = Seq(
+      (Vector(1.0, 1.0), 90.0),
+      (Vector(1.0, 0.0), 10.0),
+      (Vector(0.0, 1.0), 0.0),
+      (Vector(0.0, 0.0), 0.0)
+    )
+    val expected2 = Vector(35.0, 30.0)
+    shapleyCompare(trainingData2, Vector[Any](1.0, 1.0), expected2)
+
+    // Example with two splits on one feature
+    // Worked out with pen-and-paper from Lundberg Equation 2.
+    val trainingData3 = Seq(
+      (Vector(1.0, 1.0), 100.0),
+      (Vector(1.0, 0.0), 80.0),
+      (Vector(1.0, 0.2), 70.0),
+      (Vector(0.0, 1.0), 0.0),
+      (Vector(0.0, 0.2), 0.0),
+      (Vector(0.0, 0.0), 0.0)
+    )
+    val expected3 = Vector(45.8333333333333, 12.5)
+    shapleyCompare(trainingData3, Vector[Any](1.0, 1.0), expected3)
+
+    // Example with 5 features, to exercise all the factorials in Lundberg equation 2.
+    // Referenced against the shap package on a sklearn decision tree.
+    val trainingData4 = Seq(
+      (Vector(0.0, 0.0, 0.0, 0.0, 0.0), 1.0),
+      (Vector(1.0, 0.0, 0.0, 0.0, 0.0), 2.0),
+      (Vector(0.0, 1.0, 0.0, 0.0, 0.0), 4.0),
+      (Vector(0.0, 0.0, 1.0, 0.0, 0.0), 8.0),
+      (Vector(0.0, 0.0, 0.0, 1.0, 0.0), 16.0),
+      (Vector(0.0, 0.0, 0.0, 0.0, 1.0), 32.0)
+    )
+    val expected4 = Vector(0.0333333333333333, 0.2, 0.8666666666666667, 3.533333333333333, 16.866666666666667)
+    shapleyCompare(trainingData4, Vector.fill[Any](5)(1.0), expected4)
+
+    // Test omitted features
+    val expected2a = Vector(0.0, 20.0)
+    shapleyCompare(trainingData2, Vector[Any](1.0, 1.0), expected2a, omitFeatures = Set(0))
+    val expected2b = Vector(25.0, 0.0)
+    shapleyCompare(trainingData2, Vector[Any](1.0, 1.0), expected2b, omitFeatures = Set(1))
+
+    // Ensure we don't crash when restricting number of features.
+    RegressionTreeLearner(numFeatures = 1).train(trainingData4).getModel().shapley(Vector.fill[Any](5)(0.0), Set())
+  }
 }
 
 /** Companion driver */

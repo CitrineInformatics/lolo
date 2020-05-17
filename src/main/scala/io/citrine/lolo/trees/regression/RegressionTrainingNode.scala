@@ -1,8 +1,7 @@
 package io.citrine.lolo.trees.regression
 
-import io.citrine.lolo.trees.splits.{NoSplit, RegressionSplitter, Split, Splitter}
+import io.citrine.lolo.trees.splits.{NoSplit, Split, Splitter}
 import io.citrine.lolo.trees.{InternalModelNode, ModelNode, TrainingNode}
-import io.citrine.lolo.trees.{InternalModelNode, ModelNode, TrainingLeaf, TrainingNode}
 import io.citrine.lolo.{Learner, PredictionResult}
 
 /**
@@ -40,7 +39,7 @@ class RegressionTrainingNode(
     * @return lightweight prediction node
     */
   override def getNode(): ModelNode[PredictionResult[Double]] = {
-    new InternalModelNode[PredictionResult[Double]](split, leftChild.getNode(), rightChild.getNode())
+    new InternalModelNode[PredictionResult[Double]](split, leftChild.getNode(), rightChild.getNode(), numFeatures, 1, trainingData.size.toDouble)
   }
 
   /**
@@ -53,14 +52,14 @@ class RegressionTrainingNode(
     */
   override def getFeatureImportance(): scala.collection.mutable.ArraySeq[Double] = {
     val improvement = deltaImpurity
-    var ans = leftChild.getFeatureImportance().zip(rightChild.getFeatureImportance()).map(p => p._1 + p._2)
-    ans(split.getIndex) = ans(split.getIndex) + improvement
+    val ans = leftChild.getFeatureImportance().zip(rightChild.getFeatureImportance()).map(p => p._1 + p._2)
+    ans(split.getIndex()) = ans(split.getIndex()) + improvement
     ans
   }
 }
 
 /**
-  * Companion objet to hold helper functions
+  * Companion object to hold helper functions
   */
 object RegressionTrainingNode {
   /**

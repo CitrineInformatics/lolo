@@ -1,5 +1,7 @@
 package io.citrine.lolo
 
+import breeze.linalg.DenseVector
+
 /**
   * Created by maxhutch on 12/4/16.
   */
