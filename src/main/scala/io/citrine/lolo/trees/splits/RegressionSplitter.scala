@@ -147,7 +147,7 @@ case class RegressionSplitter(randomizePivotLocation: Boolean = false) extends S
     }
 
     /* Compute the average label for each categorical value */
-    val categoryAverages: Map[Char, Double] = groupedData.mapValues(p => p._1 / p._2)
+    val categoryAverages: Map[Char, Double] = groupedData.mapValues(p => p._1 / p._2).toMap
 
     /* Create an orderd list of the categories by average label */
     val orderedNames = categoryAverages.toSeq.sortBy(_._2).map(_._1)

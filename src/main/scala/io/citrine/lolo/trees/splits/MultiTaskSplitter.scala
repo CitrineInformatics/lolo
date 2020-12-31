@@ -119,8 +119,8 @@ object MultiTaskSplitter {
 
     /* Group the data by categorical feature and compute the weighted sum and sum of the weights for each */
     val groupedData: Map[Char, (Double, Double, Double)] = thinData.groupBy(_._1).mapValues(g =>
-      (computeImpurity(g.map(x => (x._2, x._3))), g.map(_._3).sum, g.size)
-    )
+      (computeImpurity(g.map(x => (x._2, x._3))), g.map(_._3).sum, g.size.toDouble)
+    ).toMap
 
     /* Make sure there is more than one member for most of the classes */
     val nonTrivial: Double = groupedData.filter(_._2._3 > 1).map(_._2._2).sum

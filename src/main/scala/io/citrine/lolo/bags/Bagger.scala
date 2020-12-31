@@ -7,6 +7,7 @@ import io.citrine.lolo.{Learner, Model, PredictionResult, RegressionResult, Trai
 
 import scala.collection.parallel.ExecutionContextTaskSupport
 import scala.collection.parallel.immutable.ParSeq
+import scala.collection.parallel.CollectionConverters._
 import scala.reflect._
 
 /**

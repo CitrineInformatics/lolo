@@ -6,6 +6,7 @@ import io.citrine.lolo.util.{Async, InterruptibleExecutionContext}
 
 import scala.collection.parallel.ExecutionContextTaskSupport
 import scala.collection.parallel.immutable.ParSeq
+import scala.collection.parallel.CollectionConverters._
 
 /**
   * Create an ensemble of multi-task models

@@ -156,7 +156,7 @@ object Merit {
       val mean = meritResults.sum / meritResults.size
       val variance = meritResults.map(y => Math.pow(y - mean, 2)).sum / meritResults.size
       (mean, Math.sqrt(variance / meritResults.size))
-    }
+    }.toMap
   }
 
   /**

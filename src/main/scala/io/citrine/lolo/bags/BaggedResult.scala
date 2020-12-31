@@ -21,15 +21,16 @@ trait BaggedResult[+T] extends PredictionResult[T] {
     */
   override def getGradient(): Option[Seq[Vector[Double]]] = gradient
 
-  private lazy val gradient = if (predictions.head.getGradient().isEmpty) {
+  private lazy val gradient: Option[Seq[Vector[Double]]] = if (predictions.head.getGradient().isEmpty) {
     /* If the underlying model has no gradient, return None */
     None
   } else {
     val gradientsByPrediction: Seq[Seq[Vector[Double]]] = predictions.map(_.getGradient().get)
     val gradientsByInput: Seq[Seq[Vector[Double]]] = gradientsByPrediction.transpose
-    Some(gradientsByInput.map { r =>
+    val res: Seq[Vector[Double]] = gradientsByInput.map { r =>
       r.toVector.transpose.map(_.sum / predictions.size)
-    })
+    }
+    Some(res)
   }
 }
 
@@ -147,7 +148,7 @@ case class BaggedClassificationResult(
   lazy val expectedMatrix: Seq[Seq[Any]] = predictions.map(p => p.getExpected()).transpose
 
   lazy val expected: Seq[Any] = expectedMatrix.map(ps => ps.groupBy(identity).maxBy(_._2.size)._1).seq
-  lazy val uncertainty: Seq[Map[Any, Double]] = expectedMatrix.map(ps => ps.groupBy(identity).mapValues(_.size.toDouble / ps.size))
+  lazy val uncertainty: Seq[Map[Any, Double]] = expectedMatrix.map(ps => ps.groupBy(identity).mapValues(_.size.toDouble / ps.size).toMap)
 
   /**
    * Return the majority vote vote
