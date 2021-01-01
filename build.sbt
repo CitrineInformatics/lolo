@@ -11,6 +11,8 @@ licenses         += "Apache-2.0" ->  url("http://www.apache.org/licenses/LICENSE
 scmInfo          := Some(ScmInfo(url("https://github.com/CitrineInformatics/lolo"), "scm:git@github.com:CitrineInformatics/lolo.git"))
 
 pomIncludeRepository := { _ => false }
+test in assembly := {}
+assemblyJarName in assembly := s"lolo-jar-with-dependencies.jar"
 
 libraryDependencies ++= loloDeps
 

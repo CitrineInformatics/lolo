@@ -1,3 +1,3 @@
 all:
-	cd ..; mvn -B -P lolopy clean package -DskipTests=true -Dmaven.javadoc.skip=True
+	cd ..; sbt assembly
 	pip install -e .

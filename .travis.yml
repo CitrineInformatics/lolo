@@ -8,6 +8,14 @@ before_cache:
   # Cleanup the cached directories to avoid unnecessary cache updates
   - find $HOME/.ivy2/cache -name "ivydata-*.properties" -print -delete
 
+before_install:
+  - git fetch --tags
+
+stages:
+  - name: test
+  - name: release
+    if: ((branch = master AND type = push) OR (tag IS present)) AND NOT fork
+
 jobs:
   include:
   - stage: test
@@ -26,18 +34,13 @@ jobs:
     - pip install --only-binary=numpy,scipy -r requirements.txt
     script:
     - nosetests
-  - stage: deploy
+  - stage: release
     name: maven central
     language: scala
     scala: 2.12.4
     jdk: openjdk8
-    script: true
-    deploy:
-      provider: script
-      script: bash cd/deploy.sh
-      on:
-        branch: master
-  - stage: deploy
+    script: sbt ci-release
+  - stage: release
     name: pypi
     language: python
     python: 3.6
@@ -60,10 +63,4 @@ jobs:
         secure: fb/NiAH7E1zA2iRUT+NMywH7dh0HF3qLM/JhjWLQWQ8l/pxOy7HPgk1CDEkZip/4emH2ur5+bGAD0pm0ewfDWfvjTPA+woV5IEebK2KL3Gm4Oam4fZP27NZ5zfYs6Q1dx3YPjRUgI3gtJ+0Y1tVKvZrUaZHityDMJDuEsYjdmPnFsA6s6U/5GYeQfWaYjZcflqYd01H8K9kbCeBsRBlOUm1lCXmt13R4uBOoMNAkuR7knYUOE1VM6VJWTN2T0iKphS9agxPHh/9/B9gjCQExhynOWSs5E2WhhDnWUoAJgyaZdxZQOxT2jJKA4dJGMCtyQScWItjsglcpthd+DsNtx/0vF1fDV3tvdjRVfegnhcF9fMUeI30O5jGTqNhimkiQsV1L+Sn6LFVAJKZ2yGzjqyS+8wn/uGOLQ04R46aw7KcfDJthzPU+dx0W78scTnkOnOx0R6eLH/HBn619h415JSsYpQ/D4A2VzODhHfScgzEe9xoL61ArhYz/wAqEAvit8WbFs4D7ZVnBc/98wsBD2NKUlmTZfkjPDAZQr49S1Na6UKlK6p4gLkXE6hfwgkFwxLiaQxOMfg0u/7VbbJzfrB2568HerS/oilDq+Bp+jNKUwyo08P0qD+8a4Gif1uk1UcipixDWbCvNlfr1H7+2FrN0+b92Xmfjd+CTMKmfv7o=
       distributions: sdist bdist_wheel
       on:
-        branch: master
-env:
-  global:
-  - secure: KXYC2UsqWnM+6ghbVviBC4J7tin4RDH+Ylgihk107h59s4osg/dFmoeZs0qmfhcFhauqT/+wSSaSbEqv1XCg79yv4JuYvlnLosQI7kJsNh0sjqnwNpw9qvvwWGph9ZCKskUMU27f0J57bdBi37spXGApL6I7vYia/0e3grqERqWp+p68CbD7H72Zb4V0j3WkU+zURFZbjl8D5EmIgkb/My9olYq9QPblYj79o+5LfJRO8upVuGPO8uUsbxtx4x9T/blwKd4tXULFNiRF067qfTxuemKdbCuZ8fcg7VDJBeMj6wXVQRcY6Nvfcyi2mJh0RVYWHvdHabzsHWlwAJr0tQ0rv1V7jv1CH2dwyL6fZ+jWU9dB47fhr4tg3cpRqFC4a/rRNabbWvwk2+SuWC33fDIlq68fpqpOQ5113ePqTIrKrnYybyzpjEHEdBQgxcQC6A0Ni0K8BiVWVphTxznt1XA0IYCptuNrvCCJq2c5WFXodsl52elkwLnyTOJ91yzymPRQYr4c3OhXmVi7E456qCGZuZ8lHDlYHcftC5Fsft385CxurZ+RfL3xH+DP0Xj4m27RCQiiXllK6TGCXnc9L7NlcuIwx3zu7ysEBtWWRtSdCnvR550FLf+iUuBIgjm4uNTuaTjlD3ddK7rK/fU08PPpqq80pYfqDge6yTIFDJs=
-  - secure: ELoVdfDuQp+/M00FDy1MH6tDkpWCzEkx4fY3j7mP+DV3pBrgLlp84gm/v91At6hNrtLFzJTpBqmPecZuqdDYp9jLy2cSAEMM1dWAgSZ8/Xlz/aeGTFvM1jnXr423ErrnlCxyczxd7BNC1iulUDvqg+4z+C6nxM1a3CCNmly7kjFGo1Naq3YCWbkrjNMqZNW0Qg6nh0i1EpVvFGE2KJdoh78KEXvOCc8+AyLHKM1L8T41eucWYdxYXbSxMG9cJONDlO7jol4IyaCLqc7d1YMcF9LT7x0hHJL8Mr8I5CRRlI71FlytijrmMQgePQdYwPGoce3vzi2q8qNfOzM1AL46c9aHidz6tjYVxRNEko+KpZOe7bOyEYS1bITotEUO9TPiJX/puiac4frDfEWjafg63eWs6gsSDvmGlHkxxDmJY9i0sYYYKigakFEeRz2/vFlJ6bUTiKpiVYcaVMFrtaYyW+4LRnMybTZmYnc7aM30D6QnueXygyjLBPY2W3TKXiUV3tnfKwm+XPGxsJK8Rqiw4GUJbTP9ZREF4hjm0JtNYKqtUhnJslGIqlLpBXH/iu0Kfsfg7WfG8iEBUQ/v0u9zrMJGgqXl7I8uUBAtoYkph+o/ydVE8p8yO2KeNfRm6JVat9UN3FN/ubfD5qnNIRn0J1oIbWdhtr9fttN1ZznFA3I=
-  - secure: kDU4TblhVO2PmtZuI8jB/EHW6/mv5w5FenArY0AfhyoP5oF6YWA62oLTVvEvmtTaCZrt33RKeDyRaeJshCEMgt1kY1oWXpSzZLnBlnXDRj7yNzaVQcp9aSjZd/AijMwTuvG31tiqB+DXp4nsv7JP0pppQ0NGZAClrBkHIeJVWjeFxcacwffJLUxHjKvKJ39y12eraXN5ROYNxbIuv40n8hrtRgrxSNz0+1BBggT+AMgtFk6FhuEerulZ/SVTUgflB0MdvvjBLkq5Gzv9YqzOnEGE0iB5r+xIGzjIEQGtxXduQcj8lAlzTBWPcdDUKt1qrPJ6E6F5c+tNzyi1I6E4Lu+tW1z+ApNP7U0FuTYG0ddK/JLe0PCr1RMlaY4lUDBcQDRgTfXNNJ1uJTdbR6nCVUY19Diyu7Hg+idcMnRsV1B/GCoRjQT9HwuxzrSHplfoUNVVEU0toEYL3FOx+hF8wpBga3gixbRGVYtSUob89nu+0oAvvHAU1Mjz0VySPsnEUENXkL1qZqPvLIBJ1HNMb866BiboVkolx8dkIr4yqDPHc3Bm+MpC5rd9DTOF4aF5eNSnEBwCjI27EvV+2aQlEDleHqq0N2x6LuDpBYa2mWoLw91RiHW9+fYhmxxBGEppUKC+u/w8dCUqm9lHu6azKWw4Pw1AMKTJZ3/3gXEu+uI=
-  - secure: YUFtsHv7u1q/2Rt1ZYI7Pfog9O5itVdTuHcx6Mxo4NAok+Up0WLijmn4Bwr/VrXStkxxHsjALm6eG8cVO8HGtFQ1ANwsOq6Nbwm18xAqgRYvlJNKtEllSLJPvTuBM1uoCnZZWBXG2iAAq48KoPUiR7i08IUMvSdcTEtHYjJXLO8lRGdoaKlSNOYAqxP7WkOrCEoDNi8VfDKrzDeE1G+5YRPluRsEUk9FvsgQnbUvFsyjy5LHOZmXMsLFJ05+aRe9VN5DbzYGPCs2h47uJQaDZP/MvM/gPs5ypKt/glYSUOehbHeaxCr0qqCRPISDPxlSongDbo0odgd4dv+gruqubHQTBeHfnKwPNOVWvPMO+w787umkD1qP0C9AnuuaCaKMHN7q/j354i/7avjo2fBVcsQz+Mgg/7VBDKaeycBJM/i8+2lCcOvfk3bMXr6BXM1O9IA2TnuGuEP8crf56dGa8ntZYyFRgTEEUCdm+ffroFifhtRBchblX/1FSQIEl1brHOz5CIAhq3oPa+IUrtcWbKz9wkbO0qrsM7NxulhuBgEtqBSau8DWg/pc9yYCsQTr02KOawzC2brryat5nAykJqsgT95EYtca2gsSXg6VZsLZM+NDJDqYD9A0v6CQ5FmTCm64capxix+PpIfD3H2TcAzZlfNa8rfICp7VPBczoJ4=
+        tags: true

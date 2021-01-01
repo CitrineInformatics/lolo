@@ -11,7 +11,7 @@ with open(os.path.join("lolopy", "version.py")) as f:
 version = version_ns['__version__']
 
 # Find the lolo jar
-JAR_FILE = glob(os.path.join('..', 'target', 'lolo-*-jar-with-dependencies.jar'))
+JAR_FILE = glob(os.path.join('..', 'target', 'scala-2.12', 'lolo-jar-with-dependencies.jar'))
 if len(JAR_FILE) == 0:
     raise Exception('No Jar files found. Build lolo first by calling "make" or "cd ..; mvn -P lolopy clean package"')
 elif len(JAR_FILE) > 1:
