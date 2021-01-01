@@ -1,11 +1,13 @@
 package io.citrine.lolo.trees.regression
 
+import breeze.linalg.DenseMatrix
 import io.citrine.lolo.encoders.CategoricalEncoder
 import io.citrine.lolo.linear.GuessTheMeanLearner
-import io.citrine.lolo.trees.splits.{NoSplit, RegressionSplitter}
-import io.citrine.lolo.trees.{ModelNode, TrainingLeaf, TrainingNode, TreeMeta}
+import io.citrine.lolo.trees.splits.{NoSplit, RegressionSplitter, Splitter}
+import io.citrine.lolo.trees.{ModelNode, TrainingNode, TreeMeta}
 import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
 
+import scala.util.Random
 
 /**
   * Learner for regression trees
@@ -15,27 +17,18 @@ import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
   * @param numFeatures to randomly select from at each split (default: all)
   * @param maxDepth    to grow the tree to
   * @param leafLearner learner to train the leaves with
+  * @param minLeafInstances minimum number of instances per leaf
   */
-class RegressionTreeLearner(
-                             numFeatures: Int = -1,
-                             maxDepth: Int = 30,
-                             leafLearner: Option[Learner] = None
-                           ) extends Learner {
+case class RegressionTreeLearner(
+                                  numFeatures: Int = -1,
+                                  maxDepth: Int = 30,
+                                  minLeafInstances: Int = 1,
+                                  leafLearner: Option[Learner] = None,
+                                  splitter: Splitter[Double] = RegressionSplitter(),
+                                  rng: Random = Random
+                                ) extends Learner {
   /** Learner to use for training the leaves */
-  val myLeafLearner = leafLearner.getOrElse(new GuessTheMeanLearner())
-
-  /** Hyperparameters */
-  setHypers(Map("minLeafInstances" -> 1, "maxDepth" -> maxDepth, "numFeatures" -> numFeatures))
-
-  override def setHypers(moreHypers: Map[String, Any]): this.type = {
-    hypers = hypers ++ moreHypers
-    myLeafLearner.setHypers(moreHypers)
-    this
-  }
-
-  override def getHypers(): Map[String, Any] = {
-    myLeafLearner.getHypers() ++ hypers
-  }
+  @transient private lazy val myLeafLearner = leafLearner.getOrElse(GuessTheMeanLearner(rng = rng))
 
   /**
     * Train the tree by recursively partitioning (splitting) the training data on a single feature
@@ -45,11 +38,10 @@ class RegressionTreeLearner(
     * @return a RegressionTree
     */
   override def train(trainingData: Seq[(Vector[Any], Any)], weights: Option[Seq[Double]] = None): RegressionTreeTrainingResult = {
+    require(trainingData.nonEmpty, s"The input training data was empty")
     if (!trainingData.head._2.isInstanceOf[Double]) {
       throw new IllegalArgumentException(s"Tried to train regression on non-double labels, e.g.: ${trainingData.head._2}")
     }
-    assert(trainingData.size > 4, s"We need to have at least 4 rows, only ${trainingData.size} given")
-
     val repInput = trainingData.head._1
 
     /* Create encoders for any categorical features */
@@ -69,40 +61,45 @@ class RegressionTreeLearner(
       (f, l.asInstanceOf[Double], w)
     }.filter(_._3 > 0).toVector
 
+    require(
+      finalTraining.size >= 4,
+      s"We need to have at least 4 rows with non-zero weights, only ${finalTraining.size} given"
+    )
+
     /* If the number of features isn't specified, use all of them */
-    val numFeaturesActual = if (hypers("numFeatures").asInstanceOf[Int] > 0) {
-      hypers("numFeatures").asInstanceOf[Int]
+    val numFeaturesActual = if (numFeatures > 0) {
+      numFeatures
     } else {
       finalTraining.head._1.size
     }
 
     /* The tree is built of training nodes */
-    val (split, delta) = RegressionSplitter.getBestSplit(finalTraining, numFeaturesActual, hypers("minLeafInstances").asInstanceOf[Int])
-    val rootTrainingNode: TrainingNode[AnyVal, Double] = if (split.isInstanceOf[NoSplit] || hypers("maxDepth").asInstanceOf[Int] == 0) {
+    val (split, delta) = splitter.getBestSplit(finalTraining, numFeaturesActual, minLeafInstances)
+    val rootTrainingNode: TrainingNode[AnyVal, Double] = if (split.isInstanceOf[NoSplit] || maxDepth == 0) {
       new RegressionTrainingLeaf(finalTraining, myLeafLearner, 0)
     } else {
       new RegressionTrainingNode(
         finalTraining,
         myLeafLearner,
+        splitter,
         split,
         delta,
         numFeaturesActual,
-        minLeafInstances = hypers("minLeafInstances").asInstanceOf[Int],
-        remainingDepth = hypers("maxDepth").asInstanceOf[Int] - 1,
-        hypers("maxDepth").asInstanceOf[Int])
+        minLeafInstances = minLeafInstances,
+        remainingDepth = maxDepth - 1,
+        maxDepth
+      )
     }
 
     /* Wrap them up in a regression tree */
-    new RegressionTreeTrainingResult(rootTrainingNode, encoders, getHypers())
+    new RegressionTreeTrainingResult(rootTrainingNode, encoders)
   }
 
 }
 
-@SerialVersionUID(999L)
 class RegressionTreeTrainingResult(
                                     rootTrainingNode: TrainingNode[AnyVal, Double],
-                                    encoders: Seq[Option[CategoricalEncoder[Any]]],
-                                    hypers: Map[String, Any]
+                                    encoders: Seq[Option[CategoricalEncoder[Any]]]
                                   ) extends TrainingResult {
   lazy val model = new RegressionTree(rootTrainingNode.getNode(), encoders)
   lazy val importance = rootTrainingNode.getFeatureImportance()
@@ -115,8 +112,6 @@ class RegressionTreeTrainingResult(
   }
 
   override def getModel(): RegressionTree = model
-
-  override def getHypers(): Map[String, Any] = hypers
 
   /**
     * Return the pre-computed influences
@@ -132,7 +127,6 @@ class RegressionTreeTrainingResult(
   * @param root     of the tree
   * @param encoders for categorical variables
   */
-@SerialVersionUID(999L)
 class RegressionTree(
                       root: ModelNode[PredictionResult[Double]],
                       encoders: Seq[Option[CategoricalEncoder[Any]]]
@@ -148,6 +142,20 @@ class RegressionTree(
       inputs.map(inp => root.transform(CategoricalEncoder.encodeInput(inp, encoders)))
     )
   }
+
+  /**
+    * Compute Shapley feature attributions for a given input
+    *
+    * @param input for which to compute feature attributions.
+    * @param omitFeatures feature indices to omit in computing Shapley values
+    * @return array of Shapley feature attributions, one per input feature, each a vector of
+    *         One Vector[Double] per feature, each of length equal to the output dimension.
+    *         The output dimension is 1 for single-task regression, or equal to the number of classification categories.
+    */
+  override def shapley(input: Vector[Any], omitFeatures: Set[Int] = Set()): Option[DenseMatrix[Double]] = {
+    root.shapley(CategoricalEncoder.encodeInput(input, encoders), omitFeatures)
+  }
+
 }
 
 /**

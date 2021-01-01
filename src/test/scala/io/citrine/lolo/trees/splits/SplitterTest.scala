@@ -10,14 +10,15 @@ import scala.util.Random
   */
 @Test
 class SplitterTest {
+  val rng = new Random(39578L)
 
   /**
     * Test different variance formulations
     */
   @Test
   def testTotalVarianceCalculation(): Unit = {
-    val values = (0 until 16).map(i => Random.nextDouble())
-    val (left, right) = values.partition(f => Random.nextBoolean())
+    val values = (0 until 16).map(i => rng.nextDouble())
+    val (left, right) = values.partition(f => rng.nextBoolean())
 
     val totalSquareSum = values.map(v => v * v).sum
     val totalNum = values.size
@@ -53,13 +54,13 @@ class SplitterTest {
   @Test
   def testLargeDuplicates(): Unit = {
     val base: Double = 3.0e9
-    val trainingData = Seq.fill(8){
-      (Vector(base + Random.nextDouble()), Random.nextDouble(), 1.0)
+    val trainingData = Seq.fill(8) {
+      (Vector(base + rng.nextDouble()), rng.nextDouble(), 1.0)
     }
 
     val calculator = new VarianceCalculator(0.0, 0.0, 8.0)
 
-    val (_, variance) = RegressionSplitter.getBestRealSplit(trainingData, calculator, 0, 1)
+    val (_, variance) = RegressionSplitter().getBestRealSplit(trainingData, calculator, 0, 1)
     assert(variance == Double.MaxValue, "didn't expect to find a valid split")
   }
 

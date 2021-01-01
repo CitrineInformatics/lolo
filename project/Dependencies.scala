@@ -13,6 +13,7 @@ object Dependencies {
     "io.citrine" % "theta" % thetaVersion,
     "org.scalactic" %% "scalactic" % scalaticVersion,
     "org.scalatest" %% "scalatest" % scalaticVersion % "test",
-    "com.novocode" % "junit-interface" % "0.11" % "test"
+    "com.novocode" % "junit-interface" % "0.11" % "test",
+    "org.knowm.xchart" % "xchart" % "3.5.2"
   )
 }

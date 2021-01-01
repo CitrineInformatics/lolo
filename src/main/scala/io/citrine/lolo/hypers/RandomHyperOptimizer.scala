@@ -10,10 +10,8 @@ import scala.util.Random
   * This optimizer can be evaluated multiple times and will persist the best results across those
   * calls.
   * Created by maxhutch on 12/7/16.
-  *
-  * @param base learner to optimize parameters for
   */
-class RandomHyperOptimizer(base: Learner) extends HyperOptimizer(base) {
+class RandomHyperOptimizer(rng: Random = Random) extends HyperOptimizer {
 
   /** Keep track of the best hypers outside of the optimize call so it persists across calls */
   var best: Map[String, Any] = Map()
@@ -27,13 +25,13 @@ class RandomHyperOptimizer(base: Learner) extends HyperOptimizer(base) {
     * @param numIterations number of draws to take
     * @return the best hyper map found in give iterations and the corresponding loss
     */
-  override def optimize(trainingData: Seq[(Vector[Any], Any)], numIterations: Int): (Map[String, Any], Double) = {
+  override def optimize(trainingData: Seq[(Vector[Any], Any)], numIterations: Int, builder: Map[String, Any] => Learner): (Map[String, Any], Double) = {
     /* Just draw numIteration times */
     (0 until numIterations).foreach { i =>
       val testHypers = hyperGrids.map { case (n, v) =>
-        n -> Random.shuffle(v).head
+        n -> rng.shuffle(v).head
       }
-      val testLearner = base.setHypers(testHypers)
+      val testLearner = builder(testHypers)
       val res = testLearner.train(trainingData)
       if (res.getLoss().isEmpty) {
         throw new IllegalArgumentException("Trying to optimize hyper-paramters for a learner without getLoss")

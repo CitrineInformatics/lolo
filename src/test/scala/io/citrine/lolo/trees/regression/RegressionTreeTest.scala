@@ -2,9 +2,11 @@ package io.citrine.lolo.trees.regression
 
 import java.io.{File, FileOutputStream, ObjectOutputStream}
 
+import breeze.linalg.DenseMatrix
 import io.citrine.lolo.TestUtils
 import io.citrine.lolo.linear.LinearRegressionLearner
 import io.citrine.lolo.stats.functions.Friedman
+import io.citrine.lolo.trees.splits.{BoltzmannSplitter, RegressionSplitter}
 import org.junit.Test
 import org.scalatest.Assertions._
 
@@ -15,6 +17,7 @@ import scala.util.Random
   */
 @Test
 class RegressionTreeTest {
+  val rng = new Random(90476L)
 
   /**
     * Trivial models with no splits should have finite feature importance.
@@ -26,7 +29,7 @@ class RegressionTreeTest {
       (input, 2.0)
     }
 
-    val DTLearner = new RegressionTreeLearner()
+    val DTLearner = RegressionTreeLearner()
     val DTMeta = DTLearner.train(X)
     val DT = DTMeta.getModel()
     assert(DTMeta.getFeatureImportance()
@@ -40,7 +43,27 @@ class RegressionTreeTest {
   def testSimpleTree(): Unit = {
     val csv = TestUtils.readCsv("double_example.csv")
     val trainingData = csv.map(vec => (vec.init, vec.last.asInstanceOf[Double]))
-    val DTLearner = new RegressionTreeLearner()
+    val DTLearner = RegressionTreeLearner()
+    val DT = DTLearner.train(trainingData).getModel()
+
+    /* We should be able to memorize the inputs */
+    val output = DT.transform(trainingData.map(_._1))
+    trainingData.zip(output.getExpected()).foreach { case ((x, a), p) =>
+      assert(Math.abs(a - p) < 1.0e-9)
+    }
+    assert(output.getGradient().isEmpty)
+    output.getDepth().foreach(d => assert(d > 3 && d < 9, s"Depth is ${d}"))
+  }
+
+  /**
+    * Test a simple tree with only real inputs
+    * Even with randomization, the training data should be memorized
+    */
+  @Test
+  def testrandomizePivotLocation(): Unit = {
+    val csv = TestUtils.readCsv("double_example.csv")
+    val trainingData = csv.map(vec => (vec.init, vec.last.asInstanceOf[Double]))
+    val DTLearner = RegressionTreeLearner(splitter = RegressionSplitter(randomizePivotLocation = true))
     val DT = DTLearner.train(trainingData).getModel()
 
     /* We should be able to memorize the inputs */
@@ -57,8 +80,8 @@ class RegressionTreeTest {
     */
   @Test
   def longerTest(): Unit = {
-    val trainingData =TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman)
-    val DTLearner = new RegressionTreeLearner()
+    val trainingData = TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman)
+    val DTLearner = RegressionTreeLearner()
     val N = 100
     val start = System.nanoTime()
     val DTMeta = DTLearner.train(trainingData)
@@ -95,7 +118,7 @@ class RegressionTreeTest {
       inputBins = Seq((0, 8))
     ).asInstanceOf[Seq[(Vector[Any], Double)]]
 
-    val DTLearner = new RegressionTreeLearner()
+    val DTLearner = RegressionTreeLearner()
     val N = 100
     val start = System.nanoTime()
     val DTMeta = DTLearner.train(trainingData)
@@ -128,8 +151,8 @@ class RegressionTreeTest {
   def testLinearLeaves(): Unit = {
     val trainingData = TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman)
 
-    val linearLearner = new LinearRegressionLearner().setHyper("regParam", 0.0)
-    val DTLearner = new RegressionTreeLearner(leafLearner = Some(linearLearner)).setHyper("minLeafInstances", 2)
+    val linearLearner = LinearRegressionLearner(regParam = Some(0.0))
+    val DTLearner = RegressionTreeLearner(leafLearner = Some(linearLearner), minLeafInstances = 2)
     val DTMeta = DTLearner.train(trainingData)
     val DT = DTMeta.getModel()
 
@@ -162,8 +185,8 @@ class RegressionTreeTest {
       inputBins = Seq((11, 8))
     ).asInstanceOf[Seq[(Vector[Any], Double)]]
 
-    val linearLearner = new LinearRegressionLearner().setHyper("regParam", 1.0)
-    val DTLearner = new RegressionTreeLearner(leafLearner = Some(linearLearner), maxDepth = 0)
+    val linearLearner = LinearRegressionLearner(regParam = Some(1.0))
+    val DTLearner = RegressionTreeLearner(leafLearner = Some(linearLearner), maxDepth = 0)
     val DTMeta = DTLearner.train(trainingData)
     val DT = DTMeta.getModel()
 
@@ -176,7 +199,7 @@ class RegressionTreeTest {
     /* They should all be non-zero */
     assert(importances.last == 0.0)
 
-    assert(linearImportance.zip(importances).map{case (x, y) => x-y}.forall(d => Math.abs(d) < 1.0e-9),
+    assert(linearImportance.zip(importances).map { case (x, y) => x - y }.forall(d => Math.abs(d) < 1.0e-9),
       s"Expected linear and maxDepth=0 importances to align"
     )
 
@@ -191,9 +214,11 @@ class RegressionTreeTest {
   def testWeights(): Unit = {
     val trainingData = TestUtils.generateTrainingData(32, 12, noise = 100.0, function = Friedman.friedmanSilverman, seed = 3L)
 
-    val linearLearner = new LinearRegressionLearner().setHyper("regParam", 1.0)
-    val DTLearner = new RegressionTreeLearner(leafLearner = Some(linearLearner), maxDepth = 1)
-    val DTMeta = DTLearner.train(trainingData, weights = Some(Seq.fill(trainingData.size){Random.nextInt(8)}))
+    val linearLearner = LinearRegressionLearner(regParam = Some(1.0))
+    val DTLearner = RegressionTreeLearner(leafLearner = Some(linearLearner), maxDepth = 1)
+    val DTMeta = DTLearner.train(trainingData, weights = Some(Seq.fill(trainingData.size) {
+      rng.nextInt(8)
+    }))
     val DT = DTMeta.getModel()
 
     /* The first feature should be the most important */
@@ -201,6 +226,115 @@ class RegressionTreeTest {
     assert(importances.forall(_ >= 0.0), "Found negative feature importance")
   }
 
+  /**
+    * Test a simple tree with only real inputs
+    */
+  @Test
+  def testSimpleBoltzmannTree(): Unit = {
+    val csv = TestUtils.readCsv("double_example.csv")
+    val trainingData = csv.map(vec => (vec.init, vec.last.asInstanceOf[Double]))
+    val DTLearner = RegressionTreeLearner(splitter = BoltzmannSplitter(0.002))
+    val DT = DTLearner.train(trainingData).getModel()
+
+    /* We should be able to memorize the inputs */
+    val output = DT.transform(trainingData.map(_._1))
+    trainingData.zip(output.getExpected()).foreach { case ((x, a), p) =>
+      assert(Math.abs(a - p) < 1.0e-9)
+    }
+    assert(output.getGradient().isEmpty)
+    output.getDepth().zip(output.getExpected()).foreach{ case (d, y) =>
+      assert(d > 3 && d < 9, s"Depth is $d at y=$y")
+    }
+  }
+
+  /**
+    * Convenience method to compare the Shapley value at a test location for a tree trained on trainingData to a known reference.
+    *
+    * @param trainingData on which to train a regression tree
+    * @param evalLocation at which to evaluate the Shapley value
+    * @param expected     known reference Shapley value to which to compare (fails upon mismatch)
+    */
+  def shapleyCompare(
+                     trainingData: Seq[(Vector[Double],Double)],
+                     evalLocation: Vector[Any],
+                     expected: Vector[Double],
+                     omitFeatures: Set[Int] = Set()
+                    ): Unit = {
+    val actual = RegressionTreeLearner().train(trainingData).getModel().shapley(evalLocation, omitFeatures) match {
+      case None => fail("Unexpected None returned by shapley.")
+      case x: Option[DenseMatrix[Double]] => {
+        val a = x.get
+        assert(a.cols == trainingData.head._1.length, "Expected one Shapley value per feature.")
+        assert(a.rows == 1, "Expected a single output dimension.")
+        a.toDenseVector.toScalaVector
+      }
+      case _ => fail("Unexpected return type.")
+    }
+    assert(expected.zip(actual).forall{
+      case (e: Double, a: Double) => Math.abs(e - a) < 1e-12
+    }, s"Shapley value ${actual} does not match reference ${expected}.")
+  }
+
+  /**
+    * Test Shapley value for  a simple tree.
+    */
+  @Test
+  def testShapley(): Unit = {
+    // Example from Lundberg paper (https://arxiv.org/pdf/1802.03888.pdf)
+    val trainingData1 = Seq(
+      (Vector(1.0, 1.0), 80.0),
+      (Vector(1.0, 0.0), 0.0),
+      (Vector(0.0, 1.0), 0.0),
+      (Vector(0.0, 0.0), 0.0)
+    )
+    val expected1 = Vector(30.0, 30.0)
+    shapleyCompare(trainingData1, Vector[Any](1.0, 1.0), expected1)
+
+    // Second example from Lundberg paper (https://arxiv.org/pdf/1802.03888.pdf)
+    val trainingData2 = Seq(
+      (Vector(1.0, 1.0), 90.0),
+      (Vector(1.0, 0.0), 10.0),
+      (Vector(0.0, 1.0), 0.0),
+      (Vector(0.0, 0.0), 0.0)
+    )
+    val expected2 = Vector(35.0, 30.0)
+    shapleyCompare(trainingData2, Vector[Any](1.0, 1.0), expected2)
+
+    // Example with two splits on one feature
+    // Worked out with pen-and-paper from Lundberg Equation 2.
+    val trainingData3 = Seq(
+      (Vector(1.0, 1.0), 100.0),
+      (Vector(1.0, 0.0), 80.0),
+      (Vector(1.0, 0.2), 70.0),
+      (Vector(0.0, 1.0), 0.0),
+      (Vector(0.0, 0.2), 0.0),
+      (Vector(0.0, 0.0), 0.0)
+    )
+    val expected3 = Vector(45.8333333333333, 12.5)
+    shapleyCompare(trainingData3, Vector[Any](1.0, 1.0), expected3)
+
+    // Example with 5 features, to exercise all the factorials in Lundberg equation 2.
+    // Referenced against the shap package on a sklearn decision tree.
+    val trainingData4 = Seq(
+      (Vector(0.0, 0.0, 0.0, 0.0, 0.0), 1.0),
+      (Vector(1.0, 0.0, 0.0, 0.0, 0.0), 2.0),
+      (Vector(0.0, 1.0, 0.0, 0.0, 0.0), 4.0),
+      (Vector(0.0, 0.0, 1.0, 0.0, 0.0), 8.0),
+      (Vector(0.0, 0.0, 0.0, 1.0, 0.0), 16.0),
+      (Vector(0.0, 0.0, 0.0, 0.0, 1.0), 32.0)
+    )
+    val expected4 = Vector(0.0333333333333333, 0.2, 0.8666666666666667, 3.533333333333333, 16.866666666666667)
+    shapleyCompare(trainingData4, Vector.fill[Any](5)(1.0), expected4)
+
+    // Test omitted features
+    val expected2a = Vector(0.0, 20.0)
+    shapleyCompare(trainingData2, Vector[Any](1.0, 1.0), expected2a, omitFeatures = Set(0))
+    val expected2b = Vector(25.0, 0.0)
+    shapleyCompare(trainingData2, Vector[Any](1.0, 1.0), expected2b, omitFeatures = Set(1))
+
+    // Ensure we don't crash when restricting number of features.
+    RegressionTreeLearner(numFeatures = 1).train(trainingData4).getModel().shapley(Vector.fill[Any](5)(0.0), Set())
+  }
 }
 
 /** Companion driver */
@@ -211,6 +345,6 @@ object RegressionTreeTest {
     * @param argv args
     */
   def main(argv: Array[String]): Unit = {
-    new RegressionTreeTest().testStumpWithLinearLeaf()
+    new RegressionTreeTest().testSimpleBoltzmannTree()
   }
 }

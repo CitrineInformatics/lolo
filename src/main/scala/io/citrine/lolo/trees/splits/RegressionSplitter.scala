@@ -20,7 +20,7 @@ import scala.util.Random
   *
   * Created by maxhutch on 11/29/16.
   */
-object RegressionSplitter {
+case class RegressionSplitter(randomizePivotLocation: Boolean = false, rng: Random = Random) extends Splitter[Double] {
 
   /**
     * Get the best split, considering numFeature random features (w/o replacement)
@@ -29,7 +29,11 @@ object RegressionSplitter {
     * @param numFeatures to consider, randomly
     * @return a split object that optimally divides data
     */
-  def getBestSplit(data: Seq[(Vector[AnyVal], Double, Double)], numFeatures: Int, minInstances: Int): (Split, Double) = {
+  def getBestSplit(
+                    data: Seq[(Vector[AnyVal], Double, Double)],
+                    numFeatures: Int,
+                    minInstances: Int
+                  ): (Split, Double) = {
 
     val calculator = VarianceCalculator.build(data.map(_._2), data.map(_._3))
     val initialVariance = calculator.getImpurity
@@ -40,11 +44,11 @@ object RegressionSplitter {
 
     /* Try every feature index */
     val featureIndices: Seq[Int] = rep._1.indices
-    Random.shuffle(featureIndices).take(numFeatures).foreach { index =>
+    rng.shuffle(featureIndices).take(numFeatures).foreach { index =>
 
       /* Use different spliters for each type */
       val (possibleSplit, possibleVariance) = rep._1(index) match {
-        case _: Double => getBestRealSplit(data, calculator.copy(), index, minInstances)
+        case _: Double => getBestRealSplit(data, calculator.copy(), index, minInstances, randomizePivotLocation)
         case _: Char => getBestCategoricalSplit(data, calculator.copy(), index, minInstances)
         case _: Any => throw new IllegalArgumentException("Trying to split unknown feature type")
       }
@@ -64,13 +68,25 @@ object RegressionSplitter {
   }
 
   /**
-    * Find the best split on a continuous variable
+    * Find the best split on a continuous variable.
     *
-    * @param data        to split
-    * @param index       of the feature to split on
+    * If randomizePivotLocation is true, the split pivots are drawn from a uniform random distribution between the two
+    * data points.  Each such pivot results in the same data split, but randomization can improve generalizability,
+    * particularly as part of an ensemble (i.e. random forests).
+    *
+    * @param data  to split
+    * @param index of the feature to split on
+    * @param minCount minimum number of data points to allow in each of the resulting splits
+    * @param randomizePivotLocation whether generate splits randomly between the data points (default: false)
     * @return the best split of this feature
     */
-  def getBestRealSplit(data: Seq[(Vector[AnyVal], Double, Double)], calculator: VarianceCalculator, index: Int, minCount: Int): (RealSplit, Double) = {
+  def getBestRealSplit(
+                        data: Seq[(Vector[AnyVal], Double, Double)],
+                        calculator: VarianceCalculator,
+                        index: Int,
+                        minCount: Int,
+                        randomizePivotLocation: Boolean = false
+                      ): (RealSplit, Double) = {
     /* Pull out the feature that's considered here and sort by it */
     val thinData = data.map(dat => (dat._1(index).asInstanceOf[Double], dat._2, dat._3)).sortBy(_._1)
 
@@ -89,10 +105,16 @@ object RegressionSplitter {
          1) there is only one branch and
          2) it is usually false
        */
-      if (totalVariance < bestVariance && j + 1 >= minCount && Math.abs((thinData(j + 1)._1 - thinData(j)._1) / thinData(j)._1) > 1.0e-9) {
+      val left = thinData(j + 1)._1
+      val right = thinData(j)._1
+      if (totalVariance < bestVariance && j + 1 >= minCount && Splitter.isDifferent(left, right)) {
         bestVariance = totalVariance
         /* Try pivots at the midpoints between consecutive member values */
-        bestPivot = (thinData(j + 1)._1 + thinData(j)._1) / 2.0 // thinData(j)._1 //
+        bestPivot = if (randomizePivotLocation) {
+          (left - right) * rng.nextDouble() + right
+        } else {
+          (left + right) / 2.0
+        }
       }
     }
     (new RealSplit(index, bestPivot), bestVariance)
@@ -101,8 +123,8 @@ object RegressionSplitter {
   /**
     * Get find the best categorical splitter.
     *
-    * @param data        to split
-    * @param index       of the feature to split on
+    * @param data  to split
+    * @param index of the feature to split on
     * @return the best split of this feature
     */
   def getBestCategoricalSplit(

@@ -1,11 +1,16 @@
 package io.citrine.lolo.bags
 
+import java.io.{File, PrintWriter}
 import java.util.concurrent.{Callable, CancellationException, Executors, Future, TimeUnit}
 
+import breeze.linalg.DenseMatrix
 import io.citrine.lolo.TestUtils
+import io.citrine.lolo.linear.GuessTheMeanLearner
 import io.citrine.lolo.stats.functions.Friedman
+import io.citrine.lolo.transformers.Standardizer
 import io.citrine.lolo.trees.classification.ClassificationTreeLearner
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
+import io.citrine.lolo.trees.splits.RegressionSplitter
 import org.junit.Test
 import org.scalatest.Assertions._
 
@@ -16,18 +21,21 @@ import scala.util.Random
   */
 @Test
 class BaggerTest {
+  val rng = new Random(97793500L)
 
   /**
     * Test the fit performance of the regression bagger
     */
   @Test
   def testRegressionBagger(): Unit = {
+    rng.setSeed(24795L)
+
     val trainingData = TestUtils.binTrainingData(
       TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman),
       inputBins = Seq((0, 8))
     )
-    val DTLearner = new RegressionTreeLearner(numFeatures = 3)
-    val baggedLearner = new Bagger(DTLearner, numBags = trainingData.size)
+    val DTLearner = RegressionTreeLearner(numFeatures = 3, rng = rng)
+    val baggedLearner = Bagger(DTLearner, numBags = trainingData.size, randBasis = TestUtils.getBreezeRandBasis(rng.nextLong()))
     val RFMeta = baggedLearner.train(trainingData)
     val RF = RFMeta.getModel()
 
@@ -36,11 +44,9 @@ class BaggerTest {
     val results = RF.transform(trainingData.map(_._1))
     val means = results.getExpected()
     val sigma: Seq[Double] = results.getUncertainty().get.asInstanceOf[Seq[Double]]
-    assert(sigma.forall(_ >= 0.0))
+    assert(sigma.forall(_ > 0.0))
 
     assert(results.getGradient().isEmpty, "Returned a gradient when there shouldn't be one")
-
-    assert(RFMeta.getHypers().contains("maxDepth"))
 
     /* The first feature should be the most important */
     val importances = RFMeta.getFeatureImportance().get
@@ -52,12 +58,14 @@ class BaggerTest {
     */
   @Test
   def testClassificationBagger(): Unit = {
+    rng.setSeed(24795L)
+
     val trainingData = TestUtils.binTrainingData(
-      TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman),
+      TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, seed = rng.nextLong()),
       inputBins = Seq((0, 8)), responseBins = Some(8)
     )
-    val DTLearner = new ClassificationTreeLearner()
-    val baggedLearner = new Bagger(DTLearner, numBags = trainingData.size / 2)
+    val DTLearner = ClassificationTreeLearner()
+    val baggedLearner = Bagger(DTLearner, numBags = trainingData.size / 2, randBasis = TestUtils.getBreezeRandBasis(rng.nextLong()))
     val RFMeta = baggedLearner.train(trainingData)
     val RF = RFMeta.getModel()
 
@@ -75,8 +83,6 @@ class BaggerTest {
     })
     assert(results.getGradient().isEmpty, "Returned a gradient when there shouldn't be one")
 
-    assert(RFMeta.getHypers().contains("maxDepth"))
-
     /* The first feature should be the most important */
     val importances = RFMeta.getFeatureImportance().get
     assert(importances.slice(0, 5).min > importances.slice(5, importances.size).max)
@@ -91,28 +97,75 @@ class BaggerTest {
     * set independently
     */
   def testUncertaintyCalibration(): Unit = {
+    rng.setSeed(24795L)
+
     val width = 0.10 // make the function more linear
     val nFeatures = 5
     val bagsPerRow = 4 // picked to be large enough that bias correction is small but model isn't too expensive
-    val trainingData = TestUtils.generateTrainingData(128, nFeatures, xscale = width, seed = Random.nextLong())
-    val DTLearner = new RegressionTreeLearner(numFeatures = nFeatures)
-    val bias = new RegressionTreeLearner(maxDepth = 4)
-    val baggedLearner = new Bagger(DTLearner, numBags = bagsPerRow * trainingData.size, biasLearner = Some(bias))
+    val trainingData = TestUtils.generateTrainingData(128, nFeatures, xscale = width, seed = rng.nextLong())
+    val DTLearner = RegressionTreeLearner(numFeatures = nFeatures, rng = rng)
+    val bias = RegressionTreeLearner(maxDepth = 4, rng = rng)
+    val baggedLearner = Bagger(DTLearner, numBags = bagsPerRow * trainingData.size, biasLearner = Some(bias), randBasis = TestUtils.getBreezeRandBasis(rng.nextLong()))
     val RFMeta = baggedLearner.train(trainingData)
     val RF = RFMeta.getModel()
 
-    val interiorTestSet = TestUtils.generateTrainingData(128, nFeatures, xscale = width/2.0, xoff = width/4.0, seed = Random.nextLong())
-    val fullTestSet = TestUtils.generateTrainingData(128, nFeatures, xscale = width, seed = Random.nextLong())
+    val interiorTestSet = TestUtils.generateTrainingData(128, nFeatures, xscale = width / 2.0, xoff = width / 4.0, seed = rng.nextLong())
+    val fullTestSet = TestUtils.generateTrainingData(128, nFeatures, xscale = width, seed = rng.nextLong())
 
     val interiorStandardRMSE = BaggerTest.getStandardRMSE(interiorTestSet, RF)
     val fullStandardRMSE = BaggerTest.getStandardRMSE(fullTestSet, RF)
-    println(s"Standard RMSE (int, full): ${interiorStandardRMSE} ${fullStandardRMSE}")
     assert(interiorStandardRMSE > 0.50, "Standard RMSE in the interior should be greater than 0.5")
     assert(interiorStandardRMSE < 1.50, "Standard RMSE in the interior should be less than 1.5")
 
     assert(fullStandardRMSE < 2.5, "Standard RMSE over the full domain should be less than 2.5")
     assert(fullStandardRMSE > 1.0, "Standard RMSE over the full domain should be greater than 1.0")
   }
+
+  /**
+    * Test the behavior of a random forest when the labels are constant
+    */
+  @Test
+  def testUncertaintyCalibrationWithConstantResponse(): Unit = {
+    rng.setSeed(24795L)
+
+    // setup some training data with constant labels
+    val nFeatures = 5
+    val X: Vector[Vector[Any]] = TestUtils.generateTrainingData(128, nFeatures, xscale = 0.5, seed = rng.nextLong()).map(_._1)
+    val y: Vector[Any] = X.map(_ => 0.0)
+
+    // setup a relatively complicated random forest (turn a bunch of stuff on)
+    val DTLearner = RegressionTreeLearner(
+      numFeatures = nFeatures,
+      leafLearner = Some(GuessTheMeanLearner(rng = rng)),
+      maxDepth = 30,
+      splitter = RegressionSplitter(randomizePivotLocation = true, rng = rng),
+      rng = rng
+    )
+
+    val bagger = new Bagger(
+      new Standardizer(DTLearner),
+      numBags = 64,
+      useJackknife = true,
+      biasLearner = Some(RegressionTreeLearner(
+        maxDepth = 3,
+        leafLearner = Some(GuessTheMeanLearner(rng = rng)),
+        splitter = RegressionSplitter(randomizePivotLocation = true),
+        rng = rng)
+      ),
+      uncertaintyCalibration = true,
+      randBasis = TestUtils.getBreezeRandBasis(rng.nextLong())
+    )
+
+    // Make sure the model trains
+    val model = bagger.train(X.zip(y)).getModel()
+
+    // Generate a new test set and make sure the predictions are 0 +/- 0
+    val testX: Vector[Vector[Any]] = TestUtils.generateTrainingData(128, nFeatures, xscale = 0.5, seed = rng.nextLong()).map(_._1)
+    val predictions = model.transform(testX)
+    assert(predictions.getExpected().forall(_ == 0.0))
+    assert(predictions.getUncertainty().get.forall(_ == 0.0))
+  }
+
 
   /**
     * Test the scores on a smaller example, because computing them all can be expensive.
@@ -124,20 +177,50 @@ class BaggerTest {
     */
   @Test
   def testScores(): Unit = {
+    rng.setSeed(24795L)
+
     val csv = TestUtils.readCsv("double_example.csv")
     val trainingData = csv.map(vec => (vec.init, vec.last.asInstanceOf[Double]))
-    val DTLearner = new RegressionTreeLearner()
-    val baggedLearner = new Bagger(DTLearner, numBags = trainingData.size * 16) // use lots of trees to reduce noise
+    val DTLearner = RegressionTreeLearner(rng = rng)
+    val baggedLearner = Bagger(DTLearner, numBags = trainingData.size * 16, randBasis = TestUtils.getBreezeRandBasis(rng.nextLong())) // use lots of trees to reduce noise
     val RF = baggedLearner.train(trainingData).getModel()
 
     /* Call transform on the training data */
     val results = RF.transform(trainingData.map(_._1))
     val scores = results.getImportanceScores().get
     val corners = Seq(0, 7, 56, 63)
-    assert(
-      corners.forall(i => scores(i)(i) == scores(i).max),
-      "One of the training corners didn't have the highest score"
+    corners.foreach { i =>
+      assert(scores(i)(i) == scores(i).max,
+        s"The corner at $i didn't have the highest score: ${scores(i)(i)} vs ${scores(i).max}"
+      )
+    }
+  }
+
+  /**
+    * Test the relative training time of a calibrated vs an uncalibrated forest
+    */
+  @Test
+  def calibrationTimeTest(): Unit = {
+    rng.setSeed(24795L)
+
+    val trainingData = TestUtils.binTrainingData(
+      TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman),
+      inputBins = Seq((0, 8))
     )
+    val DTLearner = RegressionTreeLearner(numFeatures = 3, rng = rng)
+    val start = System.nanoTime()
+    Bagger(DTLearner, numBags = trainingData.size, uncertaintyCalibration = false, randBasis = TestUtils.getBreezeRandBasis(rng.nextLong()))
+      .train(trainingData)
+      .getModel()
+    val unCalibratedTime = 1.0e-9 * (System.nanoTime() - start)
+
+    val startAgain = System.nanoTime()
+    Bagger(DTLearner, numBags = 64, uncertaintyCalibration = true, randBasis = TestUtils.getBreezeRandBasis(rng.nextLong()))
+      .train(trainingData)
+      .getModel()
+    val calibratedTime = 1.0e-9 * (System.nanoTime() - startAgain)
+
+    assert(calibratedTime < unCalibratedTime, s"The calibration scheme has experienced a dramatic slowdown")
   }
 
   /**
@@ -145,16 +228,18 @@ class BaggerTest {
     */
   @Test
   def testInterrupt(): Unit = {
+    rng.setSeed(24795L)
+
     val trainingData = TestUtils.generateTrainingData(2048, 12, noise = 0.1, function = Friedman.friedmanSilverman)
-    val DTLearner = new RegressionTreeLearner(numFeatures = 3)
-    val baggedLearner = new Bagger(DTLearner, numBags = trainingData.size)
+    val DTLearner = RegressionTreeLearner(numFeatures = 3, rng = rng)
+    val baggedLearner = Bagger(DTLearner, numBags = trainingData.size, randBasis = TestUtils.getBreezeRandBasis(rng.nextLong()))
 
     // Create a future to run train
     val tmpPool = Executors.newFixedThreadPool(1)
-    val fut: Future[BaggedTrainingResult] = tmpPool.submit(
-      new Callable[BaggedTrainingResult] {
+    val fut: Future[BaggedTrainingResult[Any]] = tmpPool.submit(
+      new Callable[BaggedTrainingResult[Any]] {
         override def call() = {
-          val res = baggedLearner.train(trainingData)
+          val res: BaggedTrainingResult[Any] = baggedLearner.train(trainingData)
           assert(false, "Training was not terminated")
           res
         }
@@ -185,6 +270,123 @@ class BaggerTest {
     val totalTime = (System.currentTimeMillis() - start) * 1.0e-3
     assert(totalTime < 2.0, "Thread took too long to terminate")
   }
+
+  /**
+    * Test that uncertainty recalibration functions correctly with small amounts of data. In some cases,
+    * especially with a simple, binary function, it is possible to have every tree make the correct prediction, leading
+    * to uncertainty = 0, and if not handled correctly, an uncertainty rescaling ratio that is NaN.
+    *
+    * Note that this is an unusual case, and is not caught by testUncertaintyFloor()
+    */
+  @Test
+  def testSmallDataRecalibration(): Unit = {
+    rng.setSeed(24795L)
+
+    // Define a simple, binary function and create training data
+    def stepFunction(x: Seq[Double]): Double = Math.floor(2 * x(0))
+
+    val trainingData = TestUtils.generateTrainingData(rows = 16, cols = 2, function = stepFunction)
+
+    /* Create a bagger out of GuessTheMean learners, and train the model.
+     * This model has a rescale field, which should be a real number. If it is not,
+     * then the model will fail to train
+     */
+    val DTLearner = RegressionTreeLearner(
+      leafLearner = Some(GuessTheMeanLearner(rng = rng)),
+      numFeatures = 2,
+      splitter = RegressionSplitter(randomizePivotLocation = true, rng = rng),
+      rng = rng
+    )
+    val trainedModel: BaggedModel[Any] = Bagger(DTLearner, numBags = 16, useJackknife = true,
+      uncertaintyCalibration = true, randBasis = TestUtils.getBreezeRandBasis(rng.nextLong()))
+      .train(trainingData)
+      .getModel()
+
+    try {
+      val _: BaggedModel[Any] = Bagger(DTLearner, numBags = 16, useJackknife = true,
+        uncertaintyCalibration = true, disableBootstrap = true, randBasis = TestUtils.getBreezeRandBasis(rng.nextLong()))
+        .train(trainingData)
+        .getModel()
+      fail("Setting both uncertaintyCalibration and disableBootstrap should throw an exception.")
+    } catch {
+      case _: Throwable =>
+    }
+  }
+
+  /**
+    * Test that the uncertainty is always positive (and non-zero)
+    *
+    * This happens randomly, so let's repeat a test many times to make sure we catch it.  On my machine, this fails
+    * in the first couple thousand times and takes runs for 13 seconds once it's resolved, so I don't think
+    * that's too much overhead.
+    */
+  @Test
+  def testUncertaintyFloor(): Unit = {
+    rng.setSeed(24795L)
+    (0 until 16384).foreach { idx =>
+      val trainingData = TestUtils.generateTrainingData(16, 5, noise = 0.0, function = Friedman.friedmanSilverman, seed = rng.nextLong())
+      val DTLearner = RegressionTreeLearner(numFeatures = 2, rng = rng)
+      val sigma = Bagger(DTLearner, numBags = 7, randBasis = TestUtils.getBreezeRandBasis(rng.nextLong()))
+        .train(trainingData)
+        .getModel()
+        .transform(trainingData.map(_._1))
+        .getUncertainty().get.asInstanceOf[Seq[Double]]
+      assert(sigma.forall(_ > 0.0), s"Found an predicted uncertainty of ${sigma.min} during trial $idx")
+    }
+  }
+
+  /**
+    * Test that the uncertainty is always positive (and non-zero) when a bias model is used
+    *
+    * Most of the logic is covered by testUncertaintyFloor, and this test is heavier, so we'll run fewer iterations
+    */
+  @Test
+  def testUncertaintyFloorWithBias(): Unit = {
+    rng.setSeed(24795L)
+    (0 until 1024).foreach { idx =>
+      val trainingData = TestUtils.generateTrainingData(16, 5, noise = 0.0, function = Friedman.friedmanSilverman, seed = rng.nextLong())
+      val DTLearner = RegressionTreeLearner(numFeatures = 2, rng = rng)
+      val sigma = Bagger(DTLearner, numBags = 7, biasLearner = Some(GuessTheMeanLearner(rng = rng)), randBasis = TestUtils.getBreezeRandBasis(rng.nextLong()))
+        .train(trainingData)
+        .getModel()
+        .transform(trainingData.map(_._1))
+        .getUncertainty().get.asInstanceOf[Seq[Double]]
+      assert(sigma.forall(_ > 0.0), s"Found an predicted uncertainty of ${sigma.min} during trial $idx")
+    }
+  }
+
+  /**
+    * Test Shapley values are correctly averaged over trees.
+    */
+  @Test
+  def testShapley(): Unit = {
+    rng.setSeed(24795L)
+    val nCols = 5
+    val trainingData = TestUtils.generateTrainingData(64, nCols, noise = 0.0, function = Friedman.friedmanSilverman, seed = rng.nextLong())
+    val DTLearner = RegressionTreeLearner(numFeatures = nCols, rng = rng)
+    val model = Bagger(DTLearner, randBasis = TestUtils.getBreezeRandBasis(rng.nextLong()))
+      .train(trainingData)
+      .getModel()
+    val trees = model.getModels()
+    trainingData.foreach { case (x, _) =>
+      val shapley = model.shapley(x).get
+
+      // Do a quick sanity check on the output format.
+      assert(shapley.cols == nCols)
+      assert(shapley.rows == 1)
+
+      // Compute the mean shap value over trees and ensure the bagged model gives the same result.
+      val treeMean = (1.0 / trees.length) * trees.map { t =>
+        t.shapley(x).get
+      }.reduce[DenseMatrix[Double]] { case (a: DenseMatrix[Double], b: DenseMatrix[Double]) =>
+        a +:+ b
+      }
+      val atol = 1e-8
+      assert(
+        (treeMean - shapley).toDenseVector.toScalaVector.forall { x => Math.abs(x) < atol }
+      )
+    }
+  }
 }
 
 /**
@@ -197,19 +399,49 @@ object BaggerTest {
     * @param argv args
     */
   def main(argv: Array[String]): Unit = {
-    new BaggerTest()
-      .testUncertaintyCalibration()
+    measureShapleyPerf()
   }
 
+  /**
+    * Simple driver for running a performance test of BaggedModel.shapley().
+    */
+  def measureShapleyPerf(): Unit = {
+    val rng = new Random(278345L)
+    val pw = new PrintWriter(new File(s"/tmp/shapley-perf_${new Random().nextInt()}.tsv"))
+    pw.write("nCols\tnRows\trepNum\trowIdx\tns\n")
+    (256 to 1024 by 256).foreach { nCols =>
+      (4 to 8 by 2).foreach { nRowsLog: Int =>
+        val nRows = 1 << nRowsLog
+        (1 to 3).foreach { repNum =>
+          val trainingData = TestUtils.generateTrainingData(nRows, nCols, noise = 0.0, function = Friedman.friedmanSilverman, seed = rng.nextLong())
+          val DTLearner = RegressionTreeLearner(numFeatures = nCols, rng = rng)
+          println(s"Training model nCols=$nCols\tnRows=$nRows\trepNum=$repNum")
+          val model = Bagger(DTLearner, randBasis = TestUtils.getBreezeRandBasis(rng.nextLong()))
+            .train(trainingData)
+            .getModel()
+          println(s"Trained")
 
-  def getStandardRMSE(testSet: Seq[(Vector[Any], Double)], model: BaggedModel): Double = {
+          rng.shuffle(trainingData).take(16).zipWithIndex.foreach { case (x, i) =>
+            val t0 = System.nanoTime()
+            val shapley = model.shapley(x._1).get
+            val t1 = System.nanoTime()
+            pw.write(s"$nCols\t$nRows\t$repNum\t$i\t${t1-t0}\n")
+            pw.flush()
+          }
+        }
+      }
+    }
+    pw.close()
+  }
+
+  def getStandardRMSE(testSet: Seq[(Vector[Any], Double)], model: BaggedModel[Any]): Double = {
     val predictions = model.transform(testSet.map(_._1))
     val pva = testSet.map(_._2).zip(
       predictions.getExpected().asInstanceOf[Seq[Double]].zip(
         predictions.getUncertainty().get.asInstanceOf[Seq[Double]]
       )
     )
-    val standardError = pva.map{ case (a: Double, (p: Double, u: Double)) =>
+    val standardError = pva.map { case (a: Double, (p: Double, u: Double)) =>
       Math.abs(a - p) / u
     }
     Math.sqrt(standardError.map(Math.pow(_, 2.0)).sum / testSet.size)

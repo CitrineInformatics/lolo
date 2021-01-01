@@ -6,11 +6,16 @@ import io.citrine.lolo.trees.classification.ClassificationTree
 import io.citrine.lolo.trees.regression.RegressionTree
 import io.citrine.lolo.{Model, MultiTaskLearner, PredictionResult, TrainingResult}
 
+import scala.util.Random
+
 /**
   * Multi-task tree learner, which produces multiple decision trees with the same split structure
   *
   */
-class MultiTaskTreeLearner extends MultiTaskLearner {
+case class MultiTaskTreeLearner(
+                                 randomizePivotLocation: Boolean = false,
+                                 rng: Random = Random
+                               ) extends MultiTaskLearner {
 
   /**
     * Train a model
@@ -51,7 +56,7 @@ class MultiTaskTreeLearner extends MultiTaskLearner {
     }.filter(_._3 > 0.0)
 
     // Construct the training tree
-    val root = new MultiTaskTrainingNode(collectedData)
+    val root = new MultiTaskTrainingNode(collectedData, randomizePivotLocation)
 
     // Construct the model trees
     val nodes = labels.indices.map(root.getNode)
@@ -73,22 +78,15 @@ class MultiTaskTreeLearner extends MultiTaskLearner {
     }
 
     // Wrap the models in dead-simple training results and return
-    models.map(new MultiTaskTreeTrainingResult(_, hypers))
+    models.map(new MultiTaskTreeTrainingResult(_))
   }
 }
 
-class MultiTaskTreeTrainingResult(model: Model[PredictionResult[Any]], hypers: Map[String, Any]) extends TrainingResult {
+class MultiTaskTreeTrainingResult(model: Model[PredictionResult[Any]]) extends TrainingResult {
   /**
     * Get the model contained in the training result
     *
     * @return the model
     */
   override def getModel(): Model[PredictionResult[Any]] = model
-
-  /**
-    * Get the hyperparameters used to train this model
-    *
-    * @return hypers set for model
-    */
-  override def getHypers(): Map[String, Any] = hypers
 }

@@ -16,6 +16,7 @@ Lolo supports:
  * bagged learners to produce ensemble models, e.g. random forests
  * linear and ridge regression
  * regression _leaf models_, e.g. ridge regression trained on the leaf data
+ * random rotation ensembles
  * bias-corrected jackknife-after-bootstrap and infinitesimal jackknife variance estimates
  * bias models trained on out-of-bag residuals
  * discrete influence scores, which characterize the response of a prediction each training instance
@@ -24,6 +25,8 @@ Lolo supports:
  * hyperparameter optimization via grid or random search
  * out-of-bag error estimates
  * parallel training via scala parallel collections
+ * validation metrics for accuracy and uncertainty quantification
+ * visualization of predicted-vs-actual validations
 
 # Usage
 Lolo is on the central repository, and can be used by simply adding the following dependency block in your pom file:
@@ -31,7 +34,7 @@ Lolo is on the central repository, and can be used by simply adding the followin
 <dependency>
     <groupId>io.citrine</groupId>
     <artifactId>lolo</artifactId>
-    <version>0.2.11</version>
+    <version>3.0.0</version>
 </dependency>
 ```
 Lolo provides higher level wrappers for common learner combinations.
@@ -62,6 +65,7 @@ We welcome bug reports, feature requests, and pull requests.  Pull requests shou
 # Authors
  * [Max Hutchinson](https://github.com/maxhutch/)
  * [Sean Paradiso](https://github.com/sparadiso)
+ * [Logan Ward](https://github.com/WardLT)
  
 # Related projects
  * [randomForestCI](https://github.com/swager/randomForestCI) is an R-based implementation of jackknife variance estimates by S. Wager

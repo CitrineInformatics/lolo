@@ -1,6 +1,6 @@
 package io.citrine.lolo.bags
 
-import breeze.stats.distributions.Poisson
+import breeze.stats.distributions.{Poisson, Rand, RandBasis}
 import io.citrine.lolo._
 import io.citrine.lolo.util.{Async, InterruptibleExecutionContext}
 
@@ -13,23 +13,14 @@ import scala.collection.parallel.immutable.ParSeq
   * @param method  learner to train each model in the ensemble
   * @param numBags number of models in the ensemble
   */
-class MultiTaskBagger(
-                       method: MultiTaskLearner,
-                       numBags: Int = -1,
-                       useJackknife: Boolean = true,
-                       biasLearner: Option[Learner] = None
-                     ) extends MultiTaskLearner {
-
-  setHypers(Map("useJackknife" -> useJackknife, "numBags" -> numBags))
-
-  override def setHypers(moreHypers: Map[String, Any]): this.type = {
-    method.setHypers(moreHypers)
-    super.setHypers(moreHypers)
-  }
-
-  override def getHypers(): Map[String, Any] = {
-    method.getHypers() ++ hypers
-  }
+case class MultiTaskBagger(
+                            method: MultiTaskLearner,
+                            numBags: Int = -1,
+                            useJackknife: Boolean = true,
+                            biasLearner: Option[Learner] = None,
+                            uncertaintyCalibration: Boolean = false,
+                            randBasis: RandBasis = Rand
+                          ) extends MultiTaskLearner {
 
   private def combineImportance(v1: Option[Vector[Double]], v2: Option[Vector[Double]]): Option[Vector[Double]] = {
     (v1, v2) match {
@@ -46,7 +37,7 @@ class MultiTaskBagger(
     * @param weights for the training rows, if applicable
     * @return a model
     */
-  override def train(inputs: Seq[Vector[Any]], labels: Seq[Seq[Any]], weights: Option[Seq[Double]] = None): Seq[BaggedTrainingResult] = {
+  override def train(inputs: Seq[Vector[Any]], labels: Seq[Seq[Any]], weights: Option[Seq[Double]] = None): Seq[BaggedTrainingResult[Any]] = {
     /* Make sure the training data is the same size */
     assert(inputs.forall(inputs.head.size == _.size))
     assert(inputs.size > 8, s"We need to have at least 8 rows, only ${inputs.size} given")
@@ -55,14 +46,14 @@ class MultiTaskBagger(
     val weightsActual = weights.getOrElse(Seq.fill(inputs.size)(1.0))
 
     /* Set default number of bags */
-    val actualBags = if (hypers("numBags").asInstanceOf[Int] > 0) {
-      hypers("numBags").asInstanceOf[Int]
+    val actualBags = if (numBags > 0) {
+      numBags
     } else {
       inputs.size
     }
 
     /* Compute the number of instances of each training row in each training sample */
-    val dist = new Poisson(1.0)
+    val dist = new Poisson(1.0)(randBasis)
     val Nib = Vector.tabulate(actualBags) { _ =>
       Vector.tabulate(inputs.size) { _ =>
         dist.draw()
@@ -89,32 +80,39 @@ class MultiTaskBagger(
         combineImportance
       }.map(_.map(_ / importances.size))
       val trainingData = inputs.zip(labels(k))
-      Async.canStop()
-      if (biasLearner.isEmpty || !labels(k).head.isInstanceOf[Double]) {
-        new BaggedTrainingResult(m, getHypers(), averageImportance, Nib, inputs.zip(labels(k)), hypers("useJackknife").asInstanceOf[Boolean])
-      } else {
-        Async.canStop()
-        val baggedModel = new BaggedModel(m, Nib, hypers("useJackknife").asInstanceOf[Boolean])
-        Async.canStop()
-        val baggedRes = baggedModel.transform(trainingData.map(_._1))
-        Async.canStop()
-        val biasTraining = trainingData.zip(
-          baggedRes.getExpected().zip(baggedRes.getUncertainty().get)
-        ).flatMap { case ((f, a), (p, u)) =>
-          if (a == null || (a.isInstanceOf[Double] && a.asInstanceOf[Double].isNaN)) {
-            None
-          } else {
-            // Math.E is only statistically correct.  It should be actualBags / Nib.transpose(i).count(_ == 0)
-            // Or, better yet, filter the bags that don't include the training example
-            val bias = Math.E * Math.max(Math.abs(p.asInstanceOf[Double] - a.asInstanceOf[Double]) - u.asInstanceOf[Double], 0.0)
-            Some((f, bias))
-          }
-        }
-        Async.canStop()
-        val biasModel = biasLearner.get.train(biasTraining).getModel()
-        Async.canStop()
+      val helper = BaggerHelper(m, trainingData, Nib, useJackknife, uncertaintyCalibration)
 
-        new BaggedTrainingResult(m, getHypers(), averageImportance, Nib, trainingData, hypers("useJackknife").asInstanceOf[Boolean], Some(biasModel))
+      Async.canStop()
+      if (!helper.isRegression) {
+        new BaggedTrainingResult[Any](m, averageImportance, Nib, inputs.zip(labels(k)), useJackknife)
+      } else {
+        if (biasLearner.isEmpty) {
+          new BaggedTrainingResult[Double](m.asInstanceOf[ParSeq[Model[PredictionResult[Double]]]], averageImportance, Nib, trainingData, useJackknife, None, helper.ratio)
+        } else {
+          Async.canStop()
+          val baggedModel = new BaggedModel[Double](m.asInstanceOf[ParSeq[Model[PredictionResult[Double]]]], Nib, useJackknife, None, helper.ratio)
+          Async.canStop()
+          val baggedRes = baggedModel.transform(trainingData.map(_._1))
+          Async.canStop()
+          val foo = baggedRes.getUncertainty()
+          val biasTraining = trainingData.zip(
+            baggedRes.getExpected().zip(baggedRes.getUncertainty().get)
+          ).flatMap { case ((f, a), (p, u)) =>
+            if (a == null || (a.isInstanceOf[Double] && a.asInstanceOf[Double].isNaN)) {
+              None
+            } else {
+              // Math.E is only statistically correct.  It should be actualBags / Nib.transpose(i).count(_ == 0)
+              // Or, better yet, filter the bags that don't include the training example
+              val bias = Math.E * Math.max(Math.abs(p.asInstanceOf[Double] - a.asInstanceOf[Double]) - u.asInstanceOf[Double], 0.0)
+              Some((f, bias))
+            }
+          }
+          Async.canStop()
+          val biasModel = biasLearner.get.train(helper.biasTraining).getModel().asInstanceOf[Model[PredictionResult[Double]]]
+          Async.canStop()
+
+          new BaggedTrainingResult[Double](m.asInstanceOf[ParSeq[Model[PredictionResult[Double]]]], averageImportance, Nib, trainingData, useJackknife, Some(biasModel), helper.ratio)
+        }
       }
     }.seq
   }

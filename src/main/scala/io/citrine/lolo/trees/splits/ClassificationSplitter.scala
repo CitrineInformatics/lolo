@@ -2,7 +2,6 @@ package io.citrine.lolo.trees.splits
 
 import io.citrine.lolo.trees.impurity.GiniCalculator
 
-import scala.collection.mutable
 import scala.util.Random
 
 /**
@@ -10,7 +9,7 @@ import scala.util.Random
   *
   * Created by maxhutch on 12/2/16.
   */
-object ClassificationSplitter {
+case class ClassificationSplitter(randomizedPivotLocation: Boolean = false, rng: Random = Random) extends Splitter[Char]{
 
   /**
     * Get the best split, considering numFeature random features (w/o replacement)
@@ -19,7 +18,11 @@ object ClassificationSplitter {
     * @param numFeatures to consider, randomly
     * @return a split object that optimally divides data
     */
-  def getBestSplit(data: Seq[(Vector[AnyVal], Char, Double)], numFeatures: Int, minInstances: Int): (Split, Double) = {
+  def getBestSplit(
+                    data: Seq[(Vector[AnyVal], Char, Double)],
+                    numFeatures: Int,
+                    minInstances: Int
+                  ): (Split, Double) = {
     var bestSplit: Split = new NoSplit()
     var bestImpurity = Double.MaxValue
 
@@ -30,7 +33,7 @@ object ClassificationSplitter {
     val rep = data.head
     /* Try every feature index */
     val featureIndices: Seq[Int] = rep._1.indices
-    Random.shuffle(featureIndices).take(numFeatures).foreach { index =>
+    rng.shuffle(featureIndices).take(numFeatures).foreach { index =>
 
       /* Use different spliters for each type */
       val (possibleSplit, possibleImpurity) = rep._1(index) match {
@@ -56,17 +59,22 @@ object ClassificationSplitter {
   /**
     * Find the best split on a continuous variable
     *
+    * If randomizePivotLocation is true, the split pivots are drawn from a uniform random distribution between the two
+    * data points.  Each such pivot results in the same data split, but randomization can improve generalizability,
+    * particularly as part of an ensemble (i.e. random forests).
+    *
     * @param data                 to split
-    * @param totalCategoryWeights Pre-computed data.map(d => data._2 * data._3).sum
-    * @param totalWeight          Pre-computed data.map(d => d._3).sum
     * @param index                of the feature to split on
+    * @param minCount minimum number of data points to allow in each of the resulting splits
+    * @param randomizePivotLocation whether generate splits randomly between the data points (default: false)
     * @return the best split of this feature
     */
   def getBestRealSplit(
                         data: Seq[(Vector[AnyVal], Char, Double)],
                         calculator: GiniCalculator,
                         index: Int,
-                        minCount: Int
+                        minCount: Int,
+                        randomizePivotLocation: Boolean = false
                       ): (RealSplit, Double) = {
     /* Pull out the feature that's considered here and sort by it */
     val thinData = data.map(dat => (dat._1(index).asInstanceOf[Double], dat._2, dat._3)).sortBy(_._1)
@@ -84,10 +92,16 @@ object ClassificationSplitter {
          1) there is only one branch and
          2) it is usually false
        */
-      if (totalPurity < bestPurity && j + 1 >= minCount && Math.abs((thinData(j + 1)._1 - thinData(j)._1)/thinData(j)._1) > 1.0e-9) {
+      if (totalPurity < bestPurity && j + 1 >= minCount && Math.abs((thinData(j + 1)._1 - thinData(j)._1) / thinData(j)._1) > 1.0e-9) {
         bestPurity = totalPurity
         /* Try pivots at the midpoints between consecutive member values */
-        bestPivot = (thinData(j + 1)._1 + thinData(j)._1) / 2.0 // thinData(j)._1 //
+        val left = thinData(j + 1)._1
+        val right = thinData(j)._1
+        bestPivot = if (randomizePivotLocation) {
+          (left - right) * rng.nextDouble() + right
+        } else {
+          (left + right) / 2.0
+        }
       }
     }
     (new RealSplit(index, bestPivot), bestPurity)

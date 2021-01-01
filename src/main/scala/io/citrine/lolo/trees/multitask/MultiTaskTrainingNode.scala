@@ -5,22 +5,28 @@ import io.citrine.lolo.linear.GuessTheMeanLearner
 import io.citrine.lolo.trees.splits.{MultiTaskSplitter, NoSplit}
 import io.citrine.lolo.trees.{InternalModelNode, ModelNode, TrainingLeaf}
 
+import scala.util.Random
+
 /**
   * Node in a multi-task training tree, which can produce nodes for its model trees
   *
   * @param inputs data on which to select splits and form models
   */
-class MultiTaskTrainingNode(inputs: Seq[(Vector[AnyVal], Array[AnyVal], Double)]) {
+class MultiTaskTrainingNode(
+                             inputs: Seq[(Vector[AnyVal], Array[AnyVal], Double)],
+                             randomizePivotLocation: Boolean = false,
+                             rng: Random = Random
+                           ) {
 
   // Compute a split
-  val (split, _) = MultiTaskSplitter.getBestSplit(inputs, inputs.head._1.size, 1)
+  val (split, _) = MultiTaskSplitter(rng = rng).getBestSplit(inputs, inputs.head._1.size, 1, randomizePivotLocation)
 
   // Try to construct left and right children
   val (leftChild: Option[MultiTaskTrainingNode], rightChild: Option[MultiTaskTrainingNode]) = split match {
     case _: NoSplit => (None, None)
     case _: Any =>
       val (leftData, rightData) = inputs.partition(row => split.turnLeft(row._1))
-      (Some(new MultiTaskTrainingNode(leftData)), Some(new MultiTaskTrainingNode(rightData)))
+      (Some(new MultiTaskTrainingNode(leftData, randomizePivotLocation, rng = rng)), Some(new MultiTaskTrainingNode(rightData, randomizePivotLocation, rng = rng)))
   }
 
   // Construct the model node for the `index`th label
@@ -43,21 +49,27 @@ class MultiTaskTrainingNode(inputs: Seq[(Vector[AnyVal], Array[AnyVal], Double)]
         new InternalModelNode[PredictionResult[Double]](
           split,
           leftChild.get.getNode(index).asInstanceOf[ModelNode[PredictionResult[Double]]],
-          rightChild.get.getNode(index).asInstanceOf[ModelNode[PredictionResult[Double]]]
+          rightChild.get.getNode(index).asInstanceOf[ModelNode[PredictionResult[Double]]],
+          numFeatures=inputs.head._1.length,
+          outputDimension = 0,  // Don't support multitask SHAP at this time.
+          trainingWeight = reducedData.length.toDouble
         )
       } else {
         if (!label.isInstanceOf[Char]) throw new IllegalArgumentException("Training data wasn't double or char")
         new InternalModelNode[PredictionResult[Char]](
           split,
           leftChild.get.getNode(index).asInstanceOf[ModelNode[PredictionResult[Char]]],
-          rightChild.get.getNode(index).asInstanceOf[ModelNode[PredictionResult[Char]]]
+          rightChild.get.getNode(index).asInstanceOf[ModelNode[PredictionResult[Char]]],
+          numFeatures=inputs.head._1.length,
+          outputDimension = 0,  // Don't support multitask SHAP at this time.
+          trainingWeight = reducedData.length.toDouble
         )
       }
     } else if (leftChild.isDefined && left.nonEmpty) {
       leftChild.get.getNode(index)
     } else if (rightChild.isDefined && right.nonEmpty) {
       rightChild.get.getNode(index)
-    } else{
+    } else {
       // If there are no children or the children don't have valid data for this label, emit a leaf (with GTM)
       if (label.isInstanceOf[Double]) {
         new TrainingLeaf[Double](reducedData.asInstanceOf[Seq[(Vector[AnyVal], Double, Double)]], new GuessTheMeanLearner(), 1).getNode()

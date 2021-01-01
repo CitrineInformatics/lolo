@@ -12,27 +12,29 @@ object DistanceCorrelation {
 
   /**
     * Double centered differnce matrix
-    * @param x sequence to take differences of
+    *
+    * @param x        sequence to take differences of
     * @param distance function
     * @tparam T of the sequence
     * @return a double centered distance matrix
     */
   def doubleCenter[T](x: Seq[T], distance: (T, T) => Double): DenseMatrix[Double] = {
-    val pairDistances: DenseMatrix[Double] = DenseMatrix.tabulate(x.size, x.size){ case (i,j) =>
+    val pairDistances: DenseMatrix[Double] = DenseMatrix.tabulate(x.size, x.size) { case (i, j) =>
       distance(x(i), x(j))
     }
     val grandMean = sum(pairDistances) / (x.size * x.size)
     val colSum: DenseVector[Double] = sum(pairDistances(*, ::))
     val colMean: DenseVector[Double] = colSum :* (1.0 / x.size)
-    DenseMatrix.tabulate(x.size, x.size){ case (i, j) =>
-      pairDistances(i,j) - colMean(i) - colMean(j) + grandMean
+    DenseMatrix.tabulate(x.size, x.size) { case (i, j) =>
+      pairDistances(i, j) - colMean(i) - colMean(j) + grandMean
     }
   }
 
   /**
     * Sample distance covariance
-    * @param x first sequence
-    * @param y second sequence
+    *
+    * @param x        first sequence
+    * @param y        second sequence
     * @param distance distance function
     * @tparam T of the sequences
     * @return the sample distance covariance
@@ -45,8 +47,9 @@ object DistanceCorrelation {
 
   /**
     * Distance correlation function, based on distance covariance
-    * @param x first sequence
-    * @param y second sequence
+    *
+    * @param x        first sequence
+    * @param y        second sequence
     * @param distance function
     * @tparam T of the sequences
     * @return the distance correlation (dCorr)

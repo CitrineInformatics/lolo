@@ -9,6 +9,7 @@ import scala.util.Random
   */
 @Test
 class DistanceCorrelationTest {
+  val rng = new Random(36783677836L)
 
   val N: Int = 512
 
@@ -16,17 +17,17 @@ class DistanceCorrelationTest {
 
   @Test
   def testIndependent(): Unit = {
-    val X: Seq[Double] = Seq.tabulate(N)(i => Random.nextGaussian())
-    val Y: Seq[Double] = Seq.tabulate(N)(i => Random.nextGaussian())
+    val X: Seq[Double] = Seq.tabulate(N)(i => rng.nextGaussian())
+    val Y: Seq[Double] = Seq.tabulate(N)(i => rng.nextGaussian())
     val dcorr = DistanceCorrelation.distanceCorrelation(X, Y, dist)
 
-    assert(dcorr < 0.15, s"dCorr for independent vars is ${dcorr}" )
+    assert(dcorr < 0.15, s"dCorr for independent vars is ${dcorr}")
   }
 
 
   @Test
   def testLinear(): Unit = {
-    val X: Seq[Double] = Seq.tabulate(N)(i => Random.nextDouble())
+    val X: Seq[Double] = Seq.tabulate(N)(i => rng.nextDouble())
     val Y: Seq[Double] = X.map(v => v * 10)
     val dcorr = DistanceCorrelation.distanceCorrelation(X, Y, dist)
 
@@ -35,7 +36,7 @@ class DistanceCorrelationTest {
 
   @Test
   def testQuadratic(): Unit = {
-    val X: Seq[Double] = Seq.tabulate(N)(i => Random.nextDouble() - .5)
+    val X: Seq[Double] = Seq.tabulate(N)(i => rng.nextDouble() - .5)
     val Y: Seq[Double] = X.map(v => v * v * 2)
     val dcorr = DistanceCorrelation.distanceCorrelation(X, Y, dist)
 
@@ -44,7 +45,7 @@ class DistanceCorrelationTest {
 
   @Test
   def testSin(): Unit = {
-    val X: Seq[Double] = Seq.tabulate(N)(i => Random.nextDouble() - .5)
+    val X: Seq[Double] = Seq.tabulate(N)(i => rng.nextDouble() - .5)
     val Y: Seq[Double] = X.map(v => Math.sin(2 * Math.PI * v))
     val dcorr = DistanceCorrelation.distanceCorrelation(X, Y, dist)
 
