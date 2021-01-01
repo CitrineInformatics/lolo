@@ -1,3 +1,7 @@
+language: scala
+scala: 2.12.4
+jdk: openjdk8
+
 cache:
   directories:
   - "~/.m2/repository"
@@ -19,22 +23,18 @@ stages:
 jobs:
   include:
   - stage: test
-    language: scala
-    scala: 2.12.4
-    jdk: openjdk8
     script:
     - sbt test
   - stage: test
-    language: python
-    jdk: openjdk8
-    scala: 2.12.4
-    python:
-    - 3.6
     before_install:
-      - echo "deb https://dl.bintray.com/sbt/debian /" | sudo tee -a /etc/apt/sources.list.d/sbt.list
-      - curl -sL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x2EE0EA64E40A89B84B2DF73499E82A75642AC823" | sudo apt-key add
-      - sudo apt-get update
-      - sudo apt-get install sbt
+      - - wget http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh
+        - chmod +x miniconda.sh
+        - ./miniconda.sh -b
+        - export PATH=/home/travis/miniconda/bin:$PATH
+        - conda update --yes conda
+        - conda create --yes -n condaenv python=3.6
+        - conda install --yes -n condaenv pip
+        - source activate condaenv
     install:
     - cd python
     - make
@@ -43,25 +43,22 @@ jobs:
     - nosetests
   - stage: release
     name: maven central
-    language: scala
-    scala: 2.12.4
-    jdk: openjdk8
     script: sbt ci-release
   - stage: release
     name: pypi
-    language: python
-    scala: 2.12.4
-    jdk: openjdk8
-    python: 3.6
     addons:
       apt:
         packages:
         - pandoc
     before_install:
-      - echo "deb https://dl.bintray.com/sbt/debian /" | sudo tee -a /etc/apt/sources.list.d/sbt.list
-      - curl -sL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x2EE0EA64E40A89B84B2DF73499E82A75642AC823" | sudo apt-key add
-      - sudo apt-get update
-      - sudo apt-get install sbt
+      - wget http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh
+      - chmod +x miniconda.sh
+      - ./miniconda.sh -b
+      - export PATH=/home/travis/miniconda/bin:$PATH
+      - conda update --yes conda
+      - conda create --yes -n condaenv python=3.6
+      - conda install --yes -n condaenv pip
+      - source activate condaenv
     install:
     - cd python
     - make
