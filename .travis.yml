@@ -1,3 +1,5 @@
+dist: bionic
+
 cache:
   directories:
   - "~/.m2/repository"
@@ -31,7 +33,6 @@ jobs:
     python:
     - 3.6
     install:
-    - sudo apt-get install sbt
     - cd python
     - make
     - pip install --only-binary=numpy,scipy -r requirements.txt
@@ -54,7 +55,6 @@ jobs:
         packages:
         - pandoc
     before_install:
-    - sudo apt-get install sbt
     - cd python
     install:
     - make
