@@ -26,6 +26,8 @@ jobs:
     - sbt test
   - stage: test
     language: python
+    jdk: openjdk8
+    scala: 2.12.4
     python:
     - 3.6
     install:
@@ -43,6 +45,8 @@ jobs:
   - stage: release
     name: pypi
     language: python
+    scala: 2.12.4
+    jdk: openjdk8
     python: 3.6
     addons:
       apt:
