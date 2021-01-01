@@ -39,6 +39,7 @@ jobs:
     - cd python
     - make
     - pip install --only-binary=numpy,scipy -r requirements.txt
+    - pip install -r test_requirements.txt
     script:
     - nosetests
   - stage: release
