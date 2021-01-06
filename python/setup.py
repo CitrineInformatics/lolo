@@ -13,9 +13,9 @@ version = version_ns['__version__']
 # Find the lolo jar
 JAR_FILE = glob(os.path.join('..', 'target', 'scala-2.13', 'lolo-jar-with-dependencies.jar'))
 if len(JAR_FILE) == 0:
-    raise Exception('No Jar files found. Build lolo first by calling "make" or "cd ..; mvn -P lolopy clean package"')
+    raise Exception('No Jar files found. Build lolo first by calling "make" or "cd ..; sbt assembly"')
 elif len(JAR_FILE) > 1:
-    raise Exception('Found >1 Jar file. Clean and rebuild lolopy: cd ..; mvn -P lolopy clean package')
+    raise Exception('Found >1 Jar file. Clean and rebuild lolopy: cd ..; sbt assembly')
 
 # Copy the jar file to a directory at the same level as the package
 jar_path = os.path.join('lolopy', 'jar')
