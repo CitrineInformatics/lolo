@@ -164,7 +164,7 @@ case class BaggedClassificationResult(
   lazy val expectedMatrix: Seq[Seq[Any]] = predictions.map(p => p.getExpected()).transpose
 
   lazy val expected: Seq[Any] = expectedMatrix.map(ps => ps.groupBy(identity).maxBy(_._2.size)._1).seq
-  lazy val uncertainty: Seq[Map[Any, Double]] = expectedMatrix.map(ps => ps.groupBy(identity).mapValues(_.size.toDouble / ps.size))
+  lazy val uncertainty: Seq[Map[Any, Double]] = expectedMatrix.map(ps => ps.groupBy(identity).mapValues(_.size.toDouble / ps.size).toMap)
 
   /**
    * Return the majority vote vote
@@ -330,11 +330,11 @@ case class BaggedMultiResult(
     /* These operations are pulled out of the loop and extra-verbose for performance */
     val JMat = NibJ.t * predMat
     Async.canStop()
-    val JMat2 = JMat :* JMat * ((Nib.size - 1.0) / Nib.size)
+    val JMat2 = JMat *:* JMat * ((Nib.size - 1.0) / Nib.size)
     Async.canStop()
     val IJMat = NibIJ.t * predMat
     Async.canStop()
-    val IJMat2 = IJMat :* IJMat
+    val IJMat2 = IJMat *:* IJMat
     Async.canStop()
     val arg = IJMat2 + JMat2
     Async.canStop()

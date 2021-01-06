@@ -89,13 +89,7 @@ class ClassificationTreeTest {
 
     /* The first feature should be the most important */
     val importances = DTMeta.getFeatureImportance().get
-    println(importances)
     assert(importances.slice(0, 5).min > importances.slice(5, importances.size).max)
-
-    /* Test serialization */
-    val tmpFile: File = File.createTempFile("tmp", ".csv")
-    val oos = new ObjectOutputStream(new FileOutputStream(tmpFile))
-    oos.writeObject(DT)
   }
 
   /**
