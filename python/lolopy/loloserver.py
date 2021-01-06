@@ -28,7 +28,7 @@ def find_lolo_jar(skip_devel_version=False):
 
     if not skip_devel_version and _is_development_installation():
         # Get the appropriate Jar
-        jar_path = os.path.join(_lolo_root, 'target', 'scala-2.12', 'lolo-jar-with-dependencies.jar')
+        jar_path = os.path.join(_lolo_root, 'target', 'scala-2.13', 'lolo-jar-with-dependencies.jar')
         if not os.path.isfile(jar_path):
             raise RuntimeError('Current version of lolo jar not found. Try re-building project with make')
 

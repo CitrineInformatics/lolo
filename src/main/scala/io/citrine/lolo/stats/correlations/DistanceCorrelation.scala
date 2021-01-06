@@ -24,7 +24,7 @@ object DistanceCorrelation {
     }
     val grandMean = sum(pairDistances) / (x.size * x.size)
     val colSum: DenseVector[Double] = sum(pairDistances(*, ::))
-    val colMean: DenseVector[Double] = colSum :* (1.0 / x.size)
+    val colMean: DenseVector[Double] = colSum *:* (1.0 / x.size)
     DenseMatrix.tabulate(x.size, x.size) { case (i, j) =>
       pairDistances(i, j) - colMean(i) - colMean(j) + grandMean
     }
@@ -42,7 +42,7 @@ object DistanceCorrelation {
   def distanceCovariance[T](x: Seq[T], y: Seq[T], distance: (T, T) => Double): Double = {
     val A: DenseMatrix[Double] = doubleCenter(x, distance)
     val B: DenseMatrix[Double] = doubleCenter(y, distance)
-    Math.sqrt(sum(A :* B) / (x.size * x.size))
+    Math.sqrt(sum(A *:* B) / (x.size * x.size))
   }
 
   /**

@@ -10,7 +10,7 @@ package io.citrine.lolo.encoders
 class CategoricalEncoder[T](encoding: Map[T, Char]) extends Serializable {
 
   /** Inverse of the encoding */
-  lazy val decoding: Map[Char, T] = encoding.groupBy(_._2).mapValues(_.keys.head).map(identity)
+  lazy val decoding: Map[Char, T] = encoding.groupBy(_._2).mapValues(_.keys.head).toMap
 
   /**
     * Just call the encoding.  Use 0 for unknown inputs
