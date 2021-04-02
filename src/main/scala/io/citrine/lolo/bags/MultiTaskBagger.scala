@@ -77,7 +77,6 @@ case class MultiTaskBagger(
      */
     type arg = ((ParSeq[Model[PredictionResult[Any]]], Seq[Option[Vector[Double]]]), Int)
     models.transpose.zip(importances.seq.transpose).zipWithIndex.map { xx: arg =>
-      println("Got here")
       xx match {
         case ((m: ParSeq[Model[PredictionResult[Any]]], i: Seq[Option[Vector[Double]]]), k: Int) =>
           val averageImportance: Option[Vector[Double]] = i.reduce {
