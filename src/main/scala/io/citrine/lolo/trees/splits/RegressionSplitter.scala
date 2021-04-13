@@ -20,7 +20,7 @@ import scala.util.Random
   *
   * Created by maxhutch on 11/29/16.
   */
-case class RegressionSplitter(randomizePivotLocation: Boolean = false) extends Splitter[Double] {
+case class RegressionSplitter(randomizePivotLocation: Boolean = false, rng: Random = Random) extends Splitter[Double] {
 
   /**
     * Get the best split, considering numFeature random features (w/o replacement)
@@ -44,7 +44,7 @@ case class RegressionSplitter(randomizePivotLocation: Boolean = false) extends S
 
     /* Try every feature index */
     val featureIndices: Seq[Int] = rep._1.indices
-    Random.shuffle(featureIndices).take(numFeatures).foreach { index =>
+    rng.shuffle(featureIndices).take(numFeatures).foreach { index =>
 
       /* Use different spliters for each type */
       val (possibleSplit, possibleVariance) = rep._1(index) match {
@@ -111,7 +111,7 @@ case class RegressionSplitter(randomizePivotLocation: Boolean = false) extends S
         bestVariance = totalVariance
         /* Try pivots at the midpoints between consecutive member values */
         bestPivot = if (randomizePivotLocation) {
-          (left - right) * Random.nextDouble() + right
+          (left - right) * rng.nextDouble() + right
         } else {
           (left + right) / 2.0
         }
@@ -147,7 +147,7 @@ case class RegressionSplitter(randomizePivotLocation: Boolean = false) extends S
     }
 
     /* Compute the average label for each categorical value */
-    val categoryAverages: Map[Char, Double] = groupedData.mapValues(p => p._1 / p._2)
+    val categoryAverages: Map[Char, Double] = groupedData.mapValues(p => p._1 / p._2).toMap
 
     /* Create an orderd list of the categories by average label */
     val orderedNames = categoryAverages.toSeq.sortBy(_._2).map(_._1)

@@ -1,15 +1,20 @@
 package io.citrine.lolo.learners
 
+import breeze.linalg.DenseMatrix
 import breeze.stats.distributions.Beta
 import io.citrine.lolo.TestUtils
 import io.citrine.lolo.stats.functions.Friedman
 import org.junit.Test
+import org.scalatest.Assertions._
+
+import scala.util.Random
 
 /**
   * Created by maxhutch on 1/9/17.
   */
 @Test
 class RandomForestTest {
+  val rng = new Random(92345L)
 
   /**
     * Test that the regression forest does the same thing as the regression bagger
@@ -17,19 +22,19 @@ class RandomForestTest {
   @Test
   def testRegressionForest(): Unit = {
     val trainingData = TestUtils.binTrainingData(
-      TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman),
+      TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, seed = rng.nextLong()),
       inputBins = Seq((0, 8))
     )
 
     Seq(true, false).foreach { randomlyRotateFeatures =>
-      val RFMeta = RandomForest(randomlyRotateFeatures = randomlyRotateFeatures)
+      val RFMeta = RandomForest(randomlyRotateFeatures = randomlyRotateFeatures, rng = rng)
         .train(trainingData)
       val RF = RFMeta.getModel()
 
       assert(RFMeta.getLoss().get < 1.0, "Loss of bagger is larger than expected")
 
       val results = RF.transform(trainingData.map(_._1))
-      val means = results.getExpected()
+      // val means = results.getExpected()
       val sigma: Seq[Double] = results.getUncertainty().get.asInstanceOf[Seq[Double]]
       assert(sigma.forall(_ >= 0.0))
 
@@ -49,12 +54,12 @@ class RandomForestTest {
   @Test
   def testClassificationForest(): Unit = {
     val trainingData = TestUtils.binTrainingData(
-      TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman),
+      TestUtils.generateTrainingData(128, 12, noise = 0.1, function = Friedman.friedmanSilverman, seed = rng.nextLong()),
       inputBins = Seq((0, 8)), responseBins = Some(8)
     )
 
     Seq(true, false).foreach { randomlyRotateFeatures =>
-      val RFMeta = new RandomForest(numTrees = trainingData.size * 2, randomlyRotateFeatures = randomlyRotateFeatures)
+      val RFMeta = RandomForest(numTrees = trainingData.size * 2, randomlyRotateFeatures = randomlyRotateFeatures, rng = rng)
         .train(trainingData)
       val RF = RFMeta.getModel()
 
@@ -79,10 +84,10 @@ class RandomForestTest {
     */
   @Test
   def testClassificationForestUnbiased(): Unit = {
-    val numTrials = 30
-    val (winsSuffixed, winsPrefixed): (Int,Int) = (0 until numTrials).map {case i: Int =>
+    val numTrials = 20
+    val (winsSuffixed, winsPrefixed): (Int,Int) = (0 until numTrials).map { _ =>
       val mainTrainingData = TestUtils.binTrainingData(
-        TestUtils.generateTrainingData(128, 5, noise = 0.1, function = Friedman.friedmanSilverman, seed = i),
+        TestUtils.generateTrainingData(64, 5, noise = 0.1, function = Friedman.friedmanSilverman, seed = rng.nextLong()),
         responseBins = Some(2)
       )
       val dupeLabel = "DUPE"
@@ -93,8 +98,8 @@ class RandomForestTest {
         (mainTrainingData.head._1, dupeLabel)
       ) ++ mainTrainingData
 
-      val RFSuffixed = RandomForest(numTrees = trainingDataSuffixed.size * 2).train(trainingDataSuffixed)
-      val RFPrefixed = RandomForest(numTrees = trainingDataPrefixed.size * 2).train(trainingDataPrefixed)
+      val RFSuffixed = RandomForest(numTrees = trainingDataSuffixed.size * 2, rng = rng).train(trainingDataSuffixed)
+      val RFPrefixed = RandomForest(numTrees = trainingDataPrefixed.size * 2, rng = rng).train(trainingDataPrefixed)
       val predictedSuffixed = RFSuffixed.getModel().transform(mainTrainingData.map(_._1))
       val predictedPrefixed = RFPrefixed.getModel().transform(mainTrainingData.map(_._1))
       val extraLabelCountSuffixed = predictedSuffixed.getExpected().count { case p: String => p == dupeLabel }
@@ -127,10 +132,10 @@ class RandomForestTest {
     // Generate a linear signal in one dimension: 2 * x
     val trainingData: Seq[(Vector[Double], Double)] = TestUtils.generateTrainingData(32, 1, function = {x =>
       x.head * 2.0
-    })
+    }, seed = rng.nextLong())
 
     // Create a consistent set of parameters
-    val baseForest = RandomForest(numTrees = 16384, useJackknife = false)
+    val baseForest = RandomForest(numTrees = 16384, useJackknife = false, rng = rng)
 
     // Turn off split randomization and compute the loss (out-of-bag error)
     val lossWithoutRandomization: Double = baseForest.copy(randomizePivotLocation = false)
@@ -153,11 +158,85 @@ class RandomForestTest {
     val trainingData = TestUtils.generateTrainingData(8, 1)
     // the number of trees is the number of times we generate weights
     // so this has the effect of creating lots of different sets of weights
-    val learner = RandomForest(numTrees = 16384)
+    val learner = RandomForest(numTrees = 16384, rng = rng)
     // the test is that this training doesn't throw an exception
     learner.train(trainingData).getModel()
   }
 
+  def shapleyCompare(
+                      trainingData: Seq[(Vector[Any],Double)],
+                      evalLocation: Vector[Any],
+                      expected: Vector[Double],
+                      rtol: Double = 5e-2
+                    ): Unit = {
+    val actual = RandomForest(rng = rng).train(trainingData).getModel().shapley(evalLocation) match {
+      case None => fail("Unexpected None returned by shapley.")
+      case x: Option[DenseMatrix[Double]] => {
+        val a = x.get
+        assert(a.cols == trainingData.head._1.length, "Expected one Shapley value per feature.")
+        assert(a.rows == 1, "Expected a single output dimension.")
+        a.toDenseVector.toScalaVector
+      }
+      case _ => fail("Unexpected return type.")
+    }
+    expected.zip(actual).foreach {
+      case (e: Double, a: Double) => assert(Math.abs(e - a)/a < rtol)
+    }
+  }
+
+  /**
+    * Test Shapley value for  a simple tree.
+    */
+  @Test
+  def testShapley(): Unit = {
+    rng.setSeed(3751L)
+
+    // Example from Lundberg paper (https://arxiv.org/pdf/1802.03888.pdf)
+    val trainingData1 = Seq(
+      (Vector(1.0, 1.0), 80.0),
+      (Vector(1.0, 0.0), 0.0),
+      (Vector(0.0, 1.0), 0.0),
+      (Vector(0.0, 0.0), 0.0)
+    )
+    val expected1 = Vector(30.0, 30.0)
+    shapleyCompare((1 to 8).map(_=>trainingData1).flatten, Vector[Any](1.0, 1.0), expected1)
+
+    // Second example from Lundberg paper (https://arxiv.org/pdf/1802.03888.pdf)
+    val trainingData2 = Seq(
+      (Vector(1.0, 1.0), 90.0),
+      (Vector(1.0, 0.0), 10.0),
+      (Vector(0.0, 1.0), 0.0),
+      (Vector(0.0, 0.0), 0.0)
+    )
+    val expected2 = Vector(35.0, 30.0)
+    shapleyCompare((1 to 8).map(_=>trainingData2).flatten, Vector[Any](1.0, 1.0), expected2)
+
+    // Example with two splits on one feature
+    // Worked out with pen-and-paper from Lundberg Equation 2.
+    val trainingData3 = Seq(
+      (Vector(1.0, 1.0), 100.0),
+      (Vector(1.0, 0.0), 80.0),
+      (Vector(1.0, 0.2), 70.0),
+      (Vector(0.0, 1.0), 0.0),
+      (Vector(0.0, 0.2), 0.0),
+      (Vector(0.0, 0.0), 0.0)
+    )
+    val expected3 = Vector(45.8333333333333, 12.5)
+    shapleyCompare((1 to 8).map(_=>trainingData3).flatten, Vector[Any](1.0, 1.0), expected3)
+
+    // Example with 5 features, to exercise all the factorials in Lundberg equation 2.
+    // Referenced against the shap package on a sklearn decision tree.
+    val trainingData4 = Seq(
+      (Vector(0.0, 0.0, 0.0, 0.0, 0.0), 1.0),
+      (Vector(1.0, 0.0, 0.0, 0.0, 0.0), 2.0),
+      (Vector(0.0, 1.0, 0.0, 0.0, 0.0), 4.0),
+      (Vector(0.0, 0.0, 1.0, 0.0, 0.0), 8.0),
+      (Vector(0.0, 0.0, 0.0, 1.0, 0.0), 16.0),
+      (Vector(0.0, 0.0, 0.0, 0.0, 1.0), 32.0)
+    )
+    val expected4 = Vector(0.0333333333333333, 0.2, 0.8666666666666667, 3.533333333333333, 16.866666666666667)
+    shapleyCompare((1 to 8).map{_=>trainingData4}.flatten, Vector.fill[Any](5)(1.0), expected4)
+  }
 }
 
 object RandomForestTest {
@@ -166,5 +245,7 @@ object RandomForestTest {
       .testClassificationForest()
     new RandomForestTest()
       .testClassificationForestUnbiased()
+    new RandomForestTest()
+      .testShapley()
   }
 }

@@ -1,6 +1,5 @@
 """Methods related to starting and stopping the Java Gateway"""
 from py4j.java_gateway import JavaGateway
-from xml.etree import ElementTree
 import sys
 import os
 
@@ -28,12 +27,8 @@ def find_lolo_jar(skip_devel_version=False):
     """
 
     if not skip_devel_version and _is_development_installation():
-        # Get the version of lolo from the pom.xml file
-        pom = ElementTree.parse(os.path.join(_lolo_root, 'pom.xml'))
-        lolo_version = pom.find('{http://maven.apache.org/POM/4.0.0}version').text
-
         # Get the appropriate Jar
-        jar_path = os.path.join(_lolo_root, 'target', 'lolo-{}-jar-with-dependencies.jar'.format(lolo_version))
+        jar_path = os.path.join(_lolo_root, 'target', 'scala-2.13', 'lolo-jar-with-dependencies.jar')
         if not os.path.isfile(jar_path):
             raise RuntimeError('Current version of lolo jar not found. Try re-building project with make')
 

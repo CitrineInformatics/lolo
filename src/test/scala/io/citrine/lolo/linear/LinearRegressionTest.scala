@@ -10,6 +10,7 @@ import scala.util.Random
   */
 @Test
 class LinearRegressionTest {
+  val rng = new Random(783578L)
   /** Number of training rows */
   val n = 6
   /** Number of features in each row */
@@ -46,7 +47,7 @@ class LinearRegressionTest {
     */
   @Test
   def testRegression(): Unit = {
-    val int0 = Random.nextDouble()
+    val int0 = rng.nextDouble()
     val result = data * beta0 + int0
 
     val trainingData = (0 until n).map { i =>
@@ -69,7 +70,7 @@ class LinearRegressionTest {
     */
   @Test
   def testWeightedRegression(): Unit = {
-    val int0 = Random.nextDouble()
+    val int0 = rng.nextDouble()
     val result = data * beta0 + int0
 
     val trainingData = (0 until n).map { i =>
@@ -77,7 +78,7 @@ class LinearRegressionTest {
     }
 
     val lr = new LinearRegressionLearner()
-    val lrm = lr.train(trainingData, weights = Some(Seq.tabulate(n)(i => Math.abs(Random.nextDouble()))))
+    val lrm = lr.train(trainingData, weights = Some(Seq.tabulate(n)(i => Math.abs(rng.nextDouble()))))
     val model = lrm.getModel()
     val output = model.transform(trainingData.map(_._1))
     val predicted = output.getExpected()
@@ -121,7 +122,7 @@ class LinearRegressionTest {
     */
   @Test
   def testCategoricalValue(): Unit = {
-    val int0 = Random.nextDouble()
+    val int0 = rng.nextDouble()
     val result = data * beta0 + int0
 
     val trainingData = (0 until n).map { i =>

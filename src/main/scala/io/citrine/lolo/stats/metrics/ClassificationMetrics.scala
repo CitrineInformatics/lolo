@@ -14,7 +14,9 @@ object ClassificationMetrics {
     * @return the weighted average f1 score
     */
   def f1scores(predictedVsActual: Seq[(Vector[Any], Any, Any)]): Double = {
-    val labels = predictedVsActual.map(_._3).distinct
+    // the test set and training set might have different labels, so we might
+    // have predictions that are never actual and vice versa
+    val labels = (predictedVsActual.map(_._2) ++ predictedVsActual.map(_._3)).distinct
     val index = labels.zipWithIndex.toMap
     val numLabels = labels.size
     val confusionMatrix = DenseMatrix.zeros[Int](numLabels, numLabels)

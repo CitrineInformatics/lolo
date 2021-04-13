@@ -9,7 +9,7 @@ import scala.util.Random
   *
   * Created by maxhutch on 12/2/16.
   */
-case class ClassificationSplitter(randomizedPivotLocation: Boolean = false) extends Splitter[Char]{
+case class ClassificationSplitter(randomizedPivotLocation: Boolean = false, rng: Random = Random) extends Splitter[Char]{
 
   /**
     * Get the best split, considering numFeature random features (w/o replacement)
@@ -33,7 +33,7 @@ case class ClassificationSplitter(randomizedPivotLocation: Boolean = false) exte
     val rep = data.head
     /* Try every feature index */
     val featureIndices: Seq[Int] = rep._1.indices
-    Random.shuffle(featureIndices).take(numFeatures).foreach { index =>
+    rng.shuffle(featureIndices).take(numFeatures).foreach { index =>
 
       /* Use different spliters for each type */
       val (possibleSplit, possibleImpurity) = rep._1(index) match {
@@ -98,7 +98,7 @@ case class ClassificationSplitter(randomizedPivotLocation: Boolean = false) exte
         val left = thinData(j + 1)._1
         val right = thinData(j)._1
         bestPivot = if (randomizePivotLocation) {
-          (left - right) * Random.nextDouble() + right
+          (left - right) * rng.nextDouble() + right
         } else {
           (left + right) / 2.0
         }

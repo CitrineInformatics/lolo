@@ -8,6 +8,7 @@ import org.scalatest.Assertions._
 import scala.util.{Random, Try}
 
 class MeritTest {
+  val rng = new Random(34578L)
 
   /**
     * Generate test data by adding Gaussian noise to a uniformly distributed response
@@ -38,9 +39,9 @@ class MeritTest {
 
     Seq.fill(numBatch) {
       val pua = Seq.fill(batchSize) {
-        val y = Random.nextDouble()
+        val y = rng.nextDouble()
         val draw = errorDistribution.sample().toSeq
-        val error: Double = draw(0) * Random.nextGaussian()
+        val error: Double = draw(0) * rng.nextGaussian()
         val uncertainty = if (uncertaintyCorrelation >= maximumCorrelation) {
           Math.abs(draw(0))
         } else {

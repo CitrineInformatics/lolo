@@ -8,7 +8,7 @@ import scala.util.Random
   *
   * Created by maxhutch on 11/29/16.
   */
-object MultiTaskSplitter {
+case class MultiTaskSplitter(rng: Random = Random) {
 
   /**
     * Get the best split, considering numFeature random features (w/o replacement)
@@ -33,7 +33,7 @@ object MultiTaskSplitter {
 
     /* Try every feature index */
     val featureIndices: Seq[Int] = rep._1.indices
-    Random.shuffle(featureIndices).take(numFeatures).foreach { index =>
+    rng.shuffle(featureIndices).take(numFeatures).foreach { index =>
 
       /* Use different spliters for each type */
       val (possibleSplit, possibleImpurity) = rep._1(index) match {
@@ -82,7 +82,7 @@ object MultiTaskSplitter {
         val left = features(j + 1)
         val right = features(j)
         val pivot = if (randomizePivotLocation) {
-          (left - right) * Random.nextDouble() + right
+          (left - right) * rng.nextDouble() + right
         } else {
           (left + right) / 2.0
         }
@@ -119,8 +119,8 @@ object MultiTaskSplitter {
 
     /* Group the data by categorical feature and compute the weighted sum and sum of the weights for each */
     val groupedData: Map[Char, (Double, Double, Double)] = thinData.groupBy(_._1).mapValues(g =>
-      (computeImpurity(g.map(x => (x._2, x._3))), g.map(_._3).sum, g.size)
-    )
+      (computeImpurity(g.map(x => (x._2, x._3))), g.map(_._3).sum, g.size.toDouble)
+    ).toMap
 
     /* Make sure there is more than one member for most of the classes */
     val nonTrivial: Double = groupedData.filter(_._2._3 > 1).map(_._2._2).sum

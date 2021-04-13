@@ -6,12 +6,15 @@ import io.citrine.lolo.trees.classification.ClassificationTree
 import io.citrine.lolo.trees.regression.RegressionTree
 import io.citrine.lolo.{Model, MultiTaskLearner, PredictionResult, TrainingResult}
 
+import scala.util.Random
+
 /**
   * Multi-task tree learner, which produces multiple decision trees with the same split structure
   *
   */
 case class MultiTaskTreeLearner(
-                                 randomizePivotLocation: Boolean = false
+                                 randomizePivotLocation: Boolean = false,
+                                 rng: Random = Random
                                ) extends MultiTaskLearner {
 
   /**

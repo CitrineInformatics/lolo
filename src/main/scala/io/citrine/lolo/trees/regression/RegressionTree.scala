@@ -1,11 +1,13 @@
 package io.citrine.lolo.trees.regression
 
+import breeze.linalg.DenseMatrix
 import io.citrine.lolo.encoders.CategoricalEncoder
 import io.citrine.lolo.linear.GuessTheMeanLearner
 import io.citrine.lolo.trees.splits.{NoSplit, RegressionSplitter, Splitter}
-import io.citrine.lolo.trees.splits.{NoSplit, RegressionSplitter}
 import io.citrine.lolo.trees.{ModelNode, TrainingNode, TreeMeta}
 import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
+
+import scala.util.Random
 
 /**
   * Learner for regression trees
@@ -22,10 +24,11 @@ case class RegressionTreeLearner(
                                   maxDepth: Int = 30,
                                   minLeafInstances: Int = 1,
                                   leafLearner: Option[Learner] = None,
-                                  splitter: Splitter[Double] = RegressionSplitter()
+                                  splitter: Splitter[Double] = RegressionSplitter(),
+                                  rng: Random = Random
                                 ) extends Learner {
   /** Learner to use for training the leaves */
-  @transient private lazy val myLeafLearner = leafLearner.getOrElse(GuessTheMeanLearner())
+  @transient private lazy val myLeafLearner = leafLearner.getOrElse(GuessTheMeanLearner(rng = rng))
 
   /**
     * Train the tree by recursively partitioning (splitting) the training data on a single feature
@@ -139,6 +142,20 @@ class RegressionTree(
       inputs.map(inp => root.transform(CategoricalEncoder.encodeInput(inp, encoders)))
     )
   }
+
+  /**
+    * Compute Shapley feature attributions for a given input
+    *
+    * @param input for which to compute feature attributions.
+    * @param omitFeatures feature indices to omit in computing Shapley values
+    * @return array of Shapley feature attributions, one per input feature, each a vector of
+    *         One Vector[Double] per feature, each of length equal to the output dimension.
+    *         The output dimension is 1 for single-task regression, or equal to the number of classification categories.
+    */
+  override def shapley(input: Vector[Any], omitFeatures: Set[Int] = Set()): Option[DenseMatrix[Double]] = {
+    root.shapley(CategoricalEncoder.encodeInput(input, encoders), omitFeatures)
+  }
+
 }
 
 /**

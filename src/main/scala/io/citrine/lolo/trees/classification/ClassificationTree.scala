@@ -6,21 +6,28 @@ import io.citrine.lolo.trees.splits.{ClassificationSplitter, NoSplit, Splitter}
 import io.citrine.lolo.trees.{ModelNode, TrainingLeaf, TrainingNode, TreeMeta}
 import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
 
+import scala.util.Random
+
 
 /**
   * Created by maxhutch on 12/2/16.
   *
   * @param numFeatures subset of features to select splits from
+  * @param maxDepth maximum depth of tree
+  * @param minLeafInstances minimum training instances per node
+  * @param leafLearner to train on leaves
+  * @param splitter used to select splits
   */
 case class ClassificationTreeLearner(
                                       numFeatures: Int = -1,
                                       maxDepth: Int = 30,
                                       minLeafInstances: Int = 1,
                                       leafLearner: Option[Learner] = None,
-                                      splitter: Splitter[Char] = ClassificationSplitter()
+                                      splitter: Splitter[Char] = ClassificationSplitter(),
+                                      rng: Random = Random
                                     ) extends Learner {
 
-  @transient private lazy val myLeafLearner: Learner = leafLearner.getOrElse(new GuessTheMeanLearner)
+  @transient private lazy val myLeafLearner: Learner = leafLearner.getOrElse(GuessTheMeanLearner(rng = rng))
 
   /**
     * Train classification tree
@@ -75,6 +82,7 @@ case class ClassificationTreeLearner(
         remainingDepth = maxDepth - 1,
         maxDepth = maxDepth,
         minLeafInstances = minLeafInstances,
+        numClasses = trainingData.map{_._2}.distinct.length,
         splitter = splitter
       )
     }
@@ -154,7 +162,3 @@ class ClassificationResult(
     predictions.map(_._2.depth)
   }
 }
-
-
-
-

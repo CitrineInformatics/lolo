@@ -45,7 +45,8 @@ case class BaggedSingleResult(
                                predictions: Seq[PredictionResult[Double]],
                                NibIn: Vector[Vector[Int]],
                                bias: Option[Double] = None,
-                               rescale: Double = 1.0
+                               rescale: Double = 1.0,
+                               disableBootstrap: Boolean = false
                              ) extends BaggedResult[Double] with RegressionResult {
   private lazy val treePredictions: Array[Double] = predictions.map(_.getExpected().head).toArray
 
@@ -62,13 +63,28 @@ case class BaggedSingleResult(
     treePredictions.map(x => Math.pow(x - expected, 2.0)).sum / (treePredictions.length - 1)
   }
 
-  override def getStdDevMean(): Option[Seq[Double]] = Some(Seq(stdDevMean))
+  override def getStdDevMean(): Option[Seq[Double]] = {
+    if (disableBootstrap) {
+      // If bootstrap is disabled, rescale is unity and treeVariance is our only option for UQ.
+      // Since it's not recalibrated, it's best considered to be a confidence interval of the underlying weak learner.
+      assert(rescale == 1.0)
+      Some(Seq(Math.sqrt(treeVariance)))
+    } else {
+      Some(Seq(stdDevMean))
+    }
+  }
 
-  override def getStdDevObs(): Option[Seq[Double]] = Some(Seq(stdDevObs))
+  override def getStdDevObs(): Option[Seq[Double]] = {
+    if (disableBootstrap) {
+      None
+    } else {
+      Some(Seq(stdDevObs))
+    }
+  }
 
   /**
-   * For the sake of parity, we were using this method
-   */
+    * For the sake of parity, we were using this method
+    */
   override def getUncertainty(observational: Boolean): Option[Seq[Any]] = {
     if (observational) {
       getStdDevObs()
@@ -119,7 +135,7 @@ case class BaggedSingleResult(
           tNotCount = tNotCount + 1
         }
       }
-      // Compute the infinitessimal jackknife estimate
+      // Compute the infinitesimal jackknife estimate
       val varIJ = Math.pow(cov / vecN.size, 2.0)
 
       if (tNotCount > 0) {
@@ -142,12 +158,13 @@ case class BaggedSingleResult(
 }
 
 case class BaggedClassificationResult(
-                                  predictions: Seq[PredictionResult[Any]]
-                                ) extends BaggedResult[Any] {
+                                       predictions: Seq[PredictionResult[Any]]
+                                     ) extends BaggedResult[Any] {
+  val predictionEnsemble = predictions.map{ p => p.getExpected() }
   lazy val expectedMatrix: Seq[Seq[Any]] = predictions.map(p => p.getExpected()).transpose
 
   lazy val expected: Seq[Any] = expectedMatrix.map(ps => ps.groupBy(identity).maxBy(_._2.size)._1).seq
-  lazy val uncertainty: Seq[Map[Any, Double]] = expectedMatrix.map(ps => ps.groupBy(identity).mapValues(_.size.toDouble / ps.size))
+  lazy val uncertainty: Seq[Map[Any, Double]] = expectedMatrix.map(ps => ps.groupBy(identity).mapValues(_.size.toDouble / ps.size).toMap)
 
   /**
    * Return the majority vote vote
@@ -174,7 +191,8 @@ case class BaggedMultiResult(
                          predictions: Seq[PredictionResult[Double]],
                          NibIn: Vector[Vector[Int]],
                          bias: Option[Seq[Double]] = None,
-                         rescale: Double = 1.0
+                         rescale: Double = 1.0,
+                         disableBootstrap: Boolean = false
                        ) extends BaggedResult[Double] with RegressionResult {
 
   /**
@@ -184,9 +202,24 @@ case class BaggedMultiResult(
     */
   override def getExpected(): Seq[Double] = expected
 
-  override def getStdDevObs(): Option[Seq[Double]] = Some(varObs.map{v => Math.sqrt(v)})
+  override def getStdDevObs(): Option[Seq[Double]] = {
+    if (disableBootstrap) {
+      None
+    } else {
+      Some(varObs.map { v => Math.sqrt(v) })
+    }
+  }
 
-  override def getStdDevMean(): Option[Seq[Double]] = Some(stdDevMean)
+  override def getStdDevMean(): Option[Seq[Double]] = {
+    if (disableBootstrap) {
+      // If bootstrap is disabled, rescale is unity and treeVariance is our only option for UQ.
+      // Since it's not recalibrated, it's best considered to be a confidence interval of the underlying weak learner.
+      assert(rescale == 1.0)
+      Some(varObs.map{v => Math.sqrt(v)})
+    } else {
+      Some(stdDevMean)
+    }
+  }
 
   /**
    * For the sake of parity, we were using this method
@@ -297,11 +330,11 @@ case class BaggedMultiResult(
     /* These operations are pulled out of the loop and extra-verbose for performance */
     val JMat = NibJ.t * predMat
     Async.canStop()
-    val JMat2 = JMat :* JMat * ((Nib.size - 1.0) / Nib.size)
+    val JMat2 = JMat *:* JMat * ((Nib.size - 1.0) / Nib.size)
     Async.canStop()
     val IJMat = NibIJ.t * predMat
     Async.canStop()
-    val IJMat2 = IJMat :* IJMat
+    val IJMat2 = IJMat *:* IJMat
     Async.canStop()
     val arg = IJMat2 + JMat2
     Async.canStop()
