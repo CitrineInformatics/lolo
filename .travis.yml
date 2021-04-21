@@ -24,7 +24,7 @@ jobs:
   include:
   - stage: test
     script:
-    - sbt +test
+    - sbt -sbt-launch-repo https://repo1.maven.org/maven2 +test
   - stage: test
     before_install:
       - - wget http://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
@@ -44,7 +44,7 @@ jobs:
     - nosetests
   - stage: release
     name: maven central
-    script: sbt ci-release
+    script: sbt -sbt-launch-repo https://repo1.maven.org/maven2 ci-release
   - stage: release
     name: pypi
     addons:
