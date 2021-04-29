@@ -57,7 +57,13 @@ class RealSplit(index: Int, pivot: Double) extends Split {
     * @return true if input takes the left split
     */
   override def turnLeft(input: Vector[AnyVal]): Boolean = {
-    input(index).asInstanceOf[Double] <= pivot
+    if (pivot.isNaN) {
+      // the normal sort order for scala puts NaN >> any other double
+      // so if the pivot is NaN and the value is not, then it is 'less than' the pivot
+      !input(index).asInstanceOf[Double].isNaN
+    } else {
+      input(index).asInstanceOf[Double] <= pivot
+    }
   }
 
   /**
