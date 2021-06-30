@@ -3,7 +3,7 @@
 Lolo
 ====
 
-![Travis](https://travis-ci.org/CitrineInformatics/lolo.svg?branch=develop)
+![Travis](https://travis-ci.org/CitrineInformatics/lolo.svg?branch=main)
 
 Lolo is a [random forest](https://en.wikipedia.org/wiki/Lolo_National_Forest)-centered machine learning library in Scala.
 
@@ -34,7 +34,7 @@ Lolo is on the central repository, and can be used by simply adding the followin
 <dependency>
     <groupId>io.citrine</groupId>
     <artifactId>lolo</artifactId>
-    <version>3.0.1</version>
+    <version>3.1.1</version>
 </dependency>
 ```
 Lolo provides higher level wrappers for common learner combinations.
@@ -60,12 +60,17 @@ On an [Ivy Bridge](http://ark.intel.com/products/77780/Intel-Core-i7-4930K-Proce
 
 
 # Contributing
-We welcome bug reports, feature requests, and pull requests.  Pull requests should be made following the [gitflow workflow](https://www.atlassian.com/git/tutorials/comparing-workflows/feature-branch-workflow).  As contributions expand, we'll put more information here.
+We welcome bug reports, feature requests, and pull requests.
+Pull requests should be made following the [feature branch workflow](https://www.atlassian.com/git/tutorials/comparing-workflows/feature-branch-workflow): branching off of and opening PRs into `main`.
+
+Production releases are triggered by tags.
+The [sbt-ci-release plugin](https://github.com/olafurpg/sbt-ci-release) will use the tag as the `lolo` version.
+On the other hand, `lolopy` versions are still read from `setup.py`, so version bumps are needed for successful releases.
+Failing to bump the `lolopy` version number will result in a skipped `lolopy` release rather than a build failure.
 
 # Authors
- * [Max Hutchinson](https://github.com/maxhutch/)
- * [Sean Paradiso](https://github.com/sparadiso)
- * [Logan Ward](https://github.com/WardLT)
+
+See [Contributors](https://github.com/CitrineInformatics/lolo/graphs/contributors)
  
 # Related projects
  * [randomForestCI](https://github.com/swager/randomForestCI) is an R-based implementation of jackknife variance estimates by S. Wager
