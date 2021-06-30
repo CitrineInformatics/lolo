@@ -1,3 +1,3 @@
 all:
-	cd ..; sbt -sbt-launch-repo https://repo1.maven.org/maven2 assembly
+	cd ..; sbt assembly
 	pip install -e .
