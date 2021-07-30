@@ -1,6 +1,7 @@
 import sbt._
 
 object Dependencies {
+  lazy val netlibVersion = "1.1.2"
   lazy val junitVersion = "4.13.1"
   lazy val thetaVersion = "1.1.2"
   lazy val breezeVersion = "1.2"
@@ -10,6 +11,7 @@ object Dependencies {
   lazy val scalaParallelCollectionsVersion = "1.0.0"
 
   val loloDeps = Seq(
+    "com.github.fommil.netlib" % "all" % netlibVersion pomOnly(),
     "junit" % "junit" % junitVersion % "test",
     "org.scalanlp" %% "breeze" % breezeVersion,
     "io.citrine" %% "theta" % thetaVersion,
