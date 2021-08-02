@@ -3,7 +3,7 @@ import sbt._
 object Dependencies {
   lazy val netlibVersion = "1.1.2"
   lazy val junitVersion = "4.13.1"
-  lazy val thetaVersion = "1.1.2"
+  lazy val thetaVersion = "1.1.3"
   lazy val breezeVersion = "1.2"
   lazy val scalaTestVersion = "3.2.2"
 
