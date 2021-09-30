@@ -77,4 +77,26 @@ case class StatisticalValidation(rng: Random = Random) {
     }
   }
 
+  def generativeValidationWithNoise(
+                               source: Iterable[(Vector[Any], (Double, Double))],
+                               learner: Learner,
+                               nTrain: Int,
+                               nTest: Int,
+                               nRound: Int
+                             ): Iterator[(PredictionResult[Double], Seq[Double])] = {
+    Iterator.tabulate(nRound) { _ =>
+      val subset = rng.shuffle(source).take(nTrain + nTest)
+      val (trainingData: Seq[(Vector[Any], (Double, Double))], testData: Seq[(Vector[Any], (Double, Double))]) = subset.splitAt(nTrain)
+      val noisedTraining = trainingData.map{case (f, (l, n)) =>
+        (f, (l + rng.nextGaussian() * n, n))
+      }
+      val noisedTest = testData.map{case (f, (l, n)) =>
+        (f, l + rng.nextGaussian() * n * 0)
+      }
+      val model = learner.train(noisedTraining).getModel()
+      val predictions: PredictionResult[Double] = model.transform(noisedTest.map(_._1)).asInstanceOf[PredictionResult[Double]]
+      (predictions, noisedTest.map(_._2))
+    }
+  }
+
 }

@@ -1,6 +1,6 @@
 package io.citrine.lolo.trees.regression
 
-import io.citrine.lolo.trees.splits.{NoSplit, Split, Splitter}
+import io.citrine.lolo.trees.splits.{CategoricalSplit, NoSplit, RealSplit, Split, Splitter}
 import io.citrine.lolo.trees.{InternalModelNode, ModelNode, TrainingNode}
 import io.citrine.lolo.{Learner, PredictionResult}
 
@@ -30,8 +30,8 @@ class RegressionTrainingNode(
   lazy val (leftTrain, rightTrain) = trainingData.partition(r => split.turnLeft(r._1))
   assert(leftTrain.nonEmpty && rightTrain.nonEmpty, s"Split ${split} resulted in zero size: ${trainingData.map(_._1(split.getIndex()))}")
 
-  lazy val leftChild = RegressionTrainingNode.buildChild(leftTrain, leafLearner, splitter, minLeafInstances, remainingDepth, maxDepth, numFeatures)
-  lazy val rightChild = RegressionTrainingNode.buildChild(rightTrain, leafLearner, splitter, minLeafInstances, remainingDepth, maxDepth, numFeatures)
+  lazy val leftChild: TrainingNode[AnyVal, Double] = RegressionTrainingNode.buildChild(leftTrain, leafLearner, splitter, minLeafInstances, remainingDepth, maxDepth, numFeatures)
+  lazy val rightChild: TrainingNode[AnyVal, Double] = RegressionTrainingNode.buildChild(rightTrain, leafLearner, splitter, minLeafInstances, remainingDepth, maxDepth, numFeatures)
 
   /**
     * Get the lightweight prediction node for the output tree
@@ -40,6 +40,16 @@ class RegressionTrainingNode(
     */
   override def getNode(): ModelNode[PredictionResult[Double]] = {
     new InternalModelNode[PredictionResult[Double]](split, leftChild.getNode(), rightChild.getNode(), numFeatures, 1, trainingData.size.toDouble)
+  }
+
+  override def getSplits(): Vector[Double] = {
+    val x = split match {
+      case RealSplit(index, pivot) =>
+        Vector(index.toDouble, pivot)
+      case CategoricalSplit(index, _) =>
+        Vector(index.toDouble)
+    }
+    x ++ leftChild.getSplits() ++ rightChild.getSplits()
   }
 
   /**

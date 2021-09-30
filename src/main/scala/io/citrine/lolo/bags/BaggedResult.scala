@@ -256,7 +256,14 @@ case class BaggedMultiResult(
   lazy val expectedMatrix: Seq[Seq[Double]] = predictions.map(p => p.getExpected()).transpose
 
   /* Extract the prediction by averaging for regression, taking the most popular response for classification */
-  lazy val expected: Seq[Double] = expectedMatrix.map(ps => ps.sum / ps.size)
+  lazy val expected: Seq[Double] = {
+    val weights = predictions.map(_.getWeight().get)
+    val values = predictions.map(_.getExpected())
+    values.transpose.zip(weights.transpose).map{case (xs, ws) =>
+      if (ws.exists(_ != 1.0)) println(ws)
+      xs.zip(ws).map{case (y, w) => y * w}.sum / ws.sum
+    }
+  }
 
   /* This matrix is used to compute the jackknife variance */
   lazy val NibJMat = new DenseMatrix[Double](Nib.head.size, Nib.size,
