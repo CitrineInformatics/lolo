@@ -49,6 +49,7 @@ case class BaggedSingleResult(
                                disableBootstrap: Boolean = false
                              ) extends BaggedResult[Double] with RegressionResult {
   private lazy val treePredictions: Array[Double] = predictions.map(_.getExpected().head).toArray
+  private lazy val treeWeights: Array[Double] = predictions.map(_.getWeight().map(_.head).getOrElse(1.0)).toArray
 
   /**
     * Return the ensemble average or maximum vote
@@ -57,10 +58,18 @@ case class BaggedSingleResult(
     */
   override def getExpected(): Seq[Double] = Seq(expected)
 
-  private lazy val expected = treePredictions.sum / treePredictions.length
-  private lazy val treeVariance: Double = {
+  private lazy val expected = {
+    treePredictions.zip(treeWeights).map(x => x._1 * x._2).sum / treeWeights.sum
+  }
+  private lazy val uncorrectedTreeVariance: Double = {
     assert(treePredictions.length > 1, "Bootstrap variance undefined for fewer than 2 bootstrap samples.")
-    treePredictions.map(x => Math.pow(x - expected, 2.0)).sum / (treePredictions.length - 1)
+    val expectedSquare = treePredictions.zip(treeWeights).map{case (x, w) => x * x * w}.sum / treeWeights.sum
+    val squareExpected = expected * expected
+    expectedSquare - squareExpected
+  }
+
+  private lazy val treeVariance: Double = {
+    uncorrectedTreeVariance * Math.pow(treeWeights.sum, 2.0) / (Math.pow(treeWeights.sum, 2.0) - treeWeights.map(Math.pow(_, 2.0)).sum)
   }
 
   override def getStdDevMean(): Option[Seq[Double]] = {
@@ -110,7 +119,7 @@ case class BaggedSingleResult(
   private lazy val singleScores: Vector[Double] = {
     // Compute the Bessel-uncorrected variance of the ensemble of predicted values,
     // and then divide by the size of the ensemble an extra time
-    val varT = treeVariance * (treePredictions.length - 1.0) / (treePredictions.length * treePredictions.length)
+    val varT = treePredictions.map(x => Math.pow(x - expected, 2.0)).sum / treePredictions.length // uncorrectedTreeVariance
 
     // This will be more convenient later
     val nMat = NibIn.transpose
@@ -126,13 +135,13 @@ case class BaggedSingleResult(
       // The loops are merged for performance reasons
       var cov: Double = 0.0
       var tNot: Double = 0.0
-      var tNotCount: Int = 0
+      var tNotCount: Double = 0
       vecN.indices.foreach { jdx =>
         cov = cov + (vecN(jdx) - nTot) * (treePredictions(jdx) - expected)
 
         if (vecN(jdx) == 0) {
-          tNot = tNot + treePredictions(jdx)
-          tNotCount = tNotCount + 1
+          tNot = tNot + treePredictions(jdx)//  * treeWeights(jdx)
+          tNotCount = tNotCount + 1.0 // * treeWeights(jdx)
         }
       }
       // Compute the infinitesimal jackknife estimate
@@ -256,7 +265,13 @@ case class BaggedMultiResult(
   lazy val expectedMatrix: Seq[Seq[Double]] = predictions.map(p => p.getExpected()).transpose
 
   /* Extract the prediction by averaging for regression, taking the most popular response for classification */
-  lazy val expected: Seq[Double] = expectedMatrix.map(ps => ps.sum / ps.size)
+  lazy val expected: Seq[Double] = {
+    val weights = predictions.map(_.getWeight().get)
+    val values = predictions.map(_.getExpected())
+    values.transpose.zip(weights.transpose).map{case (xs, ws) =>
+      xs.zip(ws).map{case (y, w) => y * w}.sum / ws.sum
+    }
+  }
 
   /* This matrix is used to compute the jackknife variance */
   lazy val NibJMat = new DenseMatrix[Double](Nib.head.size, Nib.size,

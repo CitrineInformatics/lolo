@@ -48,7 +48,7 @@ class NoSplit extends Split {
   * @param index position of the real value to inspect
   * @param pivot value at or below which to take the left split
   */
-class RealSplit(index: Int, pivot: Double) extends Split {
+case class RealSplit(index: Int, pivot: Double) extends Split {
 
   /**
     * If the value is at or less than the pivot, turn left
@@ -87,7 +87,7 @@ class RealSplit(index: Int, pivot: Double) extends Split {
   * @param index      of the categorical feature
   * @param includeSet set of values that turn left
   */
-class CategoricalSplit(index: Int, includeSet: BitSet) extends Split {
+case class CategoricalSplit(index: Int, includeSet: BitSet) extends Split {
 
   /**
     * If the value at the index position is in the set, turn left

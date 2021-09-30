@@ -1,5 +1,6 @@
 package io.citrine.lolo
 
+import breeze.numerics.pow
 import io.citrine.lolo.bags.Bagger
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
 import io.citrine.lolo.trees.splits.{BoltzmannSplitter, RegressionSplitter}
@@ -87,7 +88,9 @@ class AccuracyTest {
   def testRandomForest(): Unit = {
     val baseLearner = RegressionTreeLearner(numFeatures = nFeat / 3, minLeafInstances = minInstances, rng = rng)
     val learner = new Bagger(baseLearner, numBags = nRow * nScal)
-    val error = computeMetrics(learner)
+    val res = learner.train(trainingData)
+    val error = res.loss
+    println(error)
     assert(error > noiseLevel, s"Can't do better than noise")
     assert(error < 4.0, "Error increased, probably due to a change in configuration")
   }
@@ -121,6 +124,28 @@ class AccuracyTest {
     val relativeDifference = 2.0 * Math.abs(errorAnnealingTree - errorStandardTree)/(errorAnnealingTree + errorStandardTree)
     // println(relativeDifference)
     assert(relativeDifference < 0.01)
+  }
+
+  @Test
+  def testUncertainLabels(): Unit = {
+    val uncertainTrainingData = trainingData.map{case (features, label) =>
+      (features, (label, 0.0))
+    }
+    val mean = trainingData.map(_._2).sum / trainingData.size
+    val std = Math.sqrt(trainingData.map(_._2 - mean).map(pow(_, 2.0)).sum / trainingData.size)
+    val baseLearner = RegressionTreeLearner(numFeatures = nFeat, minLeafInstances = minInstances, rng = rng)
+    val learner = new Bagger(baseLearner, numBags = nRow * nScal)
+    val res = learner.train(uncertainTrainingData)
+    val error = res .loss
+    val res2 = learner.train(trainingData)
+    val error2 = res2.loss
+    println(error, error2, std)
+    println(res.getFeatureImportance().get)
+    println(res2.getFeatureImportance().get)
+    println(res.getPredictedVsActual().get.map(_._2))
+    println(res2.getPredictedVsActual().get.map(_._2))
+    assert(error > noiseLevel, s"Can't do better than noise")
+    assert(error < 4.0, "Error increased, probably due to a change in configuration")
   }
 }
 

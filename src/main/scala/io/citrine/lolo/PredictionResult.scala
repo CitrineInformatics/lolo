@@ -44,6 +44,8 @@ trait PredictionResult[+T] {
     * @return a vector of doubles for each prediction
     */
   def getGradient(): Option[Seq[Vector[Double]]] = None
+
+  def getWeight(): Option[Seq[Double]] = None
 }
 
 /**

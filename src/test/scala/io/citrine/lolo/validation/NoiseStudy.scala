@@ -11,47 +11,25 @@ import org.knowm.xchart.{BitmapEncoder, CategoryChart, CategoryChartBuilder}
 import scala.collection.JavaConverters._
 import scala.util.Random
 
-object CalibrationStudy {
+object NoiseStudy {
   val rng = new Random(372845L)
 
   def main(args: Array[String]): Unit = {
 
-    val generateFollowUps = true
-    if (generateFollowUps) {
-      generateSweepAtFixedTreeCount(calibrated = false, func = Friedman.friedmanGrosseSilverman, funcName = "fgs")
-      generateSweepAtFixedTreeCount(calibrated = true, func = Friedman.friedmanGrosseSilverman, funcName = "fgs")
-      generateSweepForHCEP(calibrated = false)
-      generateSweepForHCEP(calibrated = true)
-      Seq(16, 32, 64, 128, 256, 512).foreach{nTrain =>
-        generatePvaAndHistogramHCEP(nTrain, nTree = 128)
-      }
-      generatePvaAndHistogram(Friedman.friedmanSilverman, "fs-trunc-bias", nTrain = 1024, nTree = 64, range = 2, ignoreDims = 1)
-    }
-
-    val generateFiguresForPaper = true
-    if (generateFiguresForPaper) {
-      generatePvaAndHistogram(Linear(Seq(1.0)).apply, "lin", nTrain = 64, nTree = 64)
-      println("Metrics for FS with 64 points and 64 trees:")
-      println(generatePvaAndHistogram(Friedman.friedmanSilverman, "fs", nTrain = 64, nTree = 64))
-      generatePvaAndHistogram(Friedman.friedmanSilverman, "fs", nTrain = 16, nTree = 64, range = 10)
-      println("Metrics for FS with 64 points and 16 trees:")
-      println(generatePvaAndHistogram(Friedman.friedmanSilverman, "fs", nTrain = 64, nTree = 16))
-      generateSweepAtFixedRatio()
-      generateSweepAtFixedTrainingSize(calibrated = false)
-      generateSweepAtFixedTrainingSize(calibrated = true)
-    }
-
-    generatePvaAndHistogram(Friedman.friedmanSilverman, "fs", nTrain = 250, nTree = 64, range = 10, nFeature = 5)
-
+    generateNoiseScan()
+    // generateNoiseFrequnecyScan(amplitude = 4.0)
+    // generateNoiseFrequnecyScan(amplitude = 32.0)
   }
 
-  def generateSweepAtFixedRatio(
-                                 ratios: Seq[Int] = Seq(1, 2, 4)
-                               ): Unit = {
+  def generateFirstTest(): Unit = {
     val nFeature = 8
-    val data = TestUtils.iterateTrainingData(nFeature, Friedman.friedmanSilverman, seed = rng.nextLong())
+    Seq("NONE", "WEIGHT", "DRAW").foreach { noiseMode =>
+      val data = TestUtils.iterateTrainingData(nFeature, Friedman.friedmanSilverman, seed = rng.nextLong())
+        .take(16384)
+        .map { case (f, l) =>
+          (f, (l, 4.0 * rng.nextDouble()))
+        }.toVector
 
-    ratios.foreach { ratio =>
       val chart = Merit.plotMeritScan(
         "Number of training rows",
         Seq(16, 32, 64, 128, 256, 512),
@@ -61,23 +39,113 @@ object CalibrationStudy {
         yMax = Some(1.0),
         rng = rng
       ) { nTrain: Double =>
-        val nTree = ratio * nTrain
+        val nTree = nTrain
         val learner = Bagger(
           RegressionTreeLearner(
             numFeatures = nFeature
           ),
           numBags = nTree.toInt,
           useJackknife = true,
-          uncertaintyCalibration = false
+          uncertaintyCalibration = false,
+          noiseMode = noiseMode
         )
-        StatisticalValidation(rng = rng).generativeValidation[Double](
+        StatisticalValidation(rng = rng).generativeValidationWithNoise(
           data,
           learner,
           nTrain = nTrain.toInt,
           nTest = 256,
           nRound = 32)
       }
-      BitmapEncoder.saveBitmap(chart, s"./scan-ratio.${ratio}", BitmapFormat.PNG)
+      BitmapEncoder.saveBitmap(chart, s"./scan-noise-${noiseMode}", BitmapFormat.PNG)
+    }
+  }
+
+  def generateNoiseScan(): Unit = {
+    val nFeature = 8
+    val frequency = 0.5
+    val base = 0.01
+    val nTrain = 256
+    val nTree = 1024
+    Seq("NONE", "WEIGHT", "DRAW").foreach { noiseMode =>
+      val chart = Merit.plotMeritScan(
+        "Amplitude",
+        Seq(1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0, 256.0, 512.0),
+        Map("R2" -> CoefficientOfDetermination, "confidence" -> StandardConfidence, "RMSE" -> RootMeanSquareError),
+        logScale = true,
+        yMin = Some(0.0),
+        yMax = Some(1.0),
+        rng = rng
+      ) { amplitude: Double =>
+        val data = TestUtils.iterateTrainingData(nFeature, Friedman.friedmanSilverman, seed = rng.nextLong())
+          .take(16384)
+          .map {
+            case (f, l) if rng.nextDouble() < frequency =>
+              (f, (l, base * amplitude))
+            case (f, l) =>
+              (f, (l, base))
+          }.toVector
+        val learner = Bagger(
+          RegressionTreeLearner(
+            numFeatures = nFeature,
+            minLeafInstances = 1
+          ),
+          numBags = nTree.toInt,
+          useJackknife = true,
+          uncertaintyCalibration = false,
+          noiseMode = noiseMode
+        )
+        StatisticalValidation(rng = rng).generativeValidationWithNoise(
+          data,
+          learner,
+          nTrain = nTrain.toInt,
+          nTest = 256,
+          nRound = 32)
+      }
+      BitmapEncoder.saveBitmap(chart, s"./scan-amplitude-ntrain-${nTrain}-ntree-${nTree}-noise-${noiseMode}", BitmapFormat.PNG)
+    }
+  }
+
+  def generateNoiseFrequnecyScan(amplitude: Double = 32.0): Unit = {
+    val nFeature = 8
+    val base = 0.1
+    val nTrain = 128
+    val nTree = 256
+    Seq("NONE", "WEIGHT", "DRAW").foreach { noiseMode =>
+      val chart = Merit.plotMeritScan(
+        "Frequency",
+        Seq(0.0, 0.5, 0.75, 0.875, 0.9375),
+        Map("R2" -> CoefficientOfDetermination, "confidence" -> StandardConfidence),
+        logScale = false,
+        yMin = Some(0.0),
+        yMax = Some(1.0),
+        rng = rng
+      ) { frequency: Double =>
+        val data = TestUtils.iterateTrainingData(nFeature, Friedman.friedmanSilverman, seed = rng.nextLong())
+          .take(16384)
+          .map {
+            case (f, l) if rng.nextDouble() < frequency =>
+              (f, (l, amplitude * base))
+            case (f, l) =>
+              (f, (l, base))
+          }.toVector
+        val learner = Bagger(
+          RegressionTreeLearner(
+            numFeatures = nFeature,
+            minLeafInstances = 1
+          ),
+          numBags = nTree.toInt,
+          useJackknife = true,
+          uncertaintyCalibration = false,
+          noiseMode = noiseMode
+        )
+        StatisticalValidation(rng = rng).generativeValidationWithNoise(
+          data,
+          learner,
+          nTrain = (nTrain / (1.0 - frequency)).toInt,
+          nTest = 256,
+          nRound = 32)
+      }
+      BitmapEncoder.saveBitmap(chart, s"./scan-frequency-amp-${amplitude}-ntrain-${nTrain}-ntree-${nTree}-noise-${noiseMode}", BitmapFormat.PNG)
     }
   }
 

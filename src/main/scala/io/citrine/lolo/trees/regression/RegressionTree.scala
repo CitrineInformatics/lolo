@@ -119,6 +119,10 @@ class RegressionTreeTrainingResult(
     * @return feature influences as an array of doubles
     */
   override def getFeatureImportance(): Option[Vector[Double]] = Some(importanceNormalized.toVector)
+
+  def getSplits(): Vector[Double] = {
+    rootTrainingNode.getSplits()
+  }
 }
 
 /**
@@ -186,4 +190,6 @@ class RegressionTreeResult(predictions: Seq[(PredictionResult[Double], TreeMeta)
   def getDepth(): Seq[Int] = {
     predictions.map(_._2.depth)
   }
+
+  override def getWeight(): Option[Seq[Double]] = Some(predictions.map(_._1.getWeight().map(_.head).getOrElse(1.0)))
 }

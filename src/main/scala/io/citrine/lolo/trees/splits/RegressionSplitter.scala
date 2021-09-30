@@ -63,6 +63,7 @@ case class RegressionSplitter(randomizePivotLocation: Boolean = false, rng: Rand
       (new NoSplit(), 0.0)
     } else {
       val deltaImpurity = initialVariance - bestVariance
+      // println(s"${bestSplit.asInstanceOf[RealSplit].index.toDouble}, ${bestSplit.asInstanceOf[RealSplit].pivot}: $deltaImpurity")
       (bestSplit, deltaImpurity)
     }
   }
@@ -88,7 +89,8 @@ case class RegressionSplitter(randomizePivotLocation: Boolean = false, rng: Rand
                         randomizePivotLocation: Boolean = false
                       ): (RealSplit, Double) = {
     /* Pull out the feature that's considered here and sort by it */
-    val thinData = data.map(dat => (dat._1(index).asInstanceOf[Double], dat._2, dat._3)).sortBy(_._1)
+    val thinData = data.filter(_._3 > 0).map(dat => (dat._1(index).asInstanceOf[Double], dat._2, dat._3)).sortBy(_._1)
+    // println(thinData)
 
 
     /* Base cases for iteration */
@@ -97,7 +99,7 @@ case class RegressionSplitter(randomizePivotLocation: Boolean = false, rng: Rand
 
     /* Move the data from the right to the left partition one value at a time */
     calculator.reset()
-    (0 until data.size - minCount).foreach { j =>
+    (0 until thinData.size - minCount).foreach { j =>
       val totalVariance = calculator.add(thinData(j)._2, thinData(j)._3)
 
       /* Keep track of the best split, avoiding splits in the middle of constant sets of feature values
@@ -108,6 +110,7 @@ case class RegressionSplitter(randomizePivotLocation: Boolean = false, rng: Rand
       val left = thinData(j + 1)._1
       val right = thinData(j)._1
       if (totalVariance < bestVariance && j + 1 >= minCount && Splitter.isDifferent(left, right)) {
+        // println(totalVariance, (left+right) / 2.0, left, right)
         bestVariance = totalVariance
         /* Try pivots at the midpoints between consecutive member values */
         bestPivot = if (randomizePivotLocation) {
@@ -133,23 +136,26 @@ case class RegressionSplitter(randomizePivotLocation: Boolean = false, rng: Rand
                                index: Int,
                                minCount: Int
                              ): (CategoricalSplit, Double) = {
+    val totalWeight = data.map(_._3).sum
+
+    /* Make sure there is more than one member for most of the classes */
+    val nonTrivial: Double = data.groupBy(_._1).values.map{rows =>
+      (rows.head._1(index).asInstanceOf[Char], rows.map(_._3).sum)
+    }.groupBy(_._1).values.filter(_.size > 1).map(_.map(_._2).sum).sum
+    if (nonTrivial / totalWeight < 0.5) {
+      return (CategoricalSplit(index, BitSet()), Double.MaxValue)
+    }
+
     /* Extract the features at the index */
     val thinData = data.map(dat => (dat._1(index).asInstanceOf[Char], dat._2, dat._3))
-    val totalWeight = thinData.map(_._3).sum
 
     /* Group the data by categorical feature and compute the weighted sum and sum of the weights for each */
     val groupedData = thinData.groupBy(_._1).mapValues(g => (g.map(v => v._2 * v._3).sum, g.map(_._3).sum, g.size))
 
-    /* Make sure there is more than one member for most of the classes */
-    val nonTrivial: Double = groupedData.filter(_._2._3 > 1).map(_._2._2).sum
-    if (nonTrivial / totalWeight < 0.5) {
-      return (new CategoricalSplit(index, BitSet()), Double.MaxValue)
-    }
-
     /* Compute the average label for each categorical value */
     val categoryAverages: Map[Char, Double] = groupedData.mapValues(p => p._1 / p._2).toMap
 
-    /* Create an orderd list of the categories by average label */
+    /* Create an ordered list of the categories by average label */
     val orderedNames = categoryAverages.toSeq.sortBy(_._2).map(_._1)
 
     /* Base cases for the iteration */

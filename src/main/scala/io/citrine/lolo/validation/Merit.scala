@@ -1,12 +1,11 @@
 package io.citrine.lolo.validation
 
 import java.util
-
 import io.citrine.lolo.PredictionResult
-import org.knowm.xchart.XYChart
+import org.knowm.xchart.{HeatMapChart, HeatMapChartBuilder, XYChart}
 
-import scala.collection.JavaConverters._
 import scala.util.Random
+import scala.jdk.CollectionConverters._
 
 /**
   * Real-valued figure of merit on predictions of type T

@@ -64,6 +64,35 @@ class SplitterTest {
     assert(variance == Double.MaxValue, "didn't expect to find a valid split")
   }
 
+  @Test
+  def testDuplicatesVsWeights(): Unit = {
+    Seq.fill(128) {
+
+      val xyw = Vector.fill(12800) {
+        (Random.nextDouble(), Random.nextDouble(), Random.nextInt(3))
+      }
+
+      val asWeights = xyw.map { case (x, y, w) =>
+        (Vector(x), y, w.toDouble)
+      }
+
+      val asDuplicates = xyw.flatMap { case (x, y, w) =>
+        Vector.fill(w) {
+          (Vector(x), y, 1.0)
+        }
+      }
+
+      println("Weight:")
+      val weightSplit = RegressionSplitter().getBestSplit(asWeights, 1, 1)
+      println("Dup:")
+      val dupSplit = RegressionSplitter().getBestSplit(asDuplicates, 1, 1)
+
+      println(weightSplit)
+      println(dupSplit)
+      assert(weightSplit._1.asInstanceOf[RealSplit].pivot == dupSplit._1.asInstanceOf[RealSplit].pivot)
+    }
+  }
+
 }
 
 /** Companion driver */

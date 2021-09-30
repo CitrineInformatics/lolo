@@ -17,6 +17,6 @@ object Dependencies {
     "io.citrine" %% "theta" % thetaVersion,
     "org.scalatest" %% "scalatest" % scalaTestVersion % "test",
     "com.novocode" % "junit-interface" % "0.11" % "test",
-    "org.knowm.xchart" % "xchart" % "3.5.2"
+    "org.knowm.xchart" % "xchart" % "3.8.1"
   )
 }

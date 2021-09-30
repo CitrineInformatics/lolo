@@ -56,6 +56,36 @@ class RegressionTreeTest {
   }
 
   /**
+    * Test weights vs reps
+    */
+  @Test
+  def testRepetitionsTree(): Unit = {
+    val trainingData =
+      TestUtils.generateTrainingData(128, 8, noise = 0.0, seed = 3L)
+
+    val weights = Vector.fill(trainingData.size)(Random.nextInt(3))
+    val reps = trainingData.zip(weights).flatMap{case (row, rep) =>
+      Vector.fill(rep)(row)
+    }
+    val repWeights = weights.flatMap{rep =>
+      Vector.fill(rep)(1.0)
+    }
+    val DTLearner = RegressionTreeLearner(numFeatures = 8)
+    val DT = RegressionTreeLearner(maxDepth = 4, numFeatures = 8,  splitter = RegressionSplitter(rng = new Random(0L))).train(trainingData, weights = Some(weights.map(_.toDouble)))
+    val DT2 = RegressionTreeLearner(maxDepth = 4, numFeatures = 8,  splitter = RegressionSplitter(rng = new Random(0L))).train(reps, weights = Some(repWeights))
+    val DT3 = RegressionTreeLearner(maxDepth = 4, numFeatures = 8,  splitter = RegressionSplitter(rng = new Random(0L))).train(trainingData, weights = Some(weights.map(_.toDouble)))
+    // val DT2 = DTLearner.train(reps)
+
+    println(DT.getFeatureImportance())
+    println(DT2.getFeatureImportance())
+    println(DT3.getFeatureImportance())
+
+    println(DT.getSplits())
+    println(DT2.getSplits())
+    println(DT3.getSplits())
+  }
+
+  /**
     * Test a simple tree with only real inputs
     * Even with randomization, the training data should be memorized
     */

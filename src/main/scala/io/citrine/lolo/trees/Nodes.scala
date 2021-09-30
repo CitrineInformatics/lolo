@@ -32,6 +32,8 @@ abstract class TrainingNode[T <: AnyVal, S](
     * @return feature importance as a vector
     */
   def getFeatureImportance(): mutable.ArraySeq[Double]
+
+  def getSplits(): Vector[Double] = Vector()
 }
 
 trait ModelNode[T <: PredictionResult[Any]] extends Serializable {
@@ -200,15 +202,27 @@ class TrainingLeaf[T](
     * @return lightweight prediction node
     */
   def getNode(): ModelNode[PredictionResult[T]] = {
-    new ModelLeaf(leafLearner.train(trainingData).getModel().asInstanceOf[Model[PredictionResult[T]]], depth, trainingData.head._1.length, trainingData.size.toDouble)
+    new ModelLeaf(leafLearner.train(trainingData).getModel().asInstanceOf[Model[PredictionResult[T]]], depth, trainingData.head._1.length, trainingData.map(_._3).sum)
   }
 
   override def getFeatureImportance(): mutable.ArraySeq[Double] = mutable.ArraySeq.fill(trainingData.head._1.size)(0.0)
 }
 
 class ModelLeaf[T](model: Model[PredictionResult[T]], depth: Int, numFeatures: Int, trainingWeight: Double) extends ModelNode[PredictionResult[T]] {
+
+  case class ResultWrapper[T](result: PredictionResult[T], weight: Double) extends PredictionResult[T] {
+    /**
+      * Get the expected values for this prediction
+      *
+      * @return expected value of each prediction
+      */
+    override def getExpected(): Seq[T] = result.getExpected()
+
+    override def getWeight(): Option[Seq[Double]] = Some(Seq(weight))
+  }
+
   override def transform(input: Vector[AnyVal]): (PredictionResult[T], TreeMeta) = {
-    (model.transform(Seq(input)), TreeMeta(depth))
+    (ResultWrapper(model.transform(Seq(input)), trainingWeight), TreeMeta(depth))
   }
 
   /**

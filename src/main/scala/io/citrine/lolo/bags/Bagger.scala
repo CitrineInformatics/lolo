@@ -1,14 +1,16 @@
 package io.citrine.lolo.bags
 
 import breeze.linalg.DenseMatrix
-import breeze.stats.distributions.{Poisson, Rand, RandBasis}
+import breeze.stats.distributions.{Gaussian, Poisson, Rand, RandBasis}
 import io.citrine.lolo.stats.metrics.ClassificationMetrics
 import io.citrine.lolo.util.{Async, InterruptibleExecutionContext}
 import io.citrine.lolo.{Learner, Model, PredictionResult, RegressionResult, TrainingResult}
 
+import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.ExecutionContextTaskSupport
 import scala.collection.parallel.immutable.{ParRange, ParSeq}
 import scala.reflect._
+import _root_.io.citrine.lolo.trees.regression.RegressionTreeTrainingResult
 
 /**
   * A bagger creates an ensemble of models by training the learner on random samples of the training data
@@ -30,7 +32,8 @@ case class Bagger(
                    biasLearner: Option[Learner] = None,
                    uncertaintyCalibration: Boolean = false,
                    disableBootstrap: Boolean = false,
-                   randBasis: RandBasis = Rand
+                   randBasis: RandBasis = Rand,
+                   noiseMode: String = "None"
                  ) extends Learner {
   require(
     !(uncertaintyCalibration && disableBootstrap),
@@ -51,7 +54,13 @@ case class Bagger(
       s"We need to have at least ${Bagger.minimumTrainingSize} rows, only ${trainingData.size} given"
     )
 
+    val withUncertainty: Boolean = trainingData.head._2 match {
+      case (_: Double, _: Double) => true
+      case _ => false
+    }
+
     val isRegression: Boolean = trainingData.head._2 match {
+      case _ if withUncertainty => true
       case _: Double => true
       case _: Any => false
     }
@@ -98,12 +107,58 @@ case class Bagger(
     /* Learn the actual models in parallel */
     val parIterator = new ParRange(0 until actualBags)
     parIterator.tasksupport = new ExecutionContextTaskSupport(InterruptibleExecutionContext())
+    val normal = new Gaussian(0.0, 1.0)(randBasis)
     val (models, importances: ParSeq[Option[Vector[Double]]]) = parIterator.map { i =>
-      // get weights
-      val sampleWeights = Nib(i).zip(weightsActual).map(p => p._1.toDouble * p._2)
+      val meta = if (withUncertainty) {
+        val (newTraining, newWeights) = if (noiseMode == "DRAW") {
+          val newTraining = trainingData.zip(Nib(i)).flatMap { case (row, nRep) =>
+            Vector.fill(nRep) {
+              val (mu, sigma) = row._2.asInstanceOf[(Double, Double)]
+              val draw = normal.draw() * sigma + mu
+              (row._1, draw)
+            }
+          }
+          // get weights
+          val sampleWeights = Nib(i).zip(weightsActual).flatMap { case (nRep, weight) =>
+            Vector.fill(nRep)(weight)
+          }
+          (newTraining, sampleWeights)
+        } else if (noiseMode == "WEIGHT") {
+          val ws = trainingData.zip(Nib(i)).zip(weightsActual).map{ case (((f, l), r), w) =>
+            r * w / Math.pow(l.asInstanceOf[(Double, Double)]._2, 2)
+          }
+          val ds = trainingData.map{case (f, l) => (f, l.asInstanceOf[(Double, Double)]._1)}
+          ds.zip(ws).filter(_._2 > 0).unzip
+        } else {
+          val ws = trainingData.zip(Nib(i)).zip(weightsActual).map { case (((f, l), r), w) =>
+            r * w
+          }
+          val ds = trainingData.map{case (f, l) => (f, l.asInstanceOf[(Double, Double)]._1)}
+          ds.zip(ws).filter(_._2 > 0).unzip
+        }
+        // println(s"Labels (${newTraining.size}): ${newTraining.unzip._2}")
+        // println(s"weights (${sampleWeights.size}): ${sampleWeights}")
 
-      // Train the model
-      val meta = method.train(trainingData.toVector, Some(sampleWeights))
+        // val (newnewTraining, newnewWeights: Vector[Double]) = newTraining.zip(sampleWeights).groupBy(_._1).map{case (x, weights) =>
+        //  (x, weights.map(_._2).sum)
+        // }.toVector.unzip
+
+        // Train the model
+        val x = method.train(newTraining.toVector, Some(newWeights))
+        // val y = method.train(newnewTraining, Some(newnewWeights))
+        // println("Splits: ")
+        // println(x.asInstanceOf[RegressionTreeTrainingResult].getSplits())
+        // println(y.asInstanceOf[RegressionTreeTrainingResult].getSplits())
+        x
+      }
+      else {
+        // get weights
+        val sampleWeights = Nib(i).zip(weightsActual).map(p => p._1.toDouble * p._2)
+        val (newData, newWeights) = trainingData.zip(sampleWeights).filter(_._2 > 0).unzip
+
+        // Train the model
+        method.train(newData.toVector, Some(newWeights))
+      }
 
       // Extract the model and feature importance from the TrainingResult
       (meta.getModel(), meta.getFeatureImportance())
@@ -116,17 +171,24 @@ case class Bagger(
 
     /* Out-of-bag error and uncertainty for each point, calculating by combining the result of each tree.
     Define as lazy so we only compute them if they are needed for the ratio or bias learner calculation */
+    val foo = ArrayBuffer.empty[Double]
     lazy val oobErrors: Seq[(Vector[Any], Double, Double)] = trainingData.indices.flatMap { idx =>
       val oobModels = models.zip(Nib.map(_ (idx))).filter(_._2 == 0).map(_._1).asInstanceOf[ParSeq[Model[PredictionResult[Double]]]]
       if (oobModels.size < 2) {
         None
       } else {
+        foo.append(oobModels.size)
         Async.canStop()
         val model = new BaggedModel(oobModels, Nib.filter {
           _ (idx) == 0
         }, useJackknife, disableBootstrap = disableBootstrap)
         val predicted = model.transform(Seq(trainingData(idx)._1))
-        val error = predicted.getExpected().head - trainingData(idx)._2.asInstanceOf[Double]
+        val actual = if (withUncertainty) {
+          trainingData(idx)._2.asInstanceOf[(Double, Double)]._1
+        } else {
+          trainingData(idx)._2.asInstanceOf[Double]
+        }
+        val error = predicted.getExpected().head - actual
         val uncertainty = predicted match {
           case x: RegressionResult => x.getStdDevObs.get.head
           case _: Any => throw new UnsupportedOperationException("Computing oobErrors for classification is not supported.")
@@ -134,6 +196,8 @@ case class Bagger(
         Some(trainingData(idx)._1, error, uncertainty)
       }
     }
+    // println(oobErrors.map(x => Math.abs(x._2)).sum)
+    // println(foo.sum / foo.size)
 
     /* Calculate the uncertainty calibration ratio, which is the 68th percentile of error/uncertainty
     for the training points. If a point has 0 uncertainty, the ratio is 1 if error is also 0, otherwise infinity */
@@ -202,15 +266,21 @@ class BaggedTrainingResult[+T : ClassTag](
     if (oob.isEmpty || l == null || (l.isInstanceOf[Double] && l.asInstanceOf[Double].isNaN)) {
       Seq()
     } else {
-      val predicted = l match {
-        case _: Double => oob.map(_._1.transform(Seq(f)).getExpected().head.asInstanceOf[Double]).sum / oob.size
-        case _: Any => oob.map(_._1.transform(Seq(f)).getExpected().head).groupBy(identity).maxBy(_._2.size)._1
+      l match {
+        case (a: Double, _: Double) =>
+          val predicted = oob.map(_._1.transform(Seq(f)).getExpected().head.asInstanceOf[Double]).sum / oob.size
+          Seq((f, predicted, a))
+        case _: Double =>
+          val predicted = oob.map(_._1.transform(Seq(f)).getExpected().head.asInstanceOf[Double]).sum / oob.size
+          Seq((f, predicted, l))
+        case _: Any =>
+          val predicted = oob.map(_._1.transform(Seq(f)).getExpected().head).groupBy(identity).maxBy(_._2.size)._1
+          Seq((f, predicted, l))
       }
-      Seq((f, predicted, l))
     }
   }
 
-  lazy val loss: Double = rep match {
+  lazy val loss: Double = predictedVsActual.head._3 match {
     case x: Double => Math.sqrt(predictedVsActual.map(d => Math.pow(d._2.asInstanceOf[Double] - d._3.asInstanceOf[Double], 2)).sum / predictedVsActual.size)
     case x: Any =>
       val f1 = ClassificationMetrics.f1scores(predictedVsActual)

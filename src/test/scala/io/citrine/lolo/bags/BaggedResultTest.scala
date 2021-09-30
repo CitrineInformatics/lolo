@@ -129,12 +129,12 @@ class BaggedResultTest {
     val testSubset = rng.shuffle(trainingData).take(16)
     val (singleValues, singleUncertainties) = testSubset.map { case (x, _) =>
       val res = model.transform(Seq(x))
-      (res.getExpected().head.asInstanceOf[Double], res.getUncertainty().get.head.asInstanceOf[Double])
+      (res.getExpected().head.asInstanceOf[Double], res.getUncertainty(false).get.head.asInstanceOf[Double])
     }.unzip
 
     val (multiValues, multiUncertainties) = {
       val res = model.transform(testSubset.map(_._1))
-      (res.getExpected().map(_.asInstanceOf[Double]), res.getUncertainty().get.map(_.asInstanceOf[Double]))
+      (res.getExpected().map(_.asInstanceOf[Double]), res.getUncertainty(false).get.map(_.asInstanceOf[Double]))
     }
 
     singleValues.zip(multiValues).foreach { case (x, y) => assert(Math.abs(x - y) < 1.0e-9, s"$x was not $y") }

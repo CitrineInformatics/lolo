@@ -19,7 +19,12 @@ case class GuessTheMeanLearner(rng: Random = Random) extends Learner {
   override def train(trainingData: Seq[(Vector[Any], Any)], weights: Option[Seq[Double]]): TrainingResult = {
     val data = trainingData.map(_._2).zip(weights.getOrElse(Seq.fill(trainingData.size)(1.0)))
     val mean = data.head._1 match {
-      case x: Double => data.asInstanceOf[Seq[(Double, Double)]].map(p => p._1 * p._2).sum / data.map(_._2).sum
+      case x: Double =>
+        val ws = data.map(_._2)
+        if (ws.max > ws.min * 10) {
+          // println(s"Weights: ${ws}")
+        }
+        data.asInstanceOf[Seq[(Double, Double)]].map(p => p._1 * p._2).sum / data.map(_._2).sum
       case x: Any => rng.shuffle(data.groupBy(_._1).mapValues(_.map(_._2).sum).toSeq).maxBy(_._2)._1
     }
 
