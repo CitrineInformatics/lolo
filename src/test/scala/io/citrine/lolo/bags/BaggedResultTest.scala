@@ -127,21 +127,24 @@ class BaggedResultTest {
     */
   private def testConsistency(trainingData: Seq[(Vector[Any], Any)], model: BaggedModel[Any]): Unit = {
     val testSubset = rng.shuffle(trainingData).take(16)
-    val (singleValues, singleUncertainties) = testSubset.map { case (x, _) =>
+    val (singleValues, singleObsUnc, singleMeanUnc) = testSubset.map { case (x, _) =>
       val res = model.transform(Seq(x))
-      (res.getExpected().head.asInstanceOf[Double], res.getUncertainty(false).get.head.asInstanceOf[Double])
-    }.unzip
+      (res.getExpected().head.asInstanceOf[Double], res.getUncertainty(true).get.head.asInstanceOf[Double], res.getUncertainty(false).get.head.asInstanceOf[Double])
+    }.unzip3
 
-    val (multiValues, multiUncertainties) = {
+    val (multiValues, multiObsUnc, multiMeanUnc) = {
       val res = model.transform(testSubset.map(_._1))
-      (res.getExpected().map(_.asInstanceOf[Double]), res.getUncertainty(false).get.map(_.asInstanceOf[Double]))
+      (res.getExpected().map(_.asInstanceOf[Double]), res.getUncertainty(true).get.map(_.asInstanceOf[Double]), res.getUncertainty(false).get.map(_.asInstanceOf[Double]))
     }
 
-    singleValues.zip(multiValues).foreach { case (x, y) => assert(Math.abs(x - y) < 1.0e-9, s"$x was not $y") }
-    var idx = 0
-    singleUncertainties.zip(multiUncertainties).foreach { case (x, y) =>
-      assert(Math.abs(x - y) < 1.0e-9, s"$x was not $y for $idx")
-      idx = idx + 1
+    singleValues.zip(multiValues).zipWithIndex.foreach { case ((x, y), idx) =>
+      assert(Math.abs(x - y) < 1.0e-9, s"Mean value $x was not $y for $idx")
+    }
+    singleMeanUnc.zip(multiMeanUnc).zipWithIndex.foreach { case ((x, y), idx) =>
+      assert(Math.abs(x - y) < 1.0e-9, s"Mean Uncertainty $x was not $y for $idx")
+    }
+    singleObsUnc.zip(multiObsUnc).zipWithIndex.foreach { case ((x, y), idx) =>
+      assert(Math.abs(x - y) < 1.0e-9, s"Obs Uncertainty $x was not $y for $idx")
     }
   }
 }

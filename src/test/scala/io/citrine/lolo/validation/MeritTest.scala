@@ -94,7 +94,7 @@ class MeritTest {
   def testStandardConfidence(): Unit = {
     val pva = getNormalPVA(uncertaintyCorrelation = 1.0, batchSize = 256, numBatch = 32)
     val expected = 0.68
-    val (confidence, uncertainty) = StandardConfidence.estimate(pva)
+    val (confidence, uncertainty) = StandardConfidence().estimate(pva)
     assert(Math.abs(confidence - expected) < 3 * uncertainty, "Confidence estimate was not accurate enough")
     assert(uncertainty < 0.05, s"Confidence estimate was not precise enough")
   }

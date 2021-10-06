@@ -69,7 +69,7 @@ case class BaggedSingleResult(
   }
 
   private lazy val treeVariance: Double = {
-    uncorrectedTreeVariance * Math.pow(treeWeights.sum, 2.0) / (Math.pow(treeWeights.sum, 2.0) - treeWeights.map(Math.pow(_, 2.0)).sum)
+    uncorrectedTreeVariance * treePredictions.size / (treePredictions.size - 1)// * Math.pow(treeWeights.sum, 2.0) / (Math.pow(treeWeights.sum, 2.0) - treeWeights.map(Math.pow(_, 2.0)).sum)
   }
 
   override def getStdDevMean(): Option[Seq[Double]] = {
@@ -135,13 +135,13 @@ case class BaggedSingleResult(
       // The loops are merged for performance reasons
       var cov: Double = 0.0
       var tNot: Double = 0.0
-      var tNotCount: Double = 0
+      var tNotCount: Int = 0
       vecN.indices.foreach { jdx =>
-        cov = cov + (vecN(jdx) - nTot) * (treePredictions(jdx) - expected)
+        cov = cov + (vecN(jdx) - nTot.toDouble / vecN.size) * (treePredictions(jdx) - expected)
 
         if (vecN(jdx) == 0) {
-          tNot = tNot + treePredictions(jdx)//  * treeWeights(jdx)
-          tNotCount = tNotCount + 1.0 // * treeWeights(jdx)
+          tNot = tNot + treePredictions(jdx)
+          tNotCount = tNotCount + 1
         }
       }
       // Compute the infinitesimal jackknife estimate
@@ -153,6 +153,7 @@ case class BaggedSingleResult(
         // Compute the sum of the corrections to the IJ and J estimates
         val correction = Math.E * varT
         // Averaged the correct IJ and J estimates
+        // println(s"VarJ=${varJ}   \tVarIJ=${varIJ}")
         0.5 * (varJ + varIJ - correction)
       } else {
         // We can't compute the Jackknife after bootstrap estimate, so just correct the IJ estimate

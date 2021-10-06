@@ -61,11 +61,11 @@ case object CoefficientOfDetermination extends Merit[Double] {
 /**
   * The fraction of predictions that fall within the predicted uncertainty
   */
-case object StandardConfidence extends Merit[Double] {
+case class StandardConfidence(observational: Boolean = true) extends Merit[Double] {
   override def evaluate(predictionResult: PredictionResult[Double], actual: Seq[Double], rng: Random = Random): Double = {
     if (predictionResult.getUncertainty().isEmpty) return 0.0
 
-    (predictionResult.getExpected(), predictionResult.getUncertainty().get, actual).zipped.count {
+    (predictionResult.getExpected(), predictionResult.getUncertainty(observational).get, actual).zipped.count {
       case (x, sigma: Double, y) => Math.abs(x - y) < sigma
     } / predictionResult.getExpected().size.toDouble
   }

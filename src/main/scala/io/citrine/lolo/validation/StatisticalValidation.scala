@@ -94,9 +94,15 @@ case class StatisticalValidation(rng: Random = Random) {
         (f, l + rng.nextGaussian() * n * 0)
       }
       val model = learner.train(noisedTraining).getModel()
-      val predictions: PredictionResult[Double] = model.transform(noisedTest.map(_._1)).asInstanceOf[PredictionResult[Double]]
-      (predictions, noisedTest.map(_._2))
-    }
+      if (true) {
+        noisedTest.map{x =>
+          (model.transform(Seq(x._1)).asInstanceOf[PredictionResult[Double]], Seq(x._2))
+        }
+      } else {
+        val predictions: PredictionResult[Double] = model.transform(noisedTest.map(_._1)).asInstanceOf[PredictionResult[Double]]
+        Seq((predictions, noisedTest.map(_._2)))
+      }
+    }.flatten
   }
 
 }

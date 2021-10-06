@@ -33,7 +33,7 @@ object NoiseStudy {
       val chart = Merit.plotMeritScan(
         "Number of training rows",
         Seq(16, 32, 64, 128, 256, 512),
-        Map("R2" -> CoefficientOfDetermination, "confidence" -> StandardConfidence, "standard error / 4" -> StandardError(0.25), "sigmaCorr" -> UncertaintyCorrelation),
+        Map("R2" -> CoefficientOfDetermination, "confidence" -> StandardConfidence(false), "standard error / 4" -> StandardError(0.25), "sigmaCorr" -> UncertaintyCorrelation),
         logScale = true,
         yMin = Some(0.0),
         yMax = Some(1.0),
@@ -70,7 +70,7 @@ object NoiseStudy {
       val chart = Merit.plotMeritScan(
         "Amplitude",
         Seq(1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0, 256.0, 512.0),
-        Map("R2" -> CoefficientOfDetermination, "confidence" -> StandardConfidence, "RMSE" -> RootMeanSquareError),
+        Map("R2" -> CoefficientOfDetermination, "confidence" -> StandardConfidence(false), "RMSE" -> RootMeanSquareError),
         logScale = true,
         yMin = Some(0.0),
         yMax = Some(1.0),
@@ -114,7 +114,7 @@ object NoiseStudy {
       val chart = Merit.plotMeritScan(
         "Frequency",
         Seq(0.0, 0.5, 0.75, 0.875, 0.9375),
-        Map("R2" -> CoefficientOfDetermination, "confidence" -> StandardConfidence),
+        Map("R2" -> CoefficientOfDetermination, "confidence" -> StandardConfidence(false)),
         logScale = false,
         yMin = Some(0.0),
         yMax = Some(1.0),
@@ -159,7 +159,7 @@ object NoiseStudy {
       val chart = Merit.plotMeritScan(
         "Number of trees",
         Seq(16, 32, 64, 128, 256, 512, 1024, 2048, 4096),
-        Map("R2" -> CoefficientOfDetermination, "confidence" -> StandardConfidence, "standard error / 4" -> StandardError(0.25), "sigmaCorr" -> UncertaintyCorrelation),
+        Map("R2" -> CoefficientOfDetermination, "confidence" -> StandardConfidence(), "standard error / 4" -> StandardError(0.25), "sigmaCorr" -> UncertaintyCorrelation),
         logScale = true,
         yMin = Some(0.0),
         yMax = Some(1.0),
@@ -201,7 +201,7 @@ object NoiseStudy {
       val chart = Merit.plotMeritScan(
         "Number of training points",
         Seq(16, 32, 64, 128, 256, 512, 1024),
-        Map("R2" -> CoefficientOfDetermination, "confidence" -> StandardConfidence, "standard error / 4" -> StandardError(0.25), "sigmaCorr" -> UncertaintyCorrelation),
+        Map("R2" -> CoefficientOfDetermination, "confidence" -> StandardConfidence(), "standard error / 4" -> StandardError(0.25), "sigmaCorr" -> UncertaintyCorrelation),
         logScale = true,
         yMin = Some(0.0),
         yMax = Some(1.0),
@@ -280,7 +280,7 @@ object NoiseStudy {
     BitmapEncoder.saveBitmap(pva, s"./pva_${funcName}-nTrain.${nTrain}-nTree.${nTree}", BitmapFormat.PNG)
     Merit.estimateMerits(
       dataStream.iterator,
-      Map("R2" -> CoefficientOfDetermination, "confidence" -> StandardConfidence, "error / 4" -> StandardError(0.25), "sigmaCorr" -> UncertaintyCorrelation),
+      Map("R2" -> CoefficientOfDetermination, "confidence" -> StandardConfidence(), "error / 4" -> StandardError(0.25), "sigmaCorr" -> UncertaintyCorrelation),
       rng = rng
     )
   }
@@ -351,7 +351,7 @@ object NoiseStudy {
       val chart = Merit.plotMeritScan(
         "Number of training points",
         Seq(16, 32, 64, 128, 256, 512, 1024),
-        Map("R2" -> CoefficientOfDetermination, "confidence" -> StandardConfidence, "standard error / 4" -> StandardError(0.25), "sigmaCorr" -> UncertaintyCorrelation),
+        Map("R2" -> CoefficientOfDetermination, "confidence" -> StandardConfidence(), "standard error / 4" -> StandardError(0.25), "sigmaCorr" -> UncertaintyCorrelation),
         logScale = true,
         yMin = Some(0.0),
         yMax = Some(1.0),
@@ -425,7 +425,7 @@ object NoiseStudy {
     BitmapEncoder.saveBitmap(pva, s"./pva_hcep-nTrain.${nTrain}-nTree.${nTree}", BitmapFormat.PNG)
     Merit.estimateMerits(
       dataStream.iterator,
-      Map("R2" -> CoefficientOfDetermination, "confidence" -> StandardConfidence, "error / 4" -> StandardError(0.25), "sigmaCorr" -> UncertaintyCorrelation),
+      Map("R2" -> CoefficientOfDetermination, "confidence" -> StandardConfidence(), "error / 4" -> StandardError(0.25), "sigmaCorr" -> UncertaintyCorrelation),
       rng = rng
     )
   }
