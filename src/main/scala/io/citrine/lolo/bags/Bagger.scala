@@ -10,7 +10,6 @@ import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.ExecutionContextTaskSupport
 import scala.collection.parallel.immutable.{ParRange, ParSeq}
 import scala.reflect._
-import _root_.io.citrine.lolo.trees.regression.RegressionTreeTrainingResult
 
 /**
   * A bagger creates an ensemble of models by training the learner on random samples of the training data
