@@ -66,7 +66,7 @@ case class ClassificationSplitter(randomizedPivotLocation: Boolean = false, rng:
     * @param data                 to split
     * @param index                of the feature to split on
     * @param minCount minimum number of data points to allow in each of the resulting splits
-    * @param randomizePivotLocation whether generate splits randomly between the data points (default: false)
+    * @param randomizePivotLocation whether to generate splits randomly between the data points (default: false)
     * @return the best split of this feature
     */
   def getBestRealSplit(

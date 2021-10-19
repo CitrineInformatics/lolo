@@ -1,7 +1,7 @@
 package io.citrine.lolo.trees.multitask
 
 import io.citrine.lolo.encoders.CategoricalEncoder
-import io.citrine.lolo.trees.{ModelNode, TreeMeta}
+import io.citrine.lolo.trees.ModelNode
 import io.citrine.lolo.trees.classification.ClassificationTree
 import io.citrine.lolo.trees.regression.RegressionTree
 import io.citrine.lolo.{Model, MultiTaskLearner, PredictionResult, TrainingResult}
@@ -11,11 +11,15 @@ import scala.util.Random
 /**
   * Multi-task tree learner, which produces multiple decision trees with the same split structure
   *
+  * @param randomizePivotLocation whether to generate splits randomly between the data points
+  * @param rng                    random number generator to use
+  * @param singleModel            whether to create a single model that predicts all labels or a sequence of models,
+  *                               one for each label. Creating one model allows for correlated uncertainty predictions.
   */
 case class MultiTaskTreeLearner(
                                  randomizePivotLocation: Boolean = false,
                                  rng: Random = Random,
-                                 singleTree: Boolean = false
+                                 singleModel: Boolean = false
                                ) extends MultiTaskLearner {
 
   /**
@@ -57,7 +61,7 @@ case class MultiTaskTreeLearner(
     }.filter(_._3 > 0.0)
 
     // Construct the training tree
-    val root = new MultiTaskTrainingNode(collectedData, randomizePivotLocation)
+    val root = new MultiTaskTrainingNode(collectedData, randomizePivotLocation, rng)
 
     // Construct the model trees
     val nodes = labels.indices.map(root.getNode)
@@ -79,7 +83,7 @@ case class MultiTaskTreeLearner(
     }
 
     // Wrap the models in dead-simple training results and return
-    if (singleTree) {
+    if (singleModel) {
       Seq(new MultiTaskTreeSimultaneousTrainingResult(models))
     } else {
       models.map(new MultiTaskTreeTrainingResult(_))
@@ -88,7 +92,7 @@ case class MultiTaskTreeLearner(
 }
 
 class MultiTaskTreeSimultaneousTrainingResult(models: Seq[Model[PredictionResult[Any]]]) extends TrainingResult {
-  lazy val model = new MixedTree(models)
+  val model = new MixedTree(models)
 
   override def getModel(): MixedTree = model
 }
