@@ -135,7 +135,7 @@ class RegressionTree(
     * Apply the model by calling predict and wrapping the results
     *
     * @param inputs to apply the model to
-    * @return a predictionresult which includes only the expected outputs
+    * @return a prediction result which includes only the expected outputs
     */
   override def transform(inputs: Seq[Vector[Any]]): RegressionTreeResult = {
     new RegressionTreeResult(

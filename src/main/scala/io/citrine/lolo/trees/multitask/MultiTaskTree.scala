@@ -1,7 +1,7 @@
 package io.citrine.lolo.trees.multitask
 
 import io.citrine.lolo.encoders.CategoricalEncoder
-import io.citrine.lolo.trees.ModelNode
+import io.citrine.lolo.trees.{ModelNode, TreeMeta}
 import io.citrine.lolo.trees.classification.ClassificationTree
 import io.citrine.lolo.trees.regression.RegressionTree
 import io.citrine.lolo.{Model, MultiTaskLearner, PredictionResult, TrainingResult}
@@ -14,7 +14,8 @@ import scala.util.Random
   */
 case class MultiTaskTreeLearner(
                                  randomizePivotLocation: Boolean = false,
-                                 rng: Random = Random
+                                 rng: Random = Random,
+                                 singleTree: Boolean = false
                                ) extends MultiTaskLearner {
 
   /**
@@ -78,8 +79,18 @@ case class MultiTaskTreeLearner(
     }
 
     // Wrap the models in dead-simple training results and return
-    models.map(new MultiTaskTreeTrainingResult(_))
+    if (singleTree) {
+      Seq(new MultiTaskTreeSimultaneousTrainingResult(models))
+    } else {
+      models.map(new MultiTaskTreeTrainingResult(_))
+    }
   }
+}
+
+class MultiTaskTreeSimultaneousTrainingResult(models: Seq[Model[PredictionResult[Any]]]) extends TrainingResult {
+  lazy val model = new MixedTree(models)
+
+  override def getModel(): MixedTree = model
 }
 
 class MultiTaskTreeTrainingResult(model: Model[PredictionResult[Any]]) extends TrainingResult {
