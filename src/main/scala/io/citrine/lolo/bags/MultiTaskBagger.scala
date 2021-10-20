@@ -40,7 +40,7 @@ case class MultiTaskBagger(
     * @param weights for the training rows, if applicable
     * @return a model
     */
-  override def train(inputs: Seq[Vector[Any]], labels: Seq[Seq[Any]], weights: Option[Seq[Double]] = None): Seq[AbstractBaggedTrainingResult] = {
+  override def train(inputs: Seq[Vector[Any]], labels: Seq[Seq[Any]], weights: Option[Seq[Double]] = None): Seq[TrainingResult] = {
     /* Make sure the training data is the same size */
     assert(inputs.forall(inputs.head.size == _.size))
     assert(inputs.size >= Bagger.minimumTrainingSize, s"We need to have at least ${Bagger.minimumTrainingSize} rows, only ${inputs.size} given")
