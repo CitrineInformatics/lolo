@@ -184,6 +184,26 @@ class MultiTaskBaggerTest {
     assert(catResults.zip(catLabel).forall(p => p._1 == p._2))
   }
 
+  /** Test that the resulting predictions are independent of whether the labels are stored in one model or several models.*/
+  @Test
+  def testSingleModelEquality(): Unit = {
+    // TODO: Currently, this is just a test that the MultiTaskBagger works without error on a multitask tree learner that uses a single model.
+    val raw: Seq[(Vector[Double], Double)] = TestUtils.generateTrainingData(256, 12, noise = 0.1, function = Friedman.friedmanSilverman)
+    val inputs: Seq[Vector[Double]] = raw.map(_._1)
+    val realLabel: Seq[Double] = raw.map(_._2)
+    val catLabel: Seq[Boolean] = raw.map(_._2 > realLabel.max / 2.0)
+    val DTLearner = MultiTaskTreeLearner(singleModel = true)
+    val baggedLearner = MultiTaskBagger(DTLearner, numBags = 64, biasLearner = Some(new RegressionTreeLearner(maxDepth = 2)), randBasis = TestUtils.getBreezeRandBasis(78495L))
+    val RFMeta = baggedLearner.train(inputs, Seq(realLabel, catLabel)).head
+    val RF = RFMeta.getModel()
+
+    val testInputs = TestUtils
+      .generateTrainingData(32, 12, noise = 0.1, function = Friedman.friedmanSilverman, seed = rng.nextLong())
+      .map(_._1)
+    val foo = RF.transform(testInputs)
+    // TODO: thread rng through and include the bias model. Then this test can check for equality.
+  }
+
   /**
     * Test that multi-task (regression, classification) with sparse classification labels
     * outperforms a direct classification model on the same label

@@ -40,6 +40,8 @@ case class FeatureRotator(baseLearner: Learner) extends Learner {
 
 case class MultiTaskFeatureRotator(baseLearner: MultiTaskLearner) extends MultiTaskLearner {
 
+  override val singleModel: Boolean = baseLearner.singleModel
+
   /**
     * Create linear transformations for continuous features and labels & pass data through to learner
     *

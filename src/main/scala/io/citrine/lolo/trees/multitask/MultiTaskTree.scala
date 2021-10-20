@@ -95,6 +95,9 @@ class MultiTaskTreeSimultaneousTrainingResult(models: Seq[Model[PredictionResult
   val model = new MixedTree(models)
 
   override def getModel(): MixedTree = model
+
+  // TODO: figure out how to pipe through feature importance
+  // override def getFeatureImportance(): Option[Vector[Double]] = ???
 }
 
 class MultiTaskTreeTrainingResult(model: Model[PredictionResult[Any]]) extends TrainingResult {

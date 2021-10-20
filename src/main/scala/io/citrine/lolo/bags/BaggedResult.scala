@@ -1,6 +1,7 @@
 package io.citrine.lolo.bags
 
 import breeze.linalg.{DenseMatrix, DenseVector, norm}
+import io.citrine.lolo.trees.multitask.MixedTreeResult
 import io.citrine.lolo.{PredictionResult, RegressionResult}
 import io.citrine.lolo.util.Async
 import org.slf4j.{Logger, LoggerFactory}
@@ -393,6 +394,28 @@ case class BaggedMultiResult(
       influencePerRow
     }.map(_.toScalaVector())
   }
+}
+
+/**
+  *
+  * @param baggedPredictions bagged prediction results for each label
+  */
+case class MultiTaskBaggedResult(baggedPredictions: Seq[BaggedResult[Any]], numBags: Int) extends BaggedResult[Seq[Any]] {
+
+  override def getExpected(): Seq[Seq[Any]] = baggedPredictions.map(_.getExpected()).transpose
+
+  override def predictions: Seq[PredictionResult[Seq[Any]]] = baggedPredictions
+    .map(_.predictions.map(_.getExpected()))
+    .transpose
+    .map(x => new MixedTreeResult(x.transpose))
+
+  // TODO: The structure of the uncertainty is more complex than I thought, and this needs to be worked on.
+  override def getUncertainty(observational: Boolean): Option[Seq[Any]] = Some(baggedPredictions.map { baggedPredictionResult =>
+    baggedPredictionResult.getUncertainty(observational).getOrElse(Seq.fill(numBags)(0))
+  }.transpose)
+
+  // TODO: add a method to compute covariance
+
 }
 
 object BaggedResult {

@@ -37,6 +37,8 @@ case class Standardizer(baseLearner: Learner) extends Learner {
 
 class MultiTaskStandardizer(baseLearner: MultiTaskLearner) extends MultiTaskLearner {
 
+  override val singleModel: Boolean = baseLearner.singleModel
+
   /**
     * Train a model
     *
