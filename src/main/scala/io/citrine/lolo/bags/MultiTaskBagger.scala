@@ -75,7 +75,7 @@ case class MultiTaskBagger(
     }.unzip
 
     if (combinedModel) {
-      // TODO: the combinedModel logic here is similar to the multi-model logic, below. Try to consolidate.
+      // Only one training result is needed, but it must have a bias model and rescale ratio for each label
       val flatModels = models.map(_.head.asInstanceOf[MultiModel])
       val flatImportances = importances.map(_.head)
       val averageImportance: Option[Vector[Double]] = flatImportances.reduce {
@@ -93,7 +93,7 @@ case class MultiTaskBagger(
         (biasModel, helper.ratio)
       }.unzip
 
-      return Seq(
+      Seq(
         new MultiTaskBaggedTrainingResult(
           models = flatModels,
           featureImportance = averageImportance,
@@ -104,39 +104,35 @@ case class MultiTaskBagger(
           rescaleRatios = ratios
         )
       )
-    }
+    } else {
+      // Transpose the models and importances so the bags are the inner index and the labels are the outer index.
+      // For each label emit a BaggedTrainingResult
+      type arg = ((ParSeq[Model[PredictionResult[Any]]], Seq[Option[Vector[Double]]]), Int)
+      models.transpose.zip(importances.seq.transpose).zipWithIndex.map { xx: arg =>
+        xx match {
+          case ((m: ParSeq[Model[PredictionResult[Any]]], i: Seq[Option[Vector[Double]]]), k: Int) =>
+            val averageImportance: Option[Vector[Double]] = i.reduce {
+              combineImportance
+            }.map(_.map(_ / importances.size))
+            val trainingData = inputs.zip(labels(k))
+            val helper = BaggerHelper(m, trainingData, Nib, useJackknife, uncertaintyCalibration)
 
-    /* Wrap the models in a BaggedModel object
-     *
-     * Transpose the models and importances so the bags are the inner index and the labels are the outer index.
-     * For each label, emit a BaggedTrainingResult
-     */
-    type arg = ((ParSeq[Model[PredictionResult[Any]]], Seq[Option[Vector[Double]]]), Int)
-    models.transpose.zip(importances.seq.transpose).zipWithIndex.map { xx: arg =>
-      xx match {
-        case ((m: ParSeq[Model[PredictionResult[Any]]], i: Seq[Option[Vector[Double]]]), k: Int) =>
-          val averageImportance: Option[Vector[Double]] = i.reduce {
-            combineImportance
-          }.map(_.map(_ / importances.size))
-          val trainingData = inputs.zip(labels(k))
-          val helper = BaggerHelper(m, trainingData, Nib, useJackknife, uncertaintyCalibration)
-
-          Async.canStop()
-          if (!helper.isRegression) {
-            new BaggedTrainingResult[Any](m, averageImportance, Nib, trainingData, useJackknife)
-          } else {
-            if (biasLearner.isEmpty) {
-              new BaggedTrainingResult[Double](m.asInstanceOf[ParSeq[Model[PredictionResult[Double]]]], averageImportance, Nib, trainingData, useJackknife, None, helper.ratio)
+            Async.canStop()
+            if (!helper.isRegression) {
+              new BaggedTrainingResult[Any](m, averageImportance, Nib, trainingData, useJackknife)
             } else {
-              Async.canStop()
-              val biasModel = biasLearner.get.train(helper.biasTraining).getModel().asInstanceOf[Model[PredictionResult[Double]]]
-              Async.canStop()
-              new BaggedTrainingResult[Double](m.asInstanceOf[ParSeq[Model[PredictionResult[Double]]]], averageImportance, Nib, trainingData, useJackknife, Some(biasModel), helper.ratio)
+              if (biasLearner.isEmpty) {
+                new BaggedTrainingResult[Double](m.asInstanceOf[ParSeq[Model[PredictionResult[Double]]]], averageImportance, Nib, trainingData, useJackknife, None, helper.ratio)
+              } else {
+                Async.canStop()
+                val biasModel = biasLearner.get.train(helper.biasTraining).getModel().asInstanceOf[Model[PredictionResult[Double]]]
+                Async.canStop()
+                new BaggedTrainingResult[Double](m.asInstanceOf[ParSeq[Model[PredictionResult[Double]]]], averageImportance, Nib, trainingData, useJackknife, Some(biasModel), helper.ratio)
+              }
             }
-          }
-      }
-      }
-      .seq
+        }
+      }.seq
+    }
   }
 }
 
@@ -203,5 +199,4 @@ class MultiTaskBaggedModel(
   override def getRealLabels: Seq[Boolean] = models.head.getRealLabels
 
   override def getModels: Seq[Model[PredictionResult[Any]]] = groupedModels
-
 }

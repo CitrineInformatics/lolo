@@ -96,8 +96,7 @@ class MultiTaskTreeParallelTrainingResult(models: Seq[Model[PredictionResult[Any
 
   override def getModel(): ParallelModels = model
 
-  // TODO: figure out how to pipe through feature importance
-  // override def getFeatureImportance(): Option[Vector[Double]] = ???
+  // TODO: combine feature importances of individual models (which are not currently available)
 }
 
 class MultiTaskTreeTrainingResult(model: Model[PredictionResult[Any]]) extends TrainingResult {
