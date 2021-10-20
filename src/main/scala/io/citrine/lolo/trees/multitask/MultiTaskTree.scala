@@ -92,7 +92,7 @@ case class MultiTaskTreeLearner(
 }
 
 class MultiTaskTreeSimultaneousTrainingResult(models: Seq[Model[PredictionResult[Any]]]) extends TrainingResult {
-  val model = new MixedTree(models)
+  val model = new MixedTree(models, models.map(_.isInstanceOf[RegressionTree]))
 
   override def getModel(): MixedTree = model
 

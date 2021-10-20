@@ -8,6 +8,7 @@ import io.citrine.lolo.stats.metrics.ClassificationMetrics
 import io.citrine.lolo.trees.classification.ClassificationTreeLearner
 import io.citrine.lolo.trees.multitask.MultiTaskTreeLearner
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
+import io.citrine.lolo.trees.splits.RegressionSplitter
 import org.junit.Test
 import org.scalatest.Assertions._
 
@@ -184,24 +185,30 @@ class MultiTaskBaggerTest {
     assert(catResults.zip(catLabel).forall(p => p._1 == p._2))
   }
 
-  /** Test that the resulting predictions are independent of whether the labels are stored in one model or several models.*/
+  /** Test that a multi-task bagged model properly stores and transposes individual trees.*/
   @Test
-  def testSingleModelEquality(): Unit = {
-    // TODO: Currently, this is just a test that the MultiTaskBagger works without error on a multitask tree learner that uses a single model.
+  def testSingleMultiTaskModel(): Unit = {
     val raw: Seq[(Vector[Double], Double)] = TestUtils.generateTrainingData(256, 12, noise = 0.1, function = Friedman.friedmanSilverman)
     val inputs: Seq[Vector[Double]] = raw.map(_._1)
     val realLabel: Seq[Double] = raw.map(_._2)
     val catLabel: Seq[Boolean] = raw.map(_._2 > realLabel.max / 2.0)
-    val DTLearner = MultiTaskTreeLearner(singleModel = true)
-    val baggedLearner = MultiTaskBagger(DTLearner, numBags = 64, biasLearner = Some(new RegressionTreeLearner(maxDepth = 2)), randBasis = TestUtils.getBreezeRandBasis(78495L))
-    val RFMeta = baggedLearner.train(inputs, Seq(realLabel, catLabel)).head
-    val RF = RFMeta.getModel()
+
+    val learner = MultiTaskTreeLearner(singleModel = true)
+    val baggedLearner = MultiTaskBagger(
+      learner,
+      numBags = 64,
+      biasLearner = Some(RegressionTreeLearner(maxDepth = 2))
+    )
+    val RF = baggedLearner.train(inputs, Seq(realLabel, catLabel)).head.getModel()
 
     val testInputs = TestUtils
-      .generateTrainingData(32, 12, noise = 0.1, function = Friedman.friedmanSilverman, seed = rng.nextLong())
+      .generateTrainingData(32, 12, noise = 0.1, function = Friedman.friedmanSilverman)
       .map(_._1)
-    val foo = RF.transform(testInputs)
-    // TODO: thread rng through and include the bias model. Then this test can check for equality.
+    val predictionResult = RF.transform(testInputs)
+    assert(predictionResult.asInstanceOf[BaggedResult[Seq[Any]]].predictions.length == 64)
+    val expected = predictionResult.getExpected().asInstanceOf[Seq[Seq[Any]]]
+    assert(expected.length == 32)
+    assert(expected.head.length == 2)
   }
 
   /**

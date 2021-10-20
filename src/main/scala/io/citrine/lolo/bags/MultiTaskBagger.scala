@@ -75,6 +75,7 @@ case class MultiTaskBagger(
     }.unzip
 
     if (singleModel) {
+      // TODO: the singleModel logic here is similar to the multi-model logic, below. Try to consolidate.
       val flatModels = models.map(_.head.asInstanceOf[MultiModel])
       val flatImportances = importances.map(_.head)
       val averageImportance: Option[Vector[Double]] = flatImportances.reduce {
@@ -82,11 +83,15 @@ case class MultiTaskBagger(
       }.map(_.map(_ / importances.size))
       val trainingData = inputs.zip(labels)
 
-      // TODO: If biasLearner is not empty then we want to train one bias model for each regression label
-      val biasModels: Seq[Option[Model[PredictionResult[Double]]]] = Seq.fill(labels.head.length)(None)
-
-      // TODO: calculate rescaling ratio for each label and pass to training result
-      // TODO: think about whether disableBootstrap should be an option
+      val (biasModels, ratios) = Seq.tabulate(labels.length) { i =>
+        val thisLabelModels: ParSeq[Model[PredictionResult[Any]]] = flatModels.map(_.getModels(i))
+        val isRegression = flatModels.head.getRealLabels(i)
+        val helper = BaggerHelper(thisLabelModels, inputs.zip(labels(i)), Nib, useJackknife, uncertaintyCalibration)
+        val biasModel = if (biasLearner.isDefined && isRegression) {
+          Some(biasLearner.get.train(helper.biasTraining).getModel().asInstanceOf[Model[PredictionResult[Double]]])
+        } else None
+        (biasModel, helper.ratio)
+      }.unzip
 
       return Seq(
         new MultiTaskBaggedTrainingResult(
@@ -95,7 +100,8 @@ case class MultiTaskBagger(
           Nib = Nib,
           trainingData = trainingData,
           useJackknife = useJackknife,
-          biasModels = biasModels
+          biasModels = biasModels,
+          rescaleRatios = ratios
         )
       )
     }
@@ -140,7 +146,8 @@ class MultiTaskBaggedTrainingResult(
                                    Nib: Vector[Vector[Int]],
                                    trainingData: Seq[(Vector[Any], Seq[Any])],
                                    useJackknife: Boolean,
-                                   biasModels: Seq[Option[Model[PredictionResult[Double]]]]
+                                   biasModels: Seq[Option[Model[PredictionResult[Double]]]],
+                                   rescaleRatios: Seq[Double]
                                    ) extends AbstractBaggedTrainingResult {
 
   lazy val model = new MultiTaskBaggedModel(models, Nib, useJackknife, biasModels)
@@ -163,12 +170,18 @@ class MultiTaskBaggedModel(
 
   lazy val groupedModels: Seq[BaggedModel[Any]] = Seq.tabulate(numLabels) { i =>
     val thisLabelsModels = models.map(_.getModels(i))
-    new BaggedModel(thisLabelsModels, Nib, useJackknife, biasModels(i))
+    if (getRealLabels(i)) {
+      new BaggedModel[Double](thisLabelsModels.asInstanceOf[ParSeq[Model[PredictionResult[Double]]]], Nib, useJackknife, biasModels(i))
+    } else {
+      new BaggedModel(thisLabelsModels, Nib, useJackknife, biasModels(i))
+    }
   }
 
   override def transform(inputs: Seq[Vector[Any]]): BaggedResult[Seq[Any]] = MultiTaskBaggedResult(groupedModels.map(_.transform(inputs)), Nib.length)
 
-  override def numLabels: Int = models.head.numLabels
+  override val numLabels: Int = models.head.numLabels
+
+  override def getRealLabels: Seq[Boolean] = models.head.getRealLabels
 
   override def getModels: Seq[Model[PredictionResult[Any]]] = groupedModels
 
