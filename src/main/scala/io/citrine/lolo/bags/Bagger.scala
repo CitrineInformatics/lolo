@@ -177,8 +177,6 @@ case class Bagger(
   }
 }
 
-trait AbstractBaggedTrainingResult extends TrainingResult
-
 class BaggedTrainingResult[+T : ClassTag](
                             models: ParSeq[Model[PredictionResult[T]]],
                             featureImportance: Option[Vector[Double]],
@@ -188,7 +186,7 @@ class BaggedTrainingResult[+T : ClassTag](
                             biasModel: Option[Model[PredictionResult[T]]] = None,
                             rescale: Double = 1.0,
                             disableBootstrap: Boolean = false
-                          ) extends AbstractBaggedTrainingResult {
+                          ) extends TrainingResult {
 
   lazy val NibT = Nib.transpose
   lazy val model = new BaggedModel[T](models, Nib, useJackknife, biasModel, rescale, disableBootstrap)

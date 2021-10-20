@@ -13,13 +13,13 @@ import scala.util.Random
   *
   * @param randomizePivotLocation whether to generate splits randomly between the data points
   * @param rng                    random number generator to use
-  * @param singleModel            whether to create a single model that predicts all labels or a sequence of models,
+  * @param combinedModel          whether to create a single model that predicts all labels or a sequence of models,
   *                               one for each label. Creating one model allows for correlated uncertainty predictions.
   */
 case class MultiTaskTreeLearner(
                                  randomizePivotLocation: Boolean = false,
                                  rng: Random = Random,
-                                 singleModel: Boolean = false
+                                 combinedModel: Boolean = false
                                ) extends MultiTaskLearner {
 
   /**
@@ -83,18 +83,18 @@ case class MultiTaskTreeLearner(
     }
 
     // Wrap the models in dead-simple training results and return
-    if (singleModel) {
-      Seq(new MultiTaskTreeSimultaneousTrainingResult(models))
+    if (combinedModel) {
+      Seq(new MultiTaskTreeParallelTrainingResult(models))
     } else {
       models.map(new MultiTaskTreeTrainingResult(_))
     }
   }
 }
 
-class MultiTaskTreeSimultaneousTrainingResult(models: Seq[Model[PredictionResult[Any]]]) extends TrainingResult {
-  val model = new MixedTree(models, models.map(_.isInstanceOf[RegressionTree]))
+class MultiTaskTreeParallelTrainingResult(models: Seq[Model[PredictionResult[Any]]]) extends TrainingResult {
+  val model = new ParallelModels(models, models.map(_.isInstanceOf[RegressionTree]))
 
-  override def getModel(): MixedTree = model
+  override def getModel(): ParallelModels = model
 
   // TODO: figure out how to pipe through feature importance
   // override def getFeatureImportance(): Option[Vector[Double]] = ???

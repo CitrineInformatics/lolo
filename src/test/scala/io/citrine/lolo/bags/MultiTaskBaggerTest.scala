@@ -193,7 +193,7 @@ class MultiTaskBaggerTest {
     val realLabel: Seq[Double] = raw.map(_._2)
     val catLabel: Seq[Boolean] = raw.map(_._2 > realLabel.max / 2.0)
 
-    val learner = MultiTaskTreeLearner(singleModel = true)
+    val learner = MultiTaskTreeLearner(combinedModel = true)
     val baggedLearner = MultiTaskBagger(
       learner,
       numBags = 64,

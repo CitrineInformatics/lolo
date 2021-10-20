@@ -15,5 +15,6 @@ trait MultiTaskLearner extends Serializable {
     */
   def train(inputs: Seq[Vector[Any]], labels: Seq[Seq[Any]], weights: Option[Seq[Double]] = None): Seq[TrainingResult]
 
-  val singleModel: Boolean
+  /** Whether this learner returns a single model for all labels or one model for each label. */
+  val combinedModel: Boolean
 }

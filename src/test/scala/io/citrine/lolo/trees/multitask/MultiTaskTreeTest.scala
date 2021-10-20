@@ -94,14 +94,14 @@ class MultiTaskTreeTest {
   /** Test that the resulting predictions are independent of whether the trees are stored in one model or several models.*/
   @Test
   def testSingleModelEquality(): Unit = {
-    // Train twice with the same seed, first outputting two models and then outputting a single model.
+    // Train twice with the same seed, first outputting two models and then outputting a combined model.
     val seed = 817235L
     val rng = new Random(seed)
-    val singleModelRng = new Random(seed)
-    val learner = MultiTaskTreeLearner(rng = rng, singleModel = false)
-    val singleModelLearner = MultiTaskTreeLearner(rng = singleModelRng, singleModel = true)
+    val combinedModelRng = new Random(seed)
+    val learner = MultiTaskTreeLearner(rng = rng, combinedModel = false)
+    val combinedModelLearner = MultiTaskTreeLearner(rng = combinedModelRng, combinedModel = true)
     val models = learner.train(inputs, Seq(realLabel, catLabel)).map(_.getModel())
-    val singleModel = singleModelLearner.train(inputs, Seq(realLabel, catLabel)).head.getModel()
+    val combinedModel = combinedModelLearner.train(inputs, Seq(realLabel, catLabel)).head.getModel()
 
     // Generate new inputs to test equality on.
     val testInputs = TestUtils
@@ -109,7 +109,7 @@ class MultiTaskTreeTest {
       .map(_._1)
     val realResults = models.head.transform(testInputs).getExpected().asInstanceOf[Seq[Double]]
     val catResults = models.last.transform(testInputs).getExpected().asInstanceOf[Seq[Boolean]]
-    val allResults = singleModel.transform(testInputs).getExpected().asInstanceOf[Seq[Seq[Any]]]
+    val allResults = combinedModel.transform(testInputs).getExpected().asInstanceOf[Seq[Seq[Any]]]
     assert(Seq(realResults, catResults).transpose == allResults)
   }
 

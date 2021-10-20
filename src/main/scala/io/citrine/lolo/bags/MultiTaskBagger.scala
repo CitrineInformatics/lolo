@@ -23,7 +23,7 @@ case class MultiTaskBagger(
                             randBasis: RandBasis = Rand
                           ) extends MultiTaskLearner {
 
-  override val singleModel: Boolean = method.singleModel
+  override val combinedModel: Boolean = method.combinedModel
 
   private def combineImportance(v1: Option[Vector[Double]], v2: Option[Vector[Double]]): Option[Vector[Double]] = {
     (v1, v2) match {
@@ -69,13 +69,13 @@ case class MultiTaskBagger(
     val (models: ParSeq[Seq[Model[PredictionResult[Any]]]], importances: ParSeq[Seq[Option[Vector[Double]]]]) = parIterator.map { i =>
       // Train the model
       val meta = method.train(inputs.toVector, labels, Some(Nib(i).zip(weightsActual).map(p => p._1.toDouble * p._2)))
-      assert(!singleModel || meta.length == 1)
+      assert(!combinedModel || meta.length == 1)
       // Extract the model and feature importance from the TrainingResult
       (meta.map(_.getModel()), meta.map(_.getFeatureImportance()))
     }.unzip
 
-    if (singleModel) {
-      // TODO: the singleModel logic here is similar to the multi-model logic, below. Try to consolidate.
+    if (combinedModel) {
+      // TODO: the combinedModel logic here is similar to the multi-model logic, below. Try to consolidate.
       val flatModels = models.map(_.head.asInstanceOf[MultiModel])
       val flatImportances = importances.map(_.head)
       val averageImportance: Option[Vector[Double]] = flatImportances.reduce {
@@ -140,6 +140,17 @@ case class MultiTaskBagger(
   }
 }
 
+/**
+  * The result of training a bagger on a multi-label combined model.
+  *
+  * @param models             sequence of multi-models, one for each bag
+  * @param featureImportance  importance of input features
+  * @param Nib                matrix representing number of times each training datum appears in each bag
+  * @param trainingData       multi-label training data
+  * @param useJackknife       whether to enable jackknife uncertainty estimate
+  * @param biasModels         sequence of optional bias-correction models, one for each label
+  * @param rescaleRatios      sequence of uncertainty calibration ratios for each label
+  */
 class MultiTaskBaggedTrainingResult(
                                    models: ParSeq[MultiModel],
                                    featureImportance: Option[Vector[Double]],
@@ -148,7 +159,7 @@ class MultiTaskBaggedTrainingResult(
                                    useJackknife: Boolean,
                                    biasModels: Seq[Option[Model[PredictionResult[Double]]]],
                                    rescaleRatios: Seq[Double]
-                                   ) extends AbstractBaggedTrainingResult {
+                                   ) extends TrainingResult {
 
   lazy val model = new MultiTaskBaggedModel(models, Nib, useJackknife, biasModels)
 
@@ -161,6 +172,14 @@ class MultiTaskBaggedTrainingResult(
 
 }
 
+/**
+  * Container holding a parallel sequence of models, each of which predicts on multiple labels.
+  *
+  * @param models       sequence of multi-models, one for each bag
+  * @param Nib          matrix representing number of times each training datum appears in each bag
+  * @param useJackknife whether to enable jackknife uncertainty estimate
+  * @param biasModels   sequence of optional bias-correction models, one for each label
+  */
 class MultiTaskBaggedModel(
                           models: ParSeq[MultiModel],
                           Nib: Vector[Vector[Int]],
@@ -177,7 +196,7 @@ class MultiTaskBaggedModel(
     }
   }
 
-  override def transform(inputs: Seq[Vector[Any]]): BaggedResult[Seq[Any]] = MultiTaskBaggedResult(groupedModels.map(_.transform(inputs)), Nib.length)
+  override def transform(inputs: Seq[Vector[Any]]): BaggedResult[Seq[Any]] = MultiTaskBaggedResult(groupedModels.map(_.transform(inputs)))
 
   override val numLabels: Int = models.head.numLabels
 
