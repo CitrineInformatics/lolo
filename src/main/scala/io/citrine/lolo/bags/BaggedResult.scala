@@ -15,6 +15,8 @@ import org.slf4j.{Logger, LoggerFactory}
 trait BaggedResult[+T] extends PredictionResult[T] {
   def predictions: Seq[PredictionResult[T]]
 
+  val numPredictions: Int
+
   /**
     * Average the gradients from the models in the ensemble
     *
@@ -50,6 +52,8 @@ case class BaggedSingleResult(
                                disableBootstrap: Boolean = false
                              ) extends BaggedResult[Double] with RegressionResult {
   private lazy val treePredictions: Array[Double] = predictions.map(_.getExpected().head).toArray
+
+  override lazy val numPredictions: Int = NibIn.head.length
 
   /**
     * Return the ensemble average or maximum vote
@@ -167,6 +171,8 @@ case class BaggedClassificationResult(
   lazy val expected: Seq[Any] = expectedMatrix.map(ps => ps.groupBy(identity).maxBy(_._2.size)._1).seq
   lazy val uncertainty: Seq[Map[Any, Double]] = expectedMatrix.map(ps => ps.groupBy(identity).mapValues(_.size.toDouble / ps.size).toMap)
 
+  override lazy val numPredictions: Int = expectedMatrix.length
+
   /**
    * Return the majority vote vote
    *
@@ -249,6 +255,8 @@ case class BaggedMultiResult(
   }
 
   override def getImportanceScores(): Option[Seq[Seq[Double]]] = Some(scores)
+
+  override lazy val numPredictions: Int = NibIn.head.length
 
   /* Subtract off 1 to make correlations easier; transpose to be prediction-wise */
   lazy val Nib: Vector[Vector[Int]] = NibIn.transpose.map(_.map(_ - 1))
@@ -405,6 +413,8 @@ case class BaggedMultiResult(
   */
 case class MultiTaskBaggedResult(baggedPredictions: Seq[BaggedResult[Any]]) extends BaggedResult[Seq[Any]] {
 
+  override lazy val numPredictions: Int = baggedPredictions.head.numPredictions
+
   override def getExpected(): Seq[Seq[Any]] = baggedPredictions.map(_.getExpected()).transpose
 
   override def predictions: Seq[PredictionResult[Seq[Any]]] = baggedPredictions
@@ -412,7 +422,15 @@ case class MultiTaskBaggedResult(baggedPredictions: Seq[BaggedResult[Any]]) exte
     .transpose
     .map(x => new MultiModelResult(x.transpose))
 
-  // TODO: Retrieve uncertainty information from each element of baggedPredictions
+  // For each prediction, the uncertainty is a sequence of optional entries, one for each label.
+  override def getUncertainty(observational: Boolean): Option[Seq[Seq[Option[Any]]]] = {
+    Some(baggedPredictions.map { predictionResult =>
+      predictionResult.getUncertainty(observational) match {
+        case Some(value) => value.map(Some(_))
+        case None => Seq.fill(numPredictions)(None)
+      }
+    }.transpose)
+  }
 
   // TODO: add a method to compute covariance
 
