@@ -7,7 +7,10 @@ trait MultiModelPredictionResult extends PredictionResult[Seq[Any]] {
 
   override def getUncertainty(observational: Boolean = true): Option[Seq[Seq[Any]]] = None
 
+  // TODO: should this interface include an `observational` option? Is there a difference to the correlation coefficient?
   def getUncertaintyCorrelation(i: Int, j: Int): Option[Seq[Double]] = None
+
+  // TODO: combine uncertainty and correlation to get covariance
 
 }
 

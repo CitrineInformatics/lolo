@@ -409,9 +409,10 @@ case class BaggedMultiResult(
 /**
   * Container with model-wise predictions for each label and the machinery to compute (co)variance.
   *
-  * @param baggedPredictions bagged prediction results for each label
+  * @param baggedPredictions  bagged prediction results for each label
+  * @param realLabels         a boolean sequence indicating which labels are real-valued
   */
-case class MultiTaskBaggedResult(baggedPredictions: Seq[BaggedResult[Any]]) extends BaggedResult[Seq[Any]] with MultiModelPredictionResult {
+case class MultiTaskBaggedResult(baggedPredictions: Seq[BaggedResult[Any]], realLabels: Seq[Boolean]) extends BaggedResult[Seq[Any]] with MultiModelPredictionResult {
 
   override lazy val numPredictions: Int = baggedPredictions.head.numPredictions
 
@@ -423,7 +424,7 @@ case class MultiTaskBaggedResult(baggedPredictions: Seq[BaggedResult[Any]]) exte
     .map(x => new MultiModelDefinedResult(x.transpose))
 
   // For each prediction, the uncertainty is a sequence of optional entries, one for each label.
-  override def getUncertainty(observational: Boolean): Option[Seq[Seq[Option[Any]]]] = {
+  override def getUncertainty(observational: Boolean = true): Option[Seq[Seq[Option[Any]]]] = {
     Some(baggedPredictions.map { predictionResult =>
       predictionResult.getUncertainty(observational) match {
         case Some(value) => value.map(Some(_))
@@ -432,7 +433,13 @@ case class MultiTaskBaggedResult(baggedPredictions: Seq[BaggedResult[Any]]) exte
     }.transpose)
   }
 
-  // TODO: add a method to compute covariance
+  override def getUncertaintyCorrelation(i: Int, j: Int): Option[Seq[Double]] = {
+    (realLabels(i), realLabels(j)) match {
+      case (true, true) if i == j => Some(Seq.fill(numPredictions)(1.0))
+      case (true, true) if i != j => Some(Seq.fill(numPredictions)(0.0))
+      case _: Any                 => None
+    }
+  }
 
 }
 

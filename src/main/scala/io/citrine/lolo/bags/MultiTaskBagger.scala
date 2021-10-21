@@ -225,7 +225,7 @@ class MultiTaskBaggedModel(
     }
   }
 
-  override def transform(inputs: Seq[Vector[Any]]): MultiModelPredictionResult = MultiTaskBaggedResult(groupedModels.map(_.transform(inputs)))
+  override def transform(inputs: Seq[Vector[Any]]): MultiModelPredictionResult = MultiTaskBaggedResult(groupedModels.map(_.transform(inputs)), getRealLabels)
 
   override val numLabels: Int = models.head.numLabels
 
