@@ -9,6 +9,46 @@ import scala.collection.parallel.ExecutionContextTaskSupport
 import scala.collection.parallel.immutable.{ParRange, ParSeq}
 
 trait AbstractMultiTaskBagger {
+
+  val numBags: Int
+  val method: MultiTaskLearner
+  val randBasis: RandBasis
+
+  def makeModelsAndBagCount(
+                             inputs: Seq[Vector[Any]],
+                             labels: Seq[Seq[Any]],
+                             weights: Option[Seq[Double]]
+                           ): (ParSeq[Seq[TrainingResult]], Vector[Vector[Int]]) = {
+    /* Make sure the training data is the same size */
+    assert(inputs.forall(inputs.head.size == _.size))
+    assert(inputs.size >= Bagger.minimumTrainingSize, s"We need to have at least ${Bagger.minimumTrainingSize} rows, only ${inputs.size} given")
+
+    /* Use unit weights if none are specified */
+    val weightsActual = weights.getOrElse(Seq.fill(inputs.size)(1.0))
+
+    /* Set default number of bags */
+    val actualBags = if (numBags > 0) {
+      numBags
+    } else {
+      inputs.size
+    }
+
+    /* Compute the number of instances of each training row in each training sample */
+    val dist = new Poisson(1.0)(randBasis)
+    val Nib = Vector.tabulate(actualBags) { _ =>
+      Vector.tabulate(inputs.size) { _ =>
+        dist.draw()
+      }
+    }
+
+    val parIterator = new ParRange(0 until actualBags)
+    parIterator.tasksupport = new ExecutionContextTaskSupport(InterruptibleExecutionContext())
+    val models = parIterator.map { i =>
+      method.train(inputs.toVector, labels, Some(Nib(i).zip(weightsActual).map(p => p._1.toDouble * p._2)))
+    }
+    (models, Nib)
+  }
+
   def combineImportance(v1: Option[Vector[Double]], v2: Option[Vector[Double]]): Option[Vector[Double]] = {
     (v1, v2) match {
       case (None, None) => None
@@ -42,36 +82,12 @@ case class MultiTaskBagger(
     * @return a model
     */
   override def train(inputs: Seq[Vector[Any]], labels: Seq[Seq[Any]], weights: Option[Seq[Double]] = None): Seq[TrainingResult] = {
-    // TODO: this and MultiTaskCombinedBagger share the following logic. Consolidate it into AbstractMultiTaskBagger.
-    /* Make sure the training data is the same size */
-    assert(inputs.forall(inputs.head.size == _.size))
-    assert(inputs.size >= Bagger.minimumTrainingSize, s"We need to have at least ${Bagger.minimumTrainingSize} rows, only ${inputs.size} given")
 
-    /* Use unit weights if none are specified */
-    val weightsActual = weights.getOrElse(Seq.fill(inputs.size)(1.0))
+    val foo = makeModelsAndBagCount(inputs, labels, weights)
+    val trainingResults = foo._1
+    val Nib = foo._2
 
-    /* Set default number of bags */
-    val actualBags = if (numBags > 0) {
-      numBags
-    } else {
-      inputs.size
-    }
-
-    /* Compute the number of instances of each training row in each training sample */
-    val dist = new Poisson(1.0)(randBasis)
-    val Nib = Vector.tabulate(actualBags) { _ =>
-      Vector.tabulate(inputs.size) { _ =>
-        dist.draw()
-      }
-    }
-
-    /* Learn the actual models in parallel */
-    val parIterator = new ParRange(0 until actualBags)
-    parIterator.tasksupport = new ExecutionContextTaskSupport(InterruptibleExecutionContext())
-    val (models: ParSeq[Seq[Model[PredictionResult[Any]]]], importances: ParSeq[Seq[Option[Vector[Double]]]]) = parIterator.map { i =>
-      // Train the model
-      val meta = method.train(inputs.toVector, labels, Some(Nib(i).zip(weightsActual).map(p => p._1.toDouble * p._2)))
-      // Extract the model and feature importance from the TrainingResult
+    val (models: ParSeq[Seq[Model[PredictionResult[Any]]]], importances: ParSeq[Seq[Option[Vector[Double]]]]) = trainingResults.map { meta =>
       (meta.map(_.getModel()), meta.map(_.getFeatureImportance()))
     }.unzip
 
@@ -115,49 +131,23 @@ case class MultiTaskCombinedBagger(
                           ) extends MultiTaskCombinedLearner with AbstractMultiTaskBagger {
 
   override def train(inputs: Seq[Vector[Any]], labels: Seq[Seq[Any]], weights: Option[Seq[Double]]): Seq[MultiModelTrainingResult] = {
-    /* Make sure the training data is the same size */
-    assert(inputs.forall(inputs.head.size == _.size))
-    assert(inputs.size >= Bagger.minimumTrainingSize, s"We need to have at least ${Bagger.minimumTrainingSize} rows, only ${inputs.size} given")
+    val foo = makeModelsAndBagCount(inputs, labels, weights)
+    val trainingResults = foo._1
+    val Nib = foo._2
 
-    /* Use unit weights if none are specified */
-    val weightsActual = weights.getOrElse(Seq.fill(inputs.size)(1.0))
-
-    /* Set default number of bags */
-    val actualBags = if (numBags > 0) {
-      numBags
-    } else {
-      inputs.size
-    }
-
-    /* Compute the number of instances of each training row in each training sample */
-    val dist = new Poisson(1.0)(randBasis)
-    val Nib = Vector.tabulate(actualBags) { _ =>
-      Vector.tabulate(inputs.size) { _ =>
-        dist.draw()
-      }
-    }
-
-    /* Learn the actual models in parallel */
-    val parIterator = new ParRange(0 until actualBags)
-    parIterator.tasksupport = new ExecutionContextTaskSupport(InterruptibleExecutionContext())
-    val (models: ParSeq[Seq[Model[PredictionResult[Seq[Any]]]]], importances: ParSeq[Seq[Option[Vector[Double]]]]) = parIterator.map { i =>
-      // Train the model
-      val meta = method.train(inputs.toVector, labels, Some(Nib(i).zip(weightsActual).map(p => p._1.toDouble * p._2)))
-      // Extract the model and feature importance from the TrainingResult
-      (meta.map(_.getModel()), meta.map(_.getFeatureImportance()))
+    val (models: ParSeq[MultiModel], importances: ParSeq[Option[Vector[Double]]]) = trainingResults.map { meta =>
+      (meta.head.getModel().asInstanceOf[MultiModel], meta.head.getFeatureImportance())
     }.unzip
 
     // Only one training result is needed, but it must have a bias model and rescale ratio for each label
-    val flatModels = models.map(_.head.asInstanceOf[MultiModel])
-    val flatImportances = importances.map(_.head)
-    val averageImportance: Option[Vector[Double]] = flatImportances.reduce {
+    val averageImportance: Option[Vector[Double]] = importances.reduce {
       combineImportance
     }.map(_.map(_ / importances.size))
     val trainingData = inputs.zip(labels)
 
     val (biasModels, ratios) = Seq.tabulate(labels.length) { i =>
-      val thisLabelModels: ParSeq[Model[PredictionResult[Any]]] = flatModels.map(_.getModels(i))
-      val isRegression = flatModels.head.getRealLabels(i)
+      val thisLabelModels: ParSeq[Model[PredictionResult[Any]]] = models.map(_.getModels(i))
+      val isRegression = models.head.getRealLabels(i)
       val helper = BaggerHelper(thisLabelModels, inputs.zip(labels(i)), Nib, useJackknife, uncertaintyCalibration)
       val biasModel = if (biasLearner.isDefined && isRegression) {
         Some(biasLearner.get.train(helper.biasTraining).getModel().asInstanceOf[Model[PredictionResult[Double]]])
@@ -167,7 +157,7 @@ case class MultiTaskCombinedBagger(
 
     Seq(
       new MultiTaskBaggedTrainingResult(
-        models = flatModels,
+        models = models,
         featureImportance = averageImportance,
         Nib = Nib,
         trainingData = trainingData,
@@ -235,7 +225,6 @@ class MultiTaskBaggedModel(
     }
   }
 
-  // TODO: enforce the type of prediction result returned by a MultiModel, and add covariance to that interface
   override def transform(inputs: Seq[Vector[Any]]): MultiModelPredictionResult = MultiTaskBaggedResult(groupedModels.map(_.transform(inputs)))
 
   override val numLabels: Int = models.head.numLabels
