@@ -20,7 +20,6 @@ case class Standardizer(baseLearner: Learner) extends Learner {
     * @return training result containing a model
     */
   override def train(trainingData: Seq[(Vector[Any], Any)], weights: Option[Seq[Double]]): StandardizerTrainingResult = {
-    val rep = trainingData.head._1
     val inputTrans = Standardizer.getMultiStandardization(trainingData.map(_._1))
     val outputTrans = trainingData.head._2 match {
       case x: Double => Some(Standardizer.getStandardization(trainingData.map(_._2.asInstanceOf[Double])))

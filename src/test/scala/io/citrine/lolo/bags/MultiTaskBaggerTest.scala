@@ -186,7 +186,7 @@ class MultiTaskBaggerTest {
 
   /** Test that a multi-task bagged model properly stores and transposes individual trees.*/
   @Test
-  def testSingleMultiTaskModel(): Unit = {
+  def testCombinedMultiTaskModel(): Unit = {
     val raw: Seq[(Vector[Double], Double)] = TestUtils.generateTrainingData(256, 12, noise = 0.1, function = Friedman.friedmanSilverman)
     val inputs: Seq[Vector[Double]] = raw.map(_._1)
     val realLabel: Seq[Double] = raw.map(_._2)
@@ -198,7 +198,7 @@ class MultiTaskBaggerTest {
       numBags = 64,
       biasLearner = Some(RegressionTreeLearner(maxDepth = 2))
     )
-    val RF = baggedLearner.train(inputs, Seq(realLabel, catLabel)).head.getModel()
+    val RF = baggedLearner.train(inputs, Seq(realLabel, catLabel)).getModel()
 
     val testInputs = TestUtils
       .generateTrainingData(32, 12, noise = 0.1, function = Friedman.friedmanSilverman)

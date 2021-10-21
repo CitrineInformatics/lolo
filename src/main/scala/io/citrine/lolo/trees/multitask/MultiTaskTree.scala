@@ -100,9 +100,9 @@ case class MultiTaskCombinedTreeLearner(
                                        ) extends MultiTaskCombinedLearner with MultiTaskTree {
 
   /** Train models and wrap them all in a single training result. */
-  override def train(inputs: Seq[Vector[Any]], labels: Seq[Seq[Any]], weights: Option[Seq[Double]]): Seq[MultiModelTrainingResult] = {
+  override def train(inputs: Seq[Vector[Any]], labels: Seq[Seq[Any]], weights: Option[Seq[Double]]): MultiModelTrainingResult = {
     val models = makeModels(inputs, labels, weights)
-    Seq(new MultiTaskTreeParallelTrainingResult(models))
+    new MultiTaskTreeParallelTrainingResult(models)
   }
 
 }

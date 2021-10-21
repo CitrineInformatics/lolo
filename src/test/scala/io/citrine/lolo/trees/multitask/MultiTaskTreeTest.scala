@@ -101,7 +101,7 @@ class MultiTaskTreeTest {
     val learner = MultiTaskTreeLearner(rng = rng)
     val combinedModelLearner = MultiTaskCombinedTreeLearner(rng = combinedModelRng)
     val models = learner.train(inputs, Seq(realLabel, catLabel)).map(_.getModel())
-    val combinedModel = combinedModelLearner.train(inputs, Seq(realLabel, catLabel)).head.getModel()
+    val combinedModel = combinedModelLearner.train(inputs, Seq(realLabel, catLabel)).getModel()
 
     // Generate new inputs to test equality on.
     val testInputs = TestUtils
