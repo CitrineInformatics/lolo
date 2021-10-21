@@ -53,7 +53,7 @@ case class BaggedSingleResult(
                              ) extends BaggedResult[Double] with RegressionResult {
   private lazy val treePredictions: Array[Double] = predictions.map(_.getExpected().head).toArray
 
-  override lazy val numPredictions: Int = NibIn.head.length
+  override lazy val numPredictions: Int = 1
 
   /**
     * Return the ensemble average or maximum vote
@@ -256,7 +256,7 @@ case class BaggedMultiResult(
 
   override def getImportanceScores(): Option[Seq[Seq[Double]]] = Some(scores)
 
-  override lazy val numPredictions: Int = NibIn.head.length
+  override lazy val numPredictions: Int = expectedMatrix.length
 
   /* Subtract off 1 to make correlations easier; transpose to be prediction-wise */
   lazy val Nib: Vector[Vector[Int]] = NibIn.transpose.map(_.map(_ - 1))
