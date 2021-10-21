@@ -8,24 +8,22 @@ import io.citrine.lolo.util.{Async, InterruptibleExecutionContext}
 import scala.collection.parallel.ExecutionContextTaskSupport
 import scala.collection.parallel.immutable.{ParRange, ParSeq}
 
+/** A trait to hold logic common to all baggers that operate on multitask models. */
 trait AbstractMultiTaskBagger {
 
+  /** Desired number of models in the ensemble */
   val numBags: Int
-  val randBasis: RandBasis
 
-  def makeBagCount(inputs: Seq[Vector[Any]]): Vector[Vector[Int]] = {
+  /** Create Nib matrix holding weight of each training row for each bag. */
+  def makeBagCount(inputs: Seq[Vector[Any]], randBasis: RandBasis): Vector[Vector[Int]] = {
     /* Make sure the training data is the same size */
     assert(inputs.forall(inputs.head.size == _.size))
     assert(inputs.size >= Bagger.minimumTrainingSize, s"We need to have at least ${Bagger.minimumTrainingSize} rows, only ${inputs.size} given")
 
-    /* Set default number of bags */
-    val actualBags = if (numBags > 0) {
-      numBags
-    } else {
-      inputs.size
-    }
+    // if numBags is non-positive, set # bags = # inputs
+    val actualBags = if (numBags > 0) numBags else inputs.size
 
-    /* Compute the number of instances of each training row in each training sample */
+    // Compute the number of instances of each training row in each training sample
     val dist = new Poisson(1.0)(randBasis)
     Vector.tabulate(actualBags) { _ =>
       Vector.tabulate(inputs.size) { _ =>
@@ -34,21 +32,24 @@ trait AbstractMultiTaskBagger {
     }
   }
 
+  /** Combine two optional feature importance vectors. */
   def combineImportance(v1: Option[Vector[Double]], v2: Option[Vector[Double]]): Option[Vector[Double]] = {
     (v1, v2) match {
-      case (None, None) => None
       case (Some(v1: Vector[Double]), Some(v2: Vector[Double])) => Some(v1.zip(v2).map(p => p._1 + p._2))
       case _ => None
     }
   }
 }
 
-
 /**
   * Create an ensemble of multi-task models
   *
-  * @param method  learner to train each model in the ensemble
-  * @param numBags number of models in the ensemble
+  * @param method                 learner to train each model in the ensemble
+  * @param numBags                number of models in the ensemble
+  * @param useJackknife           whether to enable jackknife uncertainty estimate
+  * @param biasLearner            learner to use for estimating bias
+  * @param uncertaintyCalibration whether to empirically recalibrate the predicted uncertainties
+  * @param randBasis              breeze RandBasis to use for generating breeze random numbers
   */
 case class MultiTaskBagger(
                             method: MultiTaskLearner,
@@ -58,15 +59,9 @@ case class MultiTaskBagger(
                             uncertaintyCalibration: Boolean = false,
                             randBasis: RandBasis = Rand
                           ) extends MultiTaskLearner with AbstractMultiTaskBagger {
-  /**
-    * Draw with replacement from the training data for each model
-    *
-    * @param inputs  to train on
-    * @param weights for the training rows, if applicable
-    * @return a model
-    */
+
   override def train(inputs: Seq[Vector[Any]], labels: Seq[Seq[Any]], weights: Option[Seq[Double]] = None): Seq[TrainingResult] = {
-    val Nib = makeBagCount(inputs)
+    val Nib = makeBagCount(inputs, randBasis)
     val weightsActual = weights.getOrElse(Seq.fill(inputs.size)(1.0))
 
     val parIterator = new ParRange(Nib.indices)
@@ -106,6 +101,16 @@ case class MultiTaskBagger(
   }
 }
 
+/**
+  * Create an ensemble of multi-task combined models (one model for all labels)
+  *
+  * @param method                 learner to train each model in the ensemble
+  * @param numBags                number of models in the ensemble
+  * @param useJackknife           whether to enable jackknife uncertainty estimate
+  * @param biasLearner            learner to use for estimating bias
+  * @param uncertaintyCalibration whether to empirically recalibrate the predicted uncertainties
+  * @param randBasis              breeze RandBasis to use for generating breeze random numbers
+  */
 case class MultiTaskCombinedBagger(
                             method: MultiTaskCombinedLearner,
                             numBags: Int = -1,
@@ -116,7 +121,7 @@ case class MultiTaskCombinedBagger(
                           ) extends MultiTaskCombinedLearner with AbstractMultiTaskBagger {
 
   override def train(inputs: Seq[Vector[Any]], labels: Seq[Seq[Any]], weights: Option[Seq[Double]]): MultiModelTrainingResult = {
-    val Nib = makeBagCount(inputs)
+    val Nib = makeBagCount(inputs, randBasis)
     val weightsActual = weights.getOrElse(Seq.fill(inputs.size)(1.0))
 
     val parIterator = new ParRange(Nib.indices)
@@ -126,12 +131,12 @@ case class MultiTaskCombinedBagger(
       (meta.getModel(), meta.getFeatureImportance())
     }.unzip
 
-    // Only one training result is needed, but it must have a bias model and rescale ratio for each label
     val averageImportance: Option[Vector[Double]] = importances.reduce {
       combineImportance
     }.map(_.map(_ / importances.size))
     val trainingData = inputs.zip(labels)
 
+    // Get bias model and rescale ratio for each label
     val (biasModels, ratios) = Seq.tabulate(labels.length) { i =>
       val thisLabelModels: ParSeq[Model[PredictionResult[Any]]] = models.map(_.getModels(i))
       val isRegression = models.head.getRealLabels(i)
