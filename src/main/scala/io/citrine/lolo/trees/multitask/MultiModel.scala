@@ -8,10 +8,18 @@ trait MultiModelPredictionResult extends PredictionResult[Seq[Any]] {
   override def getUncertainty(observational: Boolean = true): Option[Seq[Seq[Any]]] = None
 
   // TODO: should this interface include an `observational` option? Is there a difference to the correlation coefficient?
+  /**
+    * Get the correlation coefficients between the predictions made on two labels.
+    * Correlation coefficient is bounded between -1 and 1.
+    * It can only be defined if the indices correspond to real-valued labels.
+    *
+    * @param  i index of the first label
+    * @param  j index of the second label
+    * @return optional sequence of correlation coefficients for each prediction
+    */
   def getUncertaintyCorrelation(i: Int, j: Int): Option[Seq[Double]] = None
 
   // TODO: combine uncertainty and correlation to get covariance
-
 }
 
 /** A model that predicts a sequence of values, corresponding to multiple labels. */

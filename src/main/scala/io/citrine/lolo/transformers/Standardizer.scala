@@ -34,6 +34,7 @@ case class Standardizer(baseLearner: Learner) extends Learner {
   }
 }
 
+// TODO: make this work on a MultiTaskCombinedLearner
 class MultiTaskStandardizer(baseLearner: MultiTaskLearner) extends MultiTaskLearner {
 
   /**

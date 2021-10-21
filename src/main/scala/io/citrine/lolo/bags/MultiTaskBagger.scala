@@ -58,7 +58,6 @@ case class MultiTaskBagger(
                             uncertaintyCalibration: Boolean = false,
                             randBasis: RandBasis = Rand
                           ) extends MultiTaskLearner with AbstractMultiTaskBagger {
-  // TODO: enforce that MultiTaskLearner must not be a MultiTaskCombinedLearner
   /**
     * Draw with replacement from the training data for each model
     *
