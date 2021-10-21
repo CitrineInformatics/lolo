@@ -40,8 +40,6 @@ case class FeatureRotator(baseLearner: Learner) extends Learner {
 
 case class MultiTaskFeatureRotator(baseLearner: MultiTaskLearner) extends MultiTaskLearner {
 
-  override val combinedModel: Boolean = baseLearner.combinedModel
-
   /**
     * Create linear transformations for continuous features and labels & pass data through to learner
     *

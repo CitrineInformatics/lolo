@@ -4,33 +4,28 @@ import io.citrine.lolo.encoders.CategoricalEncoder
 import io.citrine.lolo.trees.ModelNode
 import io.citrine.lolo.trees.classification.ClassificationTree
 import io.citrine.lolo.trees.regression.RegressionTree
-import io.citrine.lolo.{Model, MultiTaskLearner, PredictionResult, TrainingResult}
+import io.citrine.lolo.{Model, MultiModelTrainingResult, MultiTaskCombinedLearner, MultiTaskLearner, PredictionResult, TrainingResult}
 
 import scala.util.Random
 
-/**
-  * Multi-task tree learner, which produces multiple decision trees with the same split structure
-  *
-  * @param randomizePivotLocation whether to generate splits randomly between the data points
-  * @param rng                    random number generator to use
-  * @param combinedModel          whether to create a single model that predicts all labels or a sequence of models,
-  *                               one for each label. Creating one model allows for correlated uncertainty predictions.
-  */
-case class MultiTaskTreeLearner(
-                                 randomizePivotLocation: Boolean = false,
-                                 rng: Random = Random,
-                                 combinedModel: Boolean = false
-                               ) extends MultiTaskLearner {
+/** A trait to hold logic common to all tree learners that operate on multiple labels. */
+trait MultiTaskTree {
+  /** whether to generate splits randomly between the data points */
+  val randomizePivotLocation: Boolean
+
+  /** random seed to use during training */
+  val rng: Random
 
   /**
-    * Train a model
+    * Construct one regression or classification tree for each label.
     *
-    * @param inputs  to train on
-    * @param labels  sequence of sequences of labels
-    * @param weights for the training rows, if applicable
-    * @return training result containing a model
+    * @param inputs   to train on
+    * @param labels   sequence of sequences of labels
+    * @param weights  for the training rows, if applicable
+    * @return         sequence of models, one for each label
+    * @return
     */
-  override def train(inputs: Seq[Vector[Any]], labels: Seq[Seq[Any]], weights: Option[Seq[Double]]): Seq[TrainingResult] = {
+  def makeModels(inputs: Seq[Vector[Any]], labels: Seq[Seq[Any]], weights: Option[Seq[Double]]): Seq[Model[PredictionResult[Any]]] = {
     val labelsTransposed = labels.toVector.transpose
 
     /* Create encoders for any categorical features */
@@ -67,7 +62,7 @@ case class MultiTaskTreeLearner(
     val nodes = labels.indices.map(root.getNode)
 
     // Stick the model trees into RegressionTree and ClassificationTree objects
-    val models = labels.indices.map { i =>
+    labels.indices.map { i =>
       if (labels(i).head.isInstanceOf[Double]) {
         new RegressionTree(
           nodes(i).asInstanceOf[ModelNode[PredictionResult[Double]]],
@@ -81,17 +76,38 @@ case class MultiTaskTreeLearner(
         )
       }
     }
-
-    // Wrap the models in dead-simple training results and return
-    if (combinedModel) {
-      Seq(new MultiTaskTreeParallelTrainingResult(models))
-    } else {
-      models.map(new MultiTaskTreeTrainingResult(_))
-    }
   }
 }
 
-class MultiTaskTreeParallelTrainingResult(models: Seq[Model[PredictionResult[Any]]]) extends TrainingResult {
+/** Multi-task tree learner, which produces multiple decision trees with the same split structure. */
+case class MultiTaskTreeLearner(
+                                 randomizePivotLocation: Boolean = false,
+                                 rng: Random = Random
+                               ) extends MultiTaskLearner with MultiTaskTree {
+
+  /** Train models and wrap each one in its own training result. */
+  override def train(inputs: Seq[Vector[Any]], labels: Seq[Seq[Any]], weights: Option[Seq[Double]]): Seq[TrainingResult] = {
+    val models = makeModels(inputs, labels, weights)
+    models.map(new MultiTaskTreeTrainingResult(_))
+  }
+
+}
+
+/** Multi-task tree learner, which produces multiple decision trees with the same split structure and packages them into a single model. */
+case class MultiTaskCombinedTreeLearner(
+                                         randomizePivotLocation: Boolean = false,
+                                         rng: Random = Random
+                                       ) extends MultiTaskCombinedLearner with MultiTaskTree {
+
+  /** Train models and wrap them all in a single training result. */
+  override def train(inputs: Seq[Vector[Any]], labels: Seq[Seq[Any]], weights: Option[Seq[Double]]): Seq[MultiModelTrainingResult] = {
+    val models = makeModels(inputs, labels, weights)
+    Seq(new MultiTaskTreeParallelTrainingResult(models))
+  }
+
+}
+
+class MultiTaskTreeParallelTrainingResult(models: Seq[Model[PredictionResult[Any]]]) extends MultiModelTrainingResult {
   val model = new ParallelModels(models, models.map(_.isInstanceOf[RegressionTree]))
 
   override def getModel(): ParallelModels = model

@@ -6,7 +6,7 @@ import io.citrine.lolo.linear.GuessTheMeanLearner
 import io.citrine.lolo.stats.functions.Friedman
 import io.citrine.lolo.stats.metrics.ClassificationMetrics
 import io.citrine.lolo.trees.classification.ClassificationTreeLearner
-import io.citrine.lolo.trees.multitask.MultiTaskTreeLearner
+import io.citrine.lolo.trees.multitask.{MultiTaskCombinedTreeLearner, MultiTaskTreeLearner}
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
 import org.junit.Test
 import org.scalatest.Assertions._
@@ -192,8 +192,8 @@ class MultiTaskBaggerTest {
     val realLabel: Seq[Double] = raw.map(_._2)
     val catLabel: Seq[Boolean] = raw.map(_._2 > realLabel.max / 2.0)
 
-    val learner = MultiTaskTreeLearner(combinedModel = true)
-    val baggedLearner = MultiTaskBagger(
+    val learner = MultiTaskCombinedTreeLearner()
+    val baggedLearner = MultiTaskCombinedBagger(
       learner,
       numBags = 64,
       biasLearner = Some(RegressionTreeLearner(maxDepth = 2))

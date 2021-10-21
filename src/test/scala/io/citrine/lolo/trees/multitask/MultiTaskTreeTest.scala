@@ -98,8 +98,8 @@ class MultiTaskTreeTest {
     val seed = 817235L
     val rng = new Random(seed)
     val combinedModelRng = new Random(seed)
-    val learner = MultiTaskTreeLearner(rng = rng, combinedModel = false)
-    val combinedModelLearner = MultiTaskTreeLearner(rng = combinedModelRng, combinedModel = true)
+    val learner = MultiTaskTreeLearner(rng = rng)
+    val combinedModelLearner = MultiTaskCombinedTreeLearner(rng = combinedModelRng)
     val models = learner.train(inputs, Seq(realLabel, catLabel)).map(_.getModel())
     val combinedModel = combinedModelLearner.train(inputs, Seq(realLabel, catLabel)).head.getModel()
 

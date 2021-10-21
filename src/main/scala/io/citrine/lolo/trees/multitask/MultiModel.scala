@@ -1,6 +1,6 @@
 package io.citrine.lolo.trees.multitask
 
-import io.citrine.lolo.{Model, PredictionResult}
+import io.citrine.lolo.{Model, PredictionResult, TrainingResult}
 
 /** A model that predicts a sequence of values, corresponding to multiple labels. */
 trait MultiModel extends Model[PredictionResult[Seq[Any]]] {
@@ -17,6 +17,13 @@ trait MultiModel extends Model[PredictionResult[Seq[Any]]] {
 /** A container that holds a multi-model prediction. */
 class MultiModelResult(predictions: Seq[Seq[Any]]) extends PredictionResult[Seq[Any]] {
   override def getExpected(): Seq[Seq[Any]] = predictions
+}
+
+// TODO: fix this import, since I moved it from one file to another
+trait MultiModelTrainingResult extends TrainingResult {
+  override def getModel(): MultiModel
+
+  override def getPredictedVsActual(): Option[Seq[(Vector[Any], Seq[Any], Seq[Any])]] = None
 }
 
 /**
