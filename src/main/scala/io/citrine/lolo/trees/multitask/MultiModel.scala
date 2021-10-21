@@ -2,8 +2,17 @@ package io.citrine.lolo.trees.multitask
 
 import io.citrine.lolo.{Model, PredictionResult, TrainingResult}
 
+/** Container for predictions made on multiple labels simultaneously. */
+trait MultiModelPredictionResult extends PredictionResult[Seq[Any]] {
+
+  override def getUncertainty(observational: Boolean = true): Option[Seq[Seq[Any]]] = None
+
+  def getUncertaintyCorrelation(i: Int, j: Int): Option[Seq[Double]] = None
+
+}
+
 /** A model that predicts a sequence of values, corresponding to multiple labels. */
-trait MultiModel extends Model[PredictionResult[Seq[Any]]] {
+trait MultiModel extends Model[MultiModelPredictionResult] {
   /** The number of labels. Every prediction must have this length. */
   val numLabels: Int
 
@@ -14,16 +23,15 @@ trait MultiModel extends Model[PredictionResult[Seq[Any]]] {
   def getModels: Seq[Model[PredictionResult[Any]]]
 }
 
-/** A container that holds a multi-model prediction. */
-class MultiModelResult(predictions: Seq[Seq[Any]]) extends PredictionResult[Seq[Any]] {
-  override def getExpected(): Seq[Seq[Any]] = predictions
-}
-
-// TODO: fix this import, since I moved it from one file to another
 trait MultiModelTrainingResult extends TrainingResult {
   override def getModel(): MultiModel
 
   override def getPredictedVsActual(): Option[Seq[(Vector[Any], Seq[Any], Seq[Any])]] = None
+}
+
+/** A container that holds a multi-model prediction. */
+class MultiModelDefinedResult(predictions: Seq[Seq[Any]]) extends MultiModelPredictionResult {
+  override def getExpected(): Seq[Seq[Any]] = predictions
 }
 
 /**
@@ -40,7 +48,7 @@ class ParallelModels(models: Seq[Model[PredictionResult[Any]]], realLabels: Seq[
 
   override def getModels: Seq[Model[PredictionResult[Any]]] = models
 
-  override def transform(inputs: Seq[Vector[Any]]): MultiModelResult = new MultiModelResult(
+  override def transform(inputs: Seq[Vector[Any]]): MultiModelPredictionResult = new MultiModelDefinedResult(
     models.map { model =>
       model.transform(inputs).getExpected()
     }.transpose

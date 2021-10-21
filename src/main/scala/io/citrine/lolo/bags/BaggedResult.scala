@@ -1,7 +1,7 @@
 package io.citrine.lolo.bags
 
 import breeze.linalg.{DenseMatrix, DenseVector, norm}
-import io.citrine.lolo.trees.multitask.MultiModelResult
+import io.citrine.lolo.trees.multitask.{MultiModelDefinedResult, MultiModelPredictionResult}
 import io.citrine.lolo.{PredictionResult, RegressionResult}
 import io.citrine.lolo.util.Async
 import org.slf4j.{Logger, LoggerFactory}
@@ -411,7 +411,7 @@ case class BaggedMultiResult(
   *
   * @param baggedPredictions bagged prediction results for each label
   */
-case class MultiTaskBaggedResult(baggedPredictions: Seq[BaggedResult[Any]]) extends BaggedResult[Seq[Any]] {
+case class MultiTaskBaggedResult(baggedPredictions: Seq[BaggedResult[Any]]) extends BaggedResult[Seq[Any]] with MultiModelPredictionResult {
 
   override lazy val numPredictions: Int = baggedPredictions.head.numPredictions
 
@@ -420,7 +420,7 @@ case class MultiTaskBaggedResult(baggedPredictions: Seq[BaggedResult[Any]]) exte
   override def predictions: Seq[PredictionResult[Seq[Any]]] = baggedPredictions
     .map(_.predictions.map(_.getExpected()))
     .transpose
-    .map(x => new MultiModelResult(x.transpose))
+    .map(x => new MultiModelDefinedResult(x.transpose))
 
   // For each prediction, the uncertainty is a sequence of optional entries, one for each label.
   override def getUncertainty(observational: Boolean): Option[Seq[Seq[Option[Any]]]] = {

@@ -4,7 +4,7 @@ import io.citrine.lolo.encoders.CategoricalEncoder
 import io.citrine.lolo.trees.ModelNode
 import io.citrine.lolo.trees.classification.ClassificationTree
 import io.citrine.lolo.trees.regression.RegressionTree
-import io.citrine.lolo.{Model, MultiModelTrainingResult, MultiTaskCombinedLearner, MultiTaskLearner, PredictionResult, TrainingResult}
+import io.citrine.lolo.{Model, MultiTaskCombinedLearner, MultiTaskLearner, PredictionResult, TrainingResult}
 
 import scala.util.Random
 

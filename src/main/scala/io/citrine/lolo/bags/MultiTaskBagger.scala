@@ -2,7 +2,7 @@ package io.citrine.lolo.bags
 
 import breeze.stats.distributions.{Poisson, Rand, RandBasis}
 import io.citrine.lolo._
-import io.citrine.lolo.trees.multitask.MultiModel
+import io.citrine.lolo.trees.multitask.{MultiModel, MultiModelPredictionResult, MultiModelTrainingResult}
 import io.citrine.lolo.util.{Async, InterruptibleExecutionContext}
 
 import scala.collection.parallel.ExecutionContextTaskSupport
@@ -205,7 +205,7 @@ class MultiTaskBaggedTrainingResult(
 
   override def getFeatureImportance(): Option[Vector[Double]] = featureImportance
 
-  override def getModel(): Model[PredictionResult[Seq[Any]]] = model
+  override def getModel(): MultiModel = model
 
   // TODO: use trainingData and model to get predicted vs. actual
 
@@ -236,7 +236,7 @@ class MultiTaskBaggedModel(
   }
 
   // TODO: enforce the type of prediction result returned by a MultiModel, and add covariance to that interface
-  override def transform(inputs: Seq[Vector[Any]]): BaggedResult[Seq[Any]] = MultiTaskBaggedResult(groupedModels.map(_.transform(inputs)))
+  override def transform(inputs: Seq[Vector[Any]]): MultiModelPredictionResult = MultiTaskBaggedResult(groupedModels.map(_.transform(inputs)))
 
   override val numLabels: Int = models.head.numLabels
 

@@ -1,5 +1,7 @@
 package io.citrine.lolo
 
+import io.citrine.lolo.trees.multitask.MultiModelTrainingResult
+
 /**
   * A learner that trains on multiple labels, outputting one model per label.
   */
