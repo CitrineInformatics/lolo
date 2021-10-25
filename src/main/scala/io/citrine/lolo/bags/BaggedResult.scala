@@ -1,6 +1,7 @@
 package io.citrine.lolo.bags
 
 import breeze.linalg.{DenseMatrix, DenseVector, norm}
+import io.citrine.lolo.bags.CorrelationMethods.{Bootstrap, CorrelationMethod, FromTraining, Jackknife, Trivial}
 import io.citrine.lolo.trees.multitask.{MultiModelDefinedResult, MultiModelPredictionResult}
 import io.citrine.lolo.{PredictionResult, RegressionResult}
 import io.citrine.lolo.util.Async
@@ -406,15 +407,28 @@ case class BaggedMultiResult(
   }
 }
 
+object CorrelationMethods extends Enumeration {
+  type CorrelationMethod = Value
+
+  val Trivial, FromTraining, Bootstrap, Jackknife = Value
+}
+
 /**
   * Container with model-wise predictions for each label and the machinery to compute (co)variance.
   *
   * @param baggedPredictions  bagged prediction results for each label
   * @param realLabels         a boolean sequence indicating which labels are real-valued
   */
-case class MultiTaskBaggedResult(baggedPredictions: Seq[BaggedResult[Any]], realLabels: Seq[Boolean]) extends BaggedResult[Seq[Any]] with MultiModelPredictionResult {
+case class MultiTaskBaggedResult(
+                                  baggedPredictions: Seq[BaggedResult[Any]],
+                                  realLabels: Seq[Boolean],
+                                  trainingLabels: Seq[Seq[Any]],
+                                  trainingWeights: Seq[Double]
+                                ) extends BaggedResult[Seq[Any]] with MultiModelPredictionResult {
 
   override lazy val numPredictions: Int = baggedPredictions.head.numPredictions
+
+  private val totalWeight = trainingWeights.sum
 
   override def getExpected(): Seq[Seq[Any]] = baggedPredictions.map(_.getExpected()).transpose
 
@@ -433,7 +447,18 @@ case class MultiTaskBaggedResult(baggedPredictions: Seq[BaggedResult[Any]], real
     }.transpose)
   }
 
-  override def getUncertaintyCorrelation(i: Int, j: Int): Option[Seq[Double]] = {
+  override def getUncertaintyCorrelation(i: Int, j: Int): Option[Seq[Double]] = getUncertaintyCorrelationTrivial(i, j)
+
+  def getUncertaintyCorrelationBuffet(i: Int, j: Int, method: CorrelationMethod): Option[Seq[Double]] = {
+    method match {
+      case Trivial => getUncertaintyCorrelationTrivial(i, j)
+      case FromTraining => getUncertaintyCorrelationTraining(i, j)
+      case Bootstrap => ???
+      case Jackknife => ???
+    }
+  }
+
+  private def getUncertaintyCorrelationTrivial(i: Int, j: Int): Option[Seq[Double]] = {
     (realLabels(i), realLabels(j)) match {
       case (true, true) if i == j => Some(Seq.fill(numPredictions)(1.0))
       case (true, true) if i != j => Some(Seq.fill(numPredictions)(0.0))
@@ -441,6 +466,24 @@ case class MultiTaskBaggedResult(baggedPredictions: Seq[BaggedResult[Any]], real
     }
   }
 
+  private def getUncertaintyCorrelationTraining(i: Int, j: Int): Option[Seq[Double]] = {
+    (realLabels(i), realLabels(j)) match {
+      case (true, true) if i == j => Some(Seq.fill(numPredictions)(1.0))
+      case (true, true) if i != j =>
+        val transposedTrainingLabels = trainingLabels.transpose
+        val yI = transposedTrainingLabels(i).asInstanceOf[Seq[Double]]
+        val yJ = transposedTrainingLabels(j).asInstanceOf[Seq[Double]]
+        val meanI = yI.zip(trainingWeights).map { case (yIk, w) => yIk * w }.sum
+        val meanJ = yJ.zip(trainingWeights).map { case (yJk, w) => yJk * w }.sum
+        val numerator = (yI, yJ, trainingWeights).zipped.map { case (yIk, yJk, w) => (yIk - meanI) * (yJk - meanJ) * w }.sum
+        val varianceI: Double = yI.zip(trainingWeights).map { case (yIk, w) => math.pow(yIk - meanI, 2.0) * w }.sum
+        val varianceJ: Double = yJ.zip(trainingWeights).map { case (yJk, w) => math.pow(yJk - meanJ, 2.0) * w }.sum
+        val denominator = math.sqrt(varianceI * varianceJ)
+        val rho = numerator / denominator
+        Some(Seq.fill(numPredictions)(rho))
+      case _: Any                 => None
+    }
+  }
 }
 
 object BaggedResult {
