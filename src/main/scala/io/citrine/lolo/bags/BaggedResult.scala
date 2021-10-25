@@ -453,7 +453,7 @@ case class MultiTaskBaggedResult(
     method match {
       case Trivial => getUncertaintyCorrelationTrivial(i, j)
       case FromTraining => getUncertaintyCorrelationTraining(i, j)
-      case Bootstrap => ???
+      case Bootstrap => getUncertaintyCorrelationBootstrap(i, j)
       case Jackknife => ???
     }
   }
@@ -461,15 +461,15 @@ case class MultiTaskBaggedResult(
   private def getUncertaintyCorrelationTrivial(i: Int, j: Int): Option[Seq[Double]] = {
     (realLabels(i), realLabels(j)) match {
       case (true, true) if i == j => Some(Seq.fill(numPredictions)(1.0))
-      case (true, true) if i != j => Some(Seq.fill(numPredictions)(0.0))
-      case _: Any                 => None
+      case (true, true) => Some(Seq.fill(numPredictions)(0.0))
+      case _: Any => None
     }
   }
 
   private def getUncertaintyCorrelationTraining(i: Int, j: Int): Option[Seq[Double]] = {
     (realLabels(i), realLabels(j)) match {
       case (true, true) if i == j => Some(Seq.fill(numPredictions)(1.0))
-      case (true, true) if i != j =>
+      case (true, true) =>
         val transposedTrainingLabels = trainingLabels.transpose
         val yI = transposedTrainingLabels(i).asInstanceOf[Seq[Double]]
         val yJ = transposedTrainingLabels(j).asInstanceOf[Seq[Double]]
@@ -481,7 +481,35 @@ case class MultiTaskBaggedResult(
         val denominator = math.sqrt(varianceI * varianceJ)
         val rho = numerator / denominator
         Some(Seq.fill(numPredictions)(rho))
-      case _: Any                 => None
+      case _: Any => None
+    }
+  }
+
+  private def getUncertaintyCorrelationBootstrap(i: Int, j: Int): Option[Seq[Double]] = {
+    (realLabels(i), realLabels(j)) match {
+      case (true, true) if i == j => Some(Seq.fill(numPredictions)(1.0))
+      case (true, true) =>
+        // make (# predictions) x (# bags) prediction matrices for each label
+        val baggedPredictionsI = baggedPredictions(i).predictions.map(_.getExpected()).transpose.asInstanceOf[Seq[Seq[Double]]]
+        val baggedPredictionsJ = baggedPredictions(j).predictions.map(_.getExpected()).transpose.asInstanceOf[Seq[Seq[Double]]]
+        // Note that this does not take bias model into account
+        val expectedI = baggedPredictionsI.map(ps => ps.sum / ps.size)
+        val expectedJ = baggedPredictionsJ.map(ps => ps.sum / ps.size)
+        val varianceI = baggedPredictionsI.zip(expectedI).map { case (bags, mu) =>
+          bags.map { b => math.pow(b - mu, 2.0) }.sum
+        }
+        val varianceJ = baggedPredictionsJ.zip(expectedJ).map { case (bags, mu) =>
+          bags.map { b => math.pow(b - mu, 2.0) }.sum
+        }
+        val covarianceIJ = baggedPredictionsI.zip(expectedI).zip(baggedPredictionsJ.zip(expectedJ))
+          .map { case ((bagsI, muI), (bagsJ, muJ)) =>
+            bagsI.zip(bagsJ).map { case (bI, bJ) => (bI - muI) * (bJ - muJ) }.sum
+          }
+        Some((covarianceIJ, varianceI, varianceJ).zipped.map { case (sigmaIJ, sigmaI2, sigmaJ2) =>
+          if (sigmaI2 > 0 && sigmaJ2 > 0) sigmaIJ / math.sqrt(sigmaI2 * sigmaJ2) else 0.0
+        })
+      case _: Any => None
+
     }
   }
 }
