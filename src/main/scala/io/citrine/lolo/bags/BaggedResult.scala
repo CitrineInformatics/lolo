@@ -470,11 +470,10 @@ case class MultiTaskBaggedResult(
     (realLabels(i), realLabels(j)) match {
       case (true, true) if i == j => Some(Seq.fill(numPredictions)(1.0))
       case (true, true) =>
-        val transposedTrainingLabels = trainingLabels.transpose
-        val yI = transposedTrainingLabels(i).asInstanceOf[Seq[Double]]
-        val yJ = transposedTrainingLabels(j).asInstanceOf[Seq[Double]]
-        val meanI = yI.zip(trainingWeights).map { case (yIk, w) => yIk * w }.sum
-        val meanJ = yJ.zip(trainingWeights).map { case (yJk, w) => yJk * w }.sum
+        val yI = trainingLabels(i).asInstanceOf[Seq[Double]]
+        val yJ = trainingLabels(j).asInstanceOf[Seq[Double]]
+        val meanI = yI.zip(trainingWeights).map { case (yIk, w) => yIk * w }.sum / yI.size
+        val meanJ = yJ.zip(trainingWeights).map { case (yJk, w) => yJk * w }.sum / yJ.size
         val numerator = (yI, yJ, trainingWeights).zipped.map { case (yIk, yJk, w) => (yIk - meanI) * (yJk - meanJ) * w }.sum
         val varianceI: Double = yI.zip(trainingWeights).map { case (yIk, w) => math.pow(yIk - meanI, 2.0) * w }.sum
         val varianceJ: Double = yJ.zip(trainingWeights).map { case (yJk, w) => math.pow(yJk - meanJ, 2.0) * w }.sum

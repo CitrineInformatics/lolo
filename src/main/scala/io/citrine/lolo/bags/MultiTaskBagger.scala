@@ -134,7 +134,7 @@ case class MultiTaskCombinedBagger(
     val averageImportance: Option[Vector[Double]] = importances.reduce {
       combineImportance
     }.map(_.map(_ / importances.size))
-    val trainingData = inputs.zip(labels)
+    val trainingData = inputs.zip(labels.transpose)
 
     // Get bias model and rescale ratio for each label
     val (biasModels, ratios) = Seq.tabulate(labels.length) { i =>
