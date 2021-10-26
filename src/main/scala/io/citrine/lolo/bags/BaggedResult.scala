@@ -59,9 +59,9 @@ case class BaggedSingleResult(
     *
     * @return expected value of each prediction
     */
-  override def getExpected(): Seq[Double] = Seq(expected)
+  override def getExpected(): Seq[Double] = Seq(expected + bias.getOrElse(0.0))
 
-  private lazy val expected = treePredictions.sum / treePredictions.length + bias.getOrElse(0.0)
+  private lazy val expected = treePredictions.sum / treePredictions.length
   private lazy val treeVariance: Double = {
     assert(treePredictions.length > 1, "Bootstrap variance undefined for fewer than 2 bootstrap samples.")
     treePredictions.map(x => Math.pow(x - expected, 2.0)).sum / (treePredictions.length - 1)
@@ -206,7 +206,7 @@ case class BaggedMultiResult(
     *
     * @return expected value of each prediction
     */
-  override def getExpected(): Seq[Double] = expected
+  override def getExpected(): Seq[Double] = expected.zip(biasCorrection).map(x => x._1 + x._2)
 
   override def getStdDevObs(): Option[Seq[Double]] = {
     if (disableBootstrap) {
@@ -265,8 +265,7 @@ case class BaggedMultiResult(
 
   /* Extract the prediction by averaging over trees and adding the bias correction. */
   lazy val biasCorrection: Seq[Double] = bias.getOrElse(Seq.fill(expectedMatrix.length)(0))
-  lazy val biasedExpected: Seq[Double] = expectedMatrix.map(ps => ps.sum / ps.size)
-  lazy val expected: Seq[Double] = biasedExpected.zip(biasCorrection).map(x => x._1 + x._2)
+  lazy val expected: Seq[Double] = expectedMatrix.map(ps => ps.sum / ps.size)
 
   /* This matrix is used to compute the jackknife variance */
   lazy val NibJMat = new DenseMatrix[Double](Nib.head.size, Nib.size,

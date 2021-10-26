@@ -43,7 +43,7 @@ class MultiTaskBaggerTest {
     assert(sigma.forall(_ >= 0.0))
 
     assert(results.getGradient().isEmpty, "Returned a gradient when there shouldn't be one")
-    assert(RFMeta.getLoss().get < 1.0, "Loss of bagger is larger than expected")
+    // assert(RFMeta.getLoss().get < 1.0, "Loss of bagger is larger than expected") TODO: enable when MultiTaskBagger getLoss is enabled
   }
 
   /**
@@ -256,10 +256,8 @@ class MultiTaskBaggerTest {
     val multiF1 = ClassificationMetrics.f1scores(catResults, catLabel)
 
     // Make sure we can grab the loss without issue
-    val singleLoss = referenceModel.getLoss().get
-    val multiLoss = trainingResult.getLoss().get
-    assert(!singleLoss.isNaN, "Single task classification loss was NaN")
-    assert(!multiLoss.isNaN, "Sparse multitask loss was NaN")
+    assert(!referenceModel.getLoss().get.isNaN, "Single task classification loss was NaN")
+    // assert(!trainingResult.getLoss().get.isNaN, "Sparse multitask loss was NaN") TODO: enable when MultiTaskModel getLoss is enabled
 
     assert(multiF1 > singleF1, s"Multi-task is under-performing single-task")
     assert(multiF1 <= 1.0, "Multitask classification F1 score was greater than 1.0")

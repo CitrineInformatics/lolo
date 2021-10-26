@@ -125,7 +125,7 @@ class MultiTaskBaggedTrainingResult(
     }.toVector
   }
 
-  // TODO: use trainingData and model to get predicted vs. actual
+  // TODO: use trainingData and model to get predicted vs. actual, which can be used to get loss (see BaggedTrainingResult)
 }
 
 /**
