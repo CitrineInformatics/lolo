@@ -101,7 +101,7 @@ class PerformanceTest {
     }, minRun = 1, maxRun = 1)
 
     val trainMulti: Double = Stopwatch.time({
-      new MultiTaskBagger(new MultiTaskTreeLearner()).train(inputs, Seq(realLabels, catLabels)).map(_.getLoss())
+      new MultiTaskBagger(new MultiTaskTreeLearner()).train(inputs, Seq(realLabels, catLabels)).getLoss()
     }, minRun = 1, maxRun = 1)
 
     (trainMulti, trainSingle)

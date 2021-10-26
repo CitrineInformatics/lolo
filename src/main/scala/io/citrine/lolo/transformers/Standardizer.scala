@@ -22,19 +22,18 @@ case class Standardizer(baseLearner: Learner) extends Learner {
   override def train(trainingData: Seq[(Vector[Any], Any)], weights: Option[Seq[Double]]): StandardizerTrainingResult = {
     val inputTrans = Standardizer.getMultiStandardization(trainingData.map(_._1))
     val outputTrans = trainingData.head._2 match {
-      case x: Double => Some(Standardizer.getStandardization(trainingData.map(_._2.asInstanceOf[Double])))
-      case x: Any => None
+      case _: Double => Some(Standardizer.getStandardization(trainingData.map(_._2.asInstanceOf[Double])))
+      case _: Any => None
     }
 
     val (inputs, labels) = trainingData.unzip
     val standardTrainingData = Standardizer.applyStandardization(inputs, inputTrans).zip(Standardizer.applyStandardization(labels, outputTrans))
     val baseTrainingResult = baseLearner.train(standardTrainingData, weights)
 
-    new StandardizerTrainingResult(baseTrainingResult, Seq(outputTrans) ++ inputTrans)
+    new StandardizerTrainingResult(baseTrainingResult, outputTrans, inputTrans)
   }
 }
 
-// TODO: make this work on a MultiTaskCombinedLearner
 class MultiTaskStandardizer(baseLearner: MultiTaskLearner) extends MultiTaskLearner {
 
   /**
@@ -45,7 +44,7 @@ class MultiTaskStandardizer(baseLearner: MultiTaskLearner) extends MultiTaskLear
     * @param weights for the training rows, if applicable
     * @return a sequence of training results, one for each label
     */
-  override def train(inputs: Seq[Vector[Any]], labels: Seq[Seq[Any]], weights: Option[Seq[Double]]): Seq[TrainingResult] = {
+  override def train(inputs: Seq[Vector[Any]], labels: Seq[Seq[Any]], weights: Option[Seq[Double]]): MultiTaskTrainingResult = {
     val inputTrans = Standardizer.getMultiStandardization(inputs)
     val outputTrans: Seq[Option[(Double, Double)]] = labels.map { labelSeq =>
       if (labelSeq.head != null && labelSeq.head.isInstanceOf[Double]) {
@@ -60,41 +59,68 @@ class MultiTaskStandardizer(baseLearner: MultiTaskLearner) extends MultiTaskLear
     }
 
     val baseTrainingResult = baseLearner.train(standardInputs, standardLabels, weights)
-
-    baseTrainingResult.zip(outputTrans).map { case (base, trans) =>
-      new StandardizerTrainingResult(base, Seq(trans) ++ inputTrans)
-    }
+    new MultiTaskStandardizerTrainingResult(baseTrainingResult, outputTrans, inputTrans)
   }
 }
 
 /**
   * Training result wrapping the base learner's training result next to the transformations
   *
-  * @param baseTrainingResult
-  * @param trans
+  * @param baseTrainingResult result of training on the standardized inputs and output
+  * @param outputTrans optional transformation (rescale, offset) of output label
+  * @param inputTrans sequence of optional transformations (rescale, offset) of inputs
   */
 class StandardizerTrainingResult(
                                   baseTrainingResult: TrainingResult,
-                                  trans: Seq[Option[(Double, Double)]]
+                                  outputTrans: Option[(Double, Double)],
+                                  inputTrans: Seq[Option[(Double, Double)]]
                                 ) extends TrainingResult {
   /**
     * Get the model contained in the training result
     *
     * @return the model
     */
-  override def getModel(): Model[PredictionResult[Any]] = new StandardizerModel(baseTrainingResult.getModel(), trans)
+  override def getModel(): Model[PredictionResult[Any]] = new StandardizerModel(baseTrainingResult.getModel(), outputTrans, inputTrans)
 
   override def getFeatureImportance(): Option[Vector[Double]] = baseTrainingResult.getFeatureImportance()
 }
 
 /**
-  * Model that wrapps the base model next to the transformations
+  * Training result wrapping the base learner's training result next to the transformations
   *
-  * @param baseModel
-  * @param trans
-  * @tparam T
+  * @param baseTrainingResult result of training on the standardized inputs and output
+  * @param outputTrans optional sequence of transformation (rescale, offset) of output labels
+  * @param inputTrans sequence of optional transformations (rescale, offset) of inputs
   */
-class StandardizerModel[T](baseModel: Model[PredictionResult[T]], trans: Seq[Option[(Double, Double)]]) extends Model[PredictionResult[T]] {
+class MultiTaskStandardizerTrainingResult(
+                                           baseTrainingResult: MultiTaskTrainingResult,
+                                           outputTrans: Seq[Option[(Double, Double)]],
+                                           inputTrans: Seq[Option[(Double, Double)]]
+                                         ) extends MultiTaskTrainingResult {
+  override def getModel(): MultiTaskModel = new ParallelModels(getModels(), baseTrainingResult.getModel().getRealLabels)
+
+  override def getModels(): Seq[Model[PredictionResult[Any]]] = baseTrainingResult.getModels().zipWithIndex.map { case (model, i) =>
+    new StandardizerModel(model, outputTrans(i), inputTrans)
+  }
+
+  override def getFeatureImportance(): Option[Vector[Double]] = baseTrainingResult.getFeatureImportance()
+
+  // TODO: extract predictedVsActual from baseTrainingResult and apply standardization
+}
+
+/**
+  * Model that wraps the base model next to the transformations
+  *
+  * @param baseModel model trained on the standardized inputs and outputs
+  * @param outputTrans optional transformation (rescale, offset) of output label
+  * @param inputTrans sequence of optional transformations (rescale, offset) of inputs
+  * @tparam T type of prediction
+  */
+class StandardizerModel[T](
+                            baseModel: Model[PredictionResult[T]],
+                            outputTrans: Option[(Double, Double)],
+                            inputTrans: Seq[Option[(Double, Double)]]
+                          ) extends Model[PredictionResult[T]] {
 
   /**
     * Standardize the inputs and then apply the base model
@@ -103,19 +129,24 @@ class StandardizerModel[T](baseModel: Model[PredictionResult[T]], trans: Seq[Opt
     * @return a predictionresult which includes, at least, the expected outputs
     */
   override def transform(inputs: Seq[Vector[Any]]): StandardizerPrediction[T] = {
-    val standardInputs = Standardizer.applyStandardization(inputs, trans.tail)
-    new StandardizerPrediction(baseModel.transform(standardInputs), trans)
+    val standardInputs = Standardizer.applyStandardization(inputs, inputTrans)
+    new StandardizerPrediction(baseModel.transform(standardInputs), outputTrans, inputTrans)
   }
 }
 
 /**
   * Prediction that wraps the base prediction next to the transformation
   *
-  * @param baseResult
-  * @param trans
-  * @tparam T
+  * @param baseResult result of applying model to standardized inputs
+  * @param outputTrans optional transformation (rescale, offset) of output prediction
+  * @param inputTrans sequence of optional transformations (rescale, offset) of inputs
+  * @tparam T type of prediction
   */
-class StandardizerPrediction[T](baseResult: PredictionResult[T], trans: Seq[Option[(Double, Double)]]) extends PredictionResult[T] {
+class StandardizerPrediction[T](
+                                 baseResult: PredictionResult[T],
+                                 outputTrans: Option[(Double, Double)],
+                                 inputTrans: Seq[Option[(Double, Double)]]
+                               ) extends PredictionResult[T] {
   /**
     * Get the expected values for this prediction
     *
@@ -139,7 +170,7 @@ class StandardizerPrediction[T](baseResult: PredictionResult[T], trans: Seq[Opti
     */
   override def getUncertainty(includeNoise: Boolean = true): Option[Seq[Any]] = {
     baseResult.getUncertainty(includeNoise) match {
-      case Some(x) if trans.head.isDefined => Some(x.map(_.asInstanceOf[Double] * rescale))
+      case Some(x) if outputTrans.isDefined => Some(x.map(_.asInstanceOf[Double] * rescale))
       case x: Any => x
     }
   }
@@ -156,7 +187,7 @@ class StandardizerPrediction[T](baseResult: PredictionResult[T], trans: Seq[Opti
     baseResult.getGradient() match {
       case None => None
       case Some(x) =>
-        Some(x.map(g => g.zip(trans.tail).map {
+        Some(x.map(g => g.zip(inputTrans).map {
           case (0.0, Some((_, Double.PositiveInfinity))) => 0
           // If there was a (linear) transformer used on that input, take the slope "m" and rescale by it
           case (y: Double, Some((_, m))) => y * rescale * m
@@ -166,8 +197,8 @@ class StandardizerPrediction[T](baseResult: PredictionResult[T], trans: Seq[Opti
     }
   }
 
-  val rescale = 1.0 / trans.head.map(_._2).getOrElse(1.0)
-  val intercept = trans.head.map(_._1).getOrElse(1.0)
+  val rescale = 1.0 / outputTrans.map(_._2).getOrElse(1.0)
+  val intercept = outputTrans.map(_._1).getOrElse(1.0)
 }
 
 /**
@@ -205,9 +236,9 @@ object Standardizer {
     val rep = values.head
     rep.indices.map { i =>
       rep(i) match {
-        case x: Double =>
+        case _: Double =>
           Some(getStandardization(values.map(r => r(i).asInstanceOf[Double])))
-        case x: Any => None
+        case _: Any => None
       }
     }
   }

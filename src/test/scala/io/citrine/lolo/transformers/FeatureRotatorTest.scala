@@ -1,6 +1,6 @@
 package io.citrine.lolo.transformers
 
-import breeze.linalg.{DenseMatrix, DenseVector, det}
+import breeze.linalg.{DenseMatrix, det}
 import io.citrine.lolo.TestUtils
 import io.citrine.lolo.linear.{GuessTheMeanLearner, LinearRegressionLearner}
 import io.citrine.lolo.stats.functions.Friedman
@@ -254,11 +254,11 @@ class FeatureRotatorTest {
     val rotatedLearner = new MultiTaskFeatureRotator(MultiTaskTreeLearner())
 
     val baseTrainingResult = baseLearner.train(inputs, Seq(doubleLabel, sparseCatLabel))
-    val baseDoubleModel = baseTrainingResult.head.getModel()
-    val baseCatModel = baseTrainingResult.last.getModel()
+    val baseDoubleModel = baseTrainingResult.getModels().head
+    val baseCatModel = baseTrainingResult.getModels().last
     val rotatedTrainingResult = rotatedLearner.train(inputs, Seq(doubleLabel, sparseCatLabel))
-    val rotatedDoubleModel = rotatedTrainingResult.head.getModel().asInstanceOf[RotatedFeatureModel[Double]]
-    val rotatedCatModel = rotatedTrainingResult.last.getModel().asInstanceOf[RotatedFeatureModel[Boolean]]
+    val rotatedDoubleModel = rotatedTrainingResult.getModels().head.asInstanceOf[RotatedFeatureModel[Double]]
+    val rotatedCatModel = rotatedTrainingResult.getModels().last.asInstanceOf[RotatedFeatureModel[Boolean]]
 
     // Check double labels are the same
     val baseDoubleResult = baseDoubleModel.transform(inputs).getExpected()

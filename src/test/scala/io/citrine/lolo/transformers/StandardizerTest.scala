@@ -186,8 +186,8 @@ class StandardizerTest {
 
     // Train and evaluate standard models on original and rescaled labels
     val standardizer = new MultiTaskStandardizer(MultiTaskTreeLearner())
-    val baseRes = standardizer.train(inputs, Seq(doubleLabel, sparseCatLabel)).last.getModel().transform(inputs).getExpected()
-    val standardRes = standardizer.train(inputs, Seq(rescaledLabel, sparseCatLabel)).last.getModel().transform(inputs).getExpected()
+    val baseRes = standardizer.train(inputs, Seq(doubleLabel, sparseCatLabel)).getModels().last.transform(inputs).getExpected()
+    val standardRes = standardizer.train(inputs, Seq(rescaledLabel, sparseCatLabel)).getModels().last.transform(inputs).getExpected()
     // Train and evaluate unstandardized model on rescaled labels
 
     // Compute metrics for each of the models
