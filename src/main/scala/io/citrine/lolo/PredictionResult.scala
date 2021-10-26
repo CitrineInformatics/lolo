@@ -178,5 +178,9 @@ trait MultiTaskModelPredictionResult extends PredictionResult[Seq[Any]] {
     * @return optional sequence of correlation coefficients between specified labels for each prediction
     */
   def getUncertaintyCorrelation(i: Int, j: Int): Option[Seq[Double]] = None
+}
 
+/** A container that holds the predictions of several parallel models for multiple labels. */
+class MultiModelDefinedResult(predictions: Seq[Seq[Any]]) extends MultiTaskModelPredictionResult {
+  override def getExpected(): Seq[Seq[Any]] = predictions
 }

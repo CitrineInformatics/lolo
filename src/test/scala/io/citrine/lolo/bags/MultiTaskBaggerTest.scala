@@ -205,7 +205,7 @@ class MultiTaskBaggerTest {
       .map(_._1)
     val predictionResult = RF.transform(testInputs)
     assert(predictionResult.asInstanceOf[BaggedResult[Seq[Any]]].predictions.length == 64)
-    val expected = predictionResult.getExpected().asInstanceOf[Seq[Seq[Any]]]
+    val expected = predictionResult.getExpected()
     assert(expected.length == 32)
     assert(expected.head.length == 2)
   }
@@ -239,11 +239,10 @@ class MultiTaskBaggerTest {
     val DTLearner = MultiTaskTreeLearner()
     val baggedLearner = MultiTaskBagger(DTLearner, numBags = inputs.size, biasLearner = Some(GuessTheMeanLearner(rng = rng)), randBasis = TestUtils.getBreezeRandBasis(7839L))
     val trainingResult = baggedLearner.train(inputs, Seq(sparseReal, sparseCat))
-    val RFMeta = trainingResult.last
-    val RF = RFMeta.getModel()
+    val RF = trainingResult.getModels().last
 
     val catResults = RF.transform(inputs).getExpected()
-    val realUncertainty = trainingResult.head.getModel().transform(inputs).getUncertainty().get
+    val realUncertainty = trainingResult.getModels().head.transform(inputs).getUncertainty().get
     assert(realUncertainty.forall(!_.asInstanceOf[Double].isNaN), s"Some uncertainty values were NaN")
 
     val referenceModel = Bagger(ClassificationTreeLearner(), numBags = inputs.size)
@@ -258,11 +257,9 @@ class MultiTaskBaggerTest {
 
     // Make sure we can grab the loss without issue
     val singleLoss = referenceModel.getLoss().get
-    val multiLoss = RFMeta.getLoss().get
-    val regressionLoss = trainingResult.head.getLoss().get
+    val multiLoss = trainingResult.getLoss().get
     assert(!singleLoss.isNaN, "Single task classification loss was NaN")
-    assert(!multiLoss.isNaN, "Sparse multitask classification loss was NaN")
-    assert(!regressionLoss.isNaN, "Sparse regression loss was NaN")
+    assert(!multiLoss.isNaN, "Sparse multitask loss was NaN")
 
     assert(multiF1 > singleF1, s"Multi-task is under-performing single-task")
     assert(multiF1 <= 1.0, "Multitask classification F1 score was greater than 1.0")

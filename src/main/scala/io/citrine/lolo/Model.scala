@@ -42,3 +42,23 @@ trait MultiTaskModel extends Model[MultiTaskModelPredictionResult] {
   /** Individual models corresponding to each label */
   def getModels: Seq[Model[PredictionResult[Any]]]
 }
+
+/**
+  * A set of parallel models, one for each label.
+  *
+  * @param models     sequence of models, one for each label
+  * @param realLabels boolean sequence indicating which labels are real-valued
+  */
+class ParallelModels(models: Seq[Model[PredictionResult[Any]]], realLabels: Seq[Boolean]) extends MultiTaskModel {
+  override val numLabels: Int = models.length
+
+  override def getRealLabels: Seq[Boolean] = realLabels
+
+  override def getModels: Seq[Model[PredictionResult[Any]]] = models
+
+  override def transform(inputs: Seq[Vector[Any]]) = new MultiModelDefinedResult(
+    models.map { model =>
+      model.transform(inputs).getExpected()
+    }.transpose
+  )
+}

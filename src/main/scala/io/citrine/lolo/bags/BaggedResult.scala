@@ -1,8 +1,7 @@
 package io.citrine.lolo.bags
 
 import breeze.linalg.{DenseMatrix, DenseVector, norm}
-import io.citrine.lolo.trees.multitask.MultiModelDefinedResult
-import io.citrine.lolo.{MultiTaskModelPredictionResult, PredictionResult, RegressionResult}
+import io.citrine.lolo.{MultiModelDefinedResult, MultiTaskModelPredictionResult, PredictionResult, RegressionResult}
 import io.citrine.lolo.util.Async
 import org.slf4j.{Logger, LoggerFactory}
 
