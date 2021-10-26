@@ -154,7 +154,9 @@ case class MultiTaskCombinedBagger(
       trainingData = trainingData,
       useJackknife = useJackknife,
       biasModels = biasModels,
-      rescaleRatios = ratios
+      rescaleRatios = ratios,
+      labels,
+      weightsActual
     )
   }
 
@@ -178,10 +180,12 @@ class MultiTaskBaggedTrainingResult(
                                    trainingData: Seq[(Vector[Any], Seq[Any])],
                                    useJackknife: Boolean,
                                    biasModels: Seq[Option[Model[PredictionResult[Double]]]],
-                                   rescaleRatios: Seq[Double]
+                                   rescaleRatios: Seq[Double],
+                                   trainingLabels: Seq[Seq[Any]],
+                                   trainingWeights: Seq[Double]
                                    ) extends MultiModelTrainingResult {
 
-  lazy val model = new MultiTaskBaggedModel(models, Nib, useJackknife, biasModels)
+  lazy val model = new MultiTaskBaggedModel(models, Nib, useJackknife, biasModels, trainingLabels, trainingWeights)
 
   override def getFeatureImportance(): Option[Vector[Double]] = featureImportance
 
@@ -202,7 +206,9 @@ class MultiTaskBaggedModel(
                           models: ParSeq[MultiModel],
                           Nib: Vector[Vector[Int]],
                           useJackknife: Boolean,
-                          biasModels: Seq[Option[Model[PredictionResult[Double]]]]
+                          biasModels: Seq[Option[Model[PredictionResult[Double]]]],
+                          trainingLabels: Seq[Seq[Any]],
+                          trainingWeights: Seq[Double]
                           ) extends MultiModel {
 
   lazy val groupedModels: Seq[BaggedModel[Any]] = Seq.tabulate(numLabels) { i =>
@@ -214,7 +220,8 @@ class MultiTaskBaggedModel(
     }
   }
 
-  override def transform(inputs: Seq[Vector[Any]]): MultiModelPredictionResult = MultiTaskBaggedResult(groupedModels.map(_.transform(inputs)), getRealLabels)
+  override def transform(inputs: Seq[Vector[Any]]): MultiModelPredictionResult =
+    MultiTaskBaggedResult(groupedModels.map(_.transform(inputs)), getRealLabels, trainingLabels, trainingWeights)
 
   override val numLabels: Int = models.head.numLabels
 

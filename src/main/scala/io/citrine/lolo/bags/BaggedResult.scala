@@ -1,9 +1,11 @@
 package io.citrine.lolo.bags
 
 import breeze.linalg.{DenseMatrix, DenseVector, norm}
+import io.citrine.lolo.bags.CorrelationMethods.{Bootstrap, CorrelationMethod, FromTraining, Jackknife, Trivial}
 import io.citrine.lolo.trees.multitask.{MultiModelDefinedResult, MultiModelPredictionResult}
 import io.citrine.lolo.{PredictionResult, RegressionResult}
 import io.citrine.lolo.util.Async
+import io.citrine.lolo.stats.utils
 import org.slf4j.{Logger, LoggerFactory}
 
 /**
@@ -406,13 +408,24 @@ case class BaggedMultiResult(
   }
 }
 
+object CorrelationMethods extends Enumeration {
+  type CorrelationMethod = Value
+
+  val Trivial, FromTraining, Bootstrap, Jackknife = Value
+}
+
 /**
   * Container with model-wise predictions for each label and the machinery to compute (co)variance.
   *
   * @param baggedPredictions  bagged prediction results for each label
   * @param realLabels         a boolean sequence indicating which labels are real-valued
   */
-case class MultiTaskBaggedResult(baggedPredictions: Seq[BaggedResult[Any]], realLabels: Seq[Boolean]) extends BaggedResult[Seq[Any]] with MultiModelPredictionResult {
+case class MultiTaskBaggedResult(
+                                  baggedPredictions: Seq[BaggedResult[Any]],
+                                  realLabels: Seq[Boolean],
+                                  trainingLabels: Seq[Seq[Any]],
+                                  trainingWeights: Seq[Double]
+                                ) extends BaggedResult[Seq[Any]] with MultiModelPredictionResult {
 
   override lazy val numPredictions: Int = baggedPredictions.head.numPredictions
 
@@ -433,14 +446,52 @@ case class MultiTaskBaggedResult(baggedPredictions: Seq[BaggedResult[Any]], real
     }.transpose)
   }
 
-  override def getUncertaintyCorrelation(i: Int, j: Int): Option[Seq[Double]] = {
-    (realLabels(i), realLabels(j)) match {
-      case (true, true) if i == j => Some(Seq.fill(numPredictions)(1.0))
-      case (true, true) if i != j => Some(Seq.fill(numPredictions)(0.0))
-      case _: Any                 => None
+  override def getUncertaintyCorrelation(i: Int, j: Int): Option[Seq[Double]] = getUncertaintyCorrelationTrivial(i, j)
+
+  def getUncertaintyCorrelationBuffet(i: Int, j: Int, method: CorrelationMethod): Option[Seq[Double]] = {
+    method match {
+      case Trivial => getUncertaintyCorrelationTrivial(i, j)
+      case FromTraining => getUncertaintyCorrelationTraining(i, j)
+      case Bootstrap => getUncertaintyCorrelationBootstrap(i, j)
+      case Jackknife => ???
     }
   }
 
+  private def getUncertaintyCorrelationTrivial(i: Int, j: Int): Option[Seq[Double]] = {
+    (realLabels(i), realLabels(j)) match {
+      case (true, true) if i == j => Some(Seq.fill(numPredictions)(1.0))
+      case (true, true) => Some(Seq.fill(numPredictions)(0.0))
+      case _: Any => None
+    }
+  }
+
+  private def getUncertaintyCorrelationTraining(i: Int, j: Int): Option[Seq[Double]] = {
+    (realLabels(i), realLabels(j)) match {
+      case (true, true) if i == j => Some(Seq.fill(numPredictions)(1.0))
+      case (true, true) =>
+        val yI = trainingLabels(i).asInstanceOf[Seq[Double]]
+        val yJ = trainingLabels(j).asInstanceOf[Seq[Double]]
+        val rho = utils.correlation(yI, yJ, Some(trainingWeights))
+        Some(Seq.fill(numPredictions)(rho))
+      case _: Any => None
+    }
+  }
+
+  private def getUncertaintyCorrelationBootstrap(i: Int, j: Int): Option[Seq[Double]] = {
+    (realLabels(i), realLabels(j)) match {
+      case (true, true) if i == j => Some(Seq.fill(numPredictions)(1.0))
+      case (true, true) =>
+        // make (# predictions) x (# bags) prediction matrices for each label
+        val baggedPredictionsI = baggedPredictions(i).predictions.map(_.getExpected()).transpose.asInstanceOf[Seq[Seq[Double]]]
+        val baggedPredictionsJ = baggedPredictions(j).predictions.map(_.getExpected()).transpose.asInstanceOf[Seq[Seq[Double]]]
+        // Note that this does not take bias model into account
+        Some(baggedPredictionsI.zip(baggedPredictionsJ).map { case (bagsI, bagsJ) =>
+          utils.correlation(bagsI, bagsJ)
+        })
+      case _: Any => None
+
+    }
+  }
 }
 
 object BaggedResult {
