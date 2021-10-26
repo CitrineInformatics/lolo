@@ -76,10 +76,10 @@ object CorrelationStudy {
     X.zip(residuals).map { case (x, residual) => rho * stdResiduals * x + math.sqrt(1 - rho * rho) * stdX * residual}
   }
 
-  def makeQuadraticCorrelatedData(Y: Seq[Double], sigma: Double = 0.0, rng: Random = new Random()): Seq[Double] = {
+  def makeQuadraticCorrelatedData(X: Seq[Double], sigma: Double = 0.0, rng: Random = new Random()): Seq[Double] = {
     require(sigma >= 0.0)
-    val mu = Y.sum / Y.size
-    Y.map(y => math.pow(y - mu, 2.0) + sigma * rng.nextGaussian())
+    val mu = X.sum / X.size
+    X.map(x => math.pow(x - mu, 2.0) + sigma * rng.nextGaussian())
   }
 
 }

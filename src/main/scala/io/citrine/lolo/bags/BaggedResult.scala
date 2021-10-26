@@ -5,6 +5,7 @@ import io.citrine.lolo.bags.CorrelationMethods.{Bootstrap, CorrelationMethod, Fr
 import io.citrine.lolo.trees.multitask.{MultiModelDefinedResult, MultiModelPredictionResult}
 import io.citrine.lolo.{PredictionResult, RegressionResult}
 import io.citrine.lolo.util.Async
+import io.citrine.lolo.stats.utils
 import org.slf4j.{Logger, LoggerFactory}
 
 /**
@@ -428,8 +429,6 @@ case class MultiTaskBaggedResult(
 
   override lazy val numPredictions: Int = baggedPredictions.head.numPredictions
 
-  private val totalWeight = trainingWeights.sum
-
   override def getExpected(): Seq[Seq[Any]] = baggedPredictions.map(_.getExpected()).transpose
 
   override def predictions: Seq[PredictionResult[Seq[Any]]] = baggedPredictions
@@ -472,13 +471,7 @@ case class MultiTaskBaggedResult(
       case (true, true) =>
         val yI = trainingLabels(i).asInstanceOf[Seq[Double]]
         val yJ = trainingLabels(j).asInstanceOf[Seq[Double]]
-        val meanI = yI.zip(trainingWeights).map { case (yIk, w) => yIk * w }.sum / yI.size
-        val meanJ = yJ.zip(trainingWeights).map { case (yJk, w) => yJk * w }.sum / yJ.size
-        val numerator = (yI, yJ, trainingWeights).zipped.map { case (yIk, yJk, w) => (yIk - meanI) * (yJk - meanJ) * w }.sum
-        val varianceI: Double = yI.zip(trainingWeights).map { case (yIk, w) => math.pow(yIk - meanI, 2.0) * w }.sum
-        val varianceJ: Double = yJ.zip(trainingWeights).map { case (yJk, w) => math.pow(yJk - meanJ, 2.0) * w }.sum
-        val denominator = math.sqrt(varianceI * varianceJ)
-        val rho = numerator / denominator
+        val rho = utils.correlation(yI, yJ, Some(trainingWeights))
         Some(Seq.fill(numPredictions)(rho))
       case _: Any => None
     }
@@ -492,20 +485,8 @@ case class MultiTaskBaggedResult(
         val baggedPredictionsI = baggedPredictions(i).predictions.map(_.getExpected()).transpose.asInstanceOf[Seq[Seq[Double]]]
         val baggedPredictionsJ = baggedPredictions(j).predictions.map(_.getExpected()).transpose.asInstanceOf[Seq[Seq[Double]]]
         // Note that this does not take bias model into account
-        val expectedI = baggedPredictionsI.map(ps => ps.sum / ps.size)
-        val expectedJ = baggedPredictionsJ.map(ps => ps.sum / ps.size)
-        val varianceI = baggedPredictionsI.zip(expectedI).map { case (bags, mu) =>
-          bags.map { b => math.pow(b - mu, 2.0) }.sum
-        }
-        val varianceJ = baggedPredictionsJ.zip(expectedJ).map { case (bags, mu) =>
-          bags.map { b => math.pow(b - mu, 2.0) }.sum
-        }
-        val covarianceIJ = baggedPredictionsI.zip(expectedI).zip(baggedPredictionsJ.zip(expectedJ))
-          .map { case ((bagsI, muI), (bagsJ, muJ)) =>
-            bagsI.zip(bagsJ).map { case (bI, bJ) => (bI - muI) * (bJ - muJ) }.sum
-          }
-        Some((covarianceIJ, varianceI, varianceJ).zipped.map { case (sigmaIJ, sigmaI2, sigmaJ2) =>
-          if (sigmaI2 > 0 && sigmaJ2 > 0) sigmaIJ / math.sqrt(sigmaI2 * sigmaJ2) else 0.0
+        Some(baggedPredictionsI.zip(baggedPredictionsJ).map { case (bagsI, bagsJ) =>
+          utils.correlation(bagsI, bagsJ)
         })
       case _: Any => None
 

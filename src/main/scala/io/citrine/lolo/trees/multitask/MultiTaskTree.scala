@@ -20,7 +20,7 @@ trait MultiTaskTree {
     * Construct one regression or classification tree for each label.
     *
     * @param inputs   to train on
-    * @param labels   sequence of sequences of labels
+    * @param labels   sequence of sequences of labels (# labels x # training)
     * @param weights  for the training rows, if applicable
     * @return         sequence of models, one for each label
     * @return
