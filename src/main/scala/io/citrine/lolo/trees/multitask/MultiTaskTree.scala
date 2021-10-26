@@ -4,17 +4,15 @@ import io.citrine.lolo.encoders.CategoricalEncoder
 import io.citrine.lolo.trees.ModelNode
 import io.citrine.lolo.trees.classification.ClassificationTree
 import io.citrine.lolo.trees.regression.RegressionTree
-import io.citrine.lolo.{Model, MultiTaskCombinedLearner, MultiTaskLearner, PredictionResult, TrainingResult}
+import io.citrine.lolo.{Model, MultiTaskLearner, MultiTaskTrainingResult, PredictionResult, TrainingResult}
 
 import scala.util.Random
 
 /** A trait to hold logic common to all tree learners that operate on multiple labels. */
-trait MultiTaskTree {
-  /** whether to generate splits randomly between the data points */
-  val randomizePivotLocation: Boolean
-
-  /** random seed to use during training */
-  val rng: Random
+case class MultiTaskTreeLearner(
+                                 randomizePivotLocation: Boolean = false,
+                                 rng: Random = Random
+                               ) extends MultiTaskLearner {
 
   /**
     * Construct one regression or classification tree for each label.
@@ -25,7 +23,7 @@ trait MultiTaskTree {
     * @return         sequence of models, one for each label
     * @return
     */
-  def makeModels(inputs: Seq[Vector[Any]], labels: Seq[Seq[Any]], weights: Option[Seq[Double]]): Seq[Model[PredictionResult[Any]]] = {
+  override def train(inputs: Seq[Vector[Any]], labels: Seq[Seq[Any]], weights: Option[Seq[Double]]): MultiTaskTreeTrainingResult = {
     val labelsTransposed = labels.toVector.transpose
 
     /* Create encoders for any categorical features */
@@ -62,7 +60,7 @@ trait MultiTaskTree {
     val nodes = labels.indices.map(root.getNode)
 
     // Stick the model trees into RegressionTree and ClassificationTree objects
-    labels.indices.map { i =>
+    val models = labels.indices.map { i =>
       if (labels(i).head.isInstanceOf[Double]) {
         new RegressionTree(
           nodes(i).asInstanceOf[ModelNode[PredictionResult[Double]]],
@@ -76,50 +74,17 @@ trait MultiTaskTree {
         )
       }
     }
+
+    new MultiTaskTreeTrainingResult(models)
   }
 }
 
-/** Multi-task tree learner, which produces multiple decision trees with the same split structure. */
-case class MultiTaskTreeLearner(
-                                 randomizePivotLocation: Boolean = false,
-                                 rng: Random = Random
-                               ) extends MultiTaskLearner with MultiTaskTree {
-
-  /** Train models and wrap each one in its own training result. */
-  override def train(inputs: Seq[Vector[Any]], labels: Seq[Seq[Any]], weights: Option[Seq[Double]]): Seq[TrainingResult] = {
-    val models = makeModels(inputs, labels, weights)
-    models.map(new MultiTaskTreeTrainingResult(_))
-  }
-
-}
-
-/** Multi-task tree learner, which produces multiple decision trees with the same split structure and packages them into a single model. */
-case class MultiTaskCombinedTreeLearner(
-                                         randomizePivotLocation: Boolean = false,
-                                         rng: Random = Random
-                                       ) extends MultiTaskCombinedLearner with MultiTaskTree {
-
-  /** Train models and wrap them all in a single training result. */
-  override def train(inputs: Seq[Vector[Any]], labels: Seq[Seq[Any]], weights: Option[Seq[Double]]): MultiModelTrainingResult = {
-    val models = makeModels(inputs, labels, weights)
-    new MultiTaskTreeParallelTrainingResult(models)
-  }
-
-}
-
-class MultiTaskTreeParallelTrainingResult(models: Seq[Model[PredictionResult[Any]]]) extends MultiModelTrainingResult {
+class MultiTaskTreeTrainingResult(models: Seq[Model[PredictionResult[Any]]]) extends MultiTaskTrainingResult {
   val model = new ParallelModels(models, models.map(_.isInstanceOf[RegressionTree]))
 
   override def getModel(): ParallelModels = model
 
-  // TODO: combine feature importances of individual models (which are not currently available)
-}
+  override def getModels(): Seq[Model[PredictionResult[Any]]] = models
 
-class MultiTaskTreeTrainingResult(model: Model[PredictionResult[Any]]) extends TrainingResult {
-  /**
-    * Get the model contained in the training result
-    *
-    * @return the model
-    */
-  override def getModel(): Model[PredictionResult[Any]] = model
+  // TODO: combine feature importances of individual models (which are not currently available)
 }

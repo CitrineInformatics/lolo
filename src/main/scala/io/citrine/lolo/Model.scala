@@ -30,3 +30,15 @@ trait Model[+T <: PredictionResult[Any]] extends Serializable {
              ): Option[DenseMatrix[Double]] = None
 
 }
+
+/** A model that predicts a sequence of values, corresponding to multiple labels. */
+trait MultiTaskModel extends Model[MultiTaskModelPredictionResult] {
+  /** The number of labels. Every prediction must have this length. */
+  val numLabels: Int
+
+  /** A boolean sequence indicating which labels are real-valued. Its length must be equal to `numLabels`. */
+  def getRealLabels: Seq[Boolean]
+
+  /** Individual models corresponding to each label */
+  def getModels: Seq[Model[PredictionResult[Any]]]
+}

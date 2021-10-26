@@ -29,7 +29,7 @@ class MultiTaskTreeTest {
   @Test
   def testTwoLabels(): Unit = {
     val learner = MultiTaskTreeLearner()
-    val models = learner.train(inputs, Seq(realLabel, catLabel)).map(_.getModel())
+    val models = learner.train(inputs, Seq(realLabel, catLabel)).getModels()
     assert(models.size == 2)
     assert(models.head.isInstanceOf[RegressionTree])
     assert(models.last.isInstanceOf[ClassificationTree])
@@ -54,7 +54,7 @@ class MultiTaskTreeTest {
     )
 
     val learner = MultiTaskTreeLearner()
-    val models = learner.train(inputs, Seq(realLabel, sparseCat)).map(_.getModel())
+    val models = learner.train(inputs, Seq(realLabel, sparseCat)).getModels()
     val realResults = models.head.transform(inputs).getExpected().asInstanceOf[Seq[Double]]
     val catResults = models.last.transform(inputs).getExpected().asInstanceOf[Seq[Boolean]]
 
@@ -76,7 +76,7 @@ class MultiTaskTreeTest {
     )
 
     val learner = new MultiTaskTreeLearner()
-    val models = learner.train(inputs, Seq(realLabel, sparseCat)).map(_.getModel())
+    val models = learner.train(inputs, Seq(realLabel, sparseCat)).getModels()
     val catResults = models.last.transform(inputs).getExpected().asInstanceOf[Seq[Boolean]]
 
     val reference = new ClassificationTreeLearner()
@@ -99,8 +99,8 @@ class MultiTaskTreeTest {
     val rng = new Random(seed)
     val combinedModelRng = new Random(seed)
     val learner = MultiTaskTreeLearner(rng = rng)
-    val combinedModelLearner = MultiTaskCombinedTreeLearner(rng = combinedModelRng)
-    val models = learner.train(inputs, Seq(realLabel, catLabel)).map(_.getModel())
+    val combinedModelLearner = MultiTaskTreeLearner(rng = combinedModelRng)
+    val models = learner.train(inputs, Seq(realLabel, catLabel)).getModels()
     val combinedModel = combinedModelLearner.train(inputs, Seq(realLabel, catLabel)).getModel()
 
     // Generate new inputs to test equality on.

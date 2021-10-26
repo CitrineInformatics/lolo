@@ -6,7 +6,7 @@ import io.citrine.lolo.linear.GuessTheMeanLearner
 import io.citrine.lolo.stats.functions.Friedman
 import io.citrine.lolo.stats.metrics.ClassificationMetrics
 import io.citrine.lolo.trees.classification.ClassificationTreeLearner
-import io.citrine.lolo.trees.multitask.{MultiTaskCombinedTreeLearner, MultiTaskTreeLearner}
+import io.citrine.lolo.trees.multitask.MultiTaskTreeLearner
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
 import org.junit.Test
 import org.scalatest.Assertions._
@@ -33,8 +33,8 @@ class MultiTaskBaggerTest {
     val labels = trainingData.map(_._2)
     val DTLearner = MultiTaskTreeLearner()
     val baggedLearner = MultiTaskBagger(DTLearner, numBags = trainingData.size, randBasis = TestUtils.getBreezeRandBasis(10478L))
-    val RFMeta = baggedLearner.train(inputs, Seq(labels)).head
-    val RF = RFMeta.getModel()
+    val RFMeta = baggedLearner.train(inputs, Seq(labels))
+    val RF = RFMeta.getModels().head
 
 
     val results = RF.transform(trainingData.map(_._1))
@@ -67,8 +67,8 @@ class MultiTaskBaggerTest {
               val inputs = trainingData.map(_._1)
               val labels = trainingData.map(_._2)
               val baggedLearner = MultiTaskBagger(baseLearner, numBags = nBags, uncertaintyCalibration = true, randBasis = TestUtils.getBreezeRandBasis(7835178L))
-              val RFMeta = baggedLearner.train(inputs, Seq(labels)).head
-              val RF = RFMeta.getModel()
+              val RFMeta = baggedLearner.train(inputs, Seq(labels))
+              val RF = RFMeta.getModels().head
               val results = RF.transform(trainingData.take(4).map(_._1))
 
               val sigmaMean: Seq[Double] = results.getUncertainty(observational = false).get.asInstanceOf[Seq[Double]]
@@ -145,8 +145,8 @@ class MultiTaskBaggerTest {
     val labels = trainingData.map(_._2)
     val DTLearner = MultiTaskTreeLearner()
     val baggedLearner = MultiTaskBagger(DTLearner, numBags = trainingData.size, randBasis = TestUtils.getBreezeRandBasis(478L))
-    val RFMeta = baggedLearner.train(inputs, Seq(labels)).head
-    val RF = RFMeta.getModel()
+    val RFMeta = baggedLearner.train(inputs, Seq(labels))
+    val RF = RFMeta.getModels().head
 
     /* Inspect the results */
     val results = RF.transform(trainingData.map(_._1))
@@ -177,8 +177,8 @@ class MultiTaskBaggerTest {
     val catLabel: Seq[Boolean] = raw.map(_._2 > realLabel.max / 2.0)
     val DTLearner = MultiTaskTreeLearner()
     val baggedLearner = MultiTaskBagger(DTLearner, numBags = inputs.size, biasLearner = Some(new RegressionTreeLearner(maxDepth = 2)), randBasis = TestUtils.getBreezeRandBasis(78495L))
-    val RFMeta = baggedLearner.train(inputs, Seq(realLabel, catLabel)).last
-    val RF = RFMeta.getModel()
+    val RFMeta = baggedLearner.train(inputs, Seq(realLabel, catLabel))
+    val RF = RFMeta.getModels().last
 
     val catResults = RF.transform(inputs).getExpected().asInstanceOf[Seq[Boolean]]
     assert(catResults.zip(catLabel).forall(p => p._1 == p._2))
@@ -192,8 +192,8 @@ class MultiTaskBaggerTest {
     val realLabel: Seq[Double] = raw.map(_._2)
     val catLabel: Seq[Boolean] = raw.map(_._2 > realLabel.max / 2.0)
 
-    val learner = MultiTaskCombinedTreeLearner()
-    val baggedLearner = MultiTaskCombinedBagger(
+    val learner = MultiTaskTreeLearner()
+    val baggedLearner = MultiTaskBagger(
       learner,
       numBags = 64,
       biasLearner = Some(RegressionTreeLearner(maxDepth = 2))

@@ -1,8 +1,8 @@
 package io.citrine.lolo.bags
 
 import breeze.linalg.{DenseMatrix, DenseVector, norm}
-import io.citrine.lolo.trees.multitask.{MultiModelDefinedResult, MultiModelPredictionResult}
-import io.citrine.lolo.{PredictionResult, RegressionResult}
+import io.citrine.lolo.trees.multitask.MultiModelDefinedResult
+import io.citrine.lolo.{MultiTaskModelPredictionResult, PredictionResult, RegressionResult}
 import io.citrine.lolo.util.Async
 import org.slf4j.{Logger, LoggerFactory}
 
@@ -412,7 +412,7 @@ case class BaggedMultiResult(
   * @param baggedPredictions  bagged prediction results for each label
   * @param realLabels         a boolean sequence indicating which labels are real-valued
   */
-case class MultiTaskBaggedResult(baggedPredictions: Seq[BaggedResult[Any]], realLabels: Seq[Boolean]) extends BaggedResult[Seq[Any]] with MultiModelPredictionResult {
+case class MultiTaskBaggedResult(baggedPredictions: Seq[BaggedResult[Any]], realLabels: Seq[Boolean]) extends BaggedResult[Seq[Any]] with MultiTaskModelPredictionResult {
 
   override lazy val numPredictions: Int = baggedPredictions.head.numPredictions
 
