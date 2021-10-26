@@ -116,13 +116,13 @@ class MultiTaskBaggedTrainingResult(
 
   override def getModels(): Seq[Model[PredictionResult[Any]]] = {
     val realLabels: Seq[Boolean] = models.head.getRealLabels
-    models.map(_.getModels).toVector.transpose.zipWithIndex.map { case (models: Vector[Model[PredictionResult[Any]]], i: Int) =>
+    models.map(_.getModels).transpose.zipWithIndex.map { case (models: ParSeq[Model[PredictionResult[Any]]], i: Int) =>
       if (realLabels(i)) {
         new BaggedModel[Double](models.asInstanceOf[ParSeq[Model[PredictionResult[Double]]]], Nib, useJackknife, biasModels(i), rescaleRatios(i))
       } else {
-        new BaggedModel[Any](models.par, Nib, useJackknife, biasModels(i), rescaleRatios(i))
+        new BaggedModel[Any](models.asInstanceOf[ParSeq[Model[PredictionResult[Any]]]], Nib, useJackknife, biasModels(i), rescaleRatios(i))
       }
-    }
+    }.toVector
   }
 
   // TODO: use trainingData and model to get predicted vs. actual, which can be used to get loss (see BaggedTrainingResult)
