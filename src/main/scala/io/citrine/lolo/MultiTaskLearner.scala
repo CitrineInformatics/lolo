@@ -11,7 +11,7 @@ trait MultiTaskLearner extends Serializable {
     * Train models
     *
     * @param inputs  to train on
-    * @param labels  sequence of sequences of labels
+    * @param labels  sequence of sequences of labels, with shape (# labels) x (# training rows)
     * @param weights for the training rows, if applicable
     * @return a sequence of training results, one for each label
     */
@@ -27,7 +27,7 @@ trait MultiTaskCombinedLearner extends Serializable {
     * Train a model
     *
     * @param inputs  to train on
-    * @param labels  sequence of sequences of labels
+    * @param labels  sequence of sequences of labels, with shape (# labels) x (# training rows)
     * @param weights for the training rows, if applicable
     * @return A training result that encompasses model(s) for all labels.
     */

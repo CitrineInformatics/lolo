@@ -19,24 +19,6 @@ trait MultiModelPredictionResult extends PredictionResult[Seq[Any]] {
     */
   def getUncertaintyCorrelation(i: Int, j: Int): Option[Seq[Double]] = None
 
-  /**
-    * Get the covariance between the predictions made on two labels.
-    *
-    * @param i              index of the first label
-    * @param j              index of the second label
-    * @param observational  whether the covariance should account for observational uncertainty
-    * @return               optional sequence of covariance between specified labels for each prediction
-    */
-  def getCovariance(i: Int, j: Int, observational: Boolean = true): Option[Seq[Double]] = {
-    (getUncertaintyCorrelation(i, j), getUncertainty(observational)) match {
-      case (Some(correlations), Some(uncertaintyMatrix)) =>
-        Some((correlations, uncertaintyMatrix(i), uncertaintyMatrix(j)).zipped.map { (rhoIJ, sigmaI, sigmaJ) =>
-          // If correlations is defined then i and j must be real-valued, so the uncertainties can be cast to doubles
-          rhoIJ * sigmaI.asInstanceOf[Double] * sigmaJ.asInstanceOf[Double]
-        })
-      case _: Any => None
-    }
-  }
 }
 
 /** A model that predicts a sequence of values, corresponding to multiple labels. */
