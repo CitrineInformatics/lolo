@@ -61,8 +61,6 @@ class MeritTest {
 
   /**
     * Test that the RMSE comes out correctly
-    *
-    * This has an false negative rate below 1/100
     */
   @Test
   def testRMSE(): Unit = {
@@ -75,12 +73,11 @@ class MeritTest {
 
   /**
     * Test that the coefficient of determination comes out right
-    *
-    * This has an false negative rate below 1/100
     */
   @Test
   def testCoefficientOfDeterminization(): Unit = {
-    val pva = getNormalPVA(noiseScale = 0.1, batchSize = 256, numBatch = 32)
+    val rng = new Random(34578L)
+    val pva = getNormalPVA(noiseScale = 0.1, batchSize = 256, numBatch = 32, rng = rng)
     val expected = 1 - 12 * 0.1 * 0.1
     val (r2, uncertainty) = CoefficientOfDetermination.estimate(pva)
     assert(Math.abs(r2 - expected) < 3 * uncertainty, "R^2 estimate was not accurate enough")
