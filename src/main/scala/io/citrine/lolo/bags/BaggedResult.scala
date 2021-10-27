@@ -119,7 +119,7 @@ case class SinglePredictionBaggedResult(
   private lazy val singleScores: Vector[Double] = {
     // Compute the Bessel-uncorrected variance of the ensemble of predicted values,
     // and then divide by the size of the ensemble an extra time
-    val varT = treeVariance * (treePredictions.length - 1.0) / (treePredictions.length * treePredictions.length)
+    val varT: Double = treeVariance * (treePredictions.length - 1.0) / (treePredictions.length * treePredictions.length)
 
     // This will be more convenient later
     val nMat = NibIn.transpose
@@ -128,7 +128,6 @@ case class SinglePredictionBaggedResult(
     val trainingContributions = nMat.indices.toVector.map { idx =>
       // Pull the vector of the number of times this instance was used to train each tree
       val vecN = nMat(idx).toArray
-      val nTot = vecN.sum
 
       // Loop over the trees, computing the covariance for the IJ estimate and the predicted value of
       // the out-of-bag trees for the J(ackknife) estimate
@@ -137,7 +136,7 @@ case class SinglePredictionBaggedResult(
       var tNot: Double = 0.0
       var tNotCount: Int = 0
       vecN.indices.foreach { jdx =>
-        cov = cov + (vecN(jdx) - nTot) * (treePredictions(jdx) - expected)
+        cov = cov + (vecN(jdx) - 1) * (treePredictions(jdx) - expected)
 
         if (vecN(jdx) == 0) {
           tNot = tNot + treePredictions(jdx)
@@ -359,7 +358,7 @@ case class MultiPredictionBaggedResult(
     modelPredictions.indices.map { i =>
       Async.canStop()
       /* Compute the first order bias correction for the variance estimators */
-      val correction = Math.pow(inverseSize * norm(predMat(::, i) - meanPrediction(i)), 2)
+      val correction: Double = Math.pow(inverseSize * norm(predMat(::, i) - meanPrediction(i)), 2)
 
       /* The correction is prediction dependent, so we need to operate on vectors */
       0.5 * (arg(::, i) - Math.E * correction)
@@ -420,13 +419,35 @@ object CorrelationMethods extends Enumeration {
   *
   * @param baggedPredictions  bagged prediction results for each label
   * @param realLabels         a boolean sequence indicating which labels are real-valued
+  * @param NibIn              the sampling matrix as (# bags) x (# training)
   */
 case class MultiTaskBaggedResult(
                                   baggedPredictions: Seq[BaggedResult[Any]],
                                   realLabels: Seq[Boolean],
+                                  NibIn: Vector[Vector[Int]],
                                   trainingLabels: Seq[Seq[Any]],
                                   trainingWeights: Seq[Double]
                                 ) extends BaggedResult[Seq[Any]] with MultiTaskModelPredictionResult {
+
+  lazy val Nib: Vector[Vector[Int]] = NibIn.transpose.map(_.map(_ - 1))
+
+  /* This matrix is used to compute the jackknife covariance */
+  lazy val NibJMat = new DenseMatrix[Double](Nib.head.size, Nib.size,
+    Nib.flatMap { v =>
+      val itot = 1.0 / v.size
+      val icount = 1.0 / v.count(_ == -1.0)
+      v.map(n => if (n == -1) icount - itot else -itot)
+    }.toArray
+  )
+
+  /* This matrix is used to compute the IJ covariance */
+  lazy val NibIJMat = new DenseMatrix[Double](Nib.head.size, Nib.size,
+    Nib.flatMap { v =>
+      val itot = 1.0 / v.size
+      val vtot = v.sum.toDouble / (v.size * v.size)
+      v.map(n => n * itot - vtot)
+    }.toArray
+  )
 
   override def numPredictions: Int = baggedPredictions.head.numPredictions
 
@@ -454,7 +475,7 @@ case class MultiTaskBaggedResult(
       case Trivial => getUncertaintyCorrelationTrivial(i, j)
       case FromTraining => getUncertaintyCorrelationTraining(i, j)
       case Bootstrap => getUncertaintyCorrelationBootstrap(i, j)
-      case Jackknife => ???
+      case Jackknife => getUncertaintyCorrelationJackknife(i, j)
     }
   }
 
@@ -490,7 +511,54 @@ case class MultiTaskBaggedResult(
           utils.correlation(bagsI, bagsJ)
         })
       case _: Any => None
+    }
+  }
 
+  private def getUncertaintyCorrelationJackknife(i: Int, j: Int): Option[Seq[Double]] = {
+    (realLabels(i), realLabels(j)) match {
+      case (true, true) if i == j => Some(Seq.fill(numPredictions)(1.0))
+      case (true, true) =>
+        val sigmaIOption = baggedPredictions(i).getUncertainty(observational = false).map(_.asInstanceOf[Seq[Double]])
+        val sigmaJOption = baggedPredictions(j).getUncertainty(observational = false).map(_.asInstanceOf[Seq[Double]])
+        (sigmaIOption, sigmaJOption) match {
+          case (Some(sigmaI), Some(sigmaJ)) =>
+            // make (# predictions) x (# bags) prediction matrices for each label
+            val baggedPredictionsI = baggedPredictions(i).predictions.map(_.getExpected()).transpose.asInstanceOf[Seq[Seq[Double]]]
+            val baggedPredictionsJ = baggedPredictions(j).predictions.map(_.getExpected()).transpose.asInstanceOf[Seq[Seq[Double]]]
+            // mean value for each prediction
+            val expectedI = baggedPredictionsI.map(ps => ps.sum / ps.size)
+            val expectedJ = baggedPredictionsJ.map(ps => ps.sum / ps.size)
+            // Stick the individual predictions into Breeze matrices
+            val predMatI = new DenseMatrix[Double](baggedPredictionsI.head.size, baggedPredictionsI.size, baggedPredictionsI.flatten.toArray)
+            val predMatJ = new DenseMatrix[Double](baggedPredictionsJ.head.size, baggedPredictionsJ.size, baggedPredictionsJ.flatten.toArray)
+            // Perform the jackknife calculation on the predictions for labels i and j, then multiply them together
+            val JMatI = NibJMat.t * predMatI
+            val JMatJ = NibJMat.t * predMatJ
+            val JMat2: DenseMatrix[Double] = JMatI *:* JMatJ * ((Nib.size - 1.0) / Nib.size)
+            // Perform the infinitesimal jackknife calculation on the predictions for labels i and j, then multiply them together
+            val IJMatI = NibIJMat.t * predMatI
+            val IJMatJ = NibIJMat.t * predMatJ
+            val IJMat2: DenseMatrix[Double] = IJMatI *:* IJMatJ
+            // Add J(ackknife) and IJ covariance terms together
+            val totalCovarianceTerm = JMat2 + IJMat2
+            // Calculate 1/B^2 once, to avoid doing it in the loop
+            val inverseSize2 = math.pow(1.0 / baggedPredictionsI.head.size, 2.0)
+            // Loop over predictions, and for each one calculate the bias correction term and subtract it from each covariance term
+            // The resulting structure has size (# predictions) x (# bags)
+            val scores = baggedPredictionsI.indices.map { k =>
+              val foo = predMatI(::, k) - expectedI(k)
+              val bar = predMatJ(::, k) - expectedJ(k)
+              val correction = foo.dot(bar) * inverseSize2
+              0.5 * (totalCovarianceTerm(::, k) - math.E * correction)
+            }.map(_.toScalaVector())
+            // Sum over bags to get the covariance for each prediction
+            val covariance: Seq[Double] = scores.map(_.sum)
+            Some((covariance, sigmaI, sigmaJ).zipped.map { (cov, sI, sJ) =>
+              if (sI == 0.0 || sJ == 0.0) 0.0 else cov / (sI * sJ)
+            })
+          case _: Any => None
+        }
+      case _: Any => None
     }
   }
 }

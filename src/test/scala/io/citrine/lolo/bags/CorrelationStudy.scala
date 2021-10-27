@@ -60,6 +60,9 @@ object CorrelationStudy {
 
     val bootstrap1 = predictionResult.getUncertaintyCorrelationBuffet(0, 2, CorrelationMethods.Bootstrap)
     val bootstrap2 = predictionResult.getUncertaintyCorrelationBuffet(0, 3, CorrelationMethods.Bootstrap)
+
+    val jackknife1 = predictionResult.getUncertaintyCorrelationBuffet(0, 2, CorrelationMethods.Jackknife)
+    val jackknife2 = predictionResult.getUncertaintyCorrelationBuffet(0, 3, CorrelationMethods.Jackknife)
   }
 
   def makeLinearCorrelatedData(X: Seq[Double], rho: Double, rng: Random = new Random()): Seq[Double] = {
