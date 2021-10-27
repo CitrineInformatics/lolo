@@ -210,8 +210,8 @@ class BaggedTrainingResult[+T : ClassTag](
   }
 
   lazy val loss: Double = rep match {
-    case x: Double => Math.sqrt(predictedVsActual.map(d => Math.pow(d._2.asInstanceOf[Double] - d._3.asInstanceOf[Double], 2)).sum / predictedVsActual.size)
-    case x: Any =>
+    case _: Double => Math.sqrt(predictedVsActual.map(d => Math.pow(d._2.asInstanceOf[Double] - d._3.asInstanceOf[Double], 2)).sum / predictedVsActual.size)
+    case _: Any =>
       val f1 = ClassificationMetrics.f1scores(predictedVsActual)
       if (f1 > 0.0) 1.0 / f1 - 1.0 else Double.MaxValue
   }
@@ -270,9 +270,9 @@ class BaggedModel[+T: ClassTag](
 
     val res = if (inputs.size == 1 && isRegression) {
       // In the special case of a single prediction on a real value, emit an optimized BaggedSingleResult
-      BaggedSingleResult(ensemblePredictions.map(_.asInstanceOf[PredictionResult[Double]]), Nib, bias.map(_.head), rescale, disableBootstrap)
+      SinglePredictionBaggedResult(ensemblePredictions.map(_.asInstanceOf[PredictionResult[Double]]), Nib, bias.map(_.head), rescale, disableBootstrap)
     } else if (isRegression) {
-      BaggedMultiResult(ensemblePredictions.map(_.asInstanceOf[PredictionResult[Double]]), Nib, bias, rescale, disableBootstrap)
+      MultiPredictionBaggedResult(ensemblePredictions.map(_.asInstanceOf[PredictionResult[Double]]), Nib, bias, rescale, disableBootstrap)
     } else {
       BaggedClassificationResult(ensemblePredictions)
     }

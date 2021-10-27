@@ -2,8 +2,7 @@ package io.citrine.lolo.bags
 
 import breeze.linalg.{DenseMatrix, DenseVector, norm}
 import io.citrine.lolo.bags.CorrelationMethods.{Bootstrap, CorrelationMethod, FromTraining, Jackknife, Trivial}
-import io.citrine.lolo.trees.multitask.{MultiModelDefinedResult, MultiModelPredictionResult}
-import io.citrine.lolo.{PredictionResult, RegressionResult}
+import io.citrine.lolo.{ParallelModelsPredictionResult, MultiTaskModelPredictionResult, PredictionResult, RegressionResult}
 import io.citrine.lolo.util.Async
 import io.citrine.lolo.stats.utils
 import org.slf4j.{Logger, LoggerFactory}
@@ -17,7 +16,8 @@ import org.slf4j.{Logger, LoggerFactory}
 trait BaggedResult[+T] extends PredictionResult[T] {
   def predictions: Seq[PredictionResult[T]]
 
-  val numPredictions: Int
+  /** The number of inputs that have been predicted on (NOT the number of bagged models). */
+  def numPredictions: Int
 
   /**
     * Average the gradients from the models in the ensemble
@@ -40,31 +40,33 @@ trait BaggedResult[+T] extends PredictionResult[T] {
 
 
 /**
-  * Container with model-wise predictions and logic to compute variances and training row scores
+  * Container with model-wise predictions at a single input point.
+  * Assuming a single input allows for performance optimizations and more readable code.
+  * See [[MultiPredictionBaggedResult]] for a generic implementation.
   *
   * @param predictions for each constituent model
   * @param NibIn       the sample matrix as (N_models x N_training)
   * @param bias        model to use for estimating bias
   */
-case class BaggedSingleResult(
-                               predictions: Seq[PredictionResult[Double]],
-                               NibIn: Vector[Vector[Int]],
-                               bias: Option[Double] = None,
-                               rescale: Double = 1.0,
-                               disableBootstrap: Boolean = false
-                             ) extends BaggedResult[Double] with RegressionResult {
+case class SinglePredictionBaggedResult(
+                                         predictions: Seq[PredictionResult[Double]],
+                                         NibIn: Vector[Vector[Int]],
+                                         bias: Option[Double] = None,
+                                         rescale: Double = 1.0,
+                                         disableBootstrap: Boolean = false
+                                       ) extends BaggedResult[Double] with RegressionResult {
   private lazy val treePredictions: Array[Double] = predictions.map(_.getExpected().head).toArray
 
-  override lazy val numPredictions: Int = 1
+  override def numPredictions: Int = 1
 
   /**
     * Return the ensemble average or maximum vote
     *
     * @return expected value of each prediction
     */
-  override def getExpected(): Seq[Double] = Seq(expected)
+  override def getExpected(): Seq[Double] = Seq(expected + bias.getOrElse(0.0))
 
-  private lazy val expected = treePredictions.sum / treePredictions.length + bias.getOrElse(0.0)
+  private lazy val expected = treePredictions.sum / treePredictions.length
   private lazy val treeVariance: Double = {
     assert(treePredictions.length > 1, "Bootstrap variance undefined for fewer than 2 bootstrap samples.")
     treePredictions.map(x => Math.pow(x - expected, 2.0)).sum / (treePredictions.length - 1)
@@ -173,7 +175,7 @@ case class BaggedClassificationResult(
   lazy val expected: Seq[Any] = expectedMatrix.map(ps => ps.groupBy(identity).maxBy(_._2.size)._1).seq
   lazy val uncertainty: Seq[Map[Any, Double]] = expectedMatrix.map(ps => ps.groupBy(identity).mapValues(_.size.toDouble / ps.size).toMap)
 
-  override lazy val numPredictions: Int = expectedMatrix.length
+  override def numPredictions: Int = expectedMatrix.length
 
   /**
    * Return the majority vote vote
@@ -190,26 +192,26 @@ case class BaggedClassificationResult(
   *
   * These calculations are implemented using matrix arithmetic to make them more performant when the number
   * of predictions is large.  This obfuscates the algorithm significantly, however.  To see what is being computed,
-  * look at [[BaggedSingleResult]], which is more clear.  These two implementations are tested for consistency.
+  * look at [[SinglePredictionBaggedResult]], which is more clear.  These two implementations are tested for consistency.
   *
   * @param predictions for each constituent model
   * @param NibIn       the sample matrix as (N_models x N_training)
   * @param bias        model to use for estimating bias
   */
-case class BaggedMultiResult(
-                         predictions: Seq[PredictionResult[Double]],
-                         NibIn: Vector[Vector[Int]],
-                         bias: Option[Seq[Double]] = None,
-                         rescale: Double = 1.0,
-                         disableBootstrap: Boolean = false
-                       ) extends BaggedResult[Double] with RegressionResult {
+case class MultiPredictionBaggedResult(
+                                        predictions: Seq[PredictionResult[Double]],
+                                        NibIn: Vector[Vector[Int]],
+                                        bias: Option[Seq[Double]] = None,
+                                        rescale: Double = 1.0,
+                                        disableBootstrap: Boolean = false
+                                      ) extends BaggedResult[Double] with RegressionResult {
 
   /**
     * Return the ensemble average
     *
     * @return expected value of each prediction
     */
-  override def getExpected(): Seq[Double] = expected
+  override def getExpected(): Seq[Double] = expected.zip(biasCorrection).map(x => x._1 + x._2)
 
   override def getStdDevObs(): Option[Seq[Double]] = {
     if (disableBootstrap) {
@@ -258,7 +260,7 @@ case class BaggedMultiResult(
 
   override def getImportanceScores(): Option[Seq[Seq[Double]]] = Some(scores)
 
-  override lazy val numPredictions: Int = expectedMatrix.length
+  override def numPredictions: Int = expectedMatrix.length
 
   /* Subtract off 1 to make correlations easier; transpose to be prediction-wise */
   lazy val Nib: Vector[Vector[Int]] = NibIn.transpose.map(_.map(_ - 1))
@@ -268,8 +270,7 @@ case class BaggedMultiResult(
 
   /* Extract the prediction by averaging over trees and adding the bias correction. */
   lazy val biasCorrection: Seq[Double] = bias.getOrElse(Seq.fill(expectedMatrix.length)(0))
-  lazy val biasedExpected: Seq[Double] = expectedMatrix.map(ps => ps.sum / ps.size)
-  lazy val expected: Seq[Double] = biasedExpected.zip(biasCorrection).map(x => x._1 + x._2)
+  lazy val expected: Seq[Double] = expectedMatrix.map(ps => ps.sum / ps.size)
 
   /* This matrix is used to compute the jackknife variance */
   lazy val NibJMat = new DenseMatrix[Double](Nib.head.size, Nib.size,
@@ -425,16 +426,16 @@ case class MultiTaskBaggedResult(
                                   realLabels: Seq[Boolean],
                                   trainingLabels: Seq[Seq[Any]],
                                   trainingWeights: Seq[Double]
-                                ) extends BaggedResult[Seq[Any]] with MultiModelPredictionResult {
+                                ) extends BaggedResult[Seq[Any]] with MultiTaskModelPredictionResult {
 
-  override lazy val numPredictions: Int = baggedPredictions.head.numPredictions
+  override def numPredictions: Int = baggedPredictions.head.numPredictions
 
   override def getExpected(): Seq[Seq[Any]] = baggedPredictions.map(_.getExpected()).transpose
 
   override def predictions: Seq[PredictionResult[Seq[Any]]] = baggedPredictions
     .map(_.predictions.map(_.getExpected()))
     .transpose
-    .map(x => new MultiModelDefinedResult(x.transpose))
+    .map(x => new ParallelModelsPredictionResult(x.transpose))
 
   // For each prediction, the uncertainty is a sequence of optional entries, one for each label.
   override def getUncertainty(observational: Boolean = true): Option[Seq[Seq[Option[Any]]]] = {

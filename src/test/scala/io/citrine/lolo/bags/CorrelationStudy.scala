@@ -4,7 +4,7 @@ import breeze.stats.distributions.{RandBasis, ThreadLocalRandomGenerator}
 import io.citrine.lolo.TestUtils
 import io.citrine.lolo.linear.LinearRegressionLearner
 import io.citrine.lolo.stats.functions.Friedman
-import io.citrine.lolo.trees.multitask.MultiTaskCombinedTreeLearner
+import io.citrine.lolo.trees.multitask.MultiTaskTreeLearner
 import org.apache.commons.math3.random.MersenneTwister
 
 import scala.util.Random
@@ -38,8 +38,8 @@ object CorrelationStudy {
     val linearCorrelatedLabel: Seq[Double] = makeLinearCorrelatedData(realLabel, linearRho, rng)
     val quadraticCorrelatedLabel: Seq[Double] = makeQuadraticCorrelatedData(realLabel, quadraticCorrelationNoise, rng)
 
-    val learner = MultiTaskCombinedTreeLearner(rng = rng)
-    val baggedLearner = MultiTaskCombinedBagger(
+    val learner = MultiTaskTreeLearner(rng = rng)
+    val baggedLearner = MultiTaskBagger(
       learner,
       numBags =  numBags,
       randBasis = new RandBasis(new ThreadLocalRandomGenerator(new MersenneTwister(rng.nextLong())))
