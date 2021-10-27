@@ -2,14 +2,13 @@ package io.citrine.lolo.validation
 
 import io.citrine.lolo.PredictionResult
 import org.apache.commons.math3.distribution.MultivariateNormalDistribution
+import org.apache.commons.math3.random.MersenneTwister
 import org.junit.Test
 import org.scalatest.Assertions._
 
 import scala.util.{Random, Try}
 
 class MeritTest {
-  val rng = new Random(34578L)
-
   /**
     * Generate test data by adding Gaussian noise to a uniformly distributed response
     *
@@ -26,13 +25,15 @@ class MeritTest {
                             noiseScale: Double = 1.0,
                             uncertaintyCorrelation: Double = 0.0,
                             batchSize: Int = 32,
-                            numBatch: Int = 1
+                            numBatch: Int = 1,
+                            rng: Random = Random
                           ): Iterable[(PredictionResult[Double], Seq[Double])] = {
     val maximumCorrelation = 0.999
 
     val noiseVariance = noiseScale * noiseScale
     val noiseUncertaintyCovariance = noiseVariance * Math.min(uncertaintyCorrelation, maximumCorrelation) // avoid singular matrices
     val errorDistribution = new MultivariateNormalDistribution(
+      new MersenneTwister(rng.nextLong()),
       Array(0.0, 0.0),
       Array(Array(noiseVariance, noiseUncertaintyCovariance), Array(noiseUncertaintyCovariance, noiseVariance))
     )
@@ -65,7 +66,8 @@ class MeritTest {
     */
   @Test
   def testRMSE(): Unit = {
-    val pva = getNormalPVA(batchSize = 256, numBatch = 32)
+    val rng = new Random(34578L)
+    val pva = getNormalPVA(batchSize = 256, numBatch = 32, rng = rng)
     val (rmse, uncertainty) = RootMeanSquareError.estimate(pva)
     assert(Math.abs(rmse - 1.0) < 3 * uncertainty, "RMSE estimate was not accurate enough")
     assert(uncertainty < 0.05, s"RMSE estimate was not precise enough")
