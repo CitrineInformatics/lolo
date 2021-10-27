@@ -171,7 +171,7 @@ trait MultiTaskModelPredictionResult extends PredictionResult[Seq[Any]] {
   /**
     * Get the correlation coefficients between the predictions made on two labels.
     * Correlation coefficient is bounded between -1 and 1.
-    * If either index is out of bounds or does not correspond to a real-valued label, then this method must reutrn None.
+    * If either index is out of bounds or does not correspond to a real-valued label, then this method must return None.
     *
     * @param  i index of the first label
     * @param  j index of the second label
@@ -181,6 +181,6 @@ trait MultiTaskModelPredictionResult extends PredictionResult[Seq[Any]] {
 }
 
 /** A container that holds the predictions of several parallel models for multiple labels. */
-class MultiModelDefinedResult(predictions: Seq[Seq[Any]]) extends MultiTaskModelPredictionResult {
+class ParallelModelsPredictionResult(predictions: Seq[Seq[Any]]) extends MultiTaskModelPredictionResult {
   override def getExpected(): Seq[Seq[Any]] = predictions
 }

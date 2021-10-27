@@ -56,7 +56,7 @@ class ParallelModels(models: Seq[Model[PredictionResult[Any]]], realLabels: Seq[
 
   override def getModels: Seq[Model[PredictionResult[Any]]] = models
 
-  override def transform(inputs: Seq[Vector[Any]]) = new MultiModelDefinedResult(
+  override def transform(inputs: Seq[Vector[Any]]) = new ParallelModelsPredictionResult(
     models.map { model =>
       model.transform(inputs).getExpected()
     }.transpose

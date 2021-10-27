@@ -1,7 +1,7 @@
 package io.citrine.lolo.bags
 
 import breeze.linalg.{DenseMatrix, DenseVector, norm}
-import io.citrine.lolo.{MultiModelDefinedResult, MultiTaskModelPredictionResult, PredictionResult, RegressionResult}
+import io.citrine.lolo.{ParallelModelsPredictionResult, MultiTaskModelPredictionResult, PredictionResult, RegressionResult}
 import io.citrine.lolo.util.Async
 import org.slf4j.{Logger, LoggerFactory}
 
@@ -14,7 +14,7 @@ import org.slf4j.{Logger, LoggerFactory}
 trait BaggedResult[+T] extends PredictionResult[T] {
   def predictions: Seq[PredictionResult[T]]
 
-  val numPredictions: Int
+  def numPredictions: Int
 
   /**
     * Average the gradients from the models in the ensemble
@@ -52,7 +52,7 @@ case class BaggedSingleResult(
                              ) extends BaggedResult[Double] with RegressionResult {
   private lazy val treePredictions: Array[Double] = predictions.map(_.getExpected().head).toArray
 
-  override lazy val numPredictions: Int = 1
+  override def numPredictions: Int = 1
 
   /**
     * Return the ensemble average or maximum vote
@@ -170,7 +170,7 @@ case class BaggedClassificationResult(
   lazy val expected: Seq[Any] = expectedMatrix.map(ps => ps.groupBy(identity).maxBy(_._2.size)._1).seq
   lazy val uncertainty: Seq[Map[Any, Double]] = expectedMatrix.map(ps => ps.groupBy(identity).mapValues(_.size.toDouble / ps.size).toMap)
 
-  override lazy val numPredictions: Int = expectedMatrix.length
+  override def numPredictions: Int = expectedMatrix.length
 
   /**
    * Return the majority vote vote
@@ -255,7 +255,7 @@ case class BaggedMultiResult(
 
   override def getImportanceScores(): Option[Seq[Seq[Double]]] = Some(scores)
 
-  override lazy val numPredictions: Int = expectedMatrix.length
+  override def numPredictions: Int = expectedMatrix.length
 
   /* Subtract off 1 to make correlations easier; transpose to be prediction-wise */
   lazy val Nib: Vector[Vector[Int]] = NibIn.transpose.map(_.map(_ - 1))
@@ -412,14 +412,14 @@ case class BaggedMultiResult(
   */
 case class MultiTaskBaggedResult(baggedPredictions: Seq[BaggedResult[Any]], realLabels: Seq[Boolean]) extends BaggedResult[Seq[Any]] with MultiTaskModelPredictionResult {
 
-  override lazy val numPredictions: Int = baggedPredictions.head.numPredictions
+  override def numPredictions: Int = baggedPredictions.head.numPredictions
 
   override def getExpected(): Seq[Seq[Any]] = baggedPredictions.map(_.getExpected()).transpose
 
   override def predictions: Seq[PredictionResult[Seq[Any]]] = baggedPredictions
     .map(_.predictions.map(_.getExpected()))
     .transpose
-    .map(x => new MultiModelDefinedResult(x.transpose))
+    .map(x => new ParallelModelsPredictionResult(x.transpose))
 
   // For each prediction, the uncertainty is a sequence of optional entries, one for each label.
   override def getUncertainty(observational: Boolean = true): Option[Seq[Seq[Option[Any]]]] = {
