@@ -66,7 +66,7 @@ class MeritTest {
   def testRMSE(): Unit = {
     val rng = new Random(34578L)
     val pva = getNormalPVA(batchSize = 256, numBatch = 32, rng = rng)
-    val (rmse, uncertainty) = RootMeanSquareError.estimate(pva)
+    val (rmse, uncertainty) = RootMeanSquareError.estimate(pva, rng = rng)
     assert(Math.abs(rmse - 1.0) < 3 * uncertainty, "RMSE estimate was not accurate enough")
     assert(uncertainty < 0.05, s"RMSE estimate was not precise enough")
   }
@@ -79,35 +79,33 @@ class MeritTest {
     val rng = new Random(34578L)
     val pva = getNormalPVA(noiseScale = 0.1, batchSize = 256, numBatch = 32, rng = rng)
     val expected = 1 - 12 * 0.1 * 0.1
-    val (r2, uncertainty) = CoefficientOfDetermination.estimate(pva)
+    val (r2, uncertainty) = CoefficientOfDetermination.estimate(pva, rng = rng)
     assert(Math.abs(r2 - expected) < 3 * uncertainty, "R^2 estimate was not accurate enough")
     assert(uncertainty < 0.05, s"R^2 estimate was not precise enough")
   }
 
   /**
     * Test that the standard confidence comes out right
-    *
-    * This has an false negative rate below 1/200
     */
   @Test
   def testStandardConfidence(): Unit = {
-    val pva = getNormalPVA(uncertaintyCorrelation = 1.0, batchSize = 256, numBatch = 32)
+    val rng = new Random(34578L)
+    val pva = getNormalPVA(uncertaintyCorrelation = 1.0, batchSize = 256, numBatch = 32, rng = rng)
     val expected = 0.68
-    val (confidence, uncertainty) = StandardConfidence.estimate(pva)
+    val (confidence, uncertainty) = StandardConfidence.estimate(pva, rng = rng)
     assert(Math.abs(confidence - expected) < 3 * uncertainty, "Confidence estimate was not accurate enough")
     assert(uncertainty < 0.05, s"Confidence estimate was not precise enough")
   }
 
   /**
     * Test that the standard error comes out right
-    *
-    * This has an false negative rate below 1/100
     */
   @Test
   def testStandardError(): Unit = {
-    val pva = getNormalPVA(noiseScale = 0.01, uncertaintyCorrelation = 1.0, batchSize = 256, numBatch = 32)
+    val rng = new Random(34578L)
+    val pva = getNormalPVA(noiseScale = 0.01, uncertaintyCorrelation = 1.0, batchSize = 256, numBatch = 32, rng = rng)
     val expected = 1.0
-    val (error, uncertainty) = StandardError().estimate(pva)
+    val (error, uncertainty) = StandardError().estimate(pva, rng = rng)
     assert(Math.abs(error - expected) < 3 * uncertainty, "Standard error estimate was not accurate enough")
     assert(uncertainty < 0.05, s"Standard error estimate was not precise enough")
   }
@@ -115,28 +113,26 @@ class MeritTest {
 
   /**
     * Test that the UncertaintyCorrelation is correct when perfectly correlated
-    *
-    * This has an false negative rate below 1/100
     */
   @Test
   def testPerfectUncertaintyCorrelation(): Unit = {
-    val pva = getNormalPVA(noiseScale = 0.01, uncertaintyCorrelation = 1.0, batchSize = 256, numBatch = 32)
+    val rng = new Random(34578L)
+    val pva = getNormalPVA(noiseScale = 0.01, uncertaintyCorrelation = 1.0, batchSize = 256, numBatch = 32, rng = rng)
     val expected = 1.0
-    val (corr, uncertainty) = UncertaintyCorrelation.estimate(pva)
+    val (corr, uncertainty) = UncertaintyCorrelation.estimate(pva, rng = rng)
     assert(Math.abs(corr - expected) < 3 * uncertainty, "Uncertainty correlation estimate was not accurate enough")
     assert(uncertainty < 0.05, s"Uncertainty correlation estimate was not precise enough")
   }
 
   /**
     * Test that the UncertaintyCorrelation is correct when there is no correlation
-    *
-    * This has an false negative rate below 1/100
     */
   @Test
   def testZeroUncertaintyCorrelation(): Unit = {
-    val pva = getNormalPVA(noiseScale = 0.01, uncertaintyCorrelation = 0.0, batchSize = 256, numBatch = 32)
+    val rng = new Random(34578L)
+    val pva = getNormalPVA(noiseScale = 0.01, uncertaintyCorrelation = 0.0, batchSize = 256, numBatch = 32, rng = rng)
     val expected = 0.0
-    val (corr, uncertainty) = UncertaintyCorrelation.estimate(pva)
+    val (corr, uncertainty) = UncertaintyCorrelation.estimate(pva, rng = rng)
     assert(Math.abs(corr - expected) < 3 * uncertainty, "Uncertainty correlation estimate was not accurate enough")
     assert(uncertainty < 0.05, s"Uncertainty correlation estimate was not precise enough")
   }
