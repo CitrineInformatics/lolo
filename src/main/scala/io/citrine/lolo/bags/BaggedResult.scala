@@ -14,6 +14,7 @@ import org.slf4j.{Logger, LoggerFactory}
 trait BaggedResult[+T] extends PredictionResult[T] {
   def predictions: Seq[PredictionResult[T]]
 
+  /** The number of inputs that have been predicted on (NOT the number of bagged models). */
   def numPredictions: Int
 
   /**
@@ -37,19 +38,21 @@ trait BaggedResult[+T] extends PredictionResult[T] {
 
 
 /**
-  * Container with model-wise predictions and logic to compute variances and training row scores
+  * Container with model-wise predictions at a single input point.
+  * Assuming a single input allows for performance optimizations and more readable code.
+  * See [[MultiPredictionBaggedResult]] for a generic implementation.
   *
   * @param predictions for each constituent model
   * @param NibIn       the sample matrix as (N_models x N_training)
   * @param bias        model to use for estimating bias
   */
-case class BaggedSingleResult(
-                               predictions: Seq[PredictionResult[Double]],
-                               NibIn: Vector[Vector[Int]],
-                               bias: Option[Double] = None,
-                               rescale: Double = 1.0,
-                               disableBootstrap: Boolean = false
-                             ) extends BaggedResult[Double] with RegressionResult {
+case class SinglePredictionBaggedResult(
+                                         predictions: Seq[PredictionResult[Double]],
+                                         NibIn: Vector[Vector[Int]],
+                                         bias: Option[Double] = None,
+                                         rescale: Double = 1.0,
+                                         disableBootstrap: Boolean = false
+                                       ) extends BaggedResult[Double] with RegressionResult {
   private lazy val treePredictions: Array[Double] = predictions.map(_.getExpected().head).toArray
 
   override def numPredictions: Int = 1
@@ -187,19 +190,19 @@ case class BaggedClassificationResult(
   *
   * These calculations are implemented using matrix arithmetic to make them more performant when the number
   * of predictions is large.  This obfuscates the algorithm significantly, however.  To see what is being computed,
-  * look at [[BaggedSingleResult]], which is more clear.  These two implementations are tested for consistency.
+  * look at [[SinglePredictionBaggedResult]], which is more clear.  These two implementations are tested for consistency.
   *
   * @param predictions for each constituent model
   * @param NibIn       the sample matrix as (N_models x N_training)
   * @param bias        model to use for estimating bias
   */
-case class BaggedMultiResult(
-                         predictions: Seq[PredictionResult[Double]],
-                         NibIn: Vector[Vector[Int]],
-                         bias: Option[Seq[Double]] = None,
-                         rescale: Double = 1.0,
-                         disableBootstrap: Boolean = false
-                       ) extends BaggedResult[Double] with RegressionResult {
+case class MultiPredictionBaggedResult(
+                                        predictions: Seq[PredictionResult[Double]],
+                                        NibIn: Vector[Vector[Int]],
+                                        bias: Option[Seq[Double]] = None,
+                                        rescale: Double = 1.0,
+                                        disableBootstrap: Boolean = false
+                                      ) extends BaggedResult[Double] with RegressionResult {
 
   /**
     * Return the ensemble average
