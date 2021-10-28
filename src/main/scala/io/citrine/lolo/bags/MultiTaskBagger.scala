@@ -26,7 +26,7 @@ case class MultiTaskBagger(
                             randBasis: RandBasis = Rand
                           ) extends MultiTaskLearner {
 
-  override def train(inputs: Seq[Vector[Any]], labels: Seq[Seq[Any]], weights: Option[Seq[Double]] = None): MultiTaskTrainingResult = {
+  override def train(inputs: Seq[Vector[Any]], labels: Seq[Seq[Any]], weights: Option[Seq[Double]] = None): MultiTaskBaggedTrainingResult = {
     /* Make sure the training data are the same size */
     assert(inputs.forall(inputs.head.size == _.size))
     assert(inputs.size >= Bagger.minimumTrainingSize, s"We need to have at least ${Bagger.minimumTrainingSize} rows, only ${inputs.size} given")
@@ -112,7 +112,7 @@ class MultiTaskBaggedTrainingResult(
 
   override def getFeatureImportance(): Option[Vector[Double]] = featureImportance
 
-  override def getModel(): MultiTaskModel = model
+  override def getModel(): MultiTaskBaggedModel = model
 
   override def getModels(): Seq[Model[PredictionResult[Any]]] = {
     val realLabels: Seq[Boolean] = models.head.getRealLabels
@@ -159,5 +159,5 @@ class MultiTaskBaggedModel(
 
   override def getRealLabels: Seq[Boolean] = models.head.getRealLabels
 
-  override def getModels: Seq[Model[PredictionResult[Any]]] = groupedModels
+  override def getModels: Seq[BaggedModel[Any]] = groupedModels
 }

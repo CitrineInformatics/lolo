@@ -44,7 +44,7 @@ class MultiTaskStandardizer(baseLearner: MultiTaskLearner) extends MultiTaskLear
     * @param weights for the training rows, if applicable
     * @return a sequence of training results, one for each label
     */
-  override def train(inputs: Seq[Vector[Any]], labels: Seq[Seq[Any]], weights: Option[Seq[Double]]): MultiTaskTrainingResult = {
+  override def train(inputs: Seq[Vector[Any]], labels: Seq[Seq[Any]], weights: Option[Seq[Double]]): MultiTaskStandardizerTrainingResult = {
     val inputTrans = Standardizer.getMultiStandardization(inputs)
     val outputTrans: Seq[Option[(Double, Double)]] = labels.map { labelSeq =>
       if (labelSeq.head != null && labelSeq.head.isInstanceOf[Double]) {

@@ -204,7 +204,7 @@ class MultiTaskBaggerTest {
       .generateTrainingData(32, 12, noise = 0.1, function = Friedman.friedmanSilverman)
       .map(_._1)
     val predictionResult = RF.transform(testInputs)
-    assert(predictionResult.asInstanceOf[BaggedResult[Seq[Any]]].predictions.length == 64)
+    assert(predictionResult.predictions.length == 64)
     val expected = predictionResult.getExpected()
     assert(expected.length == 32)
     assert(expected.head.length == 2)
