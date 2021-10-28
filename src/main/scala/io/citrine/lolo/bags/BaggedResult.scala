@@ -546,15 +546,21 @@ case class MultiTaskBaggedResult(
             // Loop over predictions, and for each one calculate the bias correction term and subtract it from each covariance term
             // The resulting structure has size (# predictions) x (# bags)
             val scores = baggedPredictionsI.indices.map { k =>
-              val foo = predMatI(::, k) - expectedI(k)
-              val bar = predMatJ(::, k) - expectedJ(k)
-              val correction = foo.dot(bar) * inverseSize2
+              val correctionI = predMatI(::, k) - expectedI(k)
+              val correctionJ = predMatJ(::, k) - expectedJ(k)
+              val correction = correctionI.dot(correctionJ) * inverseSize2
               0.5 * (totalCovarianceTerm(::, k) - math.E * correction)
             }.map(_.toScalaVector())
             // Sum over bags to get the covariance for each prediction
             val covariance: Seq[Double] = scores.map(_.sum)
             Some((covariance, sigmaI, sigmaJ).zipped.map { (cov, sI, sJ) =>
-              if (sI == 0.0 || sJ == 0.0) 0.0 else cov / (sI * sJ)
+              if (sI == 0.0 || sJ == 0.0) {
+                0.0
+              } else {
+                val rho = cov / (sI * sJ)
+                // TODO: think about how to rectify covariance estimates, better than just clipping to [-1, 1]
+                math.min(1.0, math.max(rho, -1.0))
+              }
             })
           case _: Any => None
         }
