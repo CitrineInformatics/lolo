@@ -10,6 +10,10 @@ object utils {
     X.zip(actualWeights).map { case (x, w) => x * w }.sum / totalWeight
   }
 
+  def median(X: Seq[Double]): Double = {
+    X.sorted.drop(X.length / 2).head
+  }
+
   /** Compute the variance of a (weighted) vector, X, with dof degrees of freedom. */
   def variance(X: Seq[Double], weights: Option[Seq[Double]] = None, dof: Int = 0): Double = {
     val actualWeights = weights.getOrElse(Seq.fill(X.length)(1.0))

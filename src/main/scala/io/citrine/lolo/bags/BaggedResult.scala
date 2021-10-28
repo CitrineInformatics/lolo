@@ -558,8 +558,8 @@ case class MultiTaskBaggedResult(
                 0.0
               } else {
                 val rho = cov / (sI * sJ)
-                // TODO: think about how to rectify covariance estimates, better than just clipping to [-1, 1]
-                math.min(1.0, math.max(rho, -1.0))
+                // TODO: think about how to rectify covariance estimates, better than just setting to 0.0
+                if (rho < -0.999 || rho > 0.999) 0.0 else rho
               }
             })
           case _: Any => None
