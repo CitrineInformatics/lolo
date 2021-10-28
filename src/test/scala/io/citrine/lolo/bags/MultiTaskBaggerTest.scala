@@ -43,7 +43,8 @@ class MultiTaskBaggerTest {
     assert(sigma.forall(_ >= 0.0))
 
     assert(results.getGradient().isEmpty, "Returned a gradient when there shouldn't be one")
-    // assert(RFMeta.getLoss().get < 1.0, "Loss of bagger is larger than expected") TODO: enable when MultiTaskBagger getLoss is enabled
+    // TODO (PLA-8566): enable when MultiTaskBagger getLoss is enabled
+    // assert(RFMeta.getLoss().get < 1.0, "Loss of bagger is larger than expected")
   }
 
   /**
@@ -257,7 +258,8 @@ class MultiTaskBaggerTest {
 
     // Make sure we can grab the loss without issue
     assert(!referenceModel.getLoss().get.isNaN, "Single task classification loss was NaN")
-    // assert(!trainingResult.getLoss().get.isNaN, "Sparse multitask loss was NaN") TODO: enable when MultiTaskModel getLoss is enabled
+    // TODO (PLA-8566): enable when MultiTaskModel getLoss is enabled
+    // assert(!trainingResult.getLoss().get.isNaN, "Sparse multitask loss was NaN")
 
     assert(multiF1 > singleF1, s"Multi-task is under-performing single-task")
     assert(multiF1 <= 1.0, "Multitask classification F1 score was greater than 1.0")
