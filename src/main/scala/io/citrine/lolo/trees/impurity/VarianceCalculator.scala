@@ -51,6 +51,14 @@ class VarianceCalculator(
     }
   }
 
+  def getLeftWeight: Double = {
+    leftWeight
+  }
+
+  def getRightWeight: Double = {
+    totalWeight - leftWeight
+  }
+
   private var leftSum: Double = 0.0
   private var leftWeight: Double = 0.0
 }

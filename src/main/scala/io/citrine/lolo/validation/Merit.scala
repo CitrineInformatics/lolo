@@ -177,7 +177,8 @@ object Merit {
                          logScale: Boolean = false,
                          yMin: Option[Double] = None,
                          yMax: Option[Double] = None,
-                         rng: Random = Random
+                         rng: Random = Random,
+                         title: Option[String] = None
                        )(
                          pvaBuilder: Double => Iterator[(PredictionResult[T], Seq[T])]
                        ): XYChart = {
@@ -197,8 +198,8 @@ object Merit {
         seriesData(s"${name}_err").add(err)
       }
     }
-    val chart = new XYChart(900, 600)
-    chart.setTitle(s"Scan over $parameterName")
+    val chart = new XYChart(1280, 720)
+    chart.setTitle(title.getOrElse(s"Scan over $parameterName"))
     chart.setXAxisTitle(parameterName)
     merits.map { case (name, _) =>
       chart.addSeries(name, parameterValues.toArray, seriesData(name).asScala.toArray, seriesData(s"${name}_err").asScala.toArray)
@@ -206,6 +207,74 @@ object Merit {
 
     if (logScale) {
       chart.getStyler.setXAxisLogarithmic(true)
+    }
+
+    yMin.foreach(min => chart.getStyler.setYAxisMin(min))
+    yMax.foreach(max => chart.getStyler.setYAxisMax(max))
+
+    chart
+  }
+
+  /**
+    * Compute merits as a function of a parameter, given a builder that takes the parameter to predicted-vs-actual data
+    *
+    * @param parameterName   name of the parameter that's being scanned over
+    * @param parameterValues values of the parameter to try
+    * @param merit           to apply at each parameter value
+    * @param logScale        whether the parameters should be plotted on a log scale
+    * @param pvaBuilder      function that takes the parameter to predicted-vs-actual data
+    * @param rng             random number generator to use
+    * @return an [[XYChart]] that plots the merits vs the parameter value
+    */
+  def plotMeritScanComparison[T](
+                        parameterName: String,
+                        parameterValues: Seq[Double],
+                        merit: Merit[T],
+                        optionNames: Seq[String],
+                        logScaleX: Boolean = false,
+                        logScaleY: Boolean = false,
+                        yMin: Option[Double] = None,
+                        yMax: Option[Double] = None,
+                        rng: Random = Random,
+                        title: Option[String] = None
+                      )(
+                        pvaBuilder: Double => Iterator[(Seq[PredictionResult[T]], Seq[T])]
+                      ): XYChart = {
+    val total = optionNames.size * parameterValues.size
+    var progress: Int = 0
+
+    val seriesData: Map[String, util.ArrayList[Double]] = optionNames.flatMap {name =>
+      Seq(
+        name -> new util.ArrayList[Double](),
+        s"${name}_err" -> new util.ArrayList[Double]()
+      )
+    }.toMap
+
+    parameterValues.foreach { param =>
+      val pva = pvaBuilder(param).toVector
+      optionNames.zipWithIndex.map{case (name, idx) =>
+        val meritResults = Merit.estimateMerits(pva.map{case (x, y) => (x(idx), y)}.toIterator, Map("foo" -> merit), rng)
+        progress = progress + 1
+        println(s"Completed ${progress} of ${total}")
+        meritResults.foreach { case (_, (mean, err)) =>
+          seriesData(name).add(mean)
+          seriesData(s"${name}_err").add(err)
+        }
+      }
+    }
+
+    val chart = new XYChart(900, 600)
+    chart.setTitle(title.getOrElse(s"Scan over $parameterName"))
+    chart.setXAxisTitle(parameterName)
+    optionNames.map { name =>
+      chart.addSeries(name, parameterValues.toArray, seriesData(name).asScala.toArray, seriesData(s"${name}_err").asScala.toArray)
+    }
+
+    if (logScaleX) {
+      chart.getStyler.setXAxisLogarithmic(true)
+    }
+    if (logScaleY) {
+      chart.getStyler.setYAxisLogarithmic(true)
     }
 
     yMin.foreach(min => chart.getStyler.setYAxisMin(min))

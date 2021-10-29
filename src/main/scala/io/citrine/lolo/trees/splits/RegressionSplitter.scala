@@ -20,7 +20,7 @@ import scala.util.Random
   *
   * Created by maxhutch on 11/29/16.
   */
-case class RegressionSplitter(randomizePivotLocation: Boolean = false, rng: Random = Random) extends Splitter[Double] {
+case class RegressionSplitter(randomizePivotLocation: Boolean = false, minWeight: Double = 0.0, rng: Random = Random) extends Splitter[Double] {
 
   /**
     * Get the best split, considering numFeature random features (w/o replacement)
@@ -32,7 +32,7 @@ case class RegressionSplitter(randomizePivotLocation: Boolean = false, rng: Rand
   def getBestSplit(
                     data: Seq[(Vector[AnyVal], Double, Double)],
                     numFeatures: Int,
-                    minInstances: Int
+                    minInstances: Int,
                   ): (Split, Double) = {
 
     val calculator = VarianceCalculator.build(data.map(_._2), data.map(_._3))
@@ -48,8 +48,8 @@ case class RegressionSplitter(randomizePivotLocation: Boolean = false, rng: Rand
 
       /* Use different spliters for each type */
       val (possibleSplit, possibleVariance) = rep._1(index) match {
-        case _: Double => getBestRealSplit(data, calculator.copy(), index, minInstances, randomizePivotLocation)
-        case _: Char => getBestCategoricalSplit(data, calculator.copy(), index, minInstances)
+        case _: Double => getBestRealSplit(data, calculator.copy(), index, minInstances, randomizePivotLocation, minWeight)
+        case _: Char => getBestCategoricalSplit(data, calculator.copy(), index, minInstances, minWeight)
         case _: Any => throw new IllegalArgumentException("Trying to split unknown feature type")
       }
 
@@ -86,12 +86,11 @@ case class RegressionSplitter(randomizePivotLocation: Boolean = false, rng: Rand
                         calculator: VarianceCalculator,
                         index: Int,
                         minCount: Int,
-                        randomizePivotLocation: Boolean = false
+                        randomizePivotLocation: Boolean = false,
+                        minWeight: Double = 0.0
                       ): (RealSplit, Double) = {
     /* Pull out the feature that's considered here and sort by it */
     val thinData = data.filter(_._3 > 0).map(dat => (dat._1(index).asInstanceOf[Double], dat._2, dat._3)).sortBy(_._1)
-    // println(thinData)
-
 
     /* Base cases for iteration */
     var bestVariance = Double.MaxValue
@@ -109,7 +108,7 @@ case class RegressionSplitter(randomizePivotLocation: Boolean = false, rng: Rand
        */
       val left = thinData(j + 1)._1
       val right = thinData(j)._1
-      if (totalVariance < bestVariance && j + 1 >= minCount && Splitter.isDifferent(left, right)) {
+      if (totalVariance < bestVariance && j + 1 >= minCount && Splitter.isDifferent(left, right) && calculator.getLeftWeight >= minWeight && calculator.getRightWeight >= minWeight) {
         // println(totalVariance, (left+right) / 2.0, left, right)
         bestVariance = totalVariance
         /* Try pivots at the midpoints between consecutive member values */
@@ -134,7 +133,8 @@ case class RegressionSplitter(randomizePivotLocation: Boolean = false, rng: Rand
                                data: Seq[(Vector[AnyVal], Double, Double)],
                                calculator: VarianceCalculator,
                                index: Int,
-                               minCount: Int
+                               minCount: Int,
+                               minWeight: Double = 0.0
                              ): (CategoricalSplit, Double) = {
     val totalWeight = data.map(_._3).sum
 
@@ -160,6 +160,7 @@ case class RegressionSplitter(randomizePivotLocation: Boolean = false, rng: Rand
 
     /* Base cases for the iteration */
     var leftNum: Int = 0
+    var leftWeight: Double = 0.0
     var bestVariance = Double.MaxValue
     var bestSet = Set.empty[Char]
 
@@ -170,9 +171,10 @@ case class RegressionSplitter(randomizePivotLocation: Boolean = false, rng: Rand
       val totalVariance = calculator.add(dat._1 / dat._2, dat._2)
 
       leftNum = leftNum + dat._3
+      leftWeight = leftWeight + dat._2
 
       /* Keep track of the best split */
-      if (totalVariance < bestVariance && leftNum >= minCount && (thinData.size - leftNum) >= minCount) {
+      if (totalVariance < bestVariance && leftNum >= minCount && (thinData.size - leftNum) >= minCount && calculator.getLeftWeight >= minWeight && calculator.getRightWeight >= minWeight) {
         bestVariance = totalVariance
         bestSet = orderedNames.slice(0, j + 1).toSet
       }

@@ -10,6 +10,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.ExecutionContextTaskSupport
 import scala.collection.parallel.immutable.{ParRange, ParSeq}
 import scala.reflect._
+import _root_.io.citrine.lolo.trees.regression.RegressionTreeLearner
 
 /**
   * A bagger creates an ensemble of models by training the learner on random samples of the training data
@@ -32,7 +33,9 @@ case class Bagger(
                    uncertaintyCalibration: Boolean = false,
                    disableBootstrap: Boolean = false,
                    randBasis: RandBasis = Rand,
-                   noiseMode: String = "None"
+                   noiseMode: String = "None",
+                   weightRegularization: Option[Double] = None,
+                   weightMethod: String = "RMSE"
                  ) extends Learner {
   require(
     !(uncertaintyCalibration && disableBootstrap),
@@ -103,6 +106,15 @@ case class Bagger(
       }.next()
     }
 
+    val regularization: Seq[Double] = if (noiseMode == "HYBRID" || noiseMode == "WEIGHT") {
+      weightRegularization.map(r => Seq.fill(trainingData.size)(r))
+        .getOrElse(Bagger.getRegularization(this, trainingData.asInstanceOf[Seq[(Vector[Any], (Double, Double))]], weights, weightMethod))
+    } else {
+      Seq.empty
+    }
+
+    // println(s"Regularization for ${noiseMode}: ${regularization.headOption}")
+
     /* Learn the actual models in parallel */
     val parIterator = new ParRange(0 until actualBags)
     parIterator.tasksupport = new ExecutionContextTaskSupport(InterruptibleExecutionContext())
@@ -111,7 +123,7 @@ case class Bagger(
       val meta = if (withUncertainty) {
         val (newTraining, newWeights) = if (noiseMode == "DRAW") {
           val newTraining = trainingData.zip(Nib(i)).flatMap { case (row, nRep) =>
-            Vector.fill(nRep) {
+            Vector.fill(1) {
               val (mu, sigma) = row._2.asInstanceOf[(Double, Double)]
               val draw = normal.draw() * sigma + mu
               (row._1, draw)
@@ -119,12 +131,36 @@ case class Bagger(
           }
           // get weights
           val sampleWeights = Nib(i).zip(weightsActual).flatMap { case (nRep, weight) =>
-            Vector.fill(nRep)(weight)
+            Vector.fill(1)(weight * nRep)
           }
           (newTraining, sampleWeights)
+        } else if (noiseMode == "HYBRID") {
+          val newTraining = trainingData.zip(Nib(i)).flatMap { case (row, nRep) =>
+            Vector.fill(1) {
+              val (mu, sigma) = row._2.asInstanceOf[(Double, Double)]
+              val draw = normal.draw() * sigma + mu
+              (row._1, draw)
+            }
+          }
+
+          val ws = trainingData.zip(Nib(i)).zip(weightsActual).zip(regularization).map{
+            case ((((f, l), r), w), reg) if reg > 0 =>
+              r * w * reg / (reg + Math.pow(l.asInstanceOf[(Double, Double)]._2, 2))
+            case ((((f, l), r), w), reg) if reg == 0 =>
+              r * w / Math.pow(l.asInstanceOf[(Double, Double)]._2, 2)
+          }
+          // get weights
+          val sampleWeights = Nib(i).zip(ws).flatMap { case (nRep, weight) =>
+            Vector.fill(1)(weight)
+          }
+
+          (newTraining, sampleWeights)
         } else if (noiseMode == "WEIGHT") {
-          val ws = trainingData.zip(Nib(i)).zip(weightsActual).map{ case (((f, l), r), w) =>
-            r * w / Math.pow(l.asInstanceOf[(Double, Double)]._2, 2)
+          val ws = trainingData.zip(Nib(i)).zip(weightsActual).zip(regularization).map{
+            case ((((f, l), r), w), reg) if reg > 0 =>
+              r * w * reg / (reg + Math.pow(l.asInstanceOf[(Double, Double)]._2, 2))
+            case ((((f, l), r), w), reg) if reg == 0 =>
+              r * w / Math.pow(l.asInstanceOf[(Double, Double)]._2, 2)
           }
           val ds = trainingData.map{case (f, l) => (f, l.asInstanceOf[(Double, Double)]._1)}
           ds.zip(ws).filter(_._2 > 0).unzip
@@ -135,22 +171,11 @@ case class Bagger(
           val ds = trainingData.map{case (f, l) => (f, l.asInstanceOf[(Double, Double)]._1)}
           ds.zip(ws).filter(_._2 > 0).unzip
         }
-        // println(s"Labels (${newTraining.size}): ${newTraining.unzip._2}")
-        // println(s"weights (${sampleWeights.size}): ${sampleWeights}")
-
-        // val (newnewTraining, newnewWeights: Vector[Double]) = newTraining.zip(sampleWeights).groupBy(_._1).map{case (x, weights) =>
-        //  (x, weights.map(_._2).sum)
-        // }.toVector.unzip
 
         // Train the model
         val x = method.train(newTraining.toVector, Some(newWeights))
-        // val y = method.train(newnewTraining, Some(newnewWeights))
-        // println("Splits: ")
-        // println(x.asInstanceOf[RegressionTreeTrainingResult].getSplits())
-        // println(y.asInstanceOf[RegressionTreeTrainingResult].getSplits())
         x
-      }
-      else {
+      } else {
         // get weights
         val sampleWeights = Nib(i).zip(weightsActual).map(p => p._1.toDouble * p._2)
         val (newData, newWeights) = trainingData.zip(sampleWeights).filter(_._2 > 0).unzip
@@ -255,34 +280,32 @@ class BaggedTrainingResult[+T : ClassTag](
   lazy val NibT = Nib.transpose
   lazy val model = new BaggedModel[T](models, Nib, useJackknife, biasModel, rescale, disableBootstrap)
   lazy val rep = trainingData.find(_._2 != null).get._2
-  lazy val predictedVsActual = trainingData.zip(NibT).flatMap { case ((f, l), nb) =>
-    val oob = if (disableBootstrap) {
-      models.zip(nb)
-    } else {
-      models.zip(nb).filter(_._2 == 0)
-    }
-
-    if (oob.isEmpty || l == null || (l.isInstanceOf[Double] && l.asInstanceOf[Double].isNaN)) {
-      Seq()
-    } else {
-      l match {
-        case (a: Double, _: Double) =>
-          val predicted = oob.map(_._1.transform(Seq(f)).getExpected().head.asInstanceOf[Double]).sum / oob.size
-          Seq((f, predicted, a))
-        case _: Double =>
-          val predicted = oob.map(_._1.transform(Seq(f)).getExpected().head.asInstanceOf[Double]).sum / oob.size
-          Seq((f, predicted, l))
-        case _: Any =>
-          val predicted = oob.map(_._1.transform(Seq(f)).getExpected().head).groupBy(identity).maxBy(_._2.size)._1
-          Seq((f, predicted, l))
+  lazy val predictedVsActual: Seq[(Vector[Any], PredictionResult[T], T)] = trainingData.indices.flatMap { idx =>
+      val oobModels = models.zip(Nib.map(_ (idx))).filter(_._2 == 0).map(_._1)
+      if (oobModels.size < 2) {
+        None
+      } else {
+        Async.canStop()
+        val model = new BaggedModel(oobModels, Nib.filter {
+          _ (idx) == 0
+        }, useJackknife, disableBootstrap = disableBootstrap)
+        val predicted = model.transform(Seq(trainingData(idx)._1))
+        val actual = trainingData(idx)._2 match {
+          case (a: Double, _: Double) =>
+            a
+          case a: Double =>
+            a
+          case l: Any =>
+            l
+        }
+        Some(trainingData(idx)._1, predicted, actual.asInstanceOf[T])
       }
     }
-  }
 
   lazy val loss: Double = predictedVsActual.head._3 match {
-    case x: Double => Math.sqrt(predictedVsActual.map(d => Math.pow(d._2.asInstanceOf[Double] - d._3.asInstanceOf[Double], 2)).sum / predictedVsActual.size)
-    case x: Any =>
-      val f1 = ClassificationMetrics.f1scores(predictedVsActual)
+    case _: Double => Math.sqrt(predictedVsActual.map(d => Math.pow(d._2.getExpected().head.asInstanceOf[Double] - d._3.asInstanceOf[Double], 2)).sum / predictedVsActual.size)
+    case _: Any =>
+      val f1 = ClassificationMetrics.f1scores(getPredictedVsActual().get)
       if (f1 > 0.0) 1.0 / f1 - 1.0 else Double.MaxValue
   }
 
@@ -295,7 +318,9 @@ class BaggedTrainingResult[+T : ClassTag](
 
   override def getModel(): BaggedModel[Any] = model
 
-  override def getPredictedVsActual(): Option[Seq[(Vector[Any], Any, Any)]] = Some(predictedVsActual)
+  override def getPredictedVsActual(): Option[Seq[(Vector[Any], Any, Any)]] = {
+    Some(predictedVsActual.map{case (f, p, a) => (f, p.getExpected().head, a)})
+  }
 
   override def getLoss(): Option[Double] = {
     if (predictedVsActual.nonEmpty) {
@@ -398,6 +423,24 @@ object Bagger {
       case (None, None) => None
       case (Some(v1: Vector[Double]), Some(v2: Vector[Double])) => Some(v1.zip(v2).map(p => p._1 + p._2))
       case _ => None
+    }
+  }
+
+  private def getRegularization(bagger: Bagger, trainingData: Seq[(Vector[Any], (Double, Double))], weights: Option[Seq[Double]] = None, weightMethod: String): Seq[Double] = {
+    val trainingResult: BaggedTrainingResult[Double] = Bagger(method = RegressionTreeLearner()).train(trainingData, weights)
+      .asInstanceOf[BaggedTrainingResult[Double]]
+    if (weightMethod == "RMSE") {
+      val meanSquareNoise = trainingData.map(x => Math.pow(x._2._2, 2.0)).sum / trainingData.size
+      val loss: Double = trainingResult.getLoss().get
+      val gamma = Math.max(Math.pow(loss, 2.0) - meanSquareNoise, loss * loss / 100)
+      // println(s"Loss: ${loss} \t RMV: ${Math.sqrt(meanSquareNoise)} \t Sqrt(Gamma) = ${Math.sqrt(gamma)}")
+      Seq.fill(trainingData.size)(gamma)
+    } else if (weightMethod == "CI") {
+      trainingResult.predictedVsActual.map { case (_, p: BaggedResult[Double], _) =>
+        Math.pow(p.getUncertainty(false).get.head.asInstanceOf[Double], 2.0)
+      }
+    } else {
+      throw new IllegalArgumentException(s"Unrecognized weight method: ${weightMethod}")
     }
   }
 }

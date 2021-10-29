@@ -77,32 +77,66 @@ case class StatisticalValidation(rng: Random = Random) {
     }
   }
 
-  def generativeValidationWithNoise(
+  def generativeValidationWithNoiseMulti(
                                source: Iterable[(Vector[Any], (Double, Double))],
-                               learner: Learner,
+                               learners: Seq[Learner],
                                nTrain: Int,
                                nTest: Int,
-                               nRound: Int
-                             ): Iterator[(PredictionResult[Double], Seq[Double])] = {
-    Iterator.tabulate(nRound) { _ =>
-      val subset = rng.shuffle(source).take(nTrain + nTest)
-      val (trainingData: Seq[(Vector[Any], (Double, Double))], testData: Seq[(Vector[Any], (Double, Double))]) = subset.splitAt(nTrain)
-      val noisedTraining = trainingData.map{case (f, (l, n)) =>
+                               nRound: Int,
+                               source2: Option[Iterable[(Vector[Any], (Double, Double))]] = None,
+                               frequency: Option[Double] = None
+                             ): Iterator[(Seq[PredictionResult[Double]], Seq[Double])] = {
+    Iterator.tabulate(nRound) { idx =>
+      println(s"Round ${idx} of ${nRound}")
+      val (trainingData: Seq[(Vector[Any], (Double, Double))], testData: Seq[(Vector[Any], (Double, Double))]) = if (frequency.getOrElse(0.0) > 0.0) {
+        val n2 = (nTrain * frequency.get).toInt
+        val n1 = nTrain - n2
+        val subset = rng.shuffle(source).take(nTest + n1)
+        val (training1, test) = subset.splitAt(n1)
+        val training = training1 ++ rng.shuffle(source2.get).take(n2).toVector
+        (training, test)
+      } else {
+        val subset = rng.shuffle(source).take(nTrain + nTest)
+        subset.splitAt(nTrain)
+      }
+
+      val noisedTraining = trainingData.map { case (f, (l, n)) =>
         (f, (l + rng.nextGaussian() * n, n))
       }
-      val noisedTest = testData.map{case (f, (l, n)) =>
+      val noisedTest = testData.map { case (f, (l, n)) =>
         (f, l + rng.nextGaussian() * n * 0)
       }
-      val model = learner.train(noisedTraining).getModel()
-      if (true) {
-        noisedTest.map{x =>
-          (model.transform(Seq(x._1)).asInstanceOf[PredictionResult[Double]], Seq(x._2))
+
+      val predictions: Seq[PredictionResult[Double]] = learners.map { learner =>
+        val model = learner.train(noisedTraining).getModel()
+        if (true) {
+          val predictions = noisedTest.map { x =>
+            model.transform(Seq(x._1)).asInstanceOf[PredictionResult[Double]]
+          }
+          new PredictionResult[Double] {
+            override def getExpected(): Seq[Double] = predictions.map(_.getExpected().head)
+
+            override def getUncertainty(observational: Boolean): Option[Seq[Any]] = {
+              Some(predictions.map(_.getUncertainty(observational).get.head))
+            }
+          }
+        } else {
+          model.transform(noisedTest.map(_._1)).asInstanceOf[PredictionResult[Double]]
         }
-      } else {
-        val predictions: PredictionResult[Double] = model.transform(noisedTest.map(_._1)).asInstanceOf[PredictionResult[Double]]
-        Seq((predictions, noisedTest.map(_._2)))
       }
-    }.flatten
+      (predictions, noisedTest.map(_._2))
+    }
   }
 
+  def generativeValidationWithNoise(
+                                     source: Iterable[(Vector[Any], (Double, Double))],
+                                     learner: Learner,
+                                     nTrain: Int,
+                                     nTest: Int,
+                                     nRound: Int
+                                   ): Iterator[(PredictionResult[Double], Seq[Double])] = {
+    generativeValidationWithNoiseMulti(source, Seq(learner), nTrain, nTest, nRound).map{case (predictions, actual) =>
+      (predictions.head, actual)
+    }
+  }
 }

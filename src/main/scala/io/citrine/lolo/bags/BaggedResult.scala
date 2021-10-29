@@ -61,6 +61,11 @@ case class BaggedSingleResult(
   private lazy val expected = {
     treePredictions.zip(treeWeights).map(x => x._1 * x._2).sum / treeWeights.sum
   }
+
+  private lazy val Neff = {
+    Math.pow(treeWeights.sum, 2.0) / treeWeights.map(x => x * x).sum
+  }
+
   private lazy val uncorrectedTreeVariance: Double = {
     assert(treePredictions.length > 1, "Bootstrap variance undefined for fewer than 2 bootstrap samples.")
     val expectedSquare = treePredictions.zip(treeWeights).map{case (x, w) => x * x * w}.sum / treeWeights.sum
@@ -69,7 +74,7 @@ case class BaggedSingleResult(
   }
 
   private lazy val treeVariance: Double = {
-    uncorrectedTreeVariance * treePredictions.size / (treePredictions.size - 1)// * Math.pow(treeWeights.sum, 2.0) / (Math.pow(treeWeights.sum, 2.0) - treeWeights.map(Math.pow(_, 2.0)).sum)
+    uncorrectedTreeVariance * Neff / (Neff - 1)
   }
 
   override def getStdDevMean(): Option[Seq[Double]] = {
@@ -119,7 +124,7 @@ case class BaggedSingleResult(
   private lazy val singleScores: Vector[Double] = {
     // Compute the Bessel-uncorrected variance of the ensemble of predicted values,
     // and then divide by the size of the ensemble an extra time
-    val varT = treePredictions.map(x => Math.pow(x - expected, 2.0)).sum / treePredictions.length // uncorrectedTreeVariance
+    val varT = uncorrectedTreeVariance / treeWeights.size
 
     // This will be more convenient later
     val nMat = NibIn.transpose
@@ -128,24 +133,23 @@ case class BaggedSingleResult(
     val trainingContributions = nMat.indices.toVector.map { idx =>
       // Pull the vector of the number of times this instance was used to train each tree
       val vecN = nMat(idx).toArray
-      val nTot = vecN.sum
 
       // Loop over the trees, computing the covariance for the IJ estimate and the predicted value of
       // the out-of-bag trees for the J(ackknife) estimate
       // The loops are merged for performance reasons
       var cov: Double = 0.0
       var tNot: Double = 0.0
-      var tNotCount: Int = 0
+      var tNotCount: Double = 0.0
       vecN.indices.foreach { jdx =>
-        cov = cov + (vecN(jdx) - nTot.toDouble / vecN.size) * (treePredictions(jdx) - expected)
+        cov = cov + treeWeights(jdx) * vecN(jdx) * (treePredictions(jdx) - expected)
 
         if (vecN(jdx) == 0) {
-          tNot = tNot + treePredictions(jdx)
-          tNotCount = tNotCount + 1
+          tNot = tNot + treeWeights(jdx) * treePredictions(jdx)
+          tNotCount = tNotCount + treeWeights(jdx)
         }
       }
       // Compute the infinitesimal jackknife estimate
-      val varIJ = Math.pow(cov / vecN.size, 2.0)
+      val varIJ = Math.pow(cov / treeWeights.sum, 2.0)
 
       if (tNotCount > 0) {
         // Compute the Jackknife after bootstrap estimate
@@ -414,6 +418,8 @@ case class BaggedMultiResult(
 object BaggedResult {
 
   val logger: Logger = LoggerFactory.getLogger(getClass)
+  var failureCount: Int = 0
+  var successCount: Int = 0
 
   /**
    * Make sure the variance is non-negative
@@ -437,17 +443,33 @@ object BaggedResult {
    * @return A non-negative estimate of the variance
    */
   def rectifyEstimatedVariance(scores: Seq[Double]): Double = {
+    if (false) {
+      return scores.sorted.reverse.take(128).sum
+    }
     val rawSum = scores.sum
     lazy val maxEntry = scores.max
+    lazy val minEntry = scores.min
+
+    if (false) {
+      val threshold = 8 * Math.abs(minEntry)
+      return scores.filter(_ > threshold).sum
+    }
 
     if (rawSum > 0) {
+      successCount += 1
       rawSum
     } else if (maxEntry > 0) {
       // If the sum is negative,
+      failureCount += 1
       logger.warn(s"Sum of scores was negative; using the largest score as an estimate for the variance.  Please consider increasing the ensemble size.")
+      // println(s"Sum of scores was negative; using the largest score as an estimate for the variance.  Please consider increasing the ensemble size.")
+      // println(s"Sum: ${rawSum}\tMax: ${maxEntry}\tMin: ${scores.min}")
+      // println(scores.sorted.reverse)
       maxEntry
     } else {
+      failureCount += 1
       logger.warn(s"All scores were negative; using the magnitude of the smallest score as an estimate for the variance.  It is highly recommended to increase the ensemble size.")
+      println(s"All scores were negative; using the magnitude of the smallest score as an estimate for the variance.  It is highly recommended to increase the ensemble size.")
       - scores.min // equivalent to Math.abs(scores.min)
     }
   } ensuring (_ >= 0.0)
