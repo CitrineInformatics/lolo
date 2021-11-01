@@ -1,7 +1,5 @@
 package io.citrine.lolo
 
-import breeze.linalg.DenseVector
-
 /**
   * Created by maxhutch on 12/4/16.
   */
@@ -34,4 +32,12 @@ trait TrainingResult extends Serializable {
     * @return seq of (feature vector, predicted value, and actual value)
     */
   def getPredictedVsActual(): Option[Seq[(Vector[Any], Any, Any)]] = None
+}
+
+trait MultiTaskTrainingResult extends TrainingResult {
+  override def getModel(): MultiTaskModel
+
+  def getModels(): Seq[Model[PredictionResult[Any]]]
+
+  override def getPredictedVsActual(): Option[Seq[(Vector[Any], Seq[Any], Seq[Any])]] = None
 }

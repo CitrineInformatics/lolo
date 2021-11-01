@@ -162,13 +162,25 @@ trait RegressionResult extends PredictionResult[Double] {
   }
 }
 
-case class MultiResult[T](values: Seq[T]) extends PredictionResult[T] {
-  /**
-    * Get the expected values for this prediction
-    *
-    * @return expected value of each prediction
-    */
-  override def getExpected(): Seq[T] = values
+/** Container for predictions made on multiple labels simultaneously. */
+trait MultiTaskModelPredictionResult extends PredictionResult[Seq[Any]] {
 
-  def append(other: this.type): MultiResult[T] = MultiResult(values ++ other.values)
+  override def getUncertainty(observational: Boolean = true): Option[Seq[Seq[Any]]] = None
+
+  // TODO (PLA-8537): should this interface include an `observational` option? Is there a difference to the correlation coefficient?
+  /**
+    * Get the correlation coefficients between the predictions made on two labels.
+    * Correlation coefficient is bounded between -1 and 1.
+    * If either index is out of bounds or does not correspond to a real-valued label, then this method must return None.
+    *
+    * @param  i index of the first label
+    * @param  j index of the second label
+    * @return optional sequence of correlation coefficients between specified labels for each prediction
+    */
+  def getUncertaintyCorrelation(i: Int, j: Int): Option[Seq[Double]] = None
+}
+
+/** A container that holds the predictions of several parallel models for multiple labels. */
+class ParallelModelsPredictionResult(predictions: Seq[Seq[Any]]) extends MultiTaskModelPredictionResult {
+  override def getExpected(): Seq[Seq[Any]] = predictions
 }

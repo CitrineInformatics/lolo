@@ -29,7 +29,7 @@ class MultiTaskTreeTest {
   @Test
   def testTwoLabels(): Unit = {
     val learner = MultiTaskTreeLearner()
-    val models = learner.train(inputs, Seq(realLabel, catLabel)).map(_.getModel())
+    val models = learner.train(inputs, Seq(realLabel, catLabel)).getModels()
     assert(models.size == 2)
     assert(models.head.isInstanceOf[RegressionTree])
     assert(models.last.isInstanceOf[ClassificationTree])
@@ -54,7 +54,7 @@ class MultiTaskTreeTest {
     )
 
     val learner = MultiTaskTreeLearner()
-    val models = learner.train(inputs, Seq(realLabel, sparseCat)).map(_.getModel())
+    val models = learner.train(inputs, Seq(realLabel, sparseCat)).getModels()
     val realResults = models.head.transform(inputs).getExpected().asInstanceOf[Seq[Double]]
     val catResults = models.last.transform(inputs).getExpected().asInstanceOf[Seq[Boolean]]
 
@@ -76,7 +76,7 @@ class MultiTaskTreeTest {
     )
 
     val learner = new MultiTaskTreeLearner()
-    val models = learner.train(inputs, Seq(realLabel, sparseCat)).map(_.getModel())
+    val models = learner.train(inputs, Seq(realLabel, sparseCat)).getModels()
     val catResults = models.last.transform(inputs).getExpected().asInstanceOf[Seq[Boolean]]
 
     val reference = new ClassificationTreeLearner()
@@ -89,6 +89,28 @@ class MultiTaskTreeTest {
     val multiF1 = ClassificationMetrics.f1scores(catResults, catLabel)
     assert(multiF1 < 1.0)
     assert(multiF1 > singleF1)
+  }
+
+  /** Test that the resulting predictions are independent of whether the trees are stored in one model or several models.*/
+  @Test
+  def testSingleModelEquality(): Unit = {
+    // Train twice with the same seed, first outputting two models and then outputting a combined model.
+    val seed = 817235L
+    val rng = new Random(seed)
+    val combinedModelRng = new Random(seed)
+    val learner = MultiTaskTreeLearner(rng = rng)
+    val combinedModelLearner = MultiTaskTreeLearner(rng = combinedModelRng)
+    val models = learner.train(inputs, Seq(realLabel, catLabel)).getModels()
+    val combinedModel = combinedModelLearner.train(inputs, Seq(realLabel, catLabel)).getModel()
+
+    // Generate new inputs to test equality on.
+    val testInputs = TestUtils
+      .generateTrainingData(32, 12, noise = 0.1, function = Friedman.friedmanSilverman, seed = rng.nextLong())
+      .map(_._1)
+    val realResults = models.head.transform(testInputs).getExpected().asInstanceOf[Seq[Double]]
+    val catResults = models.last.transform(testInputs).getExpected().asInstanceOf[Seq[Boolean]]
+    val allResults = combinedModel.transform(testInputs).getExpected().asInstanceOf[Seq[Seq[Any]]]
+    assert(Seq(realResults, catResults).transpose == allResults)
   }
 
 }

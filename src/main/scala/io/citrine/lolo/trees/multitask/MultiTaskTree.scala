@@ -4,28 +4,26 @@ import io.citrine.lolo.encoders.CategoricalEncoder
 import io.citrine.lolo.trees.ModelNode
 import io.citrine.lolo.trees.classification.ClassificationTree
 import io.citrine.lolo.trees.regression.RegressionTree
-import io.citrine.lolo.{Model, MultiTaskLearner, PredictionResult, TrainingResult}
+import io.citrine.lolo.{Model, MultiTaskLearner, MultiTaskTrainingResult, ParallelModels, PredictionResult}
 
 import scala.util.Random
 
-/**
-  * Multi-task tree learner, which produces multiple decision trees with the same split structure
-  *
-  */
+/** A trait to hold logic common to all tree learners that operate on multiple labels. */
 case class MultiTaskTreeLearner(
                                  randomizePivotLocation: Boolean = false,
                                  rng: Random = Random
                                ) extends MultiTaskLearner {
 
   /**
-    * Train a model
+    * Construct one regression or classification tree for each label.
     *
-    * @param inputs  to train on
-    * @param labels  sequence of sequences of labels
-    * @param weights for the training rows, if applicable
-    * @return training result containing a model
+    * @param inputs   to train on
+    * @param labels   sequence of sequences of labels, with shape (# labels) x (# training rows)
+    * @param weights  for the training rows, if applicable
+    * @return         sequence of models, one for each label
+    * @return
     */
-  override def train(inputs: Seq[Vector[Any]], labels: Seq[Seq[Any]], weights: Option[Seq[Double]]): Seq[TrainingResult] = {
+  override def train(inputs: Seq[Vector[Any]], labels: Seq[Seq[Any]], weights: Option[Seq[Double]]): MultiTaskTreeTrainingResult = {
     val labelsTransposed = labels.toVector.transpose
 
     /* Create encoders for any categorical features */
@@ -56,7 +54,7 @@ case class MultiTaskTreeLearner(
     }.filter(_._3 > 0.0)
 
     // Construct the training tree
-    val root = new MultiTaskTrainingNode(collectedData, randomizePivotLocation)
+    val root = new MultiTaskTrainingNode(collectedData, randomizePivotLocation, rng)
 
     // Construct the model trees
     val nodes = labels.indices.map(root.getNode)
@@ -77,16 +75,16 @@ case class MultiTaskTreeLearner(
       }
     }
 
-    // Wrap the models in dead-simple training results and return
-    models.map(new MultiTaskTreeTrainingResult(_))
+    new MultiTaskTreeTrainingResult(models)
   }
 }
 
-class MultiTaskTreeTrainingResult(model: Model[PredictionResult[Any]]) extends TrainingResult {
-  /**
-    * Get the model contained in the training result
-    *
-    * @return the model
-    */
-  override def getModel(): Model[PredictionResult[Any]] = model
+class MultiTaskTreeTrainingResult(models: Seq[Model[PredictionResult[Any]]]) extends MultiTaskTrainingResult {
+  val model = new ParallelModels(models, models.map(_.isInstanceOf[RegressionTree]))
+
+  override def getModel(): ParallelModels = model
+
+  override def getModels(): Seq[Model[PredictionResult[Any]]] = models
+
+  // TODO (PLA-8567): combine feature importances of individual models (which are not currently available)
 }
