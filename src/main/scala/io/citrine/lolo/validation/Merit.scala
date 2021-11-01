@@ -2,6 +2,9 @@ package io.citrine.lolo.validation
 
 import java.util
 
+import io.citrine.lolo.bags.CorrelationMethods.CorrelationMethod
+import io.citrine.lolo.bags.MultiTaskBaggedResult
+import io.citrine.lolo.stats.utils
 import io.citrine.lolo.PredictionResult
 import org.knowm.xchart.XYChart
 
@@ -14,7 +17,7 @@ import scala.util.Random
 trait Merit[T] {
 
   /**
-    * Apply the figure of merti to a prediction result and set of ground-truth values
+    * Apply the figure of merit to a prediction result and set of ground-truth values
     *
     * @return the value of the figure of merit
     */
@@ -129,6 +132,77 @@ case object UncertaintyCorrelation extends Merit[Double] {
 
     val covar = error.zip(sigma).map { case (x, y) => (x - meanError) * (y - meanSigma) }.sum / sigma.size
     covar / Math.sqrt(varError * varSigma)
+  }
+}
+
+/**
+  * Negative Log Probability Density (NLPD) in two dimensions
+  * NLPD is calculated for point and the median value is returned.
+  *
+  * @param i index of the first label to be compared
+  * @param j index of the second label to be compared
+  * @param method method to calculate correlation coefficient
+  * @param observational whether or not to calculate the observational uncertainty
+  */
+case class NegativeLogProbabilityDensity2d(i: Int, j: Int, method: CorrelationMethod, observational: Boolean) extends Merit[Seq[Any]] {
+  override def evaluate(predictionResult: PredictionResult[Seq[Any]], actual: Seq[Seq[Any]], rng: Random): Double = {
+    val allPredictions = predictionResult.getExpected()
+    val predictionsI = extractComponentByIndex(allPredictions, i)
+    val predictionsJ = extractComponentByIndex(allPredictions, j)
+    val actualI = extractComponentByIndex(actual, i)
+    val actualJ = extractComponentByIndex(actual, j)
+    val errorI = predictionsI.zip(actualI).map(pa => pa._1 - pa._2)
+    val errorJ = predictionsJ.zip(actualJ).map(pa => pa._1 - pa._2)
+    val allSigma = predictionResult.asInstanceOf[MultiTaskBaggedResult].getUncertainty(observational).get
+    val sigmaI = extractComponentByIndex(allSigma, i, Some(0.0))
+    val sigmaJ = extractComponentByIndex(allSigma, j, Some(0.0))
+    val rho = predictionResult.asInstanceOf[MultiTaskBaggedResult].getUncertaintyCorrelationBuffet(i, j, method).get
+    val nlpd = NLPD(errorI, errorJ, sigmaI, sigmaJ, rho)
+    utils.median(nlpd)
+  }
+
+  /**
+    * A convenience method for slicing a two dimensional data structure
+    *
+    * @param data a sequence of sequences
+    * @param index to slice (must correspond to real-valued data)
+    * @param default default to use in case the values are Option[Double]
+    * @return
+    */
+  private def extractComponentByIndex(data: Seq[Seq[Any]], index: Int, default: Option[Double] = None): Seq[Double] = {
+    data.map { row =>
+      row(index) match {
+        case x: Double => x
+        case x: Option[Double] => x.getOrElse(default.get)
+      }
+    }
+  }
+
+  /**
+    * Bivariate negative log probability density calculation
+    * log(2 * pi * sigma_x * sigma_y * sqrt(1 - rho**2)) +
+    *   1/(2 * (1 - rho**2)) * [(x / sigma_x)**2 + (y / sigma_y)**2 - 2 * rho * x * y / (sigma_x * sigma_y)]
+    * @param dx sequence of prediction errors in first label
+    * @param dy sequence of prediction errors in second label
+    * @param sigmaX sequence of uncertainty values of first label
+    * @param sigmaY sequence of uncertainty values of second label
+    * @param rho sequence of correlation coefficients for predictions
+    * @return sequence of NLPD value for each prediction
+    */
+  def NLPD(dx: Seq[Double], dy: Seq[Double], sigmaX: Seq[Double], sigmaY: Seq[Double], rho: Seq[Double]): Seq[Double] = {
+    Seq(dx, dy, sigmaX, sigmaY, rho).transpose.map { values =>
+      val x = values.head
+      val y = values(1)
+      val sx = values(2)
+      val sy = values(3)
+      val r = values(4)
+      val r2 = math.pow(r, 2.0)
+      val term1 = math.log(2 * math.Pi * sx * sy * math.sqrt(1 - r2))
+      val normX = x / sx
+      val normY = y / sy
+      val term2 = 1/(2 * (1 - r2)) * (math.pow(normX, 2.0) + math.pow(normY, 2.0) - 2 * r * normX * normY)
+      term1 + term2
+    }
   }
 }
 
