@@ -52,7 +52,7 @@ case class MultiTaskFeatureRotator(baseLearner: MultiTaskLearner) extends MultiT
                      inputs: Seq[Vector[Any]],
                      labels: Seq[Seq[Any]],
                      weights: Option[Seq[Double]]
-                    ): MultiTaskTrainingResult = {
+                    ): MultiTaskRotatedFeatureTrainingResult = {
     val featuresToRotate = FeatureRotator.getDoubleFeatures(inputs.head)
     val trans = FeatureRotator.getRandomRotation(inputs.head.length)
     val rotatedFeatures = FeatureRotator.applyRotation(inputs, featuresToRotate, trans)

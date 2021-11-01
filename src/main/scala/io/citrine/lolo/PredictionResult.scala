@@ -167,7 +167,7 @@ trait MultiTaskModelPredictionResult extends PredictionResult[Seq[Any]] {
 
   override def getUncertainty(observational: Boolean = true): Option[Seq[Seq[Any]]] = None
 
-  // TODO: should this interface include an `observational` option? Is there a difference to the correlation coefficient?
+  // TODO (PLA-8537): should this interface include an `observational` option? Is there a difference to the correlation coefficient?
   /**
     * Get the correlation coefficients between the predictions made on two labels.
     * Correlation coefficient is bounded between -1 and 1.
