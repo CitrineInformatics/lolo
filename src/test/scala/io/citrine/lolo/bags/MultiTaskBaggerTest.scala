@@ -3,6 +3,7 @@ package io.citrine.lolo.bags
 import breeze.stats.distributions.Beta
 import io.citrine.lolo.TestUtils
 import io.citrine.lolo.linear.GuessTheMeanLearner
+import io.citrine.lolo.stats.utils.makeLinearCorrelatedData
 import io.citrine.lolo.stats.functions.Friedman
 import io.citrine.lolo.stats.metrics.ClassificationMetrics
 import io.citrine.lolo.trees.classification.ClassificationTreeLearner
@@ -167,7 +168,7 @@ class MultiTaskBaggerTest {
   }
 
 
-  /** Test that a multi-task bagged model properly stores and transposes individual trees, and remembers labels.*/
+  /** Test that a multi-task bagged model properly stores and transposes individual trees, and remembers labels. */
   @Test
   def testCombinedMultiTaskModel(): Unit = {
     val numTrain = 256
@@ -198,6 +199,54 @@ class MultiTaskBaggerTest {
     (0 until numTest).foreach { i =>
       assert(expected(i)(1) == catLabel(i))
       assert(catLabel(i) == expectedCat(i))
+    }
+  }
+
+  /** Test various methods of calculating the correlation coefficient. */
+  @Test
+  def testCorrelation(): Unit = {
+    val numTrain = 256
+    val numBags = 64
+    val numTest = 32
+    val trainingRho = 0.45 // desired correlation between two real-valued training labels
+    val raw: Seq[(Vector[Double], Double)] = TestUtils.generateTrainingData(numTrain, 12, noise = 0.1, function = Friedman.friedmanSilverman)
+    val inputs: Seq[Vector[Double]] = raw.map(_._1)
+    val realLabel: Seq[Double] = raw.map(_._2)
+    val catLabel: Seq[Boolean] = raw.map(_._2 > realLabel.max / 2.0)
+    val correlatedLabel: Seq[Double] = makeLinearCorrelatedData(realLabel, trainingRho)
+
+    val learner = MultiTaskTreeLearner()
+    val baggedLearner = MultiTaskBagger(
+      learner,
+      numBags = numBags,
+      biasLearner = Some(RegressionTreeLearner(maxDepth = 2)),
+      randBasis = TestUtils.getBreezeRandBasis(78495L)
+    )
+    val RF = baggedLearner.train(inputs, Seq(realLabel, catLabel, correlatedLabel)).getModel()
+
+    val testInputs = TestUtils.generateTrainingData(numTest, 12, function = Friedman.friedmanSilverman).map(_._1)
+    val predictionResult = RF.transform(testInputs)
+
+    val correlationMethods = Seq(CorrelationMethods.Trivial, CorrelationMethods.FromTraining, CorrelationMethods.Jackknife, CorrelationMethods.Bootstrap)
+    correlationMethods.foreach { method =>
+      // All real-valued predictions should be perfectly correlated with themselves
+      assert(predictionResult.getUncertaintyCorrelationBuffet(0, 0, method).get == Seq.fill(numTest)(1.0))
+      // Correlation with a non-real-valued label should be empty
+      assert(predictionResult.getUncertaintyCorrelationBuffet(0, 1, method).isEmpty)
+    }
+
+    // Trivial method always predicts 0 correlation between labels
+    assert(predictionResult.getUncertaintyCorrelationBuffet(0, 2, CorrelationMethods.Trivial).get == Seq.fill(numTest)(0.0))
+    // FromTraining method always predicts the value of the training data, which is trainingRho
+    predictionResult.getUncertaintyCorrelationBuffet(0, 2, CorrelationMethods.FromTraining).get.foreach { calcRho =>
+      // Use approximate equality because the data generation procedure introduces floating point rounding errors
+      assert(math.abs(calcRho - trainingRho) < 1e-5)
+    }
+    // Other methods should predict a variety of values between -1.0 and 1.0
+    Seq(CorrelationMethods.Jackknife, CorrelationMethods.Bootstrap).foreach { method =>
+      predictionResult.getUncertaintyCorrelationBuffet(0, 2, method).get.foreach { calcRho =>
+        assert(calcRho >= -1.0 && calcRho <= 1.0)
+      }
     }
   }
 
