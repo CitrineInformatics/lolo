@@ -166,29 +166,14 @@ class MultiTaskBaggerTest {
     assert(results.getGradient().isEmpty, "Returned a gradient when there shouldn't be one")
   }
 
-  /**
-    * Test that multi-task with dense labels works, and remembers all its inputs
-    */
-  @Test
-  def testMixed(): Unit = {
-    /* Setup some data */
-    val raw: Seq[(Vector[Double], Double)] = TestUtils.generateTrainingData(256, 12, noise = 0.1, function = Friedman.friedmanSilverman)
-    val inputs: Seq[Vector[Double]] = raw.map(_._1)
-    val realLabel: Seq[Double] = raw.map(_._2)
-    val catLabel: Seq[Boolean] = raw.map(_._2 > realLabel.max / 2.0)
-    val DTLearner = MultiTaskTreeLearner()
-    val baggedLearner = MultiTaskBagger(DTLearner, numBags = inputs.size, biasLearner = Some(new RegressionTreeLearner(maxDepth = 2)), randBasis = TestUtils.getBreezeRandBasis(78495L))
-    val RFMeta = baggedLearner.train(inputs, Seq(realLabel, catLabel))
-    val RF = RFMeta.getModels().last
 
-    val catResults = RF.transform(inputs).getExpected().asInstanceOf[Seq[Boolean]]
-    assert(catResults.zip(catLabel).forall(p => p._1 == p._2))
-  }
-
-  /** Test that a multi-task bagged model properly stores and transposes individual trees.*/
+  /** Test that a multi-task bagged model properly stores and transposes individual trees, and remembers labels.*/
   @Test
   def testCombinedMultiTaskModel(): Unit = {
-    val raw: Seq[(Vector[Double], Double)] = TestUtils.generateTrainingData(256, 12, noise = 0.1, function = Friedman.friedmanSilverman)
+    val numTrain = 256
+    val numBags = 64
+    val numTest = 32
+    val raw: Seq[(Vector[Double], Double)] = TestUtils.generateTrainingData(numTrain, 12, noise = 0.1, function = Friedman.friedmanSilverman)
     val inputs: Seq[Vector[Double]] = raw.map(_._1)
     val realLabel: Seq[Double] = raw.map(_._2)
     val catLabel: Seq[Boolean] = raw.map(_._2 > realLabel.max / 2.0)
@@ -196,19 +181,24 @@ class MultiTaskBaggerTest {
     val learner = MultiTaskTreeLearner()
     val baggedLearner = MultiTaskBagger(
       learner,
-      numBags = 64,
-      biasLearner = Some(RegressionTreeLearner(maxDepth = 2))
+      numBags = numBags,
+      biasLearner = Some(RegressionTreeLearner(maxDepth = 2)),
+      randBasis = TestUtils.getBreezeRandBasis(78495L)
     )
-    val RF = baggedLearner.train(inputs, Seq(realLabel, catLabel)).getModel()
+    val RF = baggedLearner.train(inputs, Seq(realLabel, catLabel))
 
-    val testInputs = TestUtils
-      .generateTrainingData(32, 12, noise = 0.1, function = Friedman.friedmanSilverman)
-      .map(_._1)
-    val predictionResult = RF.transform(testInputs)
-    assert(predictionResult.predictions.length == 64)
+    val testInputs = inputs.take(numTest)
+    val predictionResult = RF.getModel().transform(testInputs)
+    assert(predictionResult.predictions.length == numBags)
+
+    // The prediction made by the full model and the prediction made by just the categorical model should agree
+    // and both be equal to the training label.
     val expected = predictionResult.getExpected()
-    assert(expected.length == 32)
-    assert(expected.head.length == 2)
+    val expectedCat = RF.getModels()(1).transform(testInputs).getExpected()
+    (0 until numTest).foreach { i =>
+      assert(expected(i)(1) == catLabel(i))
+      assert(catLabel(i) == expectedCat(i))
+    }
   }
 
   /**
