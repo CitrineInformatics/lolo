@@ -227,7 +227,7 @@ class MultiTaskBaggerTest {
     val testInputs = TestUtils.generateTrainingData(numTest, 12, function = Friedman.friedmanSilverman).map(_._1)
     val predictionResult = RF.transform(testInputs)
 
-    val correlationMethods = Seq(CorrelationMethods.Trivial, CorrelationMethods.FromTraining, CorrelationMethods.Jackknife, CorrelationMethods.Bootstrap)
+    val correlationMethods = Seq(CorrelationMethods.Trivial, CorrelationMethods.FromTraining, CorrelationMethods.Jackknife, CorrelationMethods.Bootstrap, CorrelationMethods.JackknifeExplicit)
     correlationMethods.foreach { method =>
       // All real-valued predictions should be perfectly correlated with themselves
       assert(predictionResult.getUncertaintyCorrelationBuffet(0, 0, method).get == Seq.fill(numTest)(1.0))
@@ -242,12 +242,17 @@ class MultiTaskBaggerTest {
       // Use approximate equality because the data generation procedure introduces floating point rounding errors
       assert(math.abs(calcRho - trainingRho) < 1e-5)
     }
-    // Other methods should predict a variety of values between -1.0 and 1.0
+    // Bootstrap and Jackknife should predict a variety of values between -1.0 and 1.0
     Seq(CorrelationMethods.Jackknife, CorrelationMethods.Bootstrap).foreach { method =>
       predictionResult.getUncertaintyCorrelationBuffet(0, 2, method).get.foreach { calcRho =>
         assert(calcRho >= -1.0 && calcRho <= 1.0)
       }
     }
+
+    // Both jackknife methods should produce the same results
+    val rhoJackknife = predictionResult.getUncertaintyCorrelationBuffet(0, 2, CorrelationMethods.Jackknife).get
+    val rhoJackknifeExplicit = predictionResult.getUncertaintyCorrelationBuffet(0, 2, CorrelationMethods.JackknifeExplicit).get
+    rhoJackknife.zip(rhoJackknifeExplicit).foreach { case (a, b) => assert(math.abs(a - b) < 1e-5)}
   }
 
   /**
