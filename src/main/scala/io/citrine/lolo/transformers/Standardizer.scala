@@ -297,6 +297,7 @@ object Standardizer {
     * @return sequence of standardized values
     */
   def applyStandardization(input: Seq[Any], trans: Option[Standardization]): Seq[Any] = {
-    applyStandardization(input.map(Vector(_)), Seq(trans))
+    if (trans.isEmpty) return input
+    input.asInstanceOf[Seq[Double]].map(trans.get.apply)
   }
 }
