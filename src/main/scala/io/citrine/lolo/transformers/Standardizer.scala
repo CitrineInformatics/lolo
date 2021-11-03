@@ -96,7 +96,13 @@ class StandardizerTrainingResult(
   override def getPredictedVsActual(): Option[Seq[(Vector[Any], Any, Any)]] = {
     baseTrainingResult.getPredictedVsActual() match {
       case None => None
-      case Some(predictedVsActual) => None
+      case Some(predictedVsActual) => Some(
+        (
+          Standardizer.invertStandardization(predictedVsActual.map(_._1), inputTrans).asInstanceOf[Seq[Vector[Any]]],
+          Standardizer.invertStandardization(predictedVsActual.map(_._2), outputTrans),
+          Standardizer.invertStandardization(predictedVsActual.map(_._3), outputTrans),
+        ).zipped.toSeq
+      )
     }
   }
 }
@@ -124,7 +130,13 @@ class MultiTaskStandardizerTrainingResult(
   override def getPredictedVsActual(): Option[Seq[(Vector[Any], Seq[Option[Any]], Seq[Option[Any]])]] = {
     baseTrainingResult.getPredictedVsActual() match {
       case None => None
-      case Some(predictedVsActual) => None
+      case Some(predictedVsActual) => Some(
+        (
+          Standardizer.invertStandardization(predictedVsActual.map(_._1), inputTrans).asInstanceOf[Seq[Vector[Any]]],
+          Standardizer.invertStandardization(predictedVsActual.map(_._2), outputTrans).asInstanceOf[Seq[Seq[Option[Any]]]],
+          Standardizer.invertStandardization(predictedVsActual.map(_._3), outputTrans).asInstanceOf[Seq[Seq[Option[Any]]]]
+        ).zipped.toSeq
+      )
     }
   }
 }
@@ -257,15 +269,14 @@ object Standardizer {
     val rep = values.head
     rep.indices.map { i =>
       rep(i) match {
-        case _: Double =>
-          Some(getStandardization(values.map(r => r(i).asInstanceOf[Double])))
+        case _: Double => Some(getStandardization(values.map(r => r(i).asInstanceOf[Double])))
         case _: Any => None
       }
     }
   }
 
   /**
-    * Apply the standardization to vectors, which should result in an output with zero mean and unit variance
+    * Apply the standardizations to vectors, which should result in an output with zero mean and unit variance
     *
     * @param input to standardize
     * @param trans transformtions to apply.  None means no transformation
@@ -280,10 +291,18 @@ object Standardizer {
     }
   }
 
-  def invertStandardization(input: Seq[Vector[Any]], trans: Seq[Option[Standardization]]): Seq[Vector[Any]] = {
+  /**
+    * Invert the standardizations on vectors.
+    *
+    * @param input  to invert the standardization
+    * @param trans  transformations to un-apply. None means no transformation
+    * @return       sequence of restored vectors
+    */
+  def invertStandardization(input: Seq[Seq[Any]], trans: Seq[Option[Standardization]]): Seq[Seq[Any]] = {
     input.map { r =>
       r.zip(trans).map {
         case (x: Double, Some(t)) => t.invert(x)
+        case (Some(x: Double), Some(t)) => Some(t.invert(x))
         case (x: Any, _) => x
       }
     }
@@ -300,4 +319,17 @@ object Standardizer {
     if (trans.isEmpty) return input
     input.asInstanceOf[Seq[Double]].map(trans.get.apply)
   }
+
+  /**
+    * Invert the standardization on a sequence of values
+    *
+    * @param input  to invert the standardization
+    * @param trans  transformation to un-apply
+    * @return       sequence of restored values
+    */
+  def invertStandardization(input: Seq[Any], trans: Option[Standardization]): Seq[Any] = {
+    if (trans.isEmpty) return input
+    input.asInstanceOf[Seq[Double]].map(trans.get.invert)
+  }
+
 }
