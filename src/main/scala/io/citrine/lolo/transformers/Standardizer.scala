@@ -98,7 +98,7 @@ class StandardizerTrainingResult(
       case None => None
       case Some(predictedVsActual) => Some(
         (
-          Standardizer.invertStandardization(predictedVsActual.map(_._1), inputTrans).asInstanceOf[Seq[Vector[Any]]],
+          Standardizer.invertStandardization(predictedVsActual.map(_._1), inputTrans),
           Standardizer.invertStandardization(predictedVsActual.map(_._2), outputTrans),
           Standardizer.invertStandardization(predictedVsActual.map(_._3), outputTrans),
         ).zipped.toSeq
@@ -132,9 +132,9 @@ class MultiTaskStandardizerTrainingResult(
       case None => None
       case Some(predictedVsActual) => Some(
         (
-          Standardizer.invertStandardization(predictedVsActual.map(_._1), inputTrans).asInstanceOf[Seq[Vector[Any]]],
-          Standardizer.invertStandardization(predictedVsActual.map(_._2), outputTrans).asInstanceOf[Seq[Seq[Option[Any]]]],
-          Standardizer.invertStandardization(predictedVsActual.map(_._3), outputTrans).asInstanceOf[Seq[Seq[Option[Any]]]]
+          Standardizer.invertStandardization(predictedVsActual.map(_._1), inputTrans),
+          Standardizer.invertStandardizationOption(predictedVsActual.map(_._2), outputTrans),
+          Standardizer.invertStandardizationOption(predictedVsActual.map(_._3), outputTrans)
         ).zipped.toSeq
       )
     }
@@ -298,10 +298,25 @@ object Standardizer {
     * @param trans  transformations to un-apply. None means no transformation
     * @return       sequence of restored vectors
     */
-  def invertStandardization(input: Seq[Seq[Any]], trans: Seq[Option[Standardization]]): Seq[Seq[Any]] = {
+  def invertStandardization(input: Seq[Vector[Any]], trans: Seq[Option[Standardization]]): Seq[Vector[Any]] = {
     input.map { r =>
       r.zip(trans).map {
         case (x: Double, Some(t)) => t.invert(x)
+        case (x: Any, _) => x
+      }
+    }
+  }
+
+  /**
+    * Invert the standardizations on sequences of optional values.
+    *
+    * @param input  to invert the standardization, if the value is defined
+    * @param trans  transformations to un-apply. None means no transformation
+    * @return       sequence of restored vectors
+    */
+  def invertStandardizationOption(input: Seq[Seq[Option[Any]]], trans: Seq[Option[Standardization]]): Seq[Seq[Option[Any]]] = {
+    input.map { r =>
+      r.zip(trans).map {
         case (Some(x: Double), Some(t)) => Some(t.invert(x))
         case (x: Any, _) => x
       }
