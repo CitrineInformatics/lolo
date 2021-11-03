@@ -110,6 +110,28 @@ class MultiTaskBaggedTrainingResult(
 
   lazy val model = new MultiTaskBaggedModel(models, Nib, useJackknife, biasModels)
 
+  val predictedVsActual = trainingData.zip(Nib.transpose).flatMap { case ((features, labels), nb) =>
+    // Bagged models that were not trained on this input
+    val oob = models.zip(nb).filter(_._2 == 0).map(_._1)
+    if (oob.isEmpty) {
+      Seq()
+    } else {
+      // "Average" the predictions on each label over the out-of-bag models
+      val oobPredictions = oob.map(_.transform(Seq(features)).getExpected().head)
+      val predicted = oobPredictions.toVector.transpose.zipWithIndex.map {
+        case (predictions, labelIndex) if models.head.getRealLabels(labelIndex) =>
+          predictions.asInstanceOf[Seq[Double]].sum / predictions.size
+        case (predictions, _) => predictions.groupBy(identity).maxBy(_._2.size)._1
+      }
+      // Remove predictions if the label was not specified
+      val (optionLabels, optionPredicted) = labels.zip(predicted).map {
+        case (l, _) if l == null || (l.isInstanceOf[Double] && l.asInstanceOf[Double].isNaN) => (None, None)
+        case (l, p) => (Some(l), Some(p))
+      }.unzip
+      Seq((features, optionPredicted, optionLabels))
+    }
+  }
+
   override def getFeatureImportance(): Option[Vector[Double]] = featureImportance
 
   override def getModel(): MultiTaskBaggedModel = model
@@ -126,7 +148,7 @@ class MultiTaskBaggedTrainingResult(
     }
   }
 
-  // TODO (PLA-8566): use trainingData and model to get predicted vs. actual, which can be used to get loss (see BaggedTrainingResult)
+  override def getPredictedVsActual(): Option[Seq[(Vector[Any], Seq[Option[Any]], Seq[Option[Any]])]] = Some(predictedVsActual)
 }
 
 /**
