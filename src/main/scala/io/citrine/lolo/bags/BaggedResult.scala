@@ -558,7 +558,7 @@ case class MultiTaskBaggedResult(
         }.map(_.toScalaVector())
         // For each prediction, rectify the covariance scores to compute correlation
         Some(
-          (scores, sigmaISeq, sigmaJSeq).zipped.map { (trainingContributions, sigmaI, sigmaJ) =>
+          scores.lazyZip(sigmaISeq).lazyZip(sigmaJSeq).map { (trainingContributions, sigmaI, sigmaJ) =>
             BaggedResult.rectifyCorrelationScores(trainingContributions, sigmaI, sigmaJ)
           }
         )
