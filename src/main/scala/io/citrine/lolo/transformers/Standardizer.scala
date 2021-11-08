@@ -5,9 +5,9 @@ import io.citrine.lolo._
 case class Standardization(shift: Double, scale: Double) {
   require(scale > 0 && scale < Double.PositiveInfinity)
 
-  def apply(x: Double): Double = (x - shift) * scale
+  def apply(x: Double): Double = (x - shift) / scale
 
-  def invert(x: Double): Double = x / scale + shift
+  def invert(x: Double): Double = x * scale + shift
 
 }
 
@@ -223,7 +223,7 @@ class StandardizerPrediction[T](
         Some(
           gradients.map(g => g.zip(inputTrans).map {
             // If there was a (linear) transformer used on that input, take the slope "m" and rescale by it
-            case (y, Some(inputStandardization)) => y * outputRescale * inputStandardization.scale
+            case (y, Some(inputStandardization)) => y * outputRescale / inputStandardization.scale
             // Otherwise, just rescale by the output transformer
             case (y, None) => y * outputRescale
           })
@@ -231,7 +231,7 @@ class StandardizerPrediction[T](
     }
   }
 
-  val outputRescale = 1.0 / outputTrans.map(_.scale).getOrElse(1.0)
+  val outputRescale = outputTrans.map(_.scale).getOrElse(1.0)
 }
 
 /**
@@ -251,7 +251,7 @@ object Standardizer {
 
     // If there is zero variance, then the scaling doesn't matter; default to 1.0
     if (scale > 0 && scale < Double.PositiveInfinity) {
-      Standardization(mean, 1.0 / scale)
+      Standardization(mean, scale)
     } else {
       Standardization(mean, 1.0)
     }
