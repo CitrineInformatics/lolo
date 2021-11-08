@@ -3,7 +3,7 @@ package io.citrine.lolo.bags
 import breeze.stats.distributions.Beta
 import io.citrine.lolo.TestUtils
 import io.citrine.lolo.linear.GuessTheMeanLearner
-import io.citrine.lolo.stats.utils.makeLinearCorrelatedData
+import io.citrine.lolo.stats.StatsUtils.makeLinearCorrelatedData
 import io.citrine.lolo.stats.functions.Friedman
 import io.citrine.lolo.stats.metrics.ClassificationMetrics
 import io.citrine.lolo.trees.classification.ClassificationTreeLearner

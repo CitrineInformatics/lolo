@@ -2,7 +2,7 @@ package io.citrine.lolo.bags
 
 import breeze.linalg.{DenseMatrix, DenseVector, norm}
 import io.citrine.lolo.bags.CorrelationMethods.{Bootstrap, CorrelationMethod, FromTraining, Jackknife, Trivial, JackknifeExplicit}
-import io.citrine.lolo.stats.utils
+import io.citrine.lolo.stats.StatsUtils
 import io.citrine.lolo.{MultiTaskModelPredictionResult, ParallelModelsPredictionResult, PredictionResult, RegressionResult}
 import io.citrine.lolo.util.Async
 import org.slf4j.{Logger, LoggerFactory}
@@ -408,13 +408,6 @@ case class MultiPredictionBaggedResult(
   }
 }
 
-/** Enumerates the ways in which uncertainty correlation can be calculated. */
-object CorrelationMethods extends Enumeration {
-  type CorrelationMethod = Value
-
-  val Trivial, FromTraining, Bootstrap, Jackknife, JackknifeExplicit = Value
-}
-
 /**
   * Container with model-wise predictions for each label and the machinery to compute (co)variance.
   *
@@ -505,7 +498,7 @@ case class MultiTaskBaggedResult(
   private def getUncertaintyCorrelationTraining(i: Int, j: Int): Option[Seq[Double]] = {
       val yI = trainingLabels(i).asInstanceOf[Seq[Double]]
       val yJ = trainingLabels(j).asInstanceOf[Seq[Double]]
-      val rho = utils.correlation(yI, yJ, Some(trainingWeights))
+      val rho = StatsUtils.correlation(yI, yJ, Some(trainingWeights))
       Some(Seq.fill(numPredictions)(rho))
   }
 
@@ -516,7 +509,7 @@ case class MultiTaskBaggedResult(
       val baggedPredictionsJ = baggedPredictions(j).predictions.map(_.getExpected()).transpose.asInstanceOf[Seq[Seq[Double]]]
       // Note that this does not take bias model into account
       Some(baggedPredictionsI.zip(baggedPredictionsJ).map { case (bagsI, bagsJ) =>
-        utils.correlation(bagsI, bagsJ)
+        StatsUtils.correlation(bagsI, bagsJ)
       })
   }
 
@@ -537,8 +530,8 @@ case class MultiTaskBaggedResult(
         val numBags = baggedPredictionsI.head.size
         val numPredictions = baggedPredictionsI.size
         // mean value for each prediction
-        val expectedI = baggedPredictionsI.map(ps => utils.mean(ps))
-        val expectedJ = baggedPredictionsJ.map(ps => utils.mean(ps))
+        val expectedI = baggedPredictionsI.map(ps => StatsUtils.mean(ps))
+        val expectedJ = baggedPredictionsJ.map(ps => StatsUtils.mean(ps))
         // Stick the individual predictions into Breeze matrices
         val predMatI = new DenseMatrix[Double](numBags, numPredictions, baggedPredictionsI.flatten.toArray)
         val predMatJ = new DenseMatrix[Double](numBags, numPredictions, baggedPredictionsJ.flatten.toArray)
@@ -564,10 +557,12 @@ case class MultiTaskBaggedResult(
           0.5 * (totalCovarianceTerm(::, k) - math.E * correction)
         }.map(_.toScalaVector())
         // For each prediction, rectify the covariance scores to compute correlation
-        Some((scores, sigmaISeq, sigmaJSeq).zipped.map { (trainingContributions, sigmaI, sigmaJ) =>
-          BaggedResult.rectifyCorrelationScores(trainingContributions, sigmaI, sigmaJ)
-        })
-      case _: Any => None
+        Some(
+          (scores, sigmaISeq, sigmaJSeq).zipped.map { (trainingContributions, sigmaI, sigmaJ) =>
+            BaggedResult.rectifyCorrelationScores(trainingContributions, sigmaI, sigmaJ)
+          }
+        )
+      case _ => None
     }
   }
 
@@ -580,9 +575,9 @@ case class MultiTaskBaggedResult(
           // Get the individual tree predictions for this input
           val treePredictionsI = baggedPredictions(i).predictions.map(_.getExpected()(predIndex)).asInstanceOf[Seq[Double]]
           val treePredictionsJ = baggedPredictions(j).predictions.map(_.getExpected()(predIndex)).asInstanceOf[Seq[Double]]
-          val expectedI = utils.mean(treePredictionsI)
-          val expectedJ = utils.mean(treePredictionsJ)
-          val covarTrees = utils.covariance(treePredictionsI, treePredictionsJ)
+          val expectedI = StatsUtils.mean(treePredictionsI)
+          val expectedJ = StatsUtils.mean(treePredictionsJ)
+          val covarTrees = StatsUtils.covariance(treePredictionsI, treePredictionsJ)
           val nMat = NibIn.transpose  // transpose to (# training) x (# bags), for convenience
 
           // Loop over the training instances, computing each one's contribution to covariance.

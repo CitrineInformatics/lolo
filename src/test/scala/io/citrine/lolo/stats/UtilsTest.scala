@@ -13,8 +13,8 @@ class UtilsTest {
     val rng = new Random()
     val rho = rng.nextDouble() * 2.0 - 1.0
     val X = Seq.fill(24)(rng.nextDouble())
-    val Y = utils.makeLinearCorrelatedData(X, rho)
-    assert(math.abs(utils.correlation(X, Y) - rho) < 1e-8)
+    val Y = StatsUtils.makeLinearCorrelatedData(X, rho)
+    assert(math.abs(StatsUtils.correlation(X, Y) - rho) < 1e-8)
   }
 
 }

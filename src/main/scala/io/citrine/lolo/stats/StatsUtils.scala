@@ -4,7 +4,7 @@ import io.citrine.lolo.linear.LinearRegressionLearner
 
 import scala.util.Random
 
-object utils {
+object StatsUtils {
 
   /** Compute the mean of a (weighted) vector, X */
   def mean(X: Seq[Double], weights: Option[Seq[Double]] = None): Double = {
