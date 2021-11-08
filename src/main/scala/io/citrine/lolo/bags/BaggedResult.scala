@@ -12,6 +12,8 @@ import org.slf4j.{Logger, LoggerFactory}
   *
   * This allows the implementation to depend on the number of simultaneous predictions, which has performance
   * implications.
+  * For background on the uncertainty calculation, see Wager, S.; Hastie, T and Efron, B. Confidence Intervals for
+  * Random Forests: The Jackknife and Infinitesimal Jackknife. Journal of Machine Learning Research 15 (2014).
   */
 trait BaggedResult[+T] extends PredictionResult[T] {
   def predictions: Seq[PredictionResult[T]]
@@ -261,8 +263,8 @@ case class MultiPredictionBaggedResult(
 
   override def numPredictions: Int = expectedMatrix.length
 
-  /* Subtract off 1 to make correlations easier; transpose to be prediction-wise */
-  lazy val Nib: Vector[Vector[Int]] = NibIn.transpose.map(_.map(_ - 1))
+  /* transpose to be training-wise */
+  lazy val Nib: Vector[Vector[Int]] = NibIn.transpose
 
   /* Make a matrix of the tree-wise predictions */
   lazy val expectedMatrix: Seq[Seq[Double]] = predictions.map(p => p.getExpected()).transpose
@@ -271,23 +273,9 @@ case class MultiPredictionBaggedResult(
   lazy val biasCorrection: Seq[Double] = bias.getOrElse(Seq.fill(expectedMatrix.length)(0))
   lazy val expected: Seq[Double] = expectedMatrix.map(ps => ps.sum / ps.size)
 
-  /* This matrix is used to compute the jackknife variance */
-  lazy val NibJMat = new DenseMatrix[Double](Nib.head.size, Nib.size,
-    Nib.flatMap { v =>
-      val itot = 1.0 / v.size
-      val icount = 1.0 / v.count(_ == -1.0)
-      v.map(n => if (n == -1) icount - itot else -itot)
-    }.toArray
-  )
+  lazy val NibJMat = BaggedResult.getJackknifeAfterBootstrapMatrix(Nib)
 
-  /* This matrix is used to compute the IJ variance */
-  lazy val NibIJMat = new DenseMatrix[Double](Nib.head.size, Nib.size,
-    Nib.flatMap { v =>
-      val itot = 1.0 / v.size
-      val vtot = v.sum.toDouble / (v.size * v.size)
-      v.map(n => n * itot - vtot)
-    }.toArray
-  )
+  lazy val NibIJMat = BaggedResult.getInfinitesimalJackknifeMatrix(Nib)
 
   /* This represents the variance of the estimate of the mean. */
   lazy val stdDevMean: Seq[Double] = variance(expected.asInstanceOf[Seq[Double]].toVector, expectedMatrix, NibJMat, NibIJMat).map{Math.sqrt}
@@ -423,25 +411,12 @@ case class MultiTaskBaggedResult(
                                   trainingWeights: Seq[Double]
                                 ) extends BaggedResult[Seq[Any]] with MultiTaskModelPredictionResult {
 
-  lazy val Nib: Vector[Vector[Int]] = NibIn.transpose.map(_.map(_ - 1))
+  /* transpose to be training-wise */
+  lazy val Nib: Vector[Vector[Int]] = NibIn.transpose
 
-  /* This matrix is used to compute the jackknife covariance */
-  lazy val NibJMat = new DenseMatrix[Double](Nib.head.size, Nib.size,
-    Nib.flatMap { v =>
-      val itot = 1.0 / v.size
-      val icount = 1.0 / v.count(_ == -1.0)
-      v.map(n => if (n == -1) icount - itot else -itot)
-    }.toArray
-  )
+  lazy val NibJMat = BaggedResult.getJackknifeAfterBootstrapMatrix(Nib)
 
-  /* This matrix is used to compute the IJ covariance */
-  lazy val NibIJMat = new DenseMatrix[Double](Nib.head.size, Nib.size,
-    Nib.flatMap { v =>
-      val itot = 1.0 / v.size
-      val vtot = v.sum.toDouble / (v.size * v.size)
-      v.map(n => n * itot - vtot)
-    }.toArray
-  )
+  lazy val NibIJMat = BaggedResult.getInfinitesimalJackknifeMatrix(Nib)
 
   override def numPredictions: Int = baggedPredictions.head.numPredictions
 
@@ -578,11 +553,10 @@ case class MultiTaskBaggedResult(
           val expectedI = StatsUtils.mean(treePredictionsI)
           val expectedJ = StatsUtils.mean(treePredictionsJ)
           val covarTrees = StatsUtils.covariance(treePredictionsI, treePredictionsJ)
-          val nMat = NibIn.transpose  // transpose to (# training) x (# bags), for convenience
 
           // Loop over the training instances, computing each one's contribution to covariance.
-          val trainingContributions = nMat.indices.toVector.map { trainIndex =>
-            val vecN = nMat(trainIndex).toArray  // number of times this instance was used to train each tree
+          val trainingContributions = Nib.indices.toVector.map { trainIndex =>
+            val vecN = Nib(trainIndex).toArray  // number of times this instance was used to train each tree
             var covI: Double = 0.0  // IJ covariance between training count and prediction on label i
             var covJ: Double = 0.0  // IJ covariance between training count and prediction on label j
             var tNotI: Double = 0.0  // total out-of-bag predictions on label i
@@ -605,7 +579,7 @@ case class MultiTaskBaggedResult(
             // Average IJ term with J term (if applicable) and subtract bias correction term
             if (tNotCount > 0) {
               // Jackknife (J) term
-              val covarJ = (tNotI / tNotCount - expectedI) * (tNotJ / tNotCount - expectedJ) * (nMat.size - 1) / nMat.size
+              val covarJ = (tNotI / tNotCount - expectedI) * (tNotJ / tNotCount - expectedJ) * (Nib.size - 1) / Nib.size
               0.5 * (covarJ + covarIJ - Math.E * covarTrees / vecN.size)
             } else {
               covarIJ - covarTrees / vecN.size
@@ -621,6 +595,45 @@ case class MultiTaskBaggedResult(
 object BaggedResult {
 
   val logger: Logger = LoggerFactory.getLogger(getClass)
+
+  /**
+    * Generate a matrix that is useful for computing (co)variance via jackknife after bootstrap (JaB).
+    * The central term of the JaB calculation (Wager et. al. 2014, equation 6) is the difference between the
+    * out-of-bag prediction on a point and the mean prediction on that point. If this is written as a single sum over bags,
+    * then each point has a weight -1/B when it is in-bag and weight 1/|{N_{bi}=0}| - 1/B when it is out-of-bag (B is the number of bags).
+    * This matrix encodes those weights, so when it is multiplied by the (# bags) x (# predictions) prediction matrix
+    * we have a matrix of the \Delta terms from equation 6.
+    *
+    * @param Nib The (# training) x (# bags) matrix indicating how many times each training point is used in each bag
+    */
+  def getJackknifeAfterBootstrapMatrix(Nib: Vector[Vector[Int]]): DenseMatrix[Double] = {
+    new DenseMatrix[Double](Nib.head.size, Nib.size,
+      Nib.flatMap { v =>
+        val itot = 1.0 / v.size  // 1/B
+        val icount = 1.0 / v.count(_ == 0)  // 1/|{N_{bi}=0}|
+        v.map(n => if (n == 0) icount - itot else -itot)
+      }.toArray
+    )
+  }
+
+  /**
+    * Generate a matrix that is useful for computing (co)variance via infinitesimal jackknife (IJ).
+    * The central term of the IJ calculation (Wager et. al. 2014, equation 5) is the covariance between the number of
+    * times a training point appears in a bag and the prediction made by that bag.
+    * This matrix encodes (N - \bar{N})/B (B is the number of bags), so that when it is multiplied by the
+    *  (# bags) x (# predictions) prediction matrix, we have a matrix of the covariance terms from equation 5.
+    *
+    * @param Nib The (# training) x (# bags) matrix indicating how many times each training point is used in each bag
+    */
+  def getInfinitesimalJackknifeMatrix(Nib: Vector[Vector[Int]]): DenseMatrix[Double] = {
+    new DenseMatrix[Double](Nib.head.size, Nib.size,
+      Nib.flatMap { v =>
+        val itot = 1.0 / v.size  // 1/B
+        val vtot = v.sum.toDouble / (v.size * v.size)  // \bar{N} / B
+        v.map(n => n * itot - vtot)
+      }.toArray
+    )
+  }
 
   /**
    * Make sure the variance is non-negative
