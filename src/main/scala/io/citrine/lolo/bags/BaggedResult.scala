@@ -521,14 +521,14 @@ case class MultiTaskBaggedResult(
         val IJMat2: DenseMatrix[Double] = IJMatI *:* IJMatJ
         // Add J(ackknife) and IJ covariance terms together
         val totalCovarianceTerm = JMat2 + IJMat2
-        // Calculate 1/B^2 once, to avoid doing it in the loop
-        val inverseSize2 = math.pow(1.0 / numBags, 2.0)
+        // Calculate (n - 1) / (n * B^2) once, to avoid doing it in the loop (the sum over training data introduces a factor of n)
+        val prefactor = math.pow(1.0 / numBags, 2.0) * (Nib.size - 1) / Nib.size
         // Loop over predictions, and for each one calculate the bias correction term and subtract it from each covariance term
         // The resulting structure has size (# predictions) x (# bags)
         val scores = baggedPredictionsI.indices.map { k =>
           val correctionI = predMatI(::, k) - expectedI(k)
           val correctionJ = predMatJ(::, k) - expectedJ(k)
-          val correction = correctionI.dot(correctionJ) * inverseSize2
+          val correction = prefactor * correctionI.dot(correctionJ)
           0.5 * (totalCovarianceTerm(::, k) - math.E * correction)
         }.map(_.toScalaVector())
         // For each prediction, rectify the covariance scores to compute correlation
@@ -580,9 +580,12 @@ case class MultiTaskBaggedResult(
             if (tNotCount > 0) {
               // Jackknife (J) term
               val covarJ = (tNotI / tNotCount - expectedI) * (tNotJ / tNotCount - expectedJ) * (Nib.size - 1) / Nib.size
-              0.5 * (covarJ + covarIJ - Math.E * covarTrees / vecN.size)
+              // Bias correction is e * (n-1) * tree covariance / B. Summing over training data introduces a factor of n,
+              // so here we include a factor of (n - 1) / n
+              val correction = Math.E * (Nib.size - 1) * covarTrees / (vecN.size * Nib.size)
+              0.5 * (covarJ + covarIJ - correction)
             } else {
-              covarIJ - covarTrees / vecN.size
+              covarIJ - covarTrees * (Nib.size - 1) / (vecN.size * Nib.size)
             }
           }
           BaggedResult.rectifyCorrelationScores(trainingContributions, sigmaISeq(predIndex), sigmaJSeq(predIndex))
