@@ -17,4 +17,11 @@ class UtilsTest {
     assert(math.abs(StatsUtils.correlation(X, Y) - rho) < 1e-8)
   }
 
+  /** Test the implementation of median */
+  @Test
+  def testMedian(): Unit = {
+    assert(StatsUtils.median(Seq(14.0, 17.0, 12.0, 13.0, 13.0)) == 13.0)
+    assert(StatsUtils.median(Seq(1.0, 0.0, 3.0, 4.0)) == 2.0)
+  }
+
 }

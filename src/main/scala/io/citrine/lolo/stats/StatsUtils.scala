@@ -14,6 +14,11 @@ object StatsUtils {
     X.zip(actualWeights).map { case (x, w) => x * w }.sum / totalWeight
   }
 
+  def median(X: Seq[Double]): Double = {
+    val (lower, upper) = X.sorted.splitAt(X.size / 2)
+    if (X.size % 2 == 0) (lower.last + upper.head) / 2.0 else upper.head
+  }
+
   /** Compute the variance of a (weighted) vector, X, with dof degrees of freedom. */
   def variance(X: Seq[Double], weights: Option[Seq[Double]] = None, dof: Int = 0): Double = {
     val actualWeights = weights.getOrElse(Seq.fill(X.length)(1.0))
