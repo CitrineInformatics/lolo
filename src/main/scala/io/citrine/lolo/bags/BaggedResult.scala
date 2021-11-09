@@ -115,12 +115,12 @@ case class SinglePredictionBaggedResult(
   override def getImportanceScores(): Option[Seq[Seq[Double]]] = Some(Seq(singleScores))
 
   private lazy val singleScores: Vector[Double] = {
-    // Compute the Bessel-uncorrected variance of the ensemble of predicted values,
-    // and then divide by the size of the ensemble an extra time
-    val varT = treeVariance * (treePredictions.length - 1.0) / (treePredictions.length * treePredictions.length)
-
     // This will be more convenient later
     val nMat = NibIn.transpose
+
+    // Compute the Bessel-uncorrected variance of the ensemble of predicted values, then multiply by (n - 1) / (n * B)
+    // We later sum over the training data, introducing a factor of n and leaving us with the expected correction term
+    val correction = treeVariance * (treePredictions.length - 1.0) * (nMat.size - 1) / (treePredictions.length * treePredictions.length * nMat.size)
 
     // Loop over each of the training instances, computing its contribution to the uncertainty
     val trainingContributions = nMat.indices.toVector.map { idx =>
@@ -148,13 +148,10 @@ case class SinglePredictionBaggedResult(
       if (tNotCount > 0) {
         // Compute the Jackknife after bootstrap estimate
         val varJ = Math.pow(tNot / tNotCount - expected, 2.0) * (nMat.size - 1) / nMat.size
-        // Compute the sum of the corrections to the IJ and J estimates
-        val correction = Math.E * varT
-        // Averaged the correct IJ and J estimates
-        0.5 * (varJ + varIJ - correction)
+        // Averaged the corrected IJ and J estimates
+        0.5 * (varJ + varIJ - Math.E * correction)
       } else {
         // We can't compute the Jackknife after bootstrap estimate, so just correct the IJ estimate
-        val correction = varT
         varIJ - correction
       }
     }
@@ -351,13 +348,13 @@ case class MultiPredictionBaggedResult(
     val arg = IJMat2 + JMat2
     Async.canStop()
 
-    /* Avoid division in the loop */
-    val inverseSize = 1.0 / modelPredictions.head.size
+    /* Avoid division in the loop, calculate (n - 1) / (n * B^2) */
+    val prefactor = 1.0 / Math.pow(modelPredictions.head.size, 2.0) * (Nib.size - 1) / Nib.size
 
     modelPredictions.indices.map { i =>
       Async.canStop()
       /* Compute the first order bias correction for the variance estimators */
-      val correction = Math.pow(inverseSize * norm(predMat(::, i) - meanPrediction(i)), 2)
+      val correction = prefactor * Math.pow(norm(predMat(::, i) - meanPrediction(i)), 2)
 
       /* The correction is prediction dependent, so we need to operate on vectors */
       0.5 * (arg(::, i) - Math.E * correction)
