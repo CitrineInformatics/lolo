@@ -32,6 +32,7 @@ case object Noise extends VariedParameter {
 case object Bags extends VariedParameter {
   def name: String = "number of bags"
 }
+// TODO: add number of training rows as a varied parameter
 
 object CorrelationStudy {
 
@@ -43,6 +44,7 @@ object CorrelationStudy {
     val numTrainRows = 128
     val numTestRows = 128
     val numCols = 12
+    // TODO: add the ability to change the test function
 
     makeAndSaveChart(
       fname = "./linear-problem-prediction-no-noise-rho-0.7-fuzz-0.5",
@@ -76,6 +78,7 @@ object CorrelationStudy {
                         quadraticCorrelationFuzz: Double,
                         rng: Random
                       ): Unit = {
+    // TODO: also save the raw data in a csv
     val chart = makeChart(
       variedParameter = variedParameter,
       parameterValues = parameterValues,

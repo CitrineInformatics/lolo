@@ -203,6 +203,8 @@ case object UncertaintyCorrelation extends Merit[Double] {
       }
     }
   }
+
+  // TODO: add a multidimensional standard confidence as a merit
 }
 
 object Merit {
