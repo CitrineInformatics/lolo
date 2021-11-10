@@ -263,7 +263,7 @@ case class MultiPredictionBaggedResult(
 
   override def numPredictions: Int = expectedMatrix.length
 
-  /* transpose to be training-wise */
+  /* transpose to be (# training) x (# models) */
   lazy val Nib: Vector[Vector[Int]] = NibIn.transpose
 
   /* Make a matrix of the tree-wise predictions */
@@ -411,7 +411,7 @@ case class MultiTaskBaggedResult(
                                   trainingWeights: Seq[Double]
                                 ) extends BaggedResult[Seq[Any]] with MultiTaskModelPredictionResult {
 
-  /* transpose to be training-wise */
+  /* transpose to be (# training) x (# models) */
   lazy val Nib: Vector[Vector[Int]] = NibIn.transpose
 
   lazy val NibJMat = BaggedResult.getJackknifeAfterBootstrapMatrix(Nib)
@@ -702,7 +702,8 @@ object BaggedResult {
     * Calculate the correlation coefficient given a sequence of covariance scores for each training point.
     * In theory, the covariance is the sum of the individual covariance scores. But because each covariance score
     * is noisy, the resulting sum can be larger in absolute value than `sigmaX * sigmaY`, which would translate into
-    * a correlation coefficient that is outside [-1.0, 1.0].
+    * a correlation coefficient that is outside [-1.0, 1.0], and hence we cannot calculate a conditional probability.
+    * The implementation here is to set rho equal to 0 if it is less than -0.999 or greater than 0.999.
     *
     * @param covarianceScores sequence of Monte Carlo corrected covariance contributions for each training point
     * @param sigmaX           uncertainty in first label
