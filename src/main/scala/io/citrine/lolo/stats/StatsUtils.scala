@@ -65,9 +65,7 @@ object StatsUtils {
     val linearModel = linearLearner.train(X.zip(Y).map { case (x, y) => (Vector(x), y) } ).getModel()
     val yPred = linearModel.transform(X.map(Vector(_))).getExpected()
     val residuals = Y.zip(yPred).map { case (actual, predicted) => actual - predicted }
-    val muX = mean(X)
     val stdX = math.sqrt(variance(X))
-    val muResiduals = mean(residuals)
     val stdResiduals = math.sqrt(variance(residuals))
     X.zip(residuals).map { case (x, residual) => rho * stdResiduals * x + math.sqrt(1 - rho * rho) * stdX * residual}
   }
