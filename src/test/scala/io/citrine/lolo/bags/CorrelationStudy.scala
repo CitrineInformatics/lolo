@@ -42,6 +42,7 @@ object CorrelationStudy {
     val seed = 52109317L
     val mainRng = new Random(seed)
 
+    val function: Seq[Double] => Double = Friedman.friedmanSilverman
     val numTrials = 10
     val numTrainRows = 128
     val numTestRows = 128
@@ -53,6 +54,7 @@ object CorrelationStudy {
       variedParameter = Bags,
       parameterValues = Seq(32, 64, 128, 256, 512, 1024),
       testProblem = Linear,
+      function = function,
       numTrials = numTrials,
       numTrain = numTrainRows,
       numTest = numTestRows,
@@ -70,6 +72,7 @@ object CorrelationStudy {
                         variedParameter: VariedParameter,
                         parameterValues: Seq[Double],
                         testProblem: TestProblems,
+                        function: Seq[Double] => Double,
                         numTrials: Int,
                         numTrain: Int,
                         numTest: Int,
@@ -85,6 +88,7 @@ object CorrelationStudy {
       variedParameter = variedParameter,
       parameterValues = parameterValues,
       testProblem = testProblem,
+      function = function,
       numTrials = numTrials,
       numTrain = numTrain,
       numTest = numTest,
@@ -102,6 +106,7 @@ object CorrelationStudy {
                  variedParameter: VariedParameter,
                  parameterValues: Seq[Double],
                  testProblem: TestProblems,
+                 function: Seq[Double] => Double,
                  numTrials: Int,
                  numTrain: Int,
                  numTest: Int,
@@ -128,6 +133,7 @@ object CorrelationStudy {
         rho => Iterator.tabulate(numTrials) { _ =>
           val thisRng = new Random(rng.nextLong())
           runTrial(
+            function = function,
             numTrain = numTrain,
             numTest = numTest,
             numCols = numCols,
@@ -143,6 +149,7 @@ object CorrelationStudy {
         noiseLevel => Iterator.tabulate(numTrials) { _ =>
           val thisRng = new Random(rng.nextLong())
           runTrial(
+            function = function,
             numTrain = numTrain,
             numTest = numTest,
             numCols = numCols,
@@ -158,6 +165,7 @@ object CorrelationStudy {
         fuzz => Iterator.tabulate(numTrials) { _ =>
           val thisRng = new Random(rng.nextLong())
           runTrial(
+            function = function,
             numTrain = numTrain,
             numTest = numTest,
             numCols = numCols,
@@ -173,6 +181,7 @@ object CorrelationStudy {
         numBags => Iterator.tabulate(numTrials) { _ =>
           val thisRng = new Random(rng.nextLong())
           runTrial(
+            function = function,
             numTrain = numTrain,
             numTest = numTest,
             numCols = numCols,
@@ -188,6 +197,7 @@ object CorrelationStudy {
         numTraining => Iterator.tabulate(numTrials) { _ =>
           val thisRng = new Random(rng.nextLong())
           runTrial(
+            function = function,
             numTrain = numTraining.toInt,
             numTest = numTest,
             numCols = numCols,
@@ -209,6 +219,7 @@ object CorrelationStudy {
   }
 
   def runTrial(
+                function: Seq[Double] => Double,
                 numTrain: Int,
                 numTest: Int,
                 numCols: Int,
@@ -230,7 +241,7 @@ object CorrelationStudy {
       numTrain + numTest,
       numCols,
       noise = 0.0, // Add noise later, after computing covariate labels
-      function = Friedman.friedmanSilverman,
+      function = function,
       seed = dataGenSeed
     )
 
