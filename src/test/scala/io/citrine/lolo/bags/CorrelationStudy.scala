@@ -25,11 +25,11 @@ sealed trait TrueFunction {
   val numCols: Int
   def name: String
 }
-case class FriedmanSilvermanFunction(numCols) extends TrueFunction {
+case class FriedmanSilvermanFunction(numCols: Int) extends TrueFunction {
   def name = s"Friedman-Silverman, $numCols columns"
   def function: Seq[Double] => Double = Friedman.friedmanSilverman
 }
-case class FriedmanGrosseSilvermanFunction(numCols) extends TrueFunction {
+case class FriedmanGrosseSilvermanFunction(numCols: Int) extends TrueFunction {
   def name = s"Friedman-Grosse-Silverman, $numCols columns"
   def function: Seq[Double] => Double = Friedman.friedmanGrosseSilverman
 }
