@@ -13,16 +13,22 @@ import org.knowm.xchart.BitmapEncoder.BitmapFormat
 import java.io.{BufferedWriter, File, FileWriter}
 import scala.util.Random
 
-sealed trait TestProblems {
+/** A description of the relationship between the two variables for which the correlation estimates are to be studied. */
+sealed trait TestProblem {
   def name: String
 }
-case object Linear extends TestProblems {
+/** The two variables are generated to have some fixed Pearson correlation coefficient */
+case object Linear extends TestProblem {
   def name = "linear correlation"
 }
-case object Quadratic extends TestProblems {
+/** Two variables are generated with a quadratic relationship between them, and then some normally-distributed noise
+  * is applied to one variable. The larger the level of noise, the less correlated the two variables are.
+  */
+case object Quadratic extends TestProblem {
   def name = "quadratic relationship"
 }
 
+/** Metric used to evaluate the accuracy of the estimated covariance matrix. */
 sealed trait Metric {
   def name: String
 }
@@ -33,6 +39,7 @@ case object StdConfidence extends Metric {
   def name = "1-sigma standard confidence"
 }
 
+/** Underlying function from which to draw training and test data. */
 sealed trait TrueFunction {
   def function: Seq[Double] => Double
   val numCols: Int
@@ -47,6 +54,7 @@ case class FriedmanGrosseSilvermanFunction(numCols: Int) extends TrueFunction {
   def function: Seq[Double] => Double = Friedman.friedmanGrosseSilverman
 }
 
+/** Parameter to vary as part of a scan. */
 sealed trait VariedParameter {
   def name: String
 }
@@ -59,6 +67,7 @@ case object TrainQuadraticFuzz extends VariedParameter {
 case object Noise extends VariedParameter {
   def name: String = "observational noise level"
 }
+/** If the number of bags is not being varied, then the default is to set numBags = numTrain */
 case object Bags extends VariedParameter {
   def name: String = "number of bags"
 }
@@ -89,12 +98,34 @@ object CorrelationStudy {
     )
   }
 
+  /**
+    * Scan some figure of merit over some parameter and save the results both as a chart and a table.
+    *
+    * @param fname file name to save to
+    * @param metric figure of merit to calculate over the predictions
+    * @param variedParameter the parameter to vary as part of the scan
+    * @param parameterValues values that the varied parameter takes on
+    * @param testProblem relationship bewteen the two variables that are being tested
+    * @param function function to generate training and test data
+    * @param numTrials number of independent trials to run and combine the results of
+    * @param numTrain number of training data points
+    * @param numTest number of test data points
+    * @param observational whether to compare the prediction to the observed value (with noise) or the true value
+    * @param samplingNoise level of normally-distributed random noise to apply to the training and test data
+    * @param rhoTrain linear correlation coefficient bewteen label 0 and label 1
+    * @param quadraticCorrelationFuzz level of normally-distributed random values to apply to the second label
+    *                                 in the quadratic pair. Note that this value modifies the true underlying data,
+    *                                 which is separate from applying sampling noise.
+    * @param rng random number generator, to make it mostly reproducible. Because the trees are trained in parallel
+    *            and we do not have splittable random numbers, it is impossible to make the results completely reproducible.
+    *            But the data generation, application of noise, and Poisson draws for bagging are reproducible.
+    */
   def runTrialsAndSave(
                         fname: String,
                         metric: Metric,
                         variedParameter: VariedParameter,
                         parameterValues: Seq[Double],
-                        testProblem: TestProblems,
+                        testProblem: TestProblem,
                         function: TrueFunction,
                         numTrials: Int,
                         numTrain: Int,
@@ -144,7 +175,7 @@ object CorrelationStudy {
                  variedParameter: VariedParameter,
                  metric: Metric,
                  parameterValues: Seq[Double],
-                 testProblem: TestProblems,
+                 testProblem: TestProblem,
                  function: TrueFunction,
                  numTrials: Int,
                  numTrain: Int,
@@ -155,10 +186,12 @@ object CorrelationStudy {
                  quadraticCorrelationFuzz: Double,
                  rng: Random
                ): XYChart = {
+    // the linear problem compares label 0 to label 1, and the quadratic problem compares label 0 to label 2
     val index: Int = testProblem match {
       case Linear => 1
       case Quadratic => 2
     }
+    // Select the figures of merit based on the desired metric
     val merits = metric match {
       case NLPD =>
         Map(
@@ -175,7 +208,9 @@ object CorrelationStudy {
           "Jackknife" -> StandardConfidence2d(0, index, CorrelationMethods.Jackknife, observational)
         )
     }
-
+    // There's some unfortunate boiler plate here. plotMeritScan takes a function that goes from a Double parameter value
+    // to an iterator of what is essentially predicted-vs-actuals. This always uses the runTrial method, but for each
+    // case we need to separately pick where the parameter gets plugged in.
     val pvaBuilder: Double => Iterator[(PredictionResult[Seq[Any]], Seq[Seq[Any]])] = variedParameter match {
       case TrainRho =>
         rho => Iterator.tabulate(numTrials) { _ =>
@@ -257,7 +292,7 @@ object CorrelationStudy {
       parameterName = variedParameter.name,
       parameterValues = parameterValues,
       merits = merits,
-      rng = new Random(0L) // this is irrelevant unless we were to compute Uncertainty Correlation
+      rng = new Random(0L) // this is irrelevant unless we were computing Uncertainty Correlation
     )(pvaBuilder)
   }
 
@@ -339,7 +374,7 @@ object CorrelationStudy {
                    metric: Metric,
                    variedParameter: VariedParameter,
                    parameterValues: Seq[Double],
-                   testProblem: TestProblems,
+                   testProblem: TestProblem,
                    function: TrueFunction,
                    numTrials: Int,
                    numTrain: Int,
@@ -363,6 +398,7 @@ object CorrelationStudy {
     var thisQuadadraticFuzz = quadraticCorrelationFuzz
 
     parameterValues.zipWithIndex.foreach { case (parameterValue, index) =>
+      // assign parameterValue to the appropriate variable
       variedParameter match {
         case TrainRho => thisRhoTrain = parameterValue
         case TrainQuadraticFuzz => thisQuadadraticFuzz = parameterValue
@@ -372,11 +408,11 @@ object CorrelationStudy {
           thisNumTrain = parameterValue.toInt
           thisNumBags = parameterValue.toInt
       }
+      // For each metric, pull out the result for this parameter value and write a row of the CSV
       chart.getSeriesMap.forEach { case (key, series) =>
-        val yData = series.getYData
-        val stdErrorData = series.getExtraValues
-        val y = yData.apply(index)
-        val yErr = stdErrorData.apply(index)
+        val y = series.getYData.apply(index)
+        val yErr = series.getExtraValues.apply(index)
+        // the order of variables here must match the order of the headers, above
         val rowData = Seq(
           key, metric.name, y, yErr,
           function.name, numTrials, thisNumTrain, numTest, thisNumBags, observational,
