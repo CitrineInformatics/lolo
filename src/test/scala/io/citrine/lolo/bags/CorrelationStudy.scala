@@ -10,15 +10,28 @@ import org.apache.commons.math3.random.MersenneTwister
 import org.knowm.xchart.{BitmapEncoder, XYChart}
 import org.knowm.xchart.BitmapEncoder.BitmapFormat
 
+import java.io.{BufferedWriter, File, FileWriter}
 import scala.util.Random
 
-sealed trait TestProblems
-case object Linear extends TestProblems
-case object Quadratic extends TestProblems
+sealed trait TestProblems {
+  def name: String
+}
+case object Linear extends TestProblems {
+  def name = "linear correlation"
+}
+case object Quadratic extends TestProblems {
+  def name = "quadratic relationship"
+}
 
-sealed trait Metric
-case object NLPD extends Metric
-case object StdConfidence extends Metric
+sealed trait Metric {
+  def name: String
+}
+case object NLPD extends Metric {
+  def name = "negative log probability density"
+}
+case object StdConfidence extends Metric {
+  def name = "1-sigma standard confidence"
+}
 
 sealed trait TrueFunction {
   def function: Seq[Double] => Double
@@ -26,11 +39,11 @@ sealed trait TrueFunction {
   def name: String
 }
 case class FriedmanSilvermanFunction(numCols: Int) extends TrueFunction {
-  def name = s"Friedman-Silverman, $numCols columns"
+  def name = s"Friedman-Silverman $numCols columns"
   def function: Seq[Double] => Double = Friedman.friedmanSilverman
 }
 case class FriedmanGrosseSilvermanFunction(numCols: Int) extends TrueFunction {
-  def name = s"Friedman-Grosse-Silverman, $numCols columns"
+  def name = s"Friedman-Grosse-Silverman $numCols columns"
   def function: Seq[Double] => Double = Friedman.friedmanGrosseSilverman
 }
 
@@ -112,6 +125,7 @@ object CorrelationStudy {
     saveRawData(
       chart = chart,
       fname = fname,
+      metric = metric,
       variedParameter = variedParameter,
       parameterValues = parameterValues,
       testProblem = testProblem,
@@ -322,6 +336,7 @@ object CorrelationStudy {
   def saveRawData(
                    chart: XYChart,
                    fname: String,
+                   metric: Metric,
                    variedParameter: VariedParameter,
                    parameterValues: Seq[Double],
                    testProblem: TestProblems,
@@ -334,7 +349,56 @@ object CorrelationStudy {
                    rhoTrain: Double,
                    quadraticCorrelationFuzz: Double,
                  ): Unit = {
+    val path = fname + ".csv"
+    val headers = Seq(
+      "correlation method", "metric", "mean value", "std error of value",
+      "function", "trials", "train", "test", "bags", "observational",
+      "sample noise", "linear rho", "quadratic fuzz"
+    )
+    writeCSVRow(path, headers, append = false)
+    var thisNumTrain = numTrain
+    var thisNumBags = numTrain
+    var thisSamplingNoise = samplingNoise
+    var thisRhoTrain = rhoTrain
+    var thisQuadadraticFuzz = quadraticCorrelationFuzz
 
+    parameterValues.zipWithIndex.foreach { case (parameterValue, index) =>
+      variedParameter match {
+        case TrainRho => thisRhoTrain = parameterValue
+        case TrainQuadraticFuzz => thisQuadadraticFuzz = parameterValue
+        case Noise => thisSamplingNoise = parameterValue
+        case Bags => thisNumBags = parameterValue.toInt
+        case NumTraining =>
+          thisNumTrain = parameterValue.toInt
+          thisNumBags = parameterValue.toInt
+      }
+      chart.getSeriesMap.forEach { case (key, series) =>
+        val yData = series.getYData
+        val stdErrorData = series.getExtraValues
+        val y = yData.apply(index)
+        val yErr = stdErrorData.apply(index)
+        val rowData = Seq(
+          key, metric.name, y, yErr,
+          function.name, numTrials, thisNumTrain, numTest, thisNumBags, observational,
+          thisSamplingNoise, thisRhoTrain, thisQuadadraticFuzz
+        )
+        writeCSVRow(path, rowData, append = true)
+      }
+    }
+
+  }
+
+  /**
+    * Write a sequence of values as a row of a CSV
+    *
+    * @param path path to CSV file
+    * @param entries values to be written
+    * @param append whether or not to append if file exists already
+    */
+  def writeCSVRow(path: String, entries: Seq[Any], append: Boolean): Unit = {
+    val bw = new BufferedWriter(new FileWriter(new File(path), append))
+    bw.write(entries.map(_.toString).mkString(start = "", sep = ",", end = "\n"))
+    bw.close()
   }
 
 }
