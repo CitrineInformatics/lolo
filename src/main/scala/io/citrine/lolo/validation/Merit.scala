@@ -152,8 +152,7 @@ case class NegativeLogProbabilityDensity2d(i: Int, j: Int, method: CorrelationMe
 
   /**
     * Bivariate negative log probability density calculation
-    * log(2 * pi * sigma_x * sigma_y * sqrt(1 - rho**2)) +
-    *   1/(2 * (1 - rho**2)) * [(x / sigma_x)**2 + (y / sigma_y)**2 - 2 * rho * x * y / (sigma_x * sigma_y)]
+    * log(2 * pi * sigma_x * sigma_y * sqrt(1 - rho**2)) + r**2/2, where r is the Mahalanobis distance
     * @param pvas sequence of bivariate predicted-vs-actual points
     * @return sequence of NLPD value for each prediction
     */
@@ -279,6 +278,7 @@ object Merit {
 
 /**
   * A single predicted-vs-actual point in two real-valued dimensions.
+  * The covariance matrix of the prediction has diagonals sigmaX**2 and sigmaY**2, and off-diagonals rho*sigmaX*sigmaY
   *
   * @param dx the error along the first dimension
   * @param dy the error along the second dimension
@@ -297,8 +297,14 @@ case class PredictedVsActualTwoDimensions(
   private lazy val normY = dy / sigmaY
   private lazy val rhoSquared = math.pow(rho, 2.0)
 
+  /**
+    * Mahalanobis distance is a generalization of standardized distance for a multivariate normal distribution.
+    * It corresponds to the Euclidean distance if space is rescaled such that the principal axes of the ellipsoid
+    * formed by the covariance matrix each have length 1. In one dimension, this is (x - mu) / sigma.
+    * In two dimensions, it is ((dx / sigmaX)**2 + (dy / sigmaY)**2 - 2 * rho * dx * dy / (sigmaX * sigmaY)) / (1 - rho**2)
+    */
   def mahalanobisSquared: Double = {
-    1/(1 - rhoSquared) * (math.pow(normX, 2.0) + math.pow(normY, 2.0) - 2 * rho * normX * normY)
+    (math.pow(normX, 2.0) + math.pow(normY, 2.0) - 2 * rho * normX * normY) / (1 - rhoSquared)
   }
 }
 
@@ -324,12 +330,16 @@ object PredictedVsActualTwoDimensions {
                  observational: Boolean
                ): Seq[PredictedVsActualTwoDimensions] = {
     val allPredictions = predictionResult.getExpected()
+    // get predictions
     val predictionsI = extractComponentByIndex(allPredictions, i)
     val predictionsJ = extractComponentByIndex(allPredictions, j)
+    // get actual
     val actualI = extractComponentByIndex(actual, i)
     val actualJ = extractComponentByIndex(actual, j)
+    // subtract predicted - actual to get error
     val errorI = predictionsI.zip(actualI).map(pa => pa._1 - pa._2)
     val errorJ = predictionsJ.zip(actualJ).map(pa => pa._1 - pa._2)
+    // get terms of covariance matrix
     val allSigma = predictionResult.asInstanceOf[MultiTaskBaggedResult].getUncertainty(observational).get
     val sigmaI = extractComponentByIndex(allSigma, i, Some(0.0))
     val sigmaJ = extractComponentByIndex(allSigma, j, Some(0.0))

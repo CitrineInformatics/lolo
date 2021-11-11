@@ -55,7 +55,7 @@ object CorrelationStudy {
       numTrain = numTrainRows,
       numTest = numTestRows,
       numCols = numCols,
-      observational = false,
+      observational = true,
       samplingNoise = 0.0,
       rhoTrain = 0.0,
       quadraticCorrelationFuzz = 0.0,
