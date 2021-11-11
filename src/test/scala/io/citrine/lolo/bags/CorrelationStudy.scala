@@ -16,6 +16,10 @@ sealed trait TestProblems
 case object Linear extends TestProblems
 case object Quadratic extends TestProblems
 
+sealed trait Metric
+case object NLPD extends Metric
+case object StdConfidence extends Metric
+
 sealed trait VariedParameter {
   def name: String
 }
@@ -47,6 +51,7 @@ object CorrelationStudy {
 
     makeAndSaveChart(
       fname = "./test",
+      metric = NLPD,
       variedParameter = TrainRho,
       parameterValues = Seq(0.0, 0.25, 0.50, 0.75, 0.9, 0.99),
       testProblem = Linear,
@@ -65,6 +70,7 @@ object CorrelationStudy {
 
   def makeAndSaveChart(
                         fname: String,
+                        metric: Metric,
                         variedParameter: VariedParameter,
                         parameterValues: Seq[Double],
                         testProblem: TestProblems,
@@ -82,6 +88,7 @@ object CorrelationStudy {
     // TODO: also save the raw data in a csv
     val chart = makeChart(
       variedParameter = variedParameter,
+      metric = metric,
       parameterValues = parameterValues,
       testProblem = testProblem,
       function = function,
@@ -100,6 +107,7 @@ object CorrelationStudy {
 
   def makeChart(
                  variedParameter: VariedParameter,
+                 metric: Metric,
                  parameterValues: Seq[Double],
                  testProblem: TestProblems,
                  function: Seq[Double] => Double,
@@ -117,12 +125,22 @@ object CorrelationStudy {
       case Linear => 1
       case Quadratic => 2
     }
-    val merits = Map(
-      "Trivial" -> NegativeLogProbabilityDensity2d(0, index, CorrelationMethods.Trivial, observational),
-      "Training Data" -> NegativeLogProbabilityDensity2d(0, index, CorrelationMethods.FromTraining, observational),
-      "Bootstrap" -> NegativeLogProbabilityDensity2d(0, index, CorrelationMethods.Bootstrap, observational),
-      "Jackknife" -> NegativeLogProbabilityDensity2d(0, index, CorrelationMethods.Jackknife, observational)
-    )
+    val merits = metric match {
+      case NLPD =>
+        Map(
+          "Trivial" -> NegativeLogProbabilityDensity2d(0, index, CorrelationMethods.Trivial, observational),
+          "Training Data" -> NegativeLogProbabilityDensity2d(0, index, CorrelationMethods.FromTraining, observational),
+          "Bootstrap" -> NegativeLogProbabilityDensity2d(0, index, CorrelationMethods.Bootstrap, observational),
+          "Jackknife" -> NegativeLogProbabilityDensity2d(0, index, CorrelationMethods.Jackknife, observational)
+        )
+      case StdConfidence =>
+        Map(
+          "Trivial" -> StandardConfidence2d(0, index, CorrelationMethods.Trivial, observational),
+          "Training Data" -> StandardConfidence2d(0, index, CorrelationMethods.FromTraining, observational),
+          "Bootstrap" -> StandardConfidence2d(0, index, CorrelationMethods.Bootstrap, observational),
+          "Jackknife" -> StandardConfidence2d(0, index, CorrelationMethods.Jackknife, observational)
+        )
+    }
 
     val pvaBuilder: Double => Iterator[(PredictionResult[Seq[Any]], Seq[Seq[Any]])] = variedParameter match {
       case TrainRho =>
