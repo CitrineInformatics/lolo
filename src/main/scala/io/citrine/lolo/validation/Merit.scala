@@ -160,7 +160,7 @@ case class NegativeLogProbabilityDensity2d(i: Int, j: Int, method: CorrelationMe
   def NLPD(pvas: Seq[PredictedVsActualTwoDimensions]): Seq[Double] = {
     pvas.map { pva =>
       val term1 = math.log(2 * math.Pi * pva.sigmaX * pva.sigmaY * math.sqrt(1 - math.pow(pva.rho, 2.0)))
-      val term2 = 1/2 * pva.mahalanobisSquared
+      val term2 = 0.5 * pva.mahalanobisSquared
       term1 + term2
     }
   }
