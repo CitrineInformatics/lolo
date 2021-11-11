@@ -32,7 +32,9 @@ case object Noise extends VariedParameter {
 case object Bags extends VariedParameter {
   def name: String = "number of bags"
 }
-// TODO: add number of training rows as a varied parameter
+case object NumTraining extends VariedParameter {
+  def name: String = "number of training rows"
+}
 
 object CorrelationStudy {
 
@@ -93,7 +95,7 @@ object CorrelationStudy {
       quadraticCorrelationFuzz = quadraticCorrelationFuzz,
       rng = rng
     )
-    BitmapEncoder.saveBitmap(chart, fname.appendedAll(".png"), BitmapFormat.PNG)
+    BitmapEncoder.saveBitmap(chart, fname + ".png", BitmapFormat.PNG)
   }
 
   def makeChart(
@@ -125,22 +127,77 @@ object CorrelationStudy {
       case TrainRho =>
         rho => Iterator.tabulate(numTrials) { _ =>
           val thisRng = new Random(rng.nextLong())
-          runTrial(numTrain, numTest, numCols, numTrain, rho, quadraticCorrelationFuzz, samplingNoise, observational, thisRng)
+          runTrial(
+            numTrain = numTrain,
+            numTest = numTest,
+            numCols = numCols,
+            numBags = numTrain,
+            rhoTrain = rho,
+            quadraticCorrelationFuzz = quadraticCorrelationFuzz,
+            samplingNoise = samplingNoise,
+            observational = observational,
+            rng = thisRng
+          )
         }
       case Noise =>
-        s => Iterator.tabulate(numTrials) { _ =>
+        noiseLevel => Iterator.tabulate(numTrials) { _ =>
           val thisRng = new Random(rng.nextLong())
-          runTrial(numTrain, numTest, numCols, numTrain, rhoTrain, quadraticCorrelationFuzz, s, observational, thisRng)
+          runTrial(
+            numTrain = numTrain,
+            numTest = numTest,
+            numCols = numCols,
+            numBags = numTrain,
+            rhoTrain = rhoTrain,
+            quadraticCorrelationFuzz = quadraticCorrelationFuzz,
+            samplingNoise = noiseLevel,
+            observational = observational,
+            rng = thisRng
+          )
         }
       case TrainQuadraticFuzz =>
         fuzz => Iterator.tabulate(numTrials) { _ =>
           val thisRng = new Random(rng.nextLong())
-          runTrial(numTrain, numTest, numCols, numTrain, rhoTrain, fuzz, samplingNoise, observational, thisRng)
+          runTrial(
+            numTrain = numTrain,
+            numTest = numTest,
+            numCols = numCols,
+            numBags = numTrain,
+            rhoTrain = rhoTrain,
+            quadraticCorrelationFuzz = fuzz,
+            samplingNoise = samplingNoise,
+            observational = observational,
+            rng = thisRng
+          )
         }
       case Bags =>
-        b => Iterator.tabulate(numTrials) { _ =>
+        numBags => Iterator.tabulate(numTrials) { _ =>
           val thisRng = new Random(rng.nextLong())
-          runTrial(numTrain, numTest, numCols, b.toInt, rhoTrain, quadraticCorrelationFuzz, samplingNoise, observational, thisRng)
+          runTrial(
+            numTrain = numTrain,
+            numTest = numTest,
+            numCols = numCols,
+            numBags = numBags.toInt,
+            rhoTrain = rhoTrain,
+            quadraticCorrelationFuzz = quadraticCorrelationFuzz,
+            samplingNoise = samplingNoise,
+            observational = observational,
+            rng = thisRng
+          )
+        }
+      case NumTraining =>
+        numTraining => Iterator.tabulate(numTrials) { _ =>
+          val thisRng = new Random(rng.nextLong())
+          runTrial(
+            numTrain = numTraining.toInt,
+            numTest = numTest,
+            numCols = numCols,
+            numBags = numTraining.toInt,
+            rhoTrain = rhoTrain,
+            quadraticCorrelationFuzz = quadraticCorrelationFuzz,
+            samplingNoise = samplingNoise,
+            observational = observational,
+            rng = thisRng
+          )
         }
     }
     Merit.plotMeritScan(
