@@ -132,79 +132,65 @@ case object UncertaintyCorrelation extends Merit[Double] {
     val covar = error.zip(sigma).map { case (x, y) => (x - meanError) * (y - meanSigma) }.sum / sigma.size
     covar / Math.sqrt(varError * varSigma)
   }
+}
 
-  /**
-    * Negative Log Probability Density (NLPD) in two dimensions
-    * NLPD is calculated for each point and the median value is returned.
-    *
-    * @param i index of the first label to be compared
-    * @param j index of the second label to be compared
-    * @param method method to calculate correlation coefficient
-    * @param observational whether or not to calculate the observational uncertainty
-    */
-  case class NegativeLogProbabilityDensity2d(i: Int, j: Int, method: CorrelationMethod, observational: Boolean) extends Merit[Seq[Any]] {
-    override def evaluate(predictionResult: PredictionResult[Seq[Any]], actual: Seq[Seq[Any]], rng: Random): Double = {
-      val allPredictions = predictionResult.getExpected()
-      val predictionsI = extractComponentByIndex(allPredictions, i)
-      val predictionsJ = extractComponentByIndex(allPredictions, j)
-      val actualI = extractComponentByIndex(actual, i)
-      val actualJ = extractComponentByIndex(actual, j)
-      val errorI = predictionsI.zip(actualI).map(pa => pa._1 - pa._2)
-      val errorJ = predictionsJ.zip(actualJ).map(pa => pa._1 - pa._2)
-      val allSigma = predictionResult.asInstanceOf[MultiTaskBaggedResult].getUncertainty(observational).get
-      val sigmaI = extractComponentByIndex(allSigma, i, Some(0.0))
-      val sigmaJ = extractComponentByIndex(allSigma, j, Some(0.0))
-      val rho = predictionResult.asInstanceOf[MultiTaskBaggedResult].getUncertaintyCorrelationBuffet(i, j, method).get
-      val nlpd = NLPD(errorI, errorJ, sigmaI, sigmaJ, rho)
-      StatsUtils.median(nlpd)
-    }
-
-    /**
-      * A convenience method for slicing a two dimensional data structure
-      *
-      * @param data a sequence of sequences
-      * @param index to slice (must correspond to real-valued data)
-      * @param default default to use in case the values are Option[Double]
-      * @return
-      */
-    private def extractComponentByIndex(data: Seq[Seq[Any]], index: Int, default: Option[Double] = None): Seq[Double] = {
-      data.map { row =>
-        row(index) match {
-          case x: Double => x
-          case x: Option[Double] => x.getOrElse(default.get)
-        }
-      }
-    }
-
-    /**
-      * Bivariate negative log probability density calculation
-      * log(2 * pi * sigma_x * sigma_y * sqrt(1 - rho**2)) +
-      *   1/(2 * (1 - rho**2)) * [(x / sigma_x)**2 + (y / sigma_y)**2 - 2 * rho * x * y / (sigma_x * sigma_y)]
-      * @param dx sequence of prediction errors in first label
-      * @param dy sequence of prediction errors in second label
-      * @param sigmaX sequence of uncertainty values of first label
-      * @param sigmaY sequence of uncertainty values of second label
-      * @param rho sequence of correlation coefficients for predictions
-      * @return sequence of NLPD value for each prediction
-      */
-    def NLPD(dx: Seq[Double], dy: Seq[Double], sigmaX: Seq[Double], sigmaY: Seq[Double], rho: Seq[Double]): Seq[Double] = {
-      Seq(dx, dy, sigmaX, sigmaY, rho).transpose.map { values =>
-        val x = values.head
-        val y = values(1)
-        val sx = values(2)
-        val sy = values(3)
-        val r = values(4)
-        val r2 = math.pow(r, 2.0)
-        val term1 = math.log(2 * math.Pi * sx * sy * math.sqrt(1 - r2))
-        val normX = x / sx
-        val normY = y / sy
-        val term2 = 1/(2 * (1 - r2)) * (math.pow(normX, 2.0) + math.pow(normY, 2.0) - 2 * r * normX * normY)
-        term1 + term2
-      }
-    }
+/**
+  * Negative Log Probability Density (NLPD) in two dimensions
+  * NLPD is calculated for each point and the median value is returned.
+  *
+  * @param i index of the first label to be compared
+  * @param j index of the second label to be compared
+  * @param method method to calculate correlation coefficient
+  * @param observational whether or not to calculate the observational uncertainty
+  */
+case class NegativeLogProbabilityDensity2d(i: Int, j: Int, method: CorrelationMethod, observational: Boolean) extends Merit[Seq[Any]] {
+  override def evaluate(predictionResult: PredictionResult[Seq[Any]], actual: Seq[Seq[Any]], rng: Random): Double = {
+    val pvas = PredictedVsActualTwoDimensions.makePva2d(predictionResult, actual, i, j, method, observational)
+    val nlpd = NLPD(pvas)
+    StatsUtils.median(nlpd)
   }
 
-  // TODO: add a multidimensional standard confidence as a merit
+  /**
+    * Bivariate negative log probability density calculation
+    * log(2 * pi * sigma_x * sigma_y * sqrt(1 - rho**2)) +
+    *   1/(2 * (1 - rho**2)) * [(x / sigma_x)**2 + (y / sigma_y)**2 - 2 * rho * x * y / (sigma_x * sigma_y)]
+    * @param pvas sequence of bivariate predicted-vs-actual points
+    * @return sequence of NLPD value for each prediction
+    */
+  def NLPD(pvas: Seq[PredictedVsActualTwoDimensions]): Seq[Double] = {
+    pvas.map { pva =>
+      val term1 = math.log(2 * math.Pi * pva.sigmaX * pva.sigmaY * math.sqrt(1 - math.pow(pva.rho, 2.0)))
+      val term2 = 1/2 * pva.mahalanobisSquared
+      term1 + term2
+    }
+  }
+}
+
+/**
+  * Standard confidence in two dimensions. This is the fraction of predictions that fall within a given uncertainty band.
+  * Uses the Mahalanobis distance to calculate the distance from the prediction to the actual point.
+  *
+  * @param i index of the first label to be compared
+  * @param j index of the second label to be compared
+  * @param method method to calculate correlation coefficient
+  * @param observational whether or not to calculate the observational uncertainty
+  * @param confidenceLevel the fraction of predictions that are expected to be within this distance.
+  *                        By default it is 68.3%, corresponding to one standard deviation in one dimension.
+  */
+case class StandardConfidence2d(
+                                 i: Int,
+                                 j: Int,
+                                 method: CorrelationMethod,
+                                 observational: Boolean,
+                                 confidenceLevel: Double = 0.683
+                               ) extends Merit[Seq[Any]] {
+  override def evaluate(predictionResult: PredictionResult[Seq[Any]], actual: Seq[Seq[Any]], rng: Random): Double = {
+    val pvas = PredictedVsActualTwoDimensions.makePva2d(predictionResult, actual, i, j, method, observational)
+    // The CDF of a bivariate normal distribution is 1 - exp(-r^2/2), where r is the Mahalanobis distance.
+    // Therefore for a given desired probability, p, the corresponding distance is r^2 = -2 * ln(1 - p)
+    val cutoffDistanceSquared = -2 * math.log(1 - confidenceLevel)
+    pvas.count(_.mahalanobisSquared < cutoffDistanceSquared).toDouble / pvas.length
+  }
 }
 
 object Merit {
@@ -289,4 +275,85 @@ object Merit {
 
     chart
   }
+}
+
+/**
+  * A single predicted-vs-actual point in two real-valued dimensions.
+  *
+  * @param dx the error along the first dimension
+  * @param dy the error along the second dimension
+  * @param sigmaX the uncertainty along the first dimension
+  * @param sigmaY the uncertainty along the second dimension
+  * @param rho the correlation coefficient
+  */
+case class PredictedVsActualTwoDimensions(
+                                         dx: Double,
+                                         dy: Double,
+                                         sigmaX: Double,
+                                         sigmaY: Double,
+                                         rho: Double
+                                         ) {
+  private lazy val normX = dx / sigmaX
+  private lazy val normY = dy / sigmaY
+  private lazy val rhoSquared = math.pow(rho, 2.0)
+
+  def mahalanobisSquared: Double = {
+    1/(1 - rhoSquared) * (math.pow(normX, 2.0) + math.pow(normY, 2.0) - 2 * rho * normX * normY)
+  }
+}
+
+object PredictedVsActualTwoDimensions {
+
+  /**
+    * Convert a prediction result into a sequence of PredictedVsActualTwoDimensions objects, which are easier to compute metrics on.
+    *
+    * @param predictionResult multivariate prediction result
+    * @param actual multivariate ground-truth values
+    * @param i index of the first label to be compared
+    * @param j index of the second label to be compared
+    * @param method method to calculate correlation coefficient
+    * @param observational whether or not to calculate the observational uncertainty
+    * @return a case class containing the error and uncertainty for each predicted-actual pair
+    */
+  def makePva2d(
+                 predictionResult: PredictionResult[Seq[Any]],
+                 actual: Seq[Seq[Any]],
+                 i: Int,
+                 j: Int,
+                 method: CorrelationMethod,
+                 observational: Boolean
+               ): Seq[PredictedVsActualTwoDimensions] = {
+    val allPredictions = predictionResult.getExpected()
+    val predictionsI = extractComponentByIndex(allPredictions, i)
+    val predictionsJ = extractComponentByIndex(allPredictions, j)
+    val actualI = extractComponentByIndex(actual, i)
+    val actualJ = extractComponentByIndex(actual, j)
+    val errorI = predictionsI.zip(actualI).map(pa => pa._1 - pa._2)
+    val errorJ = predictionsJ.zip(actualJ).map(pa => pa._1 - pa._2)
+    val allSigma = predictionResult.asInstanceOf[MultiTaskBaggedResult].getUncertainty(observational).get
+    val sigmaI = extractComponentByIndex(allSigma, i, Some(0.0))
+    val sigmaJ = extractComponentByIndex(allSigma, j, Some(0.0))
+    val correlation = predictionResult.asInstanceOf[MultiTaskBaggedResult].getUncertaintyCorrelationBuffet(i, j, method).get
+    Seq(errorI, errorJ, sigmaI, sigmaJ, correlation).transpose.map { values =>
+      PredictedVsActualTwoDimensions(values.head, values(1), values(2), values(3), values(4))
+    }
+  }
+
+  /**
+    * A convenience method for slicing a two dimensional data structure
+    *
+    * @param data a sequence of sequences
+    * @param index to slice (must correspond to real-valued data)
+    * @param default default to use in case the values are Option[Double]
+    * @return
+    */
+  def extractComponentByIndex(data: Seq[Seq[Any]], index: Int, default: Option[Double] = None): Seq[Double] = {
+    data.map { row =>
+      row(index) match {
+        case x: Double => x
+        case x: Option[Double] => x.getOrElse(default.get)
+      }
+    }
+  }
+
 }

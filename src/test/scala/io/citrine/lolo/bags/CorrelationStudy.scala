@@ -5,8 +5,7 @@ import io.citrine.lolo.{PredictionResult, TestUtils}
 import io.citrine.lolo.stats.StatsUtils.makeLinearCorrelatedData
 import io.citrine.lolo.stats.functions.Friedman
 import io.citrine.lolo.trees.multitask.MultiTaskTreeLearner
-import io.citrine.lolo.validation.Merit
-import io.citrine.lolo.validation.UncertaintyCorrelation.NegativeLogProbabilityDensity2d
+import io.citrine.lolo.validation.{Merit, NegativeLogProbabilityDensity2d, StandardConfidence2d}
 import org.apache.commons.math3.random.MersenneTwister
 import org.knowm.xchart.{BitmapEncoder, XYChart}
 import org.knowm.xchart.BitmapEncoder.BitmapFormat
@@ -39,30 +38,27 @@ case object NumTraining extends VariedParameter {
 object CorrelationStudy {
 
   def main(args: Array[String]): Unit = {
-    val seed = 52109317L
-    val mainRng = new Random(seed)
+    val mainRng = new Random(52109317L)
 
-    val function: Seq[Double] => Double = Friedman.friedmanSilverman
     val numTrials = 10
     val numTrainRows = 128
     val numTestRows = 128
     val numCols = 12
-    // TODO: add the ability to change the test function
 
     makeAndSaveChart(
-      fname = "./linear-problem-prediction-no-noise-rho-0.7-fuzz-0.5",
-      variedParameter = Bags,
-      parameterValues = Seq(32, 64, 128, 256, 512, 1024),
+      fname = "./test",
+      variedParameter = TrainRho,
+      parameterValues = Seq(0.0, 0.25, 0.50, 0.75, 0.9, 0.99),
       testProblem = Linear,
-      function = function,
+      function = Friedman.friedmanSilverman,
       numTrials = numTrials,
       numTrain = numTrainRows,
       numTest = numTestRows,
       numCols = numCols,
-      observational = true,
+      observational = false,
       samplingNoise = 0.0,
-      rhoTrain = 0.7,
-      quadraticCorrelationFuzz = 0.5,
+      rhoTrain = 0.0,
+      quadraticCorrelationFuzz = 0.0,
       rng = mainRng
     )
   }
