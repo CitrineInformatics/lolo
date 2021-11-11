@@ -20,6 +20,20 @@ sealed trait Metric
 case object NLPD extends Metric
 case object StdConfidence extends Metric
 
+sealed trait TrueFunction {
+  def function: Seq[Double] => Double
+  val numCols: Int
+  def name: String
+}
+case class FriedmanSilvermanFunction(numCols) extends TrueFunction {
+  def name = s"Friedman-Silverman, $numCols columns"
+  def function: Seq[Double] => Double = Friedman.friedmanSilverman
+}
+case class FriedmanGrosseSilvermanFunction(numCols) extends TrueFunction {
+  def name = s"Friedman-Grosse-Silverman, $numCols columns"
+  def function: Seq[Double] => Double = Friedman.friedmanGrosseSilverman
+}
+
 sealed trait VariedParameter {
   def name: String
 }
@@ -44,22 +58,16 @@ object CorrelationStudy {
   def main(args: Array[String]): Unit = {
     val mainRng = new Random(52109317L)
 
-    val numTrials = 10
-    val numTrainRows = 128
-    val numTestRows = 128
-    val numCols = 12
-
-    makeAndSaveChart(
+    runTrialsAndSave(
       fname = "./test",
       metric = NLPD,
       variedParameter = TrainRho,
       parameterValues = Seq(0.0, 0.25, 0.50, 0.75, 0.9, 0.99),
       testProblem = Linear,
-      function = Friedman.friedmanSilverman,
-      numTrials = numTrials,
-      numTrain = numTrainRows,
-      numTest = numTestRows,
-      numCols = numCols,
+      function = FriedmanSilvermanFunction(numCols = 12),
+      numTrials = 10,
+      numTrain = 128,
+      numTest = 128,
       observational = true,
       samplingNoise = 0.0,
       rhoTrain = 0.0,
@@ -68,24 +76,22 @@ object CorrelationStudy {
     )
   }
 
-  def makeAndSaveChart(
+  def runTrialsAndSave(
                         fname: String,
                         metric: Metric,
                         variedParameter: VariedParameter,
                         parameterValues: Seq[Double],
                         testProblem: TestProblems,
-                        function: Seq[Double] => Double,
+                        function: TrueFunction,
                         numTrials: Int,
                         numTrain: Int,
                         numTest: Int,
-                        numCols: Int,
                         observational: Boolean,
                         samplingNoise: Double,
                         rhoTrain: Double,
                         quadraticCorrelationFuzz: Double,
                         rng: Random
                       ): Unit = {
-    // TODO: also save the raw data in a csv
     val chart = makeChart(
       variedParameter = variedParameter,
       metric = metric,
@@ -95,14 +101,29 @@ object CorrelationStudy {
       numTrials = numTrials,
       numTrain = numTrain,
       numTest = numTest,
-      numCols = numCols,
       observational = observational,
       samplingNoise = samplingNoise,
       rhoTrain = rhoTrain,
       quadraticCorrelationFuzz = quadraticCorrelationFuzz,
       rng = rng
     )
-    BitmapEncoder.saveBitmap(chart, fname + ".png", BitmapFormat.PNG)
+
+    saveChart(chart, fname)
+    saveRawData(
+      chart = chart,
+      fname = fname,
+      variedParameter = variedParameter,
+      parameterValues = parameterValues,
+      testProblem = testProblem,
+      function = function,
+      numTrials = numTrials,
+      numTrain = numTrain,
+      numTest = numTest,
+      observational = observational,
+      samplingNoise = samplingNoise,
+      rhoTrain = rhoTrain,
+      quadraticCorrelationFuzz = quadraticCorrelationFuzz
+    )
   }
 
   def makeChart(
@@ -110,11 +131,10 @@ object CorrelationStudy {
                  metric: Metric,
                  parameterValues: Seq[Double],
                  testProblem: TestProblems,
-                 function: Seq[Double] => Double,
+                 function: TrueFunction,
                  numTrials: Int,
                  numTrain: Int,
                  numTest: Int,
-                 numCols: Int,
                  observational: Boolean,
                  samplingNoise: Double,
                  rhoTrain: Double,
@@ -150,7 +170,6 @@ object CorrelationStudy {
             function = function,
             numTrain = numTrain,
             numTest = numTest,
-            numCols = numCols,
             numBags = numTrain,
             rhoTrain = rho,
             quadraticCorrelationFuzz = quadraticCorrelationFuzz,
@@ -166,7 +185,6 @@ object CorrelationStudy {
             function = function,
             numTrain = numTrain,
             numTest = numTest,
-            numCols = numCols,
             numBags = numTrain,
             rhoTrain = rhoTrain,
             quadraticCorrelationFuzz = quadraticCorrelationFuzz,
@@ -182,7 +200,6 @@ object CorrelationStudy {
             function = function,
             numTrain = numTrain,
             numTest = numTest,
-            numCols = numCols,
             numBags = numTrain,
             rhoTrain = rhoTrain,
             quadraticCorrelationFuzz = fuzz,
@@ -198,7 +215,6 @@ object CorrelationStudy {
             function = function,
             numTrain = numTrain,
             numTest = numTest,
-            numCols = numCols,
             numBags = numBags.toInt,
             rhoTrain = rhoTrain,
             quadraticCorrelationFuzz = quadraticCorrelationFuzz,
@@ -214,7 +230,6 @@ object CorrelationStudy {
             function = function,
             numTrain = numTraining.toInt,
             numTest = numTest,
-            numCols = numCols,
             numBags = numTraining.toInt,
             rhoTrain = rhoTrain,
             quadraticCorrelationFuzz = quadraticCorrelationFuzz,
@@ -233,10 +248,9 @@ object CorrelationStudy {
   }
 
   def runTrial(
-                function: Seq[Double] => Double,
+                function: TrueFunction,
                 numTrain: Int,
                 numTest: Int,
-                numCols: Int,
                 numBags: Int,
                 rhoTrain: Double,
                 quadraticCorrelationFuzz: Double,
@@ -253,9 +267,9 @@ object CorrelationStudy {
 
     val fullData: Seq[(Vector[Double], Double)] = TestUtils.generateTrainingData(
       numTrain + numTest,
-      numCols,
+      function.numCols,
       noise = 0.0, // Add noise later, after computing covariate labels
-      function = function,
+      function = function.function,
       seed = dataGenSeed
     )
 
@@ -299,6 +313,28 @@ object CorrelationStudy {
     require(fuzz >= 0.0)
     val mu = X.sum / X.size
     X.map(x => math.pow(x - mu, 2.0) + fuzz * rng.nextGaussian())
+  }
+
+  /** Save chart as a png */
+  def saveChart(chart: XYChart, fname: String): Unit = BitmapEncoder.saveBitmap(chart, fname + ".png", BitmapFormat.PNG)
+
+  /** Save the underlying data for a chart as a csv. */
+  def saveRawData(
+                   chart: XYChart,
+                   fname: String,
+                   variedParameter: VariedParameter,
+                   parameterValues: Seq[Double],
+                   testProblem: TestProblems,
+                   function: TrueFunction,
+                   numTrials: Int,
+                   numTrain: Int,
+                   numTest: Int,
+                   observational: Boolean,
+                   samplingNoise: Double,
+                   rhoTrain: Double,
+                   quadraticCorrelationFuzz: Double,
+                 ): Unit = {
+
   }
 
 }
