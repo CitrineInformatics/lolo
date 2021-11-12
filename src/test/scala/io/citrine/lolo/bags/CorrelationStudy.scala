@@ -81,19 +81,19 @@ object CorrelationStudy {
     val mainRng = new Random(52109317L)
 
     runTrialsAndSave(
-      fname = "./test",
-      metric = NLPD,
-      variedParameter = TrainRho,
-      parameterValues = Seq(0.0, 0.25, 0.50, 0.75, 0.9, 0.99),
-      testProblem = Linear,
+      fname = "./rectification-study/linear-prediction-noise-0-nlpd",
+      metric = NLPD, // vary
+      variedParameter = Bags,
+      parameterValues = Seq(16, 32, 64, 128, 256, 512, 1024),
+      testProblem = Linear, // vary
       function = FriedmanSilvermanFunction(numCols = 12),
-      numTrials = 10,
+      numTrials = 16,
       numTrain = 128,
       numTest = 128,
-      observational = true,
-      samplingNoise = 0.0,
-      rhoTrain = 0.0,
-      quadraticCorrelationFuzz = 0.0,
+      observational = true, // vary
+      samplingNoise = 0.0, // vary
+      rhoTrain = 0.9,
+      quadraticCorrelationFuzz = 1.0,
       rng = mainRng
     )
   }
@@ -195,17 +195,21 @@ object CorrelationStudy {
     val merits = metric match {
       case NLPD =>
         Map(
-          "Trivial" -> NegativeLogProbabilityDensity2d(0, index, CorrelationMethods.Trivial, observational),
-          "Training Data" -> NegativeLogProbabilityDensity2d(0, index, CorrelationMethods.FromTraining, observational),
-          "Bootstrap" -> NegativeLogProbabilityDensity2d(0, index, CorrelationMethods.Bootstrap, observational),
-          "Jackknife" -> NegativeLogProbabilityDensity2d(0, index, CorrelationMethods.Jackknife, observational)
+//          "Trivial" -> NegativeLogProbabilityDensity2d(0, index, CorrelationMethods.Trivial, observational),
+//          "Training Data" -> NegativeLogProbabilityDensity2d(0, index, CorrelationMethods.FromTraining, observational),
+//          "Bootstrap" -> NegativeLogProbabilityDensity2d(0, index, CorrelationMethods.Bootstrap, observational),
+          "Jackknife (snap to bounds)" -> NegativeLogProbabilityDensity2d(0, index, CorrelationMethods.Jackknife, observational),
+          "Jackknife (snap to 0)" -> NegativeLogProbabilityDensity2d(0, index, CorrelationMethods.Jackknife2, observational),
+          "Jackknife (term-by-term rectification)" -> NegativeLogProbabilityDensity2d(0, index, CorrelationMethods.Jackknife3, observational)
         )
       case StdConfidence =>
         Map(
-          "Trivial" -> StandardConfidence2d(0, index, CorrelationMethods.Trivial, observational),
-          "Training Data" -> StandardConfidence2d(0, index, CorrelationMethods.FromTraining, observational),
-          "Bootstrap" -> StandardConfidence2d(0, index, CorrelationMethods.Bootstrap, observational),
-          "Jackknife" -> StandardConfidence2d(0, index, CorrelationMethods.Jackknife, observational)
+//          "Trivial" -> StandardConfidence2d(0, index, CorrelationMethods.Trivial, observational),
+//          "Training Data" -> StandardConfidence2d(0, index, CorrelationMethods.FromTraining, observational),
+//          "Bootstrap" -> StandardConfidence2d(0, index, CorrelationMethods.Bootstrap, observational),
+          "Jackknife (snap to bounds)" -> StandardConfidence2d(0, index, CorrelationMethods.Jackknife, observational),
+          "Jackknife (snap to 0)" -> StandardConfidence2d(0, index, CorrelationMethods.Jackknife2, observational),
+          "Jackknife (term-by-term rectification)" -> StandardConfidence2d(0, index, CorrelationMethods.Jackknife3, observational)
         )
     }
     // There's some unfortunate boiler plate here. plotMeritScan takes a function that goes from a Double parameter value

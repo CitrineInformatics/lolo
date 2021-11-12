@@ -1,7 +1,7 @@
 package io.citrine.lolo.bags
 
 import breeze.linalg.{DenseMatrix, DenseVector, norm}
-import io.citrine.lolo.bags.CorrelationMethods.{Bootstrap, CorrelationMethod, FromTraining, Jackknife, Trivial, JackknifeExplicit}
+import io.citrine.lolo.bags.CorrelationMethods.{Bootstrap, CorrelationMethod, FromTraining, Jackknife, Jackknife2, JackknifeExplicit, Trivial, Jackknife3}
 import io.citrine.lolo.stats.StatsUtils
 import io.citrine.lolo.{MultiTaskModelPredictionResult, ParallelModelsPredictionResult, PredictionResult, RegressionResult}
 import io.citrine.lolo.util.Async
@@ -454,7 +454,9 @@ case class MultiTaskBaggedResult(
         case Trivial => getUncertaintyCorrelationTrivial(i, j)
         case FromTraining => getUncertaintyCorrelationTraining(i, j)
         case Bootstrap => getUncertaintyCorrelationBootstrap(i, j)
-        case Jackknife => getUncertaintyCorrelationJackknife(i, j)
+        case Jackknife => getUncertaintyCorrelationJackknife(i, j, rectification = 1)
+        case Jackknife2 => getUncertaintyCorrelationJackknife(i, j, rectification = 2)
+        case Jackknife3 => getUncertaintyCorrelationJackknife(i, j, rectification = 3)
         case JackknifeExplicit => getUncertaintyCorrelationJackknifeExplicit(i, j)
       }
       case _: Any => None
@@ -491,7 +493,7 @@ case class MultiTaskBaggedResult(
     * This implementation uses matrix arithmetic for performance reasons, but it is difficult to decipher.
     *
     */
-  private def getUncertaintyCorrelationJackknife(i: Int, j: Int): Option[Seq[Double]] = {
+  private def getUncertaintyCorrelationJackknife(i: Int, j: Int, rectification: Int): Option[Seq[Double]] = {
     val sigmaIOption = baggedPredictions(i).getUncertainty(observational = false).map(_.asInstanceOf[Seq[Double]])
     val sigmaJOption = baggedPredictions(j).getUncertainty(observational = false).map(_.asInstanceOf[Seq[Double]])
     (sigmaIOption, sigmaJOption) match {
@@ -531,7 +533,15 @@ case class MultiTaskBaggedResult(
         // For each prediction, rectify the covariance scores to compute correlation
         Some(
           (scores, sigmaISeq, sigmaJSeq).zipped.map { (trainingContributions, sigmaI, sigmaJ) =>
-            BaggedResult.rectifyCorrelationScores(trainingContributions, sigmaI, sigmaJ)
+            if (rectification == 1) {
+              BaggedResult.rectifyCorrelationScores1(trainingContributions, sigmaI, sigmaJ)
+            } else if (rectification == 2) {
+              BaggedResult.rectifyCorrelationScores2(trainingContributions, sigmaI, sigmaJ)
+            } else if (rectification == 3) {
+              BaggedResult.rectifyCorrelationScores3(trainingContributions, sigmaI, sigmaJ)
+            } else {
+              throw new IllegalArgumentException
+            }
           }
         )
       case _ => None
@@ -700,7 +710,6 @@ object BaggedResult {
     * In theory, the covariance is the sum of the individual covariance scores. But because each covariance score
     * is noisy, the resulting sum can be larger in absolute value than `sigmaX * sigmaY`, which would translate into
     * a correlation coefficient that is outside [-1.0, 1.0], and hence we cannot calculate a conditional probability.
-    * The implementation here is to set rho equal to 0 if it is less than -0.999 or greater than 0.999.
     *
     * @param covarianceScores sequence of Monte Carlo corrected covariance contributions for each training point
     * @param sigmaX           uncertainty in first label
@@ -708,16 +717,37 @@ object BaggedResult {
     * @return                 correlation coefficient, guaranteed to be between -1.0 and 1.0
     */
   def rectifyCorrelationScores(covarianceScores: Vector[Double], sigmaX: Double, sigmaY: Double): Double = {
+    rectifyCorrelationScores2(covarianceScores, sigmaX, sigmaY)
+  }
+
+  /** If rho is outside of [-.999, .999], snap it to those bounds */
+  def rectifyCorrelationScores1(covarianceScores: Vector[Double], sigmaX: Double, sigmaY: Double): Double = {
     require(sigmaX >= 0.0 && sigmaY >= 0.0)
     if (sigmaX == 0 || sigmaY == 0) return 0.0
     val rho = covarianceScores.sum / (sigmaX * sigmaY)
-    // If the calculated rho is too large or too small, then the calculation is noisy and we set rho to 0.0
-    // TODO (PLA-8597): figure out a better way to rectify covariance noise
+    math.min(0.999, math.max(rho, -0.999))
+  }
+
+  /** If rho is outside of [-.999, .999], then set it to 0 because it's clearly a poorly-known quantity */
+  def rectifyCorrelationScores2(covarianceScores: Vector[Double], sigmaX: Double, sigmaY: Double): Double = {
+    require(sigmaX >= 0.0 && sigmaY >= 0.0)
+    if (sigmaX == 0 || sigmaY == 0) return 0.0
+    val rho = covarianceScores.sum / (sigmaX * sigmaY)
     if (rho < -0.999 || rho > 0.999) {
-      logger.warn("The covariance estimate is noisy; rectifying. Please consider increasing the ensemble size.")
       0.0
     } else {
       rho
     }
   }
+
+  /** If any individual term in the sum is too large in absolute value, snap it to bounds. Then sum.
+    * The result is guaranteed to be between -1 and 1
+    */
+  def rectifyCorrelationScores3(covarianceScores: Vector[Double], sigmaX: Double, sigmaY: Double): Double = {
+    require(sigmaX >= 0.0 && sigmaY >= 0.0)
+    if (sigmaX == 0 || sigmaY == 0) return 0.0
+    val smallestUnit = sigmaX * sigmaY / covarianceScores.length
+    covarianceScores.map(x => math.min(smallestUnit, math.max(-1 * smallestUnit, x))).sum / (sigmaX * sigmaY)
+  }
+
 }
