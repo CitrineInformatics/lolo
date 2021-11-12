@@ -2,6 +2,7 @@ package io.citrine.lolo.bags
 
 import breeze.stats.distributions.{Poisson, Rand, RandBasis}
 import io.citrine.lolo._
+import io.citrine.lolo.stats.metrics.{ClassificationMetrics, RegressionMetrics}
 import io.citrine.lolo.util.{Async, InterruptibleExecutionContext}
 
 import scala.collection.parallel.ExecutionContextTaskSupport
@@ -114,15 +115,60 @@ class MultiTaskBaggedTrainingResult(
 
   lazy val model = new MultiTaskBaggedModel(models, Nib, useJackknife, biasModels, trainingLabels, trainingWeights)
 
+  // Each entry is a tuple, (feature vector, seq of predicted labels, seq of actual labels).
+  // The labels are of type Option[Any] because a given training datum might not have a value for every single label.
+  // If the actual value for a label is None, then the corresponding prediction is recorded as None. The model could generate
+  // a prediction, but that's not useful in this context, since the point is to compare predictions with ground-truth values.
+  lazy val predictedVsActual: Seq[(Vector[Any], Seq[Option[Any]], Seq[Option[Any]])] =
+    trainingData.zip(Nib.transpose).flatMap { case ((features, labels), nb) =>
+      // Bagged models that were not trained on this input
+      val oob = models.zip(nb).filter(_._2 == 0).map(_._1)
+      if (oob.isEmpty) {
+        Seq()
+      } else {
+        // "Average" the predictions on each label over the out-of-bag models
+        val oobPredictions = oob.map(_.transform(Seq(features)).getExpected().head)
+        val predicted = oobPredictions.toVector.transpose.zipWithIndex.map {
+          case (predictions, labelIndex) if models.head.getRealLabels(labelIndex) =>
+            predictions.asInstanceOf[Seq[Double]].sum / predictions.size
+          case (predictions, _) => predictions.groupBy(identity).maxBy(_._2.size)._1
+        }
+        // Remove predictions for which the label was not specified
+        val (optionLabels, optionPredicted) = labels.zip(predicted).map {
+          case (l, _) if l == null || (l.isInstanceOf[Double] && l.asInstanceOf[Double].isNaN) => (None, None)
+          case (l, p) => (Some(l), Some(p))
+        }.unzip
+        Seq((features, optionPredicted, optionLabels))
+      }
+    }
+
+  lazy val loss = {
+    val allInputs = predictedVsActual.map(_._1)
+    val allPredicted: Seq[Seq[Option[Any]]] = predictedVsActual.map(_._2).transpose
+    val allActual: Seq[Seq[Option[Any]]] = predictedVsActual.map(_._3).transpose
+    (allPredicted, allActual, models.head.getRealLabels).zipped.map { case (labelPredicted, labelActual, isReal) =>
+      // Construct predicted-vs-actual for just this label, only keeping entries for which both predicted and actual are defined
+      val pva = (allInputs, labelPredicted, labelActual).zipped.flatMap {
+        case (input, Some(p), Some(a)) => Some((input, p, a))
+        case _ => None
+      }
+      if (isReal) {
+        RegressionMetrics.RMSE(pva.asInstanceOf[Seq[(Vector[Any], Double, Double)]])
+      } else {
+        ClassificationMetrics.loss(pva)
+      }
+    }
+  }.sum
+
   override def getFeatureImportance(): Option[Vector[Double]] = featureImportance
 
   override def getModel(): MultiTaskBaggedModel = model
 
   override def getModels(): Seq[Model[PredictionResult[Any]]] = {
     val realLabels: Seq[Boolean] = models.head.getRealLabels
-    realLabels.zipWithIndex.map { case (realLabel: Boolean, i: Int) =>
+    realLabels.zipWithIndex.map { case (isReal: Boolean, i: Int) =>
       val thisLabelModels = models.map(_.getModels(i))
-      if (realLabel) {
+      if (isReal) {
         new BaggedModel[Double](thisLabelModels.asInstanceOf[ParSeq[Model[PredictionResult[Double]]]], Nib, useJackknife, biasModels(i), rescaleRatios(i))
       } else {
         new BaggedModel[Any](thisLabelModels.asInstanceOf[ParSeq[Model[PredictionResult[Any]]]], Nib, useJackknife, biasModels(i), rescaleRatios(i))
@@ -130,7 +176,11 @@ class MultiTaskBaggedTrainingResult(
     }
   }
 
-  // TODO (PLA-8566): use trainingData and model to get predicted vs. actual, which can be used to get loss (see BaggedTrainingResult)
+  override def getPredictedVsActual(): Option[Seq[(Vector[Any], Seq[Option[Any]], Seq[Option[Any]])]] = Some(predictedVsActual)
+
+  override def getLoss(): Option[Double] = {
+    if (predictedVsActual.nonEmpty) Some(loss) else None
+  }
 }
 
 /**

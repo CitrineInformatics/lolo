@@ -2,7 +2,7 @@ package io.citrine.lolo.bags
 
 import breeze.linalg.DenseMatrix
 import breeze.stats.distributions.{Poisson, Rand, RandBasis}
-import io.citrine.lolo.stats.metrics.ClassificationMetrics
+import io.citrine.lolo.stats.metrics.{ClassificationMetrics, RegressionMetrics}
 import io.citrine.lolo.util.{Async, InterruptibleExecutionContext}
 import io.citrine.lolo.{Learner, Model, PredictionResult, RegressionResult, TrainingResult}
 
@@ -210,10 +210,8 @@ class BaggedTrainingResult[+T : ClassTag](
   }
 
   lazy val loss: Double = rep match {
-    case _: Double => Math.sqrt(predictedVsActual.map(d => Math.pow(d._2.asInstanceOf[Double] - d._3.asInstanceOf[Double], 2)).sum / predictedVsActual.size)
-    case _: Any =>
-      val f1 = ClassificationMetrics.f1scores(predictedVsActual)
-      if (f1 > 0.0) 1.0 / f1 - 1.0 else Double.MaxValue
+    case _: Double => RegressionMetrics.RMSE(predictedVsActual.asInstanceOf[Seq[(Vector[Any], Double, Double)]])
+    case _: Any => ClassificationMetrics.loss(predictedVsActual)
   }
 
   /**
