@@ -6,6 +6,7 @@ import io.citrine.lolo.bags.CorrelationMethods.CorrelationMethod
 import io.citrine.lolo.bags.MultiTaskBaggedResult
 import io.citrine.lolo.stats.StatsUtils
 import org.knowm.xchart.XYChart
+import breeze.numerics.erfinv
 
 import scala.collection.JavaConverters._
 import scala.util.Random
@@ -64,12 +65,13 @@ case object CoefficientOfDetermination extends Merit[Double] {
 /**
   * The fraction of predictions that fall within the predicted uncertainty
   */
-case class StandardConfidence(observational: Boolean = true) extends Merit[Double] {
+case class StandardConfidence(observational: Boolean = true, coverageLevel: Double = 0.683) extends Merit[Double] {
   override def evaluate(predictionResult: PredictionResult[Double], actual: Seq[Double], rng: Random = Random): Double = {
     if (predictionResult.getUncertainty().isEmpty) return 0.0
+    val numSigmas = erfinv(coverageLevel) * math.sqrt(2)
 
     (predictionResult.getExpected(), predictionResult.getUncertainty(observational = observational).get, actual).zipped.count {
-      case (x, sigma: Double, y) => Math.abs(x - y) < sigma
+      case (x, sigma: Double, y) => Math.abs(x - y) < sigma * numSigmas
     } / predictionResult.getExpected().size.toDouble
   }
 }

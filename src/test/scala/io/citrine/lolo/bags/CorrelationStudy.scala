@@ -80,9 +80,13 @@ object CorrelationStudy {
 
   def main(args: Array[String]): Unit = {
     val mainRng = new Random(52109317L)
-    val chart = runUncertaintyTrials(samplingNoise = 1.0, observational = false, mainRng = mainRng)
-    saveChart(chart, "./uncertainty-repro/confidence-noise-1-bias-model-in-uncertainty")
-    // TODO: vary the confidence level and generate a few plots that way
+    val chart = runUncertaintyTrials(
+      samplingNoise = 0.0,
+      observational = false,
+      coverageLevel = 0.683,
+      mainRng = mainRng
+    )
+    saveChart(chart, "./uncertainty-reproduction/confidence-noise-0-bias-model-in-uncertainty-covLevel-68")
 
 //    runTrialsAndSave(
 //      fname = "./test",
@@ -102,7 +106,7 @@ object CorrelationStudy {
 //    )
   }
 
-  def runUncertaintyTrials(samplingNoise: Double, observational: Boolean, mainRng: Random): XYChart = {
+  def runUncertaintyTrials(samplingNoise: Double, observational: Boolean, coverageLevel: Double, mainRng: Random): XYChart = {
     val numTrials = 16
     val numTest = 512
     val numCols = 10
@@ -110,7 +114,7 @@ object CorrelationStudy {
       parameterName = "training rows",
       parameterValues = Seq(32, 64, 128, 256, 512),
       merits = Map(
-        "Standard Confidence" -> StandardConfidence(observational = observational)
+        "Standard Confidence" -> StandardConfidence(observational = observational, coverageLevel = coverageLevel)
       ),
       rng = new Random(0L) // this is irrelevant unless we were computing Uncertainty Correlation
     ) { numTrain =>
