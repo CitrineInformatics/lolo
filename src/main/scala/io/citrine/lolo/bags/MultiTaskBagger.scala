@@ -111,6 +111,10 @@ class MultiTaskBaggedTrainingResult(
 
   lazy val model = new MultiTaskBaggedModel(models, Nib, useJackknife, biasModels)
 
+  // Each entry is a tuple, (feature vector, seq of predicted labels, seq of actual labels).
+  // The labels are of type Option[Any] because a given training datum might not have a value for every single label.
+  // If the actual value for a label is None, then the corresponding prediction is recorded as None. The model could generate
+  // a prediction, but that's not useful in this context, since the point is to compare predictions with ground-truth values.
   lazy val predictedVsActual: Seq[(Vector[Any], Seq[Option[Any]], Seq[Option[Any]])] =
     trainingData.zip(Nib.transpose).flatMap { case ((features, labels), nb) =>
       // Bagged models that were not trained on this input
