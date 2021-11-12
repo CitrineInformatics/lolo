@@ -112,10 +112,10 @@ case class MultiTaskRotatedFeatureTrainingResult(
     RotatedFeatureModel(model, rotatedFeatures, trans)
   }
 
-  override def getPredictedVsActual(): Option[Seq[(Vector[Any], Seq[Any], Seq[Any])]] = {
+  override def getPredictedVsActual(): Option[Seq[(Vector[Any], Seq[Option[Any]], Seq[Option[Any]])]] = {
     baseTrainingResult.getPredictedVsActual() match {
       case None => None
-      case Some(predictedVsActual) => Some(predictedVsActual.map { case (inputs: Vector[Any], predicted: Any, actual: Any) =>
+      case Some(predictedVsActual) => Some(predictedVsActual.map { case (inputs: Vector[Any], predicted: Seq[Option[Any]], actual: Seq[Option[Any]]) =>
         (FeatureRotator.applyOneRotation(inputs, rotatedFeatures, trans), predicted, actual)
       })
     }

@@ -39,5 +39,5 @@ trait MultiTaskTrainingResult extends TrainingResult {
 
   def getModels(): Seq[Model[PredictionResult[Any]]]
 
-  override def getPredictedVsActual(): Option[Seq[(Vector[Any], Seq[Any], Seq[Any])]] = None
+  override def getPredictedVsActual(): Option[Seq[(Vector[Any], Seq[Option[Any]], Seq[Option[Any]])]] = None
 }
