@@ -81,7 +81,7 @@ case class SinglePredictionBaggedResult(
       assert(rescale == 1.0)
       Some(Seq(Math.sqrt(treeVariance)))
     } else {
-      Some(Seq(stdDevMean))
+      Some(Seq(math.sqrt(math.pow(bias.getOrElse(0.0), 2) + math.pow(stdDevMean, 2))))
     }
   }
 
@@ -89,7 +89,7 @@ case class SinglePredictionBaggedResult(
     if (disableBootstrap) {
       None
     } else {
-      Some(Seq(stdDevObs))
+      Some(Seq(math.sqrt(math.pow(bias.getOrElse(0.0), 2) + math.pow(stdDevObs, 2))))
     }
   }
 
@@ -215,7 +215,7 @@ case class MultiPredictionBaggedResult(
     if (disableBootstrap) {
       None
     } else {
-      Some(varObs.map { v => Math.sqrt(v) })
+      Some(varObs.zip(biasCorrection).map { case (v, b) => Math.sqrt(v + math.pow(b, 2)) })
     }
   }
 
@@ -226,7 +226,7 @@ case class MultiPredictionBaggedResult(
       assert(rescale == 1.0)
       Some(varObs.map{v => Math.sqrt(v)})
     } else {
-      Some(stdDevMean)
+      Some(stdDevMean.zip(biasCorrection).map { case (s, b) => Math.sqrt(math.pow(s, 2) + math.pow(b, 2)) })
     }
   }
 

@@ -5,7 +5,8 @@ import io.citrine.lolo.{PredictionResult, TestUtils}
 import io.citrine.lolo.stats.StatsUtils.makeLinearCorrelatedData
 import io.citrine.lolo.stats.functions.Friedman
 import io.citrine.lolo.trees.multitask.MultiTaskTreeLearner
-import io.citrine.lolo.validation.{Merit, NegativeLogProbabilityDensity2d, StandardConfidence2d}
+import io.citrine.lolo.trees.regression.RegressionTreeLearner
+import io.citrine.lolo.validation.{Merit, NegativeLogProbabilityDensity2d, StandardConfidence, StandardConfidence2d}
 import org.apache.commons.math3.random.MersenneTwister
 import org.knowm.xchart.{BitmapEncoder, XYChart}
 import org.knowm.xchart.BitmapEncoder.BitmapFormat
@@ -79,23 +80,80 @@ object CorrelationStudy {
 
   def main(args: Array[String]): Unit = {
     val mainRng = new Random(52109317L)
+    val chart = runUncertaintyTrials(samplingNoise = 1.0, observational = false, mainRng = mainRng)
+    saveChart(chart, "./uncertainty-repro/confidence-noise-1-bias-model-in-uncertainty")
+    // TODO: vary the confidence level and generate a few plots that way
 
-    runTrialsAndSave(
-      fname = "./test",
-      metric = NLPD,
-      variedParameter = TrainRho,
-      parameterValues = Seq(0.0, 0.25, 0.50, 0.75, 0.9, 0.99),
-      testProblem = Linear,
-      function = FriedmanSilvermanFunction(numCols = 12),
-      numTrials = 10,
-      numTrain = 128,
-      numTest = 128,
-      observational = true,
-      samplingNoise = 0.0,
-      rhoTrain = 0.0,
-      quadraticCorrelationFuzz = 0.0,
-      rng = mainRng
-    )
+//    runTrialsAndSave(
+//      fname = "./test",
+//      metric = NLPD,
+//      variedParameter = TrainRho,
+//      parameterValues = Seq(0.0, 0.25, 0.50, 0.75, 0.9, 0.99),
+//      testProblem = Linear,
+//      function = FriedmanSilvermanFunction(numCols = 12),
+//      numTrials = 10,
+//      numTrain = 128,
+//      numTest = 128,
+//      observational = true,
+//      samplingNoise = 0.0,
+//      rhoTrain = 0.0,
+//      quadraticCorrelationFuzz = 0.0,
+//      rng = mainRng
+//    )
+  }
+
+  def runUncertaintyTrials(samplingNoise: Double, observational: Boolean, mainRng: Random): XYChart = {
+    val numTrials = 16
+    val numTest = 512
+    val numCols = 10
+    Merit.plotMeritScan(
+      parameterName = "training rows",
+      parameterValues = Seq(32, 64, 128, 256, 512),
+      merits = Map(
+        "Standard Confidence" -> StandardConfidence(observational = observational)
+      ),
+      rng = new Random(0L) // this is irrelevant unless we were computing Uncertainty Correlation
+    ) { numTrain =>
+      Iterator.tabulate(numTrials) { _ =>
+        val rng = new Random(mainRng.nextLong())
+        val dataGenSeed = rng.nextLong()
+        val dataNoiseSeed = new Random(rng.nextLong())
+        val trainRng = new Random(rng.nextLong())
+        val bagSeed = rng.nextLong()
+
+        val fullData: Seq[(Vector[Double], Double)] = TestUtils.generateTrainingData(
+          numTrain.toInt + numTest,
+          numCols,
+          noise = 0.0, // Add noise later, after computing covariate labels
+          function = Friedman.friedmanSilverman,
+          seed = dataGenSeed
+        )
+
+        val inputs: Seq[Vector[Double]] = fullData.map(_._1)
+        val labels: Seq[Double] = fullData.map(_._2)
+
+        val labelNoise = labels.map(_ + samplingNoise * dataNoiseSeed.nextGaussian())
+
+        val baseLearner = RegressionTreeLearner(rng = trainRng)
+        val biasLearner = new Bagger(baseLearner, numBags = 128, uncertaintyCalibration = false)
+        val baggedLearner = Bagger(
+          baseLearner,
+          numBags = numTrain.toInt,
+          biasLearner = Some(biasLearner),
+          randBasis = new RandBasis(new ThreadLocalRandomGenerator(new MersenneTwister(bagSeed)))
+        )
+
+        val RF = baggedLearner.train(
+          inputs.zip(labelNoise).take(numTrain.toInt),
+        ).getModel()
+
+        val predictionResult = RF.transform(inputs.drop(numTrain.toInt))
+        val trueLabels = labels.drop(numTrain.toInt)
+        val observedLabels = labelNoise.drop(numTrain.toInt)
+        val actualLabels = if (observational) observedLabels else trueLabels
+        (predictionResult.asInstanceOf[BaggedResult[Double]], actualLabels)
+      }
+    }
   }
 
   /**
