@@ -78,24 +78,76 @@ case object NumTraining extends VariedParameter {
 object CorrelationStudy {
 
   def main(args: Array[String]): Unit = {
-    val mainRng = new Random(52109317L)
+    val seed = 52109317L
 
     runTrialsAndSave(
-      fname = "./rectification-study/linear-prediction-noise-0-nlpd",
-      metric = NLPD, // vary
+      fname = "./rectification-study/linear-prediction-noise-1-nlpd",
+      metric = NLPD,
       variedParameter = Bags,
       parameterValues = Seq(16, 32, 64, 128, 256, 512, 1024),
-      testProblem = Linear, // vary
+      testProblem = Linear,
       function = FriedmanSilvermanFunction(numCols = 12),
       numTrials = 16,
       numTrain = 128,
       numTest = 128,
-      observational = true, // vary
-      samplingNoise = 0.0, // vary
+      observational = true,
+      samplingNoise = 1.0,
       rhoTrain = 0.9,
       quadraticCorrelationFuzz = 1.0,
-      rng = mainRng
+      rng = new Random(seed)
     )
+
+    runTrialsAndSave(
+      fname = "./rectification-study/quadratic-prediction-noise-1-nlpd",
+      metric = NLPD,
+      variedParameter = Bags,
+      parameterValues = Seq(16, 32, 64, 128, 256, 512, 1024),
+      testProblem = Quadratic,
+      function = FriedmanSilvermanFunction(numCols = 12),
+      numTrials = 16,
+      numTrain = 128,
+      numTest = 128,
+      observational = true,
+      samplingNoise = 1.0,
+      rhoTrain = 0.9,
+      quadraticCorrelationFuzz = 1.0,
+      rng = new Random(seed)
+    )
+
+    runTrialsAndSave(
+      fname = "./rectification-study/linear-confidence-noise-0-nlpd",
+      metric = NLPD,
+      variedParameter = Bags,
+      parameterValues = Seq(16, 32, 64, 128, 256, 512, 1024),
+      testProblem = Linear,
+      function = FriedmanSilvermanFunction(numCols = 12),
+      numTrials = 16,
+      numTrain = 128,
+      numTest = 128,
+      observational = false,
+      samplingNoise = 0.0,
+      rhoTrain = 0.9,
+      quadraticCorrelationFuzz = 1.0,
+      rng = new Random(seed)
+    )
+
+    runTrialsAndSave(
+      fname = "./rectification-study/linear-prediction-noise-1-stdcon",
+      metric = StdConfidence,
+      variedParameter = Bags,
+      parameterValues = Seq(16, 32, 64, 128, 256, 512, 1024),
+      testProblem = Linear,
+      function = FriedmanSilvermanFunction(numCols = 12),
+      numTrials = 16,
+      numTrain = 128,
+      numTest = 128,
+      observational = true,
+      samplingNoise = 1.0,
+      rhoTrain = 0.9,
+      quadraticCorrelationFuzz = 1.0,
+      rng = new Random(seed)
+    )
+
   }
 
   /**
