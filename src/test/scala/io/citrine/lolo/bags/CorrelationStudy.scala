@@ -200,7 +200,8 @@ object CorrelationStudy {
 //          "Bootstrap" -> NegativeLogProbabilityDensity2d(0, index, CorrelationMethods.Bootstrap, observational),
           "Jackknife (snap to bounds)" -> NegativeLogProbabilityDensity2d(0, index, CorrelationMethods.Jackknife, observational),
           "Jackknife (snap to 0)" -> NegativeLogProbabilityDensity2d(0, index, CorrelationMethods.Jackknife2, observational),
-          "Jackknife (term-by-term rectification)" -> NegativeLogProbabilityDensity2d(0, index, CorrelationMethods.Jackknife3, observational)
+          "Jackknife (term-by-term to bounds)" -> NegativeLogProbabilityDensity2d(0, index, CorrelationMethods.Jackknife3, observational),
+          "Jackknife (term-by-term to 0)" -> NegativeLogProbabilityDensity2d(0, index, CorrelationMethods.Jackknife4, observational)
         )
       case StdConfidence =>
         Map(
@@ -209,7 +210,8 @@ object CorrelationStudy {
 //          "Bootstrap" -> StandardConfidence2d(0, index, CorrelationMethods.Bootstrap, observational),
           "Jackknife (snap to bounds)" -> StandardConfidence2d(0, index, CorrelationMethods.Jackknife, observational),
           "Jackknife (snap to 0)" -> StandardConfidence2d(0, index, CorrelationMethods.Jackknife2, observational),
-          "Jackknife (term-by-term rectification)" -> StandardConfidence2d(0, index, CorrelationMethods.Jackknife3, observational)
+          "Jackknife (term-by-term to bounds)" -> StandardConfidence2d(0, index, CorrelationMethods.Jackknife3, observational),
+          "Jackknife (term-by-term to 0)" -> StandardConfidence2d(0, index, CorrelationMethods.Jackknife4, observational)
         )
     }
     // There's some unfortunate boiler plate here. plotMeritScan takes a function that goes from a Double parameter value

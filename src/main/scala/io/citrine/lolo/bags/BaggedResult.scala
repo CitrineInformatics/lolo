@@ -1,7 +1,7 @@
 package io.citrine.lolo.bags
 
 import breeze.linalg.{DenseMatrix, DenseVector, norm}
-import io.citrine.lolo.bags.CorrelationMethods.{Bootstrap, CorrelationMethod, FromTraining, Jackknife, Jackknife2, JackknifeExplicit, Trivial, Jackknife3}
+import io.citrine.lolo.bags.CorrelationMethods.{Bootstrap, CorrelationMethod, FromTraining, Jackknife, Jackknife2, Jackknife3, Jackknife4, JackknifeExplicit, Trivial}
 import io.citrine.lolo.stats.StatsUtils
 import io.citrine.lolo.{MultiTaskModelPredictionResult, ParallelModelsPredictionResult, PredictionResult, RegressionResult}
 import io.citrine.lolo.util.Async
@@ -457,6 +457,7 @@ case class MultiTaskBaggedResult(
         case Jackknife => getUncertaintyCorrelationJackknife(i, j, rectification = 1)
         case Jackknife2 => getUncertaintyCorrelationJackknife(i, j, rectification = 2)
         case Jackknife3 => getUncertaintyCorrelationJackknife(i, j, rectification = 3)
+        case Jackknife4 => getUncertaintyCorrelationJackknife(i, j, rectification = 4)
         case JackknifeExplicit => getUncertaintyCorrelationJackknifeExplicit(i, j)
       }
       case _: Any => None
@@ -539,6 +540,8 @@ case class MultiTaskBaggedResult(
               BaggedResult.rectifyCorrelationScores2(trainingContributions, sigmaI, sigmaJ)
             } else if (rectification == 3) {
               BaggedResult.rectifyCorrelationScores3(trainingContributions, sigmaI, sigmaJ)
+            } else if (rectification == 4) {
+              BaggedResult.rectifyCorrelationScores4(trainingContributions, sigmaI, sigmaJ)
             } else {
               throw new IllegalArgumentException
             }
@@ -748,6 +751,18 @@ object BaggedResult {
     if (sigmaX == 0 || sigmaY == 0) return 0.0
     val smallestUnit = sigmaX * sigmaY / covarianceScores.length
     covarianceScores.map(x => math.min(smallestUnit, math.max(-1 * smallestUnit, x))).sum / (sigmaX * sigmaY)
+  }
+
+  /** If any individual term in the sum is too large in absolute value, set it to 0. Then sum.
+    * The result is guaranteed to be between -1 and 1
+    */
+  def rectifyCorrelationScores4(covarianceScores: Vector[Double], sigmaX: Double, sigmaY: Double): Double = {
+    require(sigmaX >= 0.0 && sigmaY >= 0.0)
+    if (sigmaX == 0 || sigmaY == 0) return 0.0
+    val smallestUnit = sigmaX * sigmaY / covarianceScores.length
+    covarianceScores.map { x =>
+      if (x < -1*smallestUnit || x > smallestUnit) 0.0 else x
+    }.sum / (sigmaX * sigmaY)
   }
 
 }
