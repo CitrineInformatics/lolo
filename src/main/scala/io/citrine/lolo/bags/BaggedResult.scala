@@ -699,8 +699,9 @@ object BaggedResult {
     * Calculate the correlation coefficient given a sequence of covariance scores for each training point.
     * In theory, the covariance is the sum of the individual covariance scores. But because each covariance score
     * is noisy, the resulting sum can be larger in absolute value than `sigmaX * sigmaY`, which would translate into
-    * a correlation coefficient that is outside [-1.0, 1.0], and hence we cannot calculate a conditional probability.
-    * The implementation here is to set rho equal to 0 if it is less than -0.999 or greater than 0.999.
+    * a correlation coefficient that is outside (-1.0, 1.0), and hence we cannot calculate a conditional probability.
+    * The implementation here is to set rho equal to 0 if it is less than -0.999 or greater than 0.999, where the value of
+    * 0.999 is a heuristic. Empirically, this approach was found to work well on a few test problems.
     *
     * @param covarianceScores sequence of Monte Carlo corrected covariance contributions for each training point
     * @param sigmaX           uncertainty in first label
@@ -711,8 +712,6 @@ object BaggedResult {
     require(sigmaX >= 0.0 && sigmaY >= 0.0)
     if (sigmaX == 0 || sigmaY == 0) return 0.0
     val rho = covarianceScores.sum / (sigmaX * sigmaY)
-    // If the calculated rho is too large or too small, then the calculation is noisy and we set rho to 0.0
-    // TODO (PLA-8597): figure out a better way to rectify covariance noise
     if (rho < -0.999 || rho > 0.999) {
       logger.warn("The covariance estimate is noisy; rectifying. Please consider increasing the ensemble size.")
       0.0
