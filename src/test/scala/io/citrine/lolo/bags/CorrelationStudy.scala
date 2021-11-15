@@ -71,7 +71,8 @@ case object Noise extends VariedParameter {
 case object Bags extends VariedParameter {
   def name: String = "number of bags"
 }
-case object NumTraining extends VariedParameter {
+/** The number of bags can optionally be fixed. If it is None, then numBags = numTrain */
+case class NumTraining(numBags: Option[Int] = None) extends VariedParameter {
   def name: String = "number of training rows"
 }
 
@@ -272,14 +273,14 @@ object CorrelationStudy {
             rng = thisRng
           )
         }
-      case NumTraining =>
+      case NumTraining(optionNumBags) =>
         numTraining => Iterator.tabulate(numTrials) { _ =>
           val thisRng = new Random(rng.nextLong())
           runTrial(
             function = function,
             numTrain = numTraining.toInt,
             numTest = numTest,
-            numBags = numTraining.toInt,
+            numBags = optionNumBags.getOrElse(numTraining.toInt),
             rhoTrain = rhoTrain,
             quadraticCorrelationFuzz = quadraticCorrelationFuzz,
             samplingNoise = samplingNoise,
@@ -404,9 +405,9 @@ object CorrelationStudy {
         case TrainQuadraticFuzz => thisQuadadraticFuzz = parameterValue
         case Noise => thisSamplingNoise = parameterValue
         case Bags => thisNumBags = parameterValue.toInt
-        case NumTraining =>
+        case NumTraining(optionNumBags) =>
           thisNumTrain = parameterValue.toInt
-          thisNumBags = parameterValue.toInt
+          thisNumBags = optionNumBags.getOrElse(parameterValue.toInt)
       }
       // For each metric, pull out the result for this parameter value and write a row of the CSV
       chart.getSeriesMap.forEach { case (key, series) =>
