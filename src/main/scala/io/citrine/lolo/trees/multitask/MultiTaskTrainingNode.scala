@@ -30,6 +30,7 @@ class MultiTaskTrainingNode(
       (Some(new MultiTaskTrainingNode(leftData, randomizePivotLocation, rng = rng)), Some(new MultiTaskTrainingNode(rightData, randomizePivotLocation, rng = rng)))
   }
 
+  // TODO: getFeatureImportance and getNode have lots of overlapping code. Combine them
   def getFeatureImportance(index: Int): mutable.ArraySeq[Double] = {
     // Filter out "missing" values, which are NaN for regression and 0 for encoded categoricals
     val label = inputs.head._2(index)
@@ -102,6 +103,7 @@ class MultiTaskTrainingNode(
     } else {
       // If there are no children or the children don't have valid data for this label, emit a leaf (with GTM)
       if (label.isInstanceOf[Double]) {
+        // TODO: this can be a RegressionTrainingLeaf, and the one below can maybe be a ClassificaitonTrainingLeaf
         new TrainingLeaf[Double](reducedData.asInstanceOf[Seq[(Vector[AnyVal], Double, Double)]], GuessTheMeanLearner(), 1).getNode()
       } else {
         new TrainingLeaf[Char](reducedData.asInstanceOf[Seq[(Vector[AnyVal], Char, Double)]], GuessTheMeanLearner(), 1).getNode()

@@ -48,7 +48,7 @@ class ClassificationTrainingNode(
     * @return lightweight prediction node
     */
   override def getNode(): ModelNode[PredictionResult[Char]] = new InternalModelNode(
-    split, leftChild.getNode(), rightChild.getNode(), numClasses, numFeatures, trainingData.size.toDouble
+    split, leftChild.getNode(), rightChild.getNode(), numClasses, numFeatures
   )
 
   override def getFeatureImportance(): scala.collection.mutable.ArraySeq[Double] = {

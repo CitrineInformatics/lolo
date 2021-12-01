@@ -90,7 +90,7 @@ case class RegressionSplitter(randomizePivotLocation: Boolean = false, rng: Rand
     /* Pull out the feature that's considered here and sort by it */
     val thinData = data.map(dat => (dat._1(index).asInstanceOf[Double], dat._2, dat._3)).sortBy(_._1)
 
-
+    // TODO: combine this with getBestRealSplit for ClassificationSplitter and MultiTaskSplitter, since the code is the same
     /* Base cases for iteration */
     var bestVariance = Double.MaxValue
     var bestPivot = Double.MinValue

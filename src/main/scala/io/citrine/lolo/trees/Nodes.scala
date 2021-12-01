@@ -92,7 +92,6 @@ class InternalModelNode[T <: PredictionResult[Any]](
                                                      split: Split,
                                                      left: ModelNode[T],
                                                      right: ModelNode[T],
-                                                     numFeatures: Int,
                                                      outputDimension: Int,
                                                      trainingWeight: Double
                                                    ) extends ModelNode[T] {
@@ -200,13 +199,13 @@ class TrainingLeaf[T](
     * @return lightweight prediction node
     */
   def getNode(): ModelNode[PredictionResult[T]] = {
-    new ModelLeaf(leafLearner.train(trainingData).getModel().asInstanceOf[Model[PredictionResult[T]]], depth, trainingData.head._1.length, trainingData.size.toDouble)
+    new ModelLeaf(leafLearner.train(trainingData).getModel().asInstanceOf[Model[PredictionResult[T]]], depth, trainingData.head._1.length)
   }
 
   override def getFeatureImportance(): mutable.ArraySeq[Double] = mutable.ArraySeq.fill(trainingData.head._1.size)(0.0)
 }
 
-class ModelLeaf[T](model: Model[PredictionResult[T]], depth: Int, numFeatures: Int, trainingWeight: Double) extends ModelNode[PredictionResult[T]] {
+class ModelLeaf[T](model: Model[PredictionResult[T]], depth: Int, trainingWeight: Double) extends ModelNode[PredictionResult[T]] {
   override def transform(input: Vector[AnyVal]): (PredictionResult[T], TreeMeta) = {
     (model.transform(Seq(input)), TreeMeta(depth))
   }
