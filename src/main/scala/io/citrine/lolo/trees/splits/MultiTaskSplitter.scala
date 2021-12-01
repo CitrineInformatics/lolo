@@ -37,7 +37,7 @@ case class MultiTaskSplitter(rng: Random = Random) {
 
       /* Use different spliters for each type */
       val (possibleSplit, possibleImpurity) = rep._1(index) match {
-        case _: Double => getBestRealSplit(data, calculator, index, minInstances, randomizePivotLocation)
+        case _: Double => Splitter.getBestRealSplit[Array[AnyVal]](data, calculator, index, minInstances, randomizePivotLocation, rng)
         case _: Char => getBestCategoricalSplit(data, calculator, index, minInstances)
         case _: Any => throw new IllegalArgumentException("Trying to split unknown feature type")
       }
@@ -54,46 +54,6 @@ case class MultiTaskSplitter(rng: Random = Random) {
       val deltaImpurity = initialImpurity - bestImpurity
       (bestSplit, deltaImpurity)
     }
-  }
-
-  /**
-    * Find the best split on a continuous variable
-    *
-    * @param data  to split
-    * @param index of the feature to split on
-    * @return the best split of this feature
-    */
-  def getBestRealSplit(
-                        data: Seq[(Vector[AnyVal], Array[AnyVal], Double)],
-                        calculator: MultiImpurityCalculator,
-                        index: Int,
-                        minCount: Int,
-                        randomizePivotLocation: Boolean = false
-                      ): (Split, Double) = {
-    /* Pull out the feature that's considered here and sort by it */
-    val thinData = data.map(dat => (dat._1(index).asInstanceOf[Double], dat._2, dat._3)).sortBy(_._1)
-    val features = thinData.map(x => x._1)
-
-    var bestImpurity = Double.MaxValue
-    var bestPivot = Double.MinValue
-
-    /* Move the data from the right to the left partition one value at a time */
-    calculator.reset()
-    (0 until data.size - minCount).foreach { j =>
-      val totalImpurity = calculator.add(thinData(j)._2, thinData(j)._3)
-      val left = features(j + 1)
-      val right = features(j)
-      if (totalImpurity < bestImpurity && j + 1 >= minCount && Splitter.isDifferent(left, right)) {
-        bestImpurity = totalImpurity
-        /* Try pivots at the midpoints between consecutive member values */
-        bestPivot = if (randomizePivotLocation) {
-          (left - right) * rng.nextDouble() + right
-        } else {
-          (left + right) / 2.0
-        }
-      }
-    }
-    (new RealSplit(index, bestPivot), bestImpurity)
   }
 
   /**

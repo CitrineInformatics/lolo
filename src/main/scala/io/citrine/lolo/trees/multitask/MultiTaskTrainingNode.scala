@@ -81,7 +81,6 @@ class MultiTaskTrainingNode(
           split,
           leftChild.get.getNode(index).asInstanceOf[ModelNode[PredictionResult[Double]]],
           rightChild.get.getNode(index).asInstanceOf[ModelNode[PredictionResult[Double]]],
-          numFeatures=inputs.head._1.length,
           outputDimension = 0,  // Don't support multitask SHAP at this time.
           trainingWeight = reducedData.length.toDouble
         )
@@ -91,7 +90,6 @@ class MultiTaskTrainingNode(
           split,
           leftChild.get.getNode(index).asInstanceOf[ModelNode[PredictionResult[Char]]],
           rightChild.get.getNode(index).asInstanceOf[ModelNode[PredictionResult[Char]]],
-          numFeatures=inputs.head._1.length,
           outputDimension = 0,  // Don't support multitask SHAP at this time.
           trainingWeight = reducedData.length.toDouble
         )
