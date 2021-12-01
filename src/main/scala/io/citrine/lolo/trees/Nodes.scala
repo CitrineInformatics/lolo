@@ -199,7 +199,7 @@ class TrainingLeaf[T](
     * @return lightweight prediction node
     */
   def getNode(): ModelNode[PredictionResult[T]] = {
-    new ModelLeaf(leafLearner.train(trainingData).getModel().asInstanceOf[Model[PredictionResult[T]]], depth, trainingData.head._1.length)
+    new ModelLeaf(leafLearner.train(trainingData).getModel().asInstanceOf[Model[PredictionResult[T]]], depth, trainingData.size.toDouble)
   }
 
   override def getFeatureImportance(): mutable.ArraySeq[Double] = mutable.ArraySeq.fill(trainingData.head._1.size)(0.0)

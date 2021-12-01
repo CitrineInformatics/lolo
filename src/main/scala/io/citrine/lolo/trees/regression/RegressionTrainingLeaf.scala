@@ -21,7 +21,7 @@ class RegressionTrainingLeaf(
     * @return lightweight prediction node
     */
   def getNode(): ModelNode[PredictionResult[Double]] = {
-    new ModelLeaf(model.asInstanceOf[Model[PredictionResult[Double]]], depth, 1)
+    new ModelLeaf(model.asInstanceOf[Model[PredictionResult[Double]]], depth, trainingData.size.toDouble)
   }
 
   /**
