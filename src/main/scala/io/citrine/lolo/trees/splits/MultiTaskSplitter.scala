@@ -74,29 +74,26 @@ case class MultiTaskSplitter(rng: Random = Random) {
     val thinData = data.map(dat => (dat._1(index).asInstanceOf[Double], dat._2, dat._3)).sortBy(_._1)
     val features = thinData.map(x => x._1)
 
+    var bestImpurity = Double.MaxValue
+    var bestPivot = Double.MinValue
+
     /* Move the data from the right to the left partition one value at a time */
     calculator.reset()
-    val pivots = (0 until data.size - minCount).flatMap { j =>
+    (0 until data.size - minCount).foreach { j =>
       val totalImpurity = calculator.add(thinData(j)._2, thinData(j)._3)
-      if (j + 1 >= minCount && Math.abs((features(j + 1) - features(j)) / features(j)) > 1.0e-9) {
-        val left = features(j + 1)
-        val right = features(j)
-        val pivot = if (randomizePivotLocation) {
+      val left = features(j + 1)
+      val right = features(j)
+      if (totalImpurity < bestImpurity && j + 1 >= minCount && Splitter.isDifferent(left, right)) {
+        bestImpurity = totalImpurity
+        /* Try pivots at the midpoints between consecutive member values */
+        bestPivot = if (randomizePivotLocation) {
           (left - right) * rng.nextDouble() + right
         } else {
           (left + right) / 2.0
         }
-        Some((pivot, totalImpurity))
-      } else {
-        None
       }
     }
-    if (pivots.isEmpty) {
-      (new NoSplit, Double.MaxValue)
-    } else {
-      val best = pivots.minBy(_._2)
-      (new RealSplit(index, best._1), best._2)
-    }
+    (new RealSplit(index, bestPivot), bestImpurity)
   }
 
   /**

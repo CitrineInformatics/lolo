@@ -102,7 +102,7 @@ class ClassificationTrainingResult(
 
   /* Grab the feature influences */
   lazy val importance = rootTrainingNode.getFeatureImportance()
-  lazy val importanceNormalized = {
+  private lazy val importanceNormalized = {
     if (Math.abs(importance.sum) > 0) {
       importance.map(_ / importance.sum)
     } else {

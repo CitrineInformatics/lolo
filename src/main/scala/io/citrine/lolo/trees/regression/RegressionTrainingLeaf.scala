@@ -33,7 +33,7 @@ class RegressionTrainingLeaf(
     importance match {
       case Some(x) =>
         // Compute the weighted sum of the label, the square label, and the weights
-        val expectations: (Double, Double, Double) = trainingData.map { case (v, l, w) =>
+        val expectations: (Double, Double, Double) = trainingData.map { case (_, l, w) =>
           (l * w, l * l * w, w)
         }.reduce((u: (Double, Double, Double), v: (Double, Double, Double)) => (u._1 + v._1, u._2 + v._2, u._3 + v._3))
         // Use those sums to compute the variance as E[x^2] - E[x]^2
