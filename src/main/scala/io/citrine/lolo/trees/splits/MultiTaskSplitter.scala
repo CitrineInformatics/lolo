@@ -8,7 +8,7 @@ import scala.util.Random
   *
   * Created by maxhutch on 11/29/16.
   */
-case class MultiTaskSplitter(rng: Random = Random) {
+case class MultiTaskSplitter(randomizePivotLocation: Boolean = false, rng: Random = Random) extends Splitter[Array[AnyVal]] {
 
   /**
     * Get the best split, considering numFeature random features (w/o replacement)
@@ -20,8 +20,7 @@ case class MultiTaskSplitter(rng: Random = Random) {
   def getBestSplit(
                     data: Seq[(Vector[AnyVal], Array[AnyVal], Double)],
                     numFeatures: Int,
-                    minInstances: Int,
-                    randomizePivotLocation: Boolean = false
+                    minInstances: Int
                   ): (Split, Double) = {
     var bestSplit: Split = new NoSplit()
     var bestImpurity = Double.MaxValue

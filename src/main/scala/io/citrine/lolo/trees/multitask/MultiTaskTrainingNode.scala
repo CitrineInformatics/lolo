@@ -20,7 +20,8 @@ class MultiTaskTrainingNode(
                            ) {
 
   // Compute a split
-  val (split, deltaImpurity) = MultiTaskSplitter(rng = rng).getBestSplit(inputs, inputs.head._1.size, 1, randomizePivotLocation)
+  val (split, deltaImpurity) = MultiTaskSplitter(rng = rng, randomizePivotLocation = randomizePivotLocation)
+    .getBestSplit(inputs, numFeatures = inputs.head._1.size, minInstances = 1)
 
   // Try to construct left and right children
   val (leftChild: Option[MultiTaskTrainingNode], rightChild: Option[MultiTaskTrainingNode]) = split match {
