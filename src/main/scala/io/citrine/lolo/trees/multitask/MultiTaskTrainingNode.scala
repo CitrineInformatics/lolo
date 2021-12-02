@@ -32,6 +32,7 @@ class MultiTaskTrainingNode(
       (Some(new MultiTaskTrainingNode(leftData, randomizePivotLocation, rng = rng)), Some(new MultiTaskTrainingNode(rightData, randomizePivotLocation, rng = rng)))
   }
 
+  // get feature importance for the i'th label
   def getFeatureImportance(index: Int): mutable.ArraySeq[Double] = {
     // Filter out "missing" values, which are NaN for regression and 0 for encoded categoricals
     val label = inputs.head._2(index)
