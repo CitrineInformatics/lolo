@@ -82,7 +82,6 @@ trait ModelNode[+T <: PredictionResult[Any]] extends Serializable {
   * @param split           to decide which branch to take
   * @param left            branch node
   * @param right           branch node
-  * @param numFeatures     number of features, used for Shapley computation
   * @param outputDimension dimension of model output, used for Shapley computation
   *                        1 for single-task regression, or equal to the number of classification categories.
   * @param trainingWeight  weight of training data in subtree (i.e. size of unweighted training set)
