@@ -34,7 +34,7 @@ abstract class TrainingNode[T <: AnyVal, S](
   def getFeatureImportance(): mutable.ArraySeq[Double]
 }
 
-trait ModelNode[T <: PredictionResult[Any]] extends Serializable {
+trait ModelNode[+T <: PredictionResult[Any]] extends Serializable {
   def transform(input: Vector[AnyVal]): (T, TreeMeta)
 
   /**
