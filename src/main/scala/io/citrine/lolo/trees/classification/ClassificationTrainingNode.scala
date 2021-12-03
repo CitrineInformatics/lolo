@@ -1,7 +1,6 @@
 package io.citrine.lolo.trees.classification
 
-import breeze.linalg.DenseVector
-import io.citrine.lolo.trees.splits.{ClassificationSplitter, NoSplit, Split, Splitter}
+import io.citrine.lolo.trees.splits.{NoSplit, Split, Splitter}
 import io.citrine.lolo.trees.{InternalModelNode, ModelNode, TrainingLeaf, TrainingNode}
 import io.citrine.lolo.{Learner, PredictionResult}
 
@@ -49,13 +48,13 @@ class ClassificationTrainingNode(
     * @return lightweight prediction node
     */
   override def getNode(): ModelNode[PredictionResult[Char]] = new InternalModelNode(
-    split, leftChild.getNode(), rightChild.getNode(), numClasses, numFeatures, trainingData.size.toDouble
+    split, leftChild.getNode(), rightChild.getNode(), numClasses, trainingData.size.toDouble
   )
 
   override def getFeatureImportance(): scala.collection.mutable.ArraySeq[Double] = {
     val improvement = deltaImpurity
-    var ans = leftChild.getFeatureImportance().zip(rightChild.getFeatureImportance()).map(p => p._1 + p._2)
-    ans(split.getIndex) = ans(split.getIndex) + improvement
+    val ans = leftChild.getFeatureImportance().zip(rightChild.getFeatureImportance()).map(p => p._1 + p._2)
+    ans(split.getIndex()) = ans(split.getIndex()) + improvement
     ans
   }
 }

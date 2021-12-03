@@ -39,7 +39,7 @@ class RegressionTrainingNode(
     * @return lightweight prediction node
     */
   override def getNode(): ModelNode[PredictionResult[Double]] = {
-    new InternalModelNode[PredictionResult[Double]](split, leftChild.getNode(), rightChild.getNode(), numFeatures, 1, trainingData.size.toDouble)
+    new InternalModelNode[PredictionResult[Double]](split, leftChild.getNode(), rightChild.getNode(), 1, trainingData.size.toDouble)
   }
 
   /**

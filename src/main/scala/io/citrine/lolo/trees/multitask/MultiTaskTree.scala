@@ -75,16 +75,34 @@ case class MultiTaskTreeLearner(
       }
     }
 
-    new MultiTaskTreeTrainingResult(models)
+    val sumFeatureImportance: Vector[Double] = {
+      val startingImportances = Vector.fill(repInput.length)(0.0)
+      labels.indices.foldLeft(startingImportances) { (importance, i) =>
+        root.getFeatureImportance(i).toVector.zip(importance).map(p => p._1 + p._2)
+      }
+    }
+
+    new MultiTaskTreeTrainingResult(models, sumFeatureImportance)
   }
 }
 
-class MultiTaskTreeTrainingResult(models: Seq[Model[PredictionResult[Any]]]) extends MultiTaskTrainingResult {
+class MultiTaskTreeTrainingResult(
+                                   models: Seq[Model[PredictionResult[Any]]],
+                                   featureImportance: Vector[Double]
+                                 ) extends MultiTaskTrainingResult {
   val model = new ParallelModels(models, models.map(_.isInstanceOf[RegressionTree]))
+  private lazy val importanceNormalized = {
+    if (Math.abs(featureImportance.sum) > 0) {
+      featureImportance.map(_ / featureImportance.sum)
+    } else {
+      featureImportance.map(_ => 1.0 / featureImportance.size)
+    }
+  }
 
   override def getModel(): ParallelModels = model
 
   override def getModels(): Seq[Model[PredictionResult[Any]]] = models
 
-  // TODO (PLA-8567): combine feature importances of individual models (which are not currently available)
+  override def getFeatureImportance(): Option[Vector[Double]] = Some(importanceNormalized)
+
 }

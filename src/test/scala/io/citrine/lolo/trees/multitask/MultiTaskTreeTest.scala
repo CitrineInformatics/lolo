@@ -4,7 +4,7 @@ import io.citrine.lolo.TestUtils
 import io.citrine.lolo.stats.functions.Friedman
 import io.citrine.lolo.stats.metrics.ClassificationMetrics
 import io.citrine.lolo.trees.classification.{ClassificationTree, ClassificationTreeLearner}
-import io.citrine.lolo.trees.regression.RegressionTree
+import io.citrine.lolo.trees.regression.{RegressionTree, RegressionTreeLearner}
 import org.junit.Test
 import org.scalatest.Assertions._
 
@@ -111,6 +111,16 @@ class MultiTaskTreeTest {
     val catResults = models.last.transform(testInputs).getExpected().asInstanceOf[Seq[Boolean]]
     val allResults = combinedModel.transform(testInputs).getExpected().asInstanceOf[Seq[Seq[Any]]]
     assert(Seq(realResults, catResults).transpose == allResults)
+  }
+
+  /** Test that feature importance correctly identifies the 1st feature as the most important for Friedman-Silverman. */
+  @Test
+  def testFeatureImportance(): Unit = {
+    val seed = 253768L
+    val multiTaskLearner = MultiTaskTreeLearner(rng = new Random(seed))
+    val multiTaskTrainingResult = multiTaskLearner.train(inputs, Seq(realLabel, catLabel))
+    val importances = multiTaskTrainingResult.getFeatureImportance().get
+    assert(importances(1) == importances.max)
   }
 
 }
