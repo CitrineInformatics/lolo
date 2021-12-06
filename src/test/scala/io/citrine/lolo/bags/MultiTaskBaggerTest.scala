@@ -3,7 +3,6 @@ package io.citrine.lolo.bags
 import breeze.stats.distributions.Beta
 import io.citrine.lolo.TestUtils
 import io.citrine.lolo.linear.GuessTheMeanLearner
-import io.citrine.lolo.stats.StatsUtils.makeLinearCorrelatedData
 import io.citrine.lolo.stats.functions.Friedman
 import io.citrine.lolo.stats.metrics.ClassificationMetrics
 import io.citrine.lolo.trees.classification.ClassificationTreeLearner
@@ -212,7 +211,7 @@ class MultiTaskBaggerTest {
     val inputs: Seq[Vector[Double]] = raw.map(_._1)
     val realLabel: Seq[Double] = raw.map(_._2)
     val catLabel: Seq[Boolean] = raw.map(_._2 > realLabel.max / 2.0)
-    val correlatedLabel: Seq[Double] = makeLinearCorrelatedData(realLabel, trainingRho)
+    val correlatedLabel: Seq[Double] = TestUtils.makeLinearCorrelatedData(realLabel, trainingRho)
 
     val learner = MultiTaskTreeLearner()
     val baggedLearner = MultiTaskBagger(
