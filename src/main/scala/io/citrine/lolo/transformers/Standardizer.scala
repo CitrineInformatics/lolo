@@ -54,18 +54,21 @@ class MultiTaskStandardizer(baseLearner: MultiTaskLearner) extends MultiTaskLear
     */
   override def train(trainingData: Seq[(Vector[Any], Vector[Any])], weights: Option[Seq[Double]]): MultiTaskStandardizerTrainingResult = {
     val (inputs, labels) = trainingData.unzip
+    val labelsTransposed = labels.transpose.toVector
+    val repOutput = labels.head
     val inputTrans = Standardizer.getMultiStandardization(inputs)
-    val outputTrans: Seq[Option[Standardization]] = labels.map { labelSeq =>
-      if (labelSeq.head != null && labelSeq.head.isInstanceOf[Double]) {
+    val outputTrans: Seq[Option[Standardization]] = repOutput.indices.map { i =>
+      if (repOutput(i) != null && repOutput(i).isInstanceOf[Double]) {
+        val labelSeq = labelsTransposed(i)
         Some(Standardizer.getStandardization(labelSeq.asInstanceOf[Seq[Double]].filterNot(_.isNaN())))
       } else {
         None
       }
     }
     val standardInputs = Standardizer.applyStandardization(inputs, inputTrans)
-    val standardLabels = labels.zip(outputTrans).map { case (labelSeq, trans) =>
+    val standardLabels = labelsTransposed.zip(outputTrans).map { case (labelSeq, trans) =>
       Standardizer.applyStandardization(labelSeq, trans).toVector
-    }
+    }.transpose
 
     val baseTrainingResult = baseLearner.train(standardInputs.zip(standardLabels), weights)
     new MultiTaskStandardizerTrainingResult(baseTrainingResult, outputTrans, inputTrans)

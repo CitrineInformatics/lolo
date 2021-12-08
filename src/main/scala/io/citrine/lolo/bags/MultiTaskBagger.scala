@@ -28,9 +28,8 @@ case class MultiTaskBagger(
                           ) extends MultiTaskLearner {
 
   override def train(trainingData: Seq[(Vector[Any], Vector[Any])], weights: Option[Seq[Double]] = None): MultiTaskBaggedTrainingResult = {
-    val inputs = trainingData.map(_._1)
+    val (inputs, labels) = trainingData.unzip
     val repInput = inputs.head
-    val labels = trainingData.map(_._2)
     val repOutput = labels.head
     /* Make sure the training data are the same size */
     assert(inputs.forall(repInput.size == _.size))

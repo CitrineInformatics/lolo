@@ -22,9 +22,8 @@ case class MultiTaskTreeLearner(
     * @return         sequence of models, one for each label
     */
   override def train(trainingData: Seq[(Vector[Any], Vector[Any])], weights: Option[Seq[Double]]): MultiTaskTreeTrainingResult = {
-    val inputs = trainingData.map(_._1)
+    val (inputs, labels) = trainingData.unzip
     val repInput = inputs.head
-    val labels = trainingData.map(_._2)
     val repOutput = labels.head
     val labelIndices = repOutput.indices
 
@@ -43,7 +42,7 @@ case class MultiTaskTreeLearner(
       if (v.isInstanceOf[Double]) {
         None
       } else {
-        Some(CategoricalEncoder.buildEncoder(labels(i).filterNot(_ == null)))
+        Some(CategoricalEncoder.buildEncoder(labels.map(_ (i)).filterNot(_ == null)))
       }
     }
     val encodedLabels = labels.map(CategoricalEncoder.encodeInput(_, outputEncoders))
