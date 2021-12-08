@@ -3,7 +3,6 @@ from abc import abstractmethod, ABCMeta
 import numpy as np
 from lolopy.loloserver import get_java_gateway
 from lolopy.utils import send_feature_array, send_1D_array
-import random
 from sklearn.base import BaseEstimator, RegressorMixin, ClassifierMixin, is_regressor
 from sklearn.exceptions import NotFittedError
 
@@ -205,7 +204,6 @@ class BaseLoloRegressor(BaseLoloLearner, RegressorMixin):
         # If desired, return the uncertainty too
         if return_std:
             # TODO: This part fails on Windows because the NativeSystemBLAS is not found. Fix that
-            # TODO: This is only valid for regression models. Perhaps make a "LoloRegressor" class
             y_std_bytes = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getRegressionUncertainty(pred_result)
             y_std = np.frombuffer(y_std_bytes, 'float')
             return y_pred, y_std
