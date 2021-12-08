@@ -34,7 +34,7 @@ trait MultiTaskLearner extends Serializable {
   /**
     * Train a model
     *
-    * @param trainingData  to train on. Each entry is a tuple (vector of inputs, sequence of labels)
+    * @param trainingData  to train on. Each entry is a tuple (vector of inputs, vector of labels)
     * @param weights for the training rows, if applicable
     * @return A training result that encompasses model(s) for all labels.
     */

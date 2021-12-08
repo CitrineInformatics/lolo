@@ -29,11 +29,10 @@ class MultiTaskBaggerTest {
       TestUtils.generateTrainingData(512, 12, noise = 0.1, function = Friedman.friedmanSilverman),
       inputBins = Seq((0, 8))
     )
-    val inputs = trainingData.map(_._1)
-    val labels = trainingData.map(_._2)
+    val reshapedTrainingData = trainingData.map { case (input, label) => (input, Vector(label))}
     val DTLearner = MultiTaskTreeLearner()
     val baggedLearner = MultiTaskBagger(DTLearner, numBags = trainingData.size, randBasis = TestUtils.getBreezeRandBasis(10478L))
-    val RFMeta = baggedLearner.train(inputs, Seq(labels))
+    val RFMeta = baggedLearner.train(reshapedTrainingData)
     val RF = RFMeta.getModels().head
 
 
@@ -64,10 +63,9 @@ class MultiTaskBaggerTest {
             val sigmaObsAndSigmaMean: Seq[(Double, Double)] = (1 to 20).flatMap { _ =>
               val trainingDataTmp = TestUtils.generateTrainingData(nRows, nCols, noise = 0.0, function = _ => 0.0, seed = rng.nextLong())
               val trainingData = trainingDataTmp.map { x => (x._1, x._2 + noiseLevel * rng.nextDouble()) }
-              val inputs = trainingData.map(_._1)
-              val labels = trainingData.map(_._2)
+              val reshapedTrainingData = trainingData.map { case (input, label) => (input, Vector(label))}
               val baggedLearner = MultiTaskBagger(baseLearner, numBags = nBags, uncertaintyCalibration = true, randBasis = TestUtils.getBreezeRandBasis(7835178L))
-              val RFMeta = baggedLearner.train(inputs, Seq(labels))
+              val RFMeta = baggedLearner.train(reshapedTrainingData)
               val RF = RFMeta.getModels().head
               val results = RF.transform(trainingData.take(4).map(_._1))
 
@@ -141,11 +139,10 @@ class MultiTaskBaggerTest {
       TestUtils.generateTrainingData(128, 12, noise = 0.1, function = Friedman.friedmanSilverman),
       inputBins = Seq((0, 8)), responseBins = Some(8)
     )
-    val inputs = trainingData.map(_._1)
-    val labels = trainingData.map(_._2)
+    val reshapedTrainingData = trainingData.map { case (input, label) => (input, Vector(label))}
     val DTLearner = MultiTaskTreeLearner()
     val baggedLearner = MultiTaskBagger(DTLearner, numBags = trainingData.size, randBasis = TestUtils.getBreezeRandBasis(478L))
-    val RFMeta = baggedLearner.train(inputs, Seq(labels))
+    val RFMeta = baggedLearner.train(reshapedTrainingData)
     val RF = RFMeta.getModels().head
 
     /* Inspect the results */
@@ -173,9 +170,9 @@ class MultiTaskBaggerTest {
     val numBags = 64
     val numTest = 32
     val raw: Seq[(Vector[Double], Double)] = TestUtils.generateTrainingData(numTrain, 12, noise = 0.1, function = Friedman.friedmanSilverman)
-    val inputs: Seq[Vector[Double]] = raw.map(_._1)
-    val realLabel: Seq[Double] = raw.map(_._2)
+    val (inputs: Seq[Vector[Double]], realLabel: Seq[Double]) = raw.unzip
     val catLabel: Seq[Boolean] = raw.map(_._2 > realLabel.max / 2.0)
+    val labels = Vector(realLabel, catLabel).transpose
 
     val learner = MultiTaskTreeLearner()
     val baggedLearner = MultiTaskBagger(
@@ -184,7 +181,7 @@ class MultiTaskBaggerTest {
       biasLearner = Some(RegressionTreeLearner(maxDepth = 2)),
       randBasis = TestUtils.getBreezeRandBasis(78495L)
     )
-    val RF = baggedLearner.train(inputs, Seq(realLabel, catLabel))
+    val RF = baggedLearner.train(inputs.zip(labels))
 
     val testInputs = inputs.take(numTest)
     val predictionResult = RF.getModel().transform(testInputs)
@@ -208,10 +205,10 @@ class MultiTaskBaggerTest {
     val numTest = 32
     val trainingRho = 0.45 // desired correlation between two real-valued training labels
     val raw: Seq[(Vector[Double], Double)] = TestUtils.generateTrainingData(numTrain, 12, noise = 0.1, function = Friedman.friedmanSilverman)
-    val inputs: Seq[Vector[Double]] = raw.map(_._1)
-    val realLabel: Seq[Double] = raw.map(_._2)
+    val (inputs: Seq[Vector[Double]], realLabel: Seq[Double]) = raw.unzip
     val catLabel: Seq[Boolean] = raw.map(_._2 > realLabel.max / 2.0)
     val correlatedLabel: Seq[Double] = TestUtils.makeLinearCorrelatedData(realLabel, trainingRho)
+    val labels = Vector(realLabel, catLabel, correlatedLabel).transpose
 
     val learner = MultiTaskTreeLearner()
     val baggedLearner = MultiTaskBagger(
@@ -220,7 +217,7 @@ class MultiTaskBaggerTest {
       biasLearner = Some(RegressionTreeLearner(maxDepth = 2)),
       randBasis = TestUtils.getBreezeRandBasis(78495L)
     )
-    val RF = baggedLearner.train(inputs, Seq(realLabel, catLabel, correlatedLabel)).getModel()
+    val RF = baggedLearner.train(inputs.zip(labels)).getModel()
 
     val testInputs = TestUtils.generateTrainingData(numTest, 12, function = Friedman.friedmanSilverman).map(_._1)
     val predictionResult = RF.transform(testInputs)
@@ -263,10 +260,11 @@ class MultiTaskBaggerTest {
         x
       }
     )
+    val labels = Vector(sparseReal, sparseCat).transpose
 
     val DTLearner = MultiTaskTreeLearner()
     val baggedLearner = MultiTaskBagger(DTLearner, numBags = inputs.size, biasLearner = Some(GuessTheMeanLearner(rng = rng)), randBasis = TestUtils.getBreezeRandBasis(7839L))
-    val trainingResult = baggedLearner.train(inputs, Seq(sparseReal, sparseCat))
+    val trainingResult = baggedLearner.train(inputs.zip(labels))
     val RF = trainingResult.getModels().last
 
     val catResults = RF.transform(inputs).getExpected()
