@@ -27,40 +27,45 @@ case class MultiTaskBagger(
                             randBasis: RandBasis = Rand
                           ) extends MultiTaskLearner {
 
-  override def train(inputs: Seq[Vector[Any]], labels: Seq[Seq[Any]], weights: Option[Seq[Double]] = None): MultiTaskBaggedTrainingResult = {
+  override def train(trainingData: Seq[(Vector[Any], Vector[Any])], weights: Option[Seq[Double]] = None): MultiTaskBaggedTrainingResult = {
+    val inputs = trainingData.map(_._1)
+    val repInput = inputs.head
+    val labels = trainingData.map(_._2)
+    val repOutput = labels.head
     /* Make sure the training data are the same size */
-    assert(inputs.forall(inputs.head.size == _.size))
-    assert(inputs.size >= Bagger.minimumTrainingSize, s"We need to have at least ${Bagger.minimumTrainingSize} rows, only ${inputs.size} given")
+    assert(inputs.forall(repInput.size == _.size))
+    assert(labels.forall(repOutput.size == _.size))
+    assert(trainingData.size >= Bagger.minimumTrainingSize, s"We need to have at least ${Bagger.minimumTrainingSize} rows, only ${trainingData.size} given")
 
     // if numBags is non-positive, set # bags = # inputs
-    val actualBags = if (numBags > 0) numBags else inputs.size
+    val actualBags = if (numBags > 0) numBags else trainingData.size
 
     // Compute the number of instances of each training row in each training sample
     val dist = new Poisson(1.0)(randBasis)
     val Nib: Vector[Vector[Int]] = Vector.tabulate(actualBags) { _ =>
-      Vector.tabulate(inputs.size) { _ =>
+      Vector.tabulate(trainingData.size) { _ =>
         dist.draw()
       }
     }
-    val weightsActual = weights.getOrElse(Seq.fill(inputs.size)(1.0))
+    val weightsActual = weights.getOrElse(Seq.fill(trainingData.size)(1.0))
 
     val parIterator = new ParRange(Nib.indices)
     parIterator.tasksupport = new ExecutionContextTaskSupport(InterruptibleExecutionContext())
     val (models: ParSeq[MultiTaskModel], importances: ParSeq[Option[Vector[Double]]]) = parIterator.map { i =>
-      val meta = method.train(inputs.toVector, labels, Some(Nib(i).zip(weightsActual).map(p => p._1.toDouble * p._2)))
+      val meta = method.train(trainingData, Some(Nib(i).zip(weightsActual).map(p => p._1.toDouble * p._2)))
       (meta.getModel(), meta.getFeatureImportance())
     }.unzip
 
     val averageImportance: Option[Vector[Double]] = importances
       .reduce(combineImportance)
       .map(_.map(_ / importances.size))
-    val trainingData = inputs.zip(labels.transpose)
 
     // Get bias model and rescale ratio for each label
-    val (biasModels, ratios) = Seq.tabulate(labels.length) { i =>
+    val (biasModels, ratios) = Seq.tabulate(repOutput.length) { i =>
       val thisLabelModels: ParSeq[Model[PredictionResult[Any]]] = models.map(_.getModels(i))
       val isRegression = models.head.getRealLabels(i)
-      val helper = BaggerHelper(thisLabelModels, inputs.zip(labels(i)), Nib, useJackknife, uncertaintyCalibration)
+      val thisTrainingData = trainingData.map{ case (inputs, outputs) => (inputs, outputs(i)) }
+      val helper = BaggerHelper(thisLabelModels, thisTrainingData, Nib, useJackknife, uncertaintyCalibration)
       val biasModel = if (biasLearner.isDefined && isRegression) {
         Async.canStop()
         Some(biasLearner.get.train(helper.biasTraining).getModel().asInstanceOf[Model[PredictionResult[Double]]])
@@ -75,9 +80,7 @@ case class MultiTaskBagger(
       trainingData = trainingData,
       useJackknife = useJackknife,
       biasModels = biasModels,
-      rescaleRatios = ratios,
-      trainingLabels = labels,
-      trainingWeights = weightsActual
+      rescaleRatios = ratios
     )
   }
 
@@ -108,12 +111,10 @@ class MultiTaskBaggedTrainingResult(
                                      trainingData: Seq[(Vector[Any], Seq[Any])],
                                      useJackknife: Boolean,
                                      biasModels: Seq[Option[Model[PredictionResult[Double]]]],
-                                     rescaleRatios: Seq[Double],
-                                     trainingLabels: Seq[Seq[Any]],
-                                     trainingWeights: Seq[Double]
+                                     rescaleRatios: Seq[Double]
                                    ) extends MultiTaskTrainingResult {
 
-  lazy val model = new MultiTaskBaggedModel(models, Nib, useJackknife, biasModels, trainingLabels, trainingWeights)
+  lazy val model = new MultiTaskBaggedModel(models, Nib, useJackknife, biasModels)
 
   // Each entry is a tuple, (feature vector, seq of predicted labels, seq of actual labels).
   // The labels are of type Option[Any] because a given training datum might not have a value for every single label.
@@ -195,9 +196,7 @@ class MultiTaskBaggedModel(
                             models: ParSeq[MultiTaskModel],
                             Nib: Vector[Vector[Int]],
                             useJackknife: Boolean,
-                            biasModels: Seq[Option[Model[PredictionResult[Double]]]],
-                            trainingLabels: Seq[Seq[Any]],
-                            trainingWeights: Seq[Double]
+                            biasModels: Seq[Option[Model[PredictionResult[Double]]]]
                           ) extends MultiTaskModel {
 
   lazy val groupedModels: Seq[BaggedModel[Any]] = Seq.tabulate(numLabels) { i =>
@@ -210,7 +209,7 @@ class MultiTaskBaggedModel(
   }
 
   override def transform(inputs: Seq[Vector[Any]]) =
-    MultiTaskBaggedResult(groupedModels.map(_.transform(inputs)), getRealLabels, Nib, trainingLabels, trainingWeights)
+    MultiTaskBaggedResult(groupedModels.map(_.transform(inputs)), getRealLabels, Nib)
 
   override val numLabels: Int = models.head.numLabels
 
