@@ -8,7 +8,7 @@ from lolopy.learners import (
 )
 from sklearn.exceptions import NotFittedError
 from sklearn.metrics import r2_score, accuracy_score, log_loss
-from sklearn.datasets import load_boston, load_iris
+from sklearn.datasets import load_iris, load_diabetes
 from unittest import TestCase, main
 import pickle as pkl
 import numpy as np
@@ -35,7 +35,7 @@ class TestRF(TestCase):
         rf = RandomForestRegressor(random_seed = 31247895)
 
         # Train the model
-        X, y = load_boston(True)
+        X, y = load_diabetes(return_X_y=True)
 
         # Make sure we get a NotFittedError
         with self.assertRaises(NotFittedError):
@@ -52,10 +52,10 @@ class TestRF(TestCase):
         y_import = rf.get_importance_scores(X[:100, :])
         self.assertEqual((100, len(X)), y_import.shape)
 
-        # Basic test for functionality. R^2 above 0.98 was measured on 27Dec18
+        # Basic test for functionality. R^2 above 0.88 was measured on 2021-12-09
         score = r2_score(y_pred, y)
         print('R^2:', score)
-        self.assertGreater(score, 0.98)
+        self.assertGreater(score, 0.88)
 
         # Test with weights (make sure it doesn't crash)
         rf.fit(X, y, [2.0]*len(y))
@@ -78,7 +78,7 @@ class TestRF(TestCase):
         rf = RandomForestClassifier(random_seed = 34789)
 
         # Load in the iris dataset
-        X, y = load_iris(True)
+        X, y = load_iris(return_X_y=True)
         rf.fit(X, y)
 
         # Predict the probability of membership in each class
@@ -105,7 +105,7 @@ class TestRF(TestCase):
         rf2 = pkl.loads(data)
 
         # Load in the iris dataset and train model
-        X, y = load_iris(True)
+        X, y = load_iris(return_X_y=True)
         rf.fit(X, y)
 
         # Try saving and loading the model
@@ -121,7 +121,7 @@ class TestRF(TestCase):
         tree = RegressionTreeLearner()
 
         # Make sure it trains and predicts properly
-        X, y = load_boston(True)
+        X, y = load_diabetes(return_X_y=True)
         tree.fit(X, y)
 
         # Make sure the prediction works
@@ -134,7 +134,7 @@ class TestRF(TestCase):
         tree.max_depth = 2
         tree.fit(X, y)
         y_pred = tree.predict(X)
-        self.assertAlmostEqual(0.695574477, r2_score(y, y_pred))  # Result is deterministic
+        self.assertAlmostEqual(0.433370098, r2_score(y, y_pred))  # Result is deterministic
 
         # Constrain the tree to a single node, using minimum count per split
         tree = RegressionTreeLearner(min_leaf_instances=1000)
@@ -194,7 +194,7 @@ class TestExtraRandomTrees(TestCase):
         rf = ExtraRandomTreesRegressor(random_seed = 378456)
 
         # Train the model
-        X, y = load_boston(True)
+        X, y = load_diabetes(return_X_y=True)
 
         # Make sure we get a NotFittedError
         with self.assertRaises(NotFittedError):
@@ -211,10 +211,10 @@ class TestExtraRandomTrees(TestCase):
         y_import = rf.get_importance_scores(X[:100, :])
         self.assertEqual((100, len(X)), y_import.shape)
 
-        # Basic test for functionality. R^2 above 0.98 was measured on 2020-04-06
+        # Basic test for functionality. R^2 above 0.88 was measured on 2021-12-09
         score = r2_score(y_pred, y)
         print("R2: ", score)
-        self.assertGreater(score, 0.98)
+        self.assertGreater(score, 0.88)
 
         # Test with weights (make sure it doesn't crash)
         rf.fit(X, y, [2.0]*len(y))
