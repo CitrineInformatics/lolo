@@ -248,15 +248,16 @@ class FeatureRotatorTest {
 
     // Sparsify the categorical labels
     val sparseCatLabel = catLabel.map(x => if (rng.nextBoolean()) x else null)
+    val labels = Vector(doubleLabel, sparseCatLabel).transpose
 
     // Train and evaluate rotated models on original and rotated features
-    val baseLearner = new MultiTaskTreeLearner()
-    val rotatedLearner = new MultiTaskFeatureRotator(MultiTaskTreeLearner())
+    val baseLearner = MultiTaskTreeLearner()
+    val rotatedLearner = MultiTaskFeatureRotator(MultiTaskTreeLearner())
 
-    val baseTrainingResult = baseLearner.train(inputs, Seq(doubleLabel, sparseCatLabel))
+    val baseTrainingResult = baseLearner.train(inputs.zip(labels))
     val baseDoubleModel = baseTrainingResult.getModels().head
     val baseCatModel = baseTrainingResult.getModels().last
-    val rotatedTrainingResult = rotatedLearner.train(inputs, Seq(doubleLabel, sparseCatLabel))
+    val rotatedTrainingResult = rotatedLearner.train(inputs.zip(labels))
     val rotatedDoubleModel = rotatedTrainingResult.getModels().head.asInstanceOf[RotatedFeatureModel[Double]]
     val rotatedCatModel = rotatedTrainingResult.getModels().last.asInstanceOf[RotatedFeatureModel[Boolean]]
 

@@ -43,20 +43,20 @@ case class MultiTaskFeatureRotator(baseLearner: MultiTaskLearner) extends MultiT
   /**
     * Create linear transformations for continuous features and labels & pass data through to learner
     *
-    * @param inputs  to train on
-    * @param labels  sequence of sequences of labels
+    * @param trainingData  to train on
     * @param weights for the training rows, if applicable
     * @return a sequence of training results, one for each label
     */
   override def train(
-                     inputs: Seq[Vector[Any]],
-                     labels: Seq[Seq[Any]],
-                     weights: Option[Seq[Double]]
+                      trainingData: Seq[(Vector[Any], Vector[Any])],
+                      weights: Option[Seq[Double]]
                     ): MultiTaskRotatedFeatureTrainingResult = {
+    val inputs = trainingData.map(_._1)
+    val labels = trainingData.map(_._2)
     val featuresToRotate = FeatureRotator.getDoubleFeatures(inputs.head)
     val trans = FeatureRotator.getRandomRotation(inputs.head.length)
     val rotatedFeatures = FeatureRotator.applyRotation(inputs, featuresToRotate, trans)
-    val baseTrainingResult = baseLearner.train(rotatedFeatures, labels, weights)
+    val baseTrainingResult = baseLearner.train(rotatedFeatures.zip(labels), weights)
     MultiTaskRotatedFeatureTrainingResult(baseTrainingResult, featuresToRotate, trans)
   }
 }

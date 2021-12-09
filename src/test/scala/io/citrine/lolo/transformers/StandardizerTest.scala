@@ -179,15 +179,17 @@ class StandardizerTest {
 
     // Sparsify the categorical labels
     val sparseCatLabel = catLabel.map(x => if (rng.nextBoolean()) x else null)
+    val labels = Vector(doubleLabel, sparseCatLabel).transpose
 
     // Screw up the scale of the double labels
     val scale = 10000.0
     val rescaledLabel = doubleLabel.map(_ * scale)
+    val rescaledLabels = rescaledLabel.zip(sparseCatLabel).map { case (r, c) => Vector(r, c) }
 
     // Train and evaluate standard models on original and rescaled labels
     val standardizer = new MultiTaskStandardizer(MultiTaskTreeLearner())
-    val baseRes = standardizer.train(inputs, Seq(doubleLabel, sparseCatLabel)).getModels().last.transform(inputs).getExpected()
-    val standardRes = standardizer.train(inputs, Seq(rescaledLabel, sparseCatLabel)).getModels().last.transform(inputs).getExpected()
+    val baseRes = standardizer.train(inputs.zip(labels)).getModels().last.transform(inputs).getExpected()
+    val standardRes = standardizer.train(inputs.zip(rescaledLabels)).getModels().last.transform(inputs).getExpected()
     // Train and evaluate unstandardized model on rescaled labels
 
     // Compute metrics for each of the models
