@@ -21,7 +21,7 @@ object LoloPyDataLoader {
     * @param bigEndian Whether the numbers are is big-endian or not
     * @return The array as a Scala array
     */
-  def getFeatureArray(input: Array[Byte], numAttributes : Integer, bigEndian: Boolean) : Seq[Vector[Double]] = {
+  def getFeatureArray(input: Array[Byte], numAttributes: Integer, bigEndian: Boolean) : Seq[Vector[Double]] = {
     // Get ordering
     val ordering = if (bigEndian) ByteOrder.BIG_ENDIAN else ByteOrder.LITTLE_ENDIAN
 
