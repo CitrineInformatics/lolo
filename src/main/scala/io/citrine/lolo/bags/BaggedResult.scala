@@ -403,9 +403,7 @@ case class MultiPredictionBaggedResult(
 case class MultiTaskBaggedResult(
                                   baggedPredictions: Seq[BaggedResult[Any]],
                                   realLabels: Seq[Boolean],
-                                  NibIn: Vector[Vector[Int]],
-                                  trainingLabels: Seq[Seq[Any]],
-                                  trainingWeights: Seq[Double]
+                                  NibIn: Vector[Vector[Int]]
                                 ) extends BaggedResult[Seq[Any]] with MultiTaskModelPredictionResult {
 
   /* transpose to be (# training) x (# models) */

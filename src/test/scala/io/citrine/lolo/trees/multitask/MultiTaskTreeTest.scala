@@ -19,9 +19,9 @@ class MultiTaskTreeTest {
 
   /* Setup some data */
   val raw: Seq[(Vector[Double], Double)] = TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, seed = rng.nextLong())
-  val inputs: Seq[Vector[Double]] = raw.map(_._1)
-  val realLabel: Seq[Double] = raw.map(_._2)
+  val (inputs: Seq[Vector[Double]], realLabel: Seq[Double]) = raw.unzip
   val catLabel: Seq[Boolean] = raw.map(_._2 > realLabel.max / 2.0)
+  val labels = Vector(realLabel, catLabel).transpose
 
   /**
     * Test that the tree memorizes the data when it is complete
@@ -29,7 +29,7 @@ class MultiTaskTreeTest {
   @Test
   def testTwoLabels(): Unit = {
     val learner = MultiTaskTreeLearner()
-    val models = learner.train(inputs, Seq(realLabel, catLabel)).getModels()
+    val models = learner.train(inputs.zip(labels)).getModels()
     assert(models.size == 2)
     assert(models.head.isInstanceOf[RegressionTree])
     assert(models.last.isInstanceOf[ClassificationTree])
@@ -52,9 +52,10 @@ class MultiTaskTreeTest {
         x
       }
     )
+    val sparseLabels = Vector(realLabel, sparseCat).transpose
 
     val learner = MultiTaskTreeLearner()
-    val models = learner.train(inputs, Seq(realLabel, sparseCat)).getModels()
+    val models = learner.train(inputs.zip(sparseLabels)).getModels()
     val realResults = models.head.transform(inputs).getExpected().asInstanceOf[Seq[Double]]
     val catResults = models.last.transform(inputs).getExpected().asInstanceOf[Seq[Boolean]]
 
@@ -74,12 +75,13 @@ class MultiTaskTreeTest {
         x
       }
     )
+    val sparseLabels = Vector(realLabel, sparseCat).transpose
 
-    val learner = new MultiTaskTreeLearner()
-    val models = learner.train(inputs, Seq(realLabel, sparseCat)).getModels()
+    val learner = MultiTaskTreeLearner()
+    val models = learner.train(inputs.zip(sparseLabels)).getModels()
     val catResults = models.last.transform(inputs).getExpected().asInstanceOf[Seq[Boolean]]
 
-    val reference = new ClassificationTreeLearner()
+    val reference = ClassificationTreeLearner()
       .train(inputs.zip(sparseCat).filterNot(_._2 == null))
       .getModel()
       .transform(inputs)
@@ -100,8 +102,8 @@ class MultiTaskTreeTest {
     val combinedModelRng = new Random(seed)
     val learner = MultiTaskTreeLearner(rng = rng)
     val combinedModelLearner = MultiTaskTreeLearner(rng = combinedModelRng)
-    val models = learner.train(inputs, Seq(realLabel, catLabel)).getModels()
-    val combinedModel = combinedModelLearner.train(inputs, Seq(realLabel, catLabel)).getModel()
+    val models = learner.train(inputs.zip(labels)).getModels()
+    val combinedModel = combinedModelLearner.train(inputs.zip(labels)).getModel()
 
     // Generate new inputs to test equality on.
     val testInputs = TestUtils
@@ -118,7 +120,7 @@ class MultiTaskTreeTest {
   def testFeatureImportance(): Unit = {
     val seed = 253768L
     val multiTaskLearner = MultiTaskTreeLearner(rng = new Random(seed))
-    val multiTaskTrainingResult = multiTaskLearner.train(inputs, Seq(realLabel, catLabel))
+    val multiTaskTrainingResult = multiTaskLearner.train(inputs.zip(labels))
     val importances = multiTaskTrainingResult.getFeatureImportance().get
     assert(importances(1) == importances.max)
   }

@@ -48,26 +48,29 @@ class MultiTaskStandardizer(baseLearner: MultiTaskLearner) extends MultiTaskLear
   /**
     * Train a model
     *
-    * @param inputs  to train on
-    * @param labels  sequence of sequences of labels
+    * @param trainingData  to train on
     * @param weights for the training rows, if applicable
     * @return a sequence of training results, one for each label
     */
-  override def train(inputs: Seq[Vector[Any]], labels: Seq[Seq[Any]], weights: Option[Seq[Double]]): MultiTaskStandardizerTrainingResult = {
+  override def train(trainingData: Seq[(Vector[Any], Vector[Any])], weights: Option[Seq[Double]]): MultiTaskStandardizerTrainingResult = {
+    val (inputs, labels) = trainingData.unzip
+    val labelsTransposed = labels.transpose.toVector
+    val repOutput = labels.head
     val inputTrans = Standardizer.getMultiStandardization(inputs)
-    val outputTrans: Seq[Option[Standardization]] = labels.map { labelSeq =>
-      if (labelSeq.head != null && labelSeq.head.isInstanceOf[Double]) {
+    val outputTrans: Seq[Option[Standardization]] = repOutput.indices.map { i =>
+      if (repOutput(i) != null && repOutput(i).isInstanceOf[Double]) {
+        val labelSeq = labelsTransposed(i)
         Some(Standardizer.getStandardization(labelSeq.asInstanceOf[Seq[Double]].filterNot(_.isNaN())))
       } else {
         None
       }
     }
     val standardInputs = Standardizer.applyStandardization(inputs, inputTrans)
-    val standardLabels = labels.zip(outputTrans).map { case (labelSeq, trans) =>
-      Standardizer.applyStandardization(labelSeq, trans)
-    }
+    val standardLabels = labelsTransposed.zip(outputTrans).map { case (labelSeq, trans) =>
+      Standardizer.applyStandardization(labelSeq, trans).toVector
+    }.transpose
 
-    val baseTrainingResult = baseLearner.train(standardInputs, standardLabels, weights)
+    val baseTrainingResult = baseLearner.train(standardInputs.zip(standardLabels), weights)
     new MultiTaskStandardizerTrainingResult(baseTrainingResult, outputTrans, inputTrans)
   }
 }

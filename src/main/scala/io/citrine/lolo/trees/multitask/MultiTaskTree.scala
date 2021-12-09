@@ -17,17 +17,17 @@ case class MultiTaskTreeLearner(
   /**
     * Construct one regression or classification tree for each label.
     *
-    * @param inputs   to train on
-    * @param labels   sequence of sequences of labels, with shape (# labels) x (# training rows)
+    * @param trainingData   to train on
     * @param weights  for the training rows, if applicable
     * @return         sequence of models, one for each label
-    * @return
     */
-  override def train(inputs: Seq[Vector[Any]], labels: Seq[Seq[Any]], weights: Option[Seq[Double]]): MultiTaskTreeTrainingResult = {
-    val labelsTransposed = labels.toVector.transpose
+  override def train(trainingData: Seq[(Vector[Any], Vector[Any])], weights: Option[Seq[Double]]): MultiTaskTreeTrainingResult = {
+    val (inputs, labels) = trainingData.unzip
+    val repInput = inputs.head
+    val repOutput = labels.head
+    val labelIndices = repOutput.indices
 
     /* Create encoders for any categorical features */
-    val repInput = inputs.head
     val inputEncoders: Seq[Option[CategoricalEncoder[Any]]] = repInput.zipWithIndex.map { case (v, i) =>
       if (v.isInstanceOf[Double]) {
         None
@@ -38,15 +38,14 @@ case class MultiTaskTreeLearner(
     val encodedInputs = inputs.map(r => CategoricalEncoder.encodeInput(r, inputEncoders))
 
     /* Create encoders for any categorical labels */
-    val repOutput = labels.map(_.head)
     val outputEncoders: Seq[Option[CategoricalEncoder[Any]]] = repOutput.zipWithIndex.map { case (v, i) =>
       if (v.isInstanceOf[Double]) {
         None
       } else {
-        Some(CategoricalEncoder.buildEncoder(labels(i).filterNot(_ == null)))
+        Some(CategoricalEncoder.buildEncoder(labels.map(_ (i)).filterNot(_ == null)))
       }
     }
-    val encodedLabels = labelsTransposed.map(CategoricalEncoder.encodeInput(_, outputEncoders))
+    val encodedLabels = labels.map(CategoricalEncoder.encodeInput(_, outputEncoders))
 
     // Encode the inputs, outputs, and filter out zero weight rows
     val collectedData = inputs.indices.map { i =>
@@ -57,11 +56,11 @@ case class MultiTaskTreeLearner(
     val root = new MultiTaskTrainingNode(collectedData, randomizePivotLocation, rng)
 
     // Construct the model trees
-    val nodes = labels.indices.map(root.getNode)
+    val nodes = labelIndices.map(root.getNode)
 
     // Stick the model trees into RegressionTree and ClassificationTree objects
-    val models = labels.indices.map { i =>
-      if (labels(i).head.isInstanceOf[Double]) {
+    val models = labelIndices.map { i =>
+      if (repOutput(i).isInstanceOf[Double]) {
         new RegressionTree(
           nodes(i).asInstanceOf[ModelNode[PredictionResult[Double]]],
           inputEncoders
@@ -77,7 +76,7 @@ case class MultiTaskTreeLearner(
 
     val sumFeatureImportance: Vector[Double] = {
       val startingImportances = Vector.fill(repInput.length)(0.0)
-      labels.indices.foldLeft(startingImportances) { (importance, i) =>
+      labelIndices.foldLeft(startingImportances) { (importance, i) =>
         root.getFeatureImportance(i).toVector.zip(importance).map(p => p._1 + p._2)
       }
     }
