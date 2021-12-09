@@ -8,7 +8,7 @@ from lolopy.learners import (
 )
 from sklearn.exceptions import NotFittedError
 from sklearn.metrics import r2_score, accuracy_score, log_loss
-from sklearn.datasets import load_iris, load_diabetes
+from sklearn.datasets import load_iris, load_diabetes, load_linnerud
 from unittest import TestCase, main
 import pickle as pkl
 import numpy as np
@@ -73,6 +73,14 @@ class TestRF(TestCase):
         # Make sure the detach operation functions
         rf.clear_model()
         self.assertIsNone(rf.model_)
+
+    def test_rf_multioutput_regressor(self):
+        rf = RandomForestRegressor(random_seed=810355)
+        # A regression dataset with 3 outputs
+        X, y = load_linnerud(return_X_y=True)
+
+        rf.fit(X, y)
+        y_pred = rf.predict(X, return_std=True)
 
     def test_classifier(self):
         rf = RandomForestClassifier(random_seed = 34789)

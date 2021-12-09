@@ -21,12 +21,12 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
     In lolo, learners are not specific to a regression or classification problem and the type of problem is determined
     when fitting data is provided to the algorithm.
     In contrast, Scikit-learn learners for regression or classification problems are different classes.
-    We have implemented `BaseLoloRegressor` and `BaseLoloClassifier` abstract classes to make it easier for creating
+    We have implemented `BaseLoloRegressor` and `BaseLoloClassifier` abstract classes to make it easier to create
     a classification or regression version of a Lolo base class.
     The pattern for creating a scikit-learn compatible learner is to first implement the `_make_learner` and `__init__`
     operations in a special "Mixin" class that inherits from `BaseLoloLearner`, and then create a regression- or
     classification-specific class that inherits from both `BaseClassifier` or `BaseRegressor` and your new "Mixin".
-    See the RandomForest models as an example for this approach.
+    See the RandomForest models as an example of this approach.
     """
 
     def __init__(self):
@@ -34,6 +34,7 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
 
         # Create a placeholder for the model
         self.model_ = None
+        self._num_outputs = None
         self._compress_level = 9
         self.feature_importances_ = None
         
@@ -68,6 +69,14 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
     def fit(self, X, y, weights=None):
         # Instantiate the JVM object
         learner = self._make_learner()
+
+        # Determine the number of outputs
+        if len(y.shape) == 1:
+            self._num_outputs = 1
+        elif len(y.shape) == 2:
+            self._num_outputs = y.shape[1]
+        else:
+            raise ValueError("Output array must be either 1- or 2-dimensional")
 
         # Convert all of the training data to Java arrays
         train_data, weights_java = self._convert_train_data(X, y, weights)
@@ -122,15 +131,17 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
         if weights is None:
             weights = np.ones(len(y))
 
-        # Convert x, y, and w to float64 and int8 with native ordering
-
+        # Convert y and w to float64 or int32 with native ordering
         y = np.array(y, dtype=np.float64 if is_regressor(self) else np.int32)
         weights = np.array(weights, dtype=np.float64)
 
-
-        # Convert X and y to Java Objects
+        # Convert X, y, and w to Java Objects
         X_java = send_feature_array(self.gateway, X)
-        y_java = send_1D_array(self.gateway, y, is_regressor(self))
+        if self._num_outputs == 1:
+            y_java = send_1D_array(self.gateway, y, is_regressor(self))
+        else:
+            y_java = send_feature_array(self.gateway, y)
+
         assert y_java.length() == len(y) == len(X)
         w_java = send_1D_array(self.gateway, weights, True)
         assert w_java.length() == len(weights)
@@ -193,19 +204,27 @@ class BaseLoloRegressor(BaseLoloLearner, RegressorMixin):
 
     Implements the predict operation"""
 
-    def predict(self, X, return_std=False):
+    def predict(self, X, return_std = False):
         # Start the prediction process
         pred_result = self._get_prediction_result(X)
 
         # Pull out the expected values
-        y_pred_byte = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getRegressionExpected(pred_result)
-        y_pred = np.frombuffer(y_pred_byte, dtype='float')  # Lolo gives a byte array back
+        if self._num_outputs == 1:
+            y_pred_byte = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getRegressionExpected(pred_result)
+            y_pred = np.frombuffer(y_pred_byte, dtype='float')  # Lolo gives a byte array back
+        else:
+            y_pred_byte = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getMultiRegressionExpected(pred_result)
+            y_pred = np.frombuffer(y_pred_byte, dtype='float').reshape(-1, self._num_outputs)
 
         # If desired, return the uncertainty too
         if return_std:
             # TODO: This part fails on Windows because the NativeSystemBLAS is not found. Fix that
-            y_std_bytes = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getRegressionUncertainty(pred_result)
-            y_std = np.frombuffer(y_std_bytes, 'float')
+            if self._num_outputs == 1:
+                y_std_bytes = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getRegressionUncertainty(pred_result)
+                y_std = np.frombuffer(y_std_bytes, 'float')
+            else:
+                y_std_bytes = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getMultiRegressionUncertainty(pred_result)
+                y_std = np.frombuffer(y_std_bytes, 'float').reshape(-1, self._num_outputs)
             return y_pred, y_std
 
         # Get the expected values
