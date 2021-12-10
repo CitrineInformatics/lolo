@@ -265,7 +265,7 @@ class TestExtraRandomTrees(TestCase):
         rf = ExtraRandomTreesClassifier(random_seed = 378456)
 
         # Load in the iris dataset
-        X, y = load_iris(True)
+        X, y = load_iris(return_X_y=True)
         rf.fit(X, y)
 
         # Predict the probability of membership in each class
@@ -292,7 +292,7 @@ class TestExtraRandomTrees(TestCase):
         rf2 = pkl.loads(data)
 
         # Load in the iris dataset and train model
-        X, y = load_iris(True)
+        X, y = load_iris(return_X_y=True)
         rf.fit(X, y)
 
         # Try saving and loading the model
