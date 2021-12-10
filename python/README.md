@@ -19,7 +19,7 @@ Lolo is a Scala library that contains a variety of machine learning algorithms, 
 
 ### Development 
 
-Lolopy requires Python >= 3.6, Java JDK >= 1.8, and sbt to be installed on your system when developing lolopy.  
+Lolopy requires Python >= 3.7, Java JDK >= 1.8, and sbt to be installed on your system when developing lolopy.
 
 Before developing `lolopy`, compile `lolo` on your system using sbt.
 We have provided a `Makefile` that contains the needed operations.
