@@ -70,6 +70,10 @@ class TestRF(TestCase):
         self.assertTrue((y_std >= 0).all())  # They must be positive
         self.assertGreater(np.std(y_std), 0)  # Must have a variety of values
 
+        # For a single output, the covariance matrix is just the standard deviation squared
+        _, y_cov = rf.predict(X, return_cov_matrix=True)
+        assert np.all(y_cov.flatten() == y_std ** 2)
+
         # Make sure the detach operation functions
         rf.clear_model()
         self.assertIsNone(rf.model_)
@@ -78,9 +82,25 @@ class TestRF(TestCase):
         rf = RandomForestRegressor(random_seed=810355)
         # A regression dataset with 3 outputs
         X, y = load_linnerud(return_X_y=True)
+        num_data = len(X)
+        num_outputs = y.shape[1]
 
         rf.fit(X, y)
-        y_pred = rf.predict(X, return_std=True)
+        y_pred, y_std = rf.predict(X, return_std=True)
+        _, y_cov = rf.predict(X, return_cov_matrix=True)
+
+        # Assert that all returned values have the correct shape
+        assert y_pred.shape == (num_data, num_outputs)
+        assert y_std.shape == (num_data, num_outputs)
+        assert y_cov.shape == (num_data, num_outputs, num_outputs)
+
+        # The covariance matrices should be symmetric and the diagonals should be the squares of the standard deviations.
+        assert np.all(y_cov[:, 0, 1] == y_cov[:, 1, 0])
+        assert np.all(y_cov[:, 0, 0] == y_std[:, 0] ** 2)
+
+        # Make sure the user cannot call predict with both return_std and return_cov_matrix True
+        with self.assertRaises(ValueError):
+            rf.predict(X, return_std=True, return_cov_matrix=True)
 
     def test_classifier(self):
         rf = RandomForestClassifier(random_seed = 34789)

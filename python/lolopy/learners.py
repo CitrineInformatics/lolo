@@ -202,9 +202,26 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
 class BaseLoloRegressor(BaseLoloLearner, RegressorMixin):
     """Abstract class for models that produce regression models.
 
-    Implements the predict operation"""
+    As written, this allows for both single-task and multi-task models.
+    Implements the predict operation."""
 
-    def predict(self, X, return_std = False):
+    def predict(self, X, return_std = False, return_cov_matrix = False):
+        """
+        Apply the model to a matrix of inputs, producing predictions and optionally some measure of uncertainty
+
+        Args:
+            X (ndarray): Input array
+            return_std (bool): if True, return the standard deviations along with the predictions
+            return_cov_matrix (bool): If True, return the covariance matrix along with the predictions
+        Returns
+            Sequence of predictions OR
+            (Sequence of predictions, Sequence of standard deviations) OR
+            (Sequence of predictions, Sequence of covariance matrices).
+            Each prediction and standard deviation is a float (for single-output learners) or an array (for multi-output learners).
+            Each covariance matrix entry is a (# outputs x # outputs) matrix.
+        """
+        if return_std and return_cov_matrix:
+            raise ValueError("Only one of return_std or return_cov_matrix can be True")
         # Start the prediction process
         pred_result = self._get_prediction_result(X)
 
@@ -216,19 +233,43 @@ class BaseLoloRegressor(BaseLoloLearner, RegressorMixin):
             y_pred_byte = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getMultiRegressionExpected(pred_result)
             y_pred = np.frombuffer(y_pred_byte, dtype='float').reshape(-1, self._num_outputs)
 
-        # If desired, return the uncertainty too
         if return_std:
-            # TODO: This part fails on Windows because the NativeSystemBLAS is not found. Fix that
-            if self._num_outputs == 1:
-                y_std_bytes = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getRegressionUncertainty(pred_result)
-                y_std = np.frombuffer(y_std_bytes, 'float')
-            else:
-                y_std_bytes = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getMultiRegressionUncertainty(pred_result)
-                y_std = np.frombuffer(y_std_bytes, 'float').reshape(-1, self._num_outputs)
+            y_std = self._get_std(X, pred_result)
             return y_pred, y_std
+
+        if return_cov_matrix:
+            corr_matrix = self._get_corr_matrix(X, pred_result)
+            y_std = self._get_std(X, pred_result).reshape(-1, self._num_outputs)
+            sigma_sq_matrix = np.array([np.outer(y_std[i, :], y_std[i, :]) for i in range(len(X))])
+            # both sigma_squared and correlation matrices have size (# predictions, # outputs, # outputs).
+            # They are multiplied term-by-term to produce the covariance matrix.
+            cov_matrix = sigma_sq_matrix * corr_matrix
+            return y_pred, cov_matrix
 
         # Get the expected values
         return y_pred
+
+    def _get_std(self, X, pred_result):
+        # TODO: This part fails on Windows because the NativeSystemBLAS is not found. Fix that
+        if self._num_outputs == 1:
+            y_std_bytes = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getRegressionUncertainty(pred_result)
+            return np.frombuffer(y_std_bytes, 'float')
+        else:
+            y_std_bytes = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getMultiRegressionUncertainty(pred_result)
+            return np.frombuffer(y_std_bytes, 'float').reshape(-1, self._num_outputs)
+
+    def _get_corr_matrix(self, X, pred_result):
+        num_predictions = len(X)
+        corr_matrix = np.zeros((num_predictions, self._num_outputs, self._num_outputs))
+        idx = np.arange(self._num_outputs)
+        corr_matrix[:, idx, idx] = 1.0
+        for i in range(self._num_outputs - 1):
+            for j in range(i + 1, self._num_outputs):
+                rho_bytes = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getRegressionCorrelation(pred_result, i, j)
+                rho = np.frombuffer(rho_bytes, 'float')
+                corr_matrix[:, i, j] = rho
+                corr_matrix[:, j, i] = rho
+        return corr_matrix
 
 
 class BaseLoloClassifier(BaseLoloLearner, ClassifierMixin):
