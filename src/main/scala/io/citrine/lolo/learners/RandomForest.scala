@@ -25,7 +25,7 @@ import scala.util.Random
   * @param minLeafInstances minimum number of instances per leave in each tree
   * @param maxDepth       maximum depth of each tree in the forest (default: unlimited)
   * @param uncertaintyCalibration whether to empirically recalibrate the predicted uncertainties (default: false)
-  * @param randomizePivotLocation whether generate splits randomly between the data points (default: false)
+  * @param randomizePivotLocation whether to generate splits randomly between the data points (default: false)
   * @param randomlyRotateFeatures whether to randomly rotate real features for each tree in the forest (default: false)
   * @param rng            random number generator to use for stochastic functionality
   */
@@ -81,8 +81,16 @@ case class RandomForest(
         )
         bagger.train(trainingData, weights)
       case _: Seq[Any] =>
-        // TODO: incorporate numFeatures, minLeafInstances, and maxDepth (maybe throw a warning if leafLearner is defined)
-        val DTLearner = new MultiTaskStandardizer(MultiTaskTreeLearner(randomizePivotLocation = randomizePivotLocation, rng = rng))
+        if (leafLearner.isDefined) {
+          println("'leafLearner' cannot be configured for multitask random forest at this time. Defaulting to a Guess The Mean learner.")
+        }
+        val DTLearner = new MultiTaskStandardizer(MultiTaskTreeLearner(
+          numFeatures = numFeatures,
+          maxDepth = maxDepth,
+          minLeafInstances = minLeafInstances,
+          randomizePivotLocation = randomizePivotLocation,
+          rng = rng
+        ))
         val bagger = MultiTaskBagger(
            if (randomlyRotateFeatures) MultiTaskFeatureRotator(DTLearner) else DTLearner,
           numBags = numTrees,

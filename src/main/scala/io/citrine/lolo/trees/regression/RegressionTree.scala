@@ -16,8 +16,10 @@ import scala.util.Random
   *
   * @param numFeatures to randomly select from at each split (default: all)
   * @param maxDepth    to grow the tree to
+  * @param minLeafInstances minimum number of training instances per leaf
   * @param leafLearner learner to train the leaves with
-  * @param minLeafInstances minimum number of instances per leaf
+  * @param splitter to determine the best split of the node data
+  * @param rng random number generator, for reproducibility
   */
 case class RegressionTreeLearner(
                                   numFeatures: Int = -1,

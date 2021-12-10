@@ -10,26 +10,41 @@ import scala.collection.mutable
 import scala.util.Random
 
 /**
-  * Node in a multi-task training tree, which can produce nodes for its model trees
+  * Node in a multi-task training tree, which can produce nodes for its model trees.
+  * Splits are chosen using a MultiTaskSplitter, which considers the sum impurity decrease across all tasks.
   *
   * @param inputs data on which to select splits and form models
+  * @param numFeatures to randomly select from at each split (negative values indicate that all features should be considered)
+  * @param maxDepth to grow the tree to
+  * @param minInstances minimum number of training instances per leaf
+  * @param randomizePivotLocation whether to generate splits randomly between the data points
+  * @param rng random number generator, for reproducibility
   */
 class MultiTaskTrainingNode(
                              inputs: Seq[(Vector[AnyVal], Array[AnyVal], Double)],
+                             numFeatures: Int,
+                             maxDepth: Int,
+                             minInstances: Int,
                              randomizePivotLocation: Boolean = false,
                              rng: Random = Random
                            ) {
 
   // Compute a split
-  val (split, deltaImpurity) = MultiTaskSplitter(rng = rng, randomizePivotLocation = randomizePivotLocation)
-    .getBestSplit(inputs, numFeatures = inputs.head._1.size, minInstances = 1)
+  val (split, deltaImpurity) = if (maxDepth <= 0) {
+    (new NoSplit, 0.0)
+  } else {
+    MultiTaskSplitter(rng = rng, randomizePivotLocation = randomizePivotLocation).getBestSplit(inputs, numFeatures, minInstances)
+  }
 
   // Try to construct left and right children
   val (leftChild: Option[MultiTaskTrainingNode], rightChild: Option[MultiTaskTrainingNode]) = split match {
     case _: NoSplit => (None, None)
     case _: Any =>
       val (leftData, rightData) = inputs.partition(row => split.turnLeft(row._1))
-      (Some(new MultiTaskTrainingNode(leftData, randomizePivotLocation, rng = rng)), Some(new MultiTaskTrainingNode(rightData, randomizePivotLocation, rng = rng)))
+      (
+        Some(new MultiTaskTrainingNode(leftData, numFeatures, maxDepth - 1, minInstances, randomizePivotLocation, rng = rng)),
+        Some(new MultiTaskTrainingNode(rightData, numFeatures, maxDepth - 1, minInstances, randomizePivotLocation, rng = rng))
+      )
   }
 
   // get feature importance for the i'th label
