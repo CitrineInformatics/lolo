@@ -82,9 +82,8 @@ case class RandomForest(
         )
         bagger.train(trainingData, weights)
       case _: Seq[Any] =>
-        leafLearner match {
-          case Some(learner) if !learner.isInstanceOf[GuessTheMeanLearner] =>
-            throw new IllegalArgumentException("Multitask random forest does not support leaf learners other than guess-the-mean")
+        if (leafLearner.isDefined && !leafLearner.get.isInstanceOf[GuessTheMeanLearner]) {
+          throw new IllegalArgumentException("Multitask random forest does not support leaf learners other than guess-the-mean")
         }
         val DTLearner = new MultiTaskStandardizer(MultiTaskTreeLearner(
           numFeatures = numFeatures,
