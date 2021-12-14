@@ -3,6 +3,7 @@ package io.citrine.lolo.learners
 import breeze.linalg.DenseMatrix
 import breeze.stats.distributions.Beta
 import io.citrine.lolo.TestUtils
+import io.citrine.lolo.bags.MultiTaskBaggedResult
 import io.citrine.lolo.stats.functions.Friedman
 import org.junit.Test
 import org.scalatest.Assertions._
@@ -46,6 +47,25 @@ class RandomForestTest {
         assert(importances(1) == importances.max)
       }
     }
+  }
+
+  /** Test that a random forest with multiple outputs produces a multitask bagger. */
+  @Test
+  def testMultitaskForest(): Unit = {
+    val (inputs: Seq[Vector[Double]], realLabel: Seq[Double]) = TestUtils.binTrainingData(
+      TestUtils.generateTrainingData(256, 12, noise = 0.1, function = Friedman.friedmanSilverman, seed = rng.nextLong()),
+      inputBins = Seq((0, 8))
+    ).unzip
+    val catLabel: Seq[Boolean] = realLabel.map(_ > realLabel.max / 2.0)
+    val quadLabel: Seq[Double] = realLabel.map(x => x * x)
+    val labels = Vector(realLabel, catLabel, quadLabel).transpose
+
+    val RFMeta = RandomForest(rng = rng).train(inputs.zip(labels))
+    val model = RFMeta.getModel()
+
+    val results = model.transform(inputs).asInstanceOf[MultiTaskBaggedResult]
+    assert(results.getUncertainty().isDefined)
+    assert(results.getUncertaintyCorrelation(0, 2).isDefined)
   }
 
   /**

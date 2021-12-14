@@ -52,23 +52,12 @@ case class ExtraRandomTrees(
     */
   override def train(trainingData: Seq[(Vector[Any], Any)], weights: Option[Seq[Double]]): TrainingResult = {
     val breezeRandBasis: RandBasis = new RandBasis(new MersenneTwister(rng.nextLong()))
+    val repOutput = trainingData.head._2
+    val isRegression = repOutput.isInstanceOf[Double]
+    val numFeatures: Int = RandomForest.getNumFeatures(subsetStrategy, trainingData.head._1.size, isRegression)
 
-    trainingData.head._2 match {
+    repOutput match {
       case _: Double => {
-        val numFeatures: Int = subsetStrategy match {
-          case x: String => {
-            x match {
-              case "auto" => trainingData.head._1.size
-              case "sqrt" => Math.ceil(Math.sqrt(trainingData.head._1.size)).toInt
-              case "log2" => Math.ceil(Math.log(trainingData.head._1.size) / Math.log(2)).toInt
-              case x: String =>
-                println(s"Unrecognized subsetStrategy ${x}; using auto")
-                trainingData.head._1.size
-            }
-          }
-          case x: Int => x
-          case x: Double => (trainingData.head._1.size * x).toInt
-        }
         val DTLearner = RegressionTreeLearner(
           leafLearner = leafLearner,
           numFeatures = numFeatures,
@@ -88,20 +77,6 @@ case class ExtraRandomTrees(
         bagger.train(trainingData, weights)
       }
       case _: Any => {
-        val numFeatures: Int = subsetStrategy match {
-          case x: String => {
-            x match {
-              case "auto" => Math.ceil(Math.sqrt(trainingData.head._1.size)).toInt
-              case "sqrt" => Math.ceil(Math.sqrt(trainingData.head._1.size)).toInt
-              case "log2" => Math.ceil(Math.log(trainingData.head._1.size) / Math.log(2)).toInt
-              case x: String =>
-                println(s"Unrecognized subsetStrategy ${x}; using auto")
-                trainingData.head._1.size
-            }
-          }
-          case x: Int => x
-          case x: Double => (trainingData.head._1.size * x).toInt
-        }
         val DTLearner = ClassificationTreeLearner(
           leafLearner = leafLearner,
           numFeatures = numFeatures,

@@ -418,12 +418,12 @@ case class MultiTaskBaggedResult(
     .transpose
     .map(x => new ParallelModelsPredictionResult(x.transpose))
 
-  // For each prediction, the uncertainty is a sequence of optional entries, one for each label.
-  override def getUncertainty(observational: Boolean = true): Option[Seq[Seq[Option[Any]]]] = {
+  // For each prediction, the uncertainty is a sequence of entries for each label. Missing uncertainty values are reported as NaN
+  override def getUncertainty(observational: Boolean = true): Option[Seq[Seq[Any]]] = {
     Some(baggedPredictions.map { predictionResult =>
       predictionResult.getUncertainty(observational) match {
-        case Some(value) => value.map(Some(_))
-        case None => Seq.fill(numPredictions)(None)
+        case Some(value) => value
+        case None => Seq.fill(numPredictions)(Double.NaN)
       }
     }.transpose)
   }

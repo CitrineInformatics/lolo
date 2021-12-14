@@ -15,6 +15,7 @@ case class MultiTaskSplitter(randomizePivotLocation: Boolean = false, rng: Rando
     *
     * @param data        to split
     * @param numFeatures to consider, randomly
+    * @param minInstances the minimum number of data points on a split node
     * @return a split object that optimally divides data
     */
   def getBestSplit(

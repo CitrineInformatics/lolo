@@ -8,8 +8,19 @@ import io.citrine.lolo.{Model, MultiTaskLearner, MultiTaskTrainingResult, Parall
 
 import scala.util.Random
 
-/** A trait to hold logic common to all tree learners that operate on multiple labels. */
+/**
+  * A tree learner that operates on multiple labels.
+  *
+  * @param numFeatures to random select from at each split (numbers less than 0 indicate that all features are used)
+  * @param maxDepth to grow the tree to
+  * @param minLeafInstances minimum number of training instances per leaf
+  * @param randomizePivotLocation whether to generate splits randomly between the data points
+  * @param rng random number generator, for reproducibility
+  */
 case class MultiTaskTreeLearner(
+                                 numFeatures: Int = -1,
+                                 maxDepth: Int = 30,
+                                 minLeafInstances: Int = 1,
                                  randomizePivotLocation: Boolean = false,
                                  rng: Random = Random
                                ) extends MultiTaskLearner {
@@ -52,8 +63,22 @@ case class MultiTaskTreeLearner(
       (encodedInputs(i), encodedLabels(i).toArray, weights.map(_ (i)).getOrElse(1.0))
     }.filter(_._3 > 0.0)
 
+    /* If the number of features isn't specified, use all of them */
+    val numFeaturesActual = if (numFeatures > 0) {
+      numFeatures
+    } else {
+      collectedData.head._1.size
+    }
+
     // Construct the training tree
-    val root = new MultiTaskTrainingNode(collectedData, randomizePivotLocation, rng)
+    val root = new MultiTaskTrainingNode(
+      inputs = collectedData,
+      numFeatures = numFeaturesActual,
+      maxDepth = maxDepth,
+      minInstances = minLeafInstances,
+      randomizePivotLocation = randomizePivotLocation,
+      rng = rng
+    )
 
     // Construct the model trees
     val nodes = labelIndices.map(root.getNode)

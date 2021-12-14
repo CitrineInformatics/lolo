@@ -1,9 +1,11 @@
 package io.citrine.lolo.learners
 
 import breeze.stats.distributions.{RandBasis, ThreadLocalRandomGenerator}
-import io.citrine.lolo.bags.Bagger
-import io.citrine.lolo.transformers.FeatureRotator
+import io.citrine.lolo.bags.{Bagger, MultiTaskBagger}
+import io.citrine.lolo.linear.GuessTheMeanLearner
+import io.citrine.lolo.transformers.{FeatureRotator, MultiTaskFeatureRotator, MultiTaskStandardizer}
 import io.citrine.lolo.trees.classification.ClassificationTreeLearner
+import io.citrine.lolo.trees.multitask.MultiTaskTreeLearner
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
 import io.citrine.lolo.trees.splits.{ClassificationSplitter, RegressionSplitter}
 import io.citrine.lolo.{Learner, TrainingResult}
@@ -24,7 +26,7 @@ import scala.util.Random
   * @param minLeafInstances minimum number of instances per leave in each tree
   * @param maxDepth       maximum depth of each tree in the forest (default: unlimited)
   * @param uncertaintyCalibration whether to empirically recalibrate the predicted uncertainties (default: false)
-  * @param randomizePivotLocation whether generate splits randomly between the data points (default: false)
+  * @param randomizePivotLocation whether to generate splits randomly between the data points (default: false)
   * @param randomlyRotateFeatures whether to randomly rotate real features for each tree in the forest (default: false)
   * @param rng            random number generator to use for stochastic functionality
   */
@@ -54,24 +56,13 @@ case class RandomForest(
     */
   override def train(trainingData: Seq[(Vector[Any], Any)], weights: Option[Seq[Double]]): TrainingResult = {
     val breezeRandBasis: RandBasis = new RandBasis(new ThreadLocalRandomGenerator(new MersenneTwister(rng.nextLong())))
+    val repOutput = trainingData.head._2
+    val isRegression = repOutput.isInstanceOf[Double] ||
+      (repOutput.isInstanceOf[Seq[Any]] && repOutput.asInstanceOf[Seq[Any]].exists(_.isInstanceOf[Double]))
+    val numFeatures: Int = RandomForest.getNumFeatures(subsetStrategy, trainingData.head._1.size, isRegression)
 
-    trainingData.head._2 match {
+    repOutput match {
       case _: Double =>
-        val numFeatures: Int = subsetStrategy match {
-          case x: String =>
-            x match {
-              case "auto" => trainingData.head._1.size
-              case "sqrt" => Math.ceil(Math.sqrt(trainingData.head._1.size)).toInt
-              case "log2" => Math.ceil(Math.log(trainingData.head._1.size) / Math.log(2)).toInt
-              case x: String =>
-                println(s"Unrecognized subsetStrategy ${x}; using auto")
-                trainingData.head._1.size
-            }
-          case x: Int =>
-            x
-          case x: Double =>
-            (trainingData.head._1.size * x).toInt
-        }
         val DTLearner = RegressionTreeLearner(
           leafLearner = leafLearner,
           numFeatures = numFeatures,
@@ -81,7 +72,8 @@ case class RandomForest(
           rng = rng
         )
 
-        val bagger = Bagger(if (randomlyRotateFeatures) FeatureRotator(DTLearner) else DTLearner,
+        val bagger = Bagger(
+          if (randomlyRotateFeatures) FeatureRotator(DTLearner) else DTLearner,
           numBags = numTrees,
           useJackknife = useJackknife,
           biasLearner = biasLearner,
@@ -89,22 +81,27 @@ case class RandomForest(
           randBasis = breezeRandBasis
         )
         bagger.train(trainingData, weights)
-      case _: Any =>
-        val numFeatures: Int = subsetStrategy match {
-          case x: String =>
-            x match {
-              case "auto" => Math.ceil(Math.sqrt(trainingData.head._1.size)).toInt
-              case "sqrt" => Math.ceil(Math.sqrt(trainingData.head._1.size)).toInt
-              case "log2" => Math.ceil(Math.log(trainingData.head._1.size) / Math.log(2)).toInt
-              case x: String =>
-                println(s"Unrecognized subsetStrategy ${x}; using auto")
-                Math.sqrt(trainingData.head._1.size).toInt
-            }
-          case x: Int =>
-            x
-          case x: Double =>
-            (trainingData.head._1.size * x).toInt
+      case _: Seq[Any] =>
+        if (leafLearner.isDefined && !leafLearner.get.isInstanceOf[GuessTheMeanLearner]) {
+          throw new IllegalArgumentException("Multitask random forest does not support leaf learners other than guess-the-mean")
         }
+        val DTLearner = new MultiTaskStandardizer(MultiTaskTreeLearner(
+          numFeatures = numFeatures,
+          maxDepth = maxDepth,
+          minLeafInstances = minLeafInstances,
+          randomizePivotLocation = randomizePivotLocation,
+          rng = rng
+        ))
+        val bagger = MultiTaskBagger(
+           if (randomlyRotateFeatures) MultiTaskFeatureRotator(DTLearner) else DTLearner,
+          numBags = numTrees,
+          useJackknife = useJackknife,
+          biasLearner = biasLearner,
+          uncertaintyCalibration = uncertaintyCalibration,
+          randBasis = breezeRandBasis
+        )
+        bagger.train(trainingData.asInstanceOf[Seq[(Vector[Any], Vector[Any])]], weights)
+      case _: Any =>
         val DTLearner = ClassificationTreeLearner(
           leafLearner = leafLearner,
           numFeatures = numFeatures,
@@ -121,4 +118,27 @@ case class RandomForest(
         bagger.train(trainingData, weights)
     }
   }
+}
+
+object RandomForest {
+
+  def getNumFeatures(subsetStrategy: Any, numTrainingFeatures: Int, isRegression: Boolean): Int = {
+    subsetStrategy match {
+      case x: String =>
+        x match {
+          case "auto" =>
+            if (isRegression) numTrainingFeatures else Math.ceil(Math.sqrt(numTrainingFeatures)).toInt
+          case "sqrt" => Math.ceil(Math.sqrt(numTrainingFeatures)).toInt
+          case "log2" => Math.ceil(Math.log(numTrainingFeatures) / Math.log(2)).toInt
+          case x: String =>
+            println(s"Unrecognized subsetStrategy $x; using auto")
+            getNumFeatures("auto", numTrainingFeatures, isRegression)
+        }
+      case x: Int =>
+        x
+      case x: Double =>
+        (numTrainingFeatures * x).toInt
+    }
+  }
+
 }
