@@ -2,7 +2,8 @@ package io.citrine.lolo.learners
 
 import breeze.stats.distributions.{RandBasis, ThreadLocalRandomGenerator}
 import io.citrine.lolo.bags.{Bagger, MultiTaskBagger}
-import io.citrine.lolo.transformers.{FeatureRotator, MultiTaskStandardizer, MultiTaskFeatureRotator}
+import io.citrine.lolo.linear.GuessTheMeanLearner
+import io.citrine.lolo.transformers.{FeatureRotator, MultiTaskFeatureRotator, MultiTaskStandardizer}
 import io.citrine.lolo.trees.classification.ClassificationTreeLearner
 import io.citrine.lolo.trees.multitask.MultiTaskTreeLearner
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
@@ -81,8 +82,9 @@ case class RandomForest(
         )
         bagger.train(trainingData, weights)
       case _: Seq[Any] =>
-        if (leafLearner.isDefined) {
-          println("'leafLearner' cannot be configured for multitask random forest at this time. Defaulting to a Guess The Mean learner.")
+        leafLearner match {
+          case Some(learner) if !learner.isInstanceOf[GuessTheMeanLearner] =>
+            throw new IllegalArgumentException("Multitask random forest does not support leaf learners other than guess-the-mean")
         }
         val DTLearner = new MultiTaskStandardizer(MultiTaskTreeLearner(
           numFeatures = numFeatures,

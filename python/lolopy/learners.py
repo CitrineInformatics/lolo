@@ -71,9 +71,10 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
         learner = self._make_learner()
 
         # Determine the number of outputs
-        if len(y.shape) == 1:
+        y_shape = np.asarray(y).shape
+        if len(y_shape) == 1:
             self._num_outputs = 1
-        elif len(y.shape) == 2:
+        elif len(y_shape) == 2:
             self._num_outputs = y.shape[1]
         else:
             raise ValueError("Output array must be either 1- or 2-dimensional")
