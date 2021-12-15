@@ -38,4 +38,10 @@ object ClassificationMetrics {
   def f1scores(predicted: Seq[Any], actual: Seq[Any]): Double = {
     f1scores(predicted.zip(actual).map(x => (Vector(), x._1, x._2)))
   }
+
+  /** Compute the loss on a scale from 0 (perfect model, f1 = 1.0) to infinity (f1 = 0, all predictions are incorrect) */
+  def loss(predictedVsActual: Seq[(Vector[Any], Any, Any)]): Double = {
+    val f1 = f1scores(predictedVsActual)
+    if (f1 > 0.0) 1.0 / f1 - 1.0 else Double.MaxValue
+  }
 }

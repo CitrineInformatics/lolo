@@ -25,3 +25,18 @@ trait Learner extends Serializable {
   }
 
 }
+
+/**
+  * A learner that trains on multiple labels, outputting a single model that makes predictions for all labels.
+  */
+trait MultiTaskLearner extends Serializable {
+
+  /**
+    * Train a model
+    *
+    * @param trainingData  to train on. Each entry is a tuple (vector of inputs, vector of labels)
+    * @param weights for the training rows, if applicable
+    * @return A training result that encompasses model(s) for all labels.
+    */
+  def train(trainingData: Seq[(Vector[Any], Vector[Any])], weights: Option[Seq[Double]] = None): MultiTaskTrainingResult
+}

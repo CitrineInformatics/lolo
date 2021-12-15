@@ -8,20 +8,20 @@ import scala.util.Random
   *
   * Created by maxhutch on 11/29/16.
   */
-case class MultiTaskSplitter(rng: Random = Random) {
+case class MultiTaskSplitter(randomizePivotLocation: Boolean = false, rng: Random = Random) extends Splitter[Array[AnyVal]] {
 
   /**
     * Get the best split, considering numFeature random features (w/o replacement)
     *
     * @param data        to split
     * @param numFeatures to consider, randomly
+    * @param minInstances the minimum number of data points on a split node
     * @return a split object that optimally divides data
     */
   def getBestSplit(
                     data: Seq[(Vector[AnyVal], Array[AnyVal], Double)],
                     numFeatures: Int,
-                    minInstances: Int,
-                    randomizePivotLocation: Boolean = false
+                    minInstances: Int
                   ): (Split, Double) = {
     var bestSplit: Split = new NoSplit()
     var bestImpurity = Double.MaxValue
@@ -37,7 +37,7 @@ case class MultiTaskSplitter(rng: Random = Random) {
 
       /* Use different spliters for each type */
       val (possibleSplit, possibleImpurity) = rep._1(index) match {
-        case _: Double => getBestRealSplit(data, calculator, index, minInstances, randomizePivotLocation)
+        case _: Double => Splitter.getBestRealSplit[Array[AnyVal]](data, calculator, index, minInstances, randomizePivotLocation, rng)
         case _: Char => getBestCategoricalSplit(data, calculator, index, minInstances)
         case _: Any => throw new IllegalArgumentException("Trying to split unknown feature type")
       }
@@ -53,49 +53,6 @@ case class MultiTaskSplitter(rng: Random = Random) {
     } else {
       val deltaImpurity = initialImpurity - bestImpurity
       (bestSplit, deltaImpurity)
-    }
-  }
-
-  /**
-    * Find the best split on a continuous variable
-    *
-    * @param data  to split
-    * @param index of the feature to split on
-    * @return the best split of this feature
-    */
-  def getBestRealSplit(
-                        data: Seq[(Vector[AnyVal], Array[AnyVal], Double)],
-                        calculator: MultiImpurityCalculator,
-                        index: Int,
-                        minCount: Int,
-                        randomizePivotLocation: Boolean = false
-                      ): (Split, Double) = {
-    /* Pull out the feature that's considered here and sort by it */
-    val thinData = data.map(dat => (dat._1(index).asInstanceOf[Double], dat._2, dat._3)).sortBy(_._1)
-    val features = thinData.map(x => x._1)
-
-    /* Move the data from the right to the left partition one value at a time */
-    calculator.reset()
-    val pivots = (0 until data.size - minCount).flatMap { j =>
-      val totalImpurity = calculator.add(thinData(j)._2, thinData(j)._3)
-      if (j + 1 >= minCount && Math.abs((features(j + 1) - features(j)) / features(j)) > 1.0e-9) {
-        val left = features(j + 1)
-        val right = features(j)
-        val pivot = if (randomizePivotLocation) {
-          (left - right) * rng.nextDouble() + right
-        } else {
-          (left + right) / 2.0
-        }
-        Some((pivot, totalImpurity))
-      } else {
-        None
-      }
-    }
-    if (pivots.isEmpty) {
-      (new NoSplit, Double.MaxValue)
-    } else {
-      val best = pivots.minBy(_._2)
-      (new RealSplit(index, best._1), best._2)
     }
   }
 

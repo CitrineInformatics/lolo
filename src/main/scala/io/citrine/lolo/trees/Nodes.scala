@@ -34,7 +34,7 @@ abstract class TrainingNode[T <: AnyVal, S](
   def getFeatureImportance(): mutable.ArraySeq[Double]
 }
 
-trait ModelNode[T <: PredictionResult[Any]] extends Serializable {
+trait ModelNode[+T <: PredictionResult[Any]] extends Serializable {
   def transform(input: Vector[AnyVal]): (T, TreeMeta)
 
   /**
@@ -82,7 +82,6 @@ trait ModelNode[T <: PredictionResult[Any]] extends Serializable {
   * @param split           to decide which branch to take
   * @param left            branch node
   * @param right           branch node
-  * @param numFeatures     number of features, used for Shapley computation
   * @param outputDimension dimension of model output, used for Shapley computation
   *                        1 for single-task regression, or equal to the number of classification categories.
   * @param trainingWeight  weight of training data in subtree (i.e. size of unweighted training set)
@@ -92,7 +91,6 @@ class InternalModelNode[T <: PredictionResult[Any]](
                                                      split: Split,
                                                      left: ModelNode[T],
                                                      right: ModelNode[T],
-                                                     numFeatures: Int,
                                                      outputDimension: Int,
                                                      trainingWeight: Double
                                                    ) extends ModelNode[T] {
@@ -200,13 +198,13 @@ class TrainingLeaf[T](
     * @return lightweight prediction node
     */
   def getNode(): ModelNode[PredictionResult[T]] = {
-    new ModelLeaf(leafLearner.train(trainingData).getModel().asInstanceOf[Model[PredictionResult[T]]], depth, trainingData.head._1.length, trainingData.size.toDouble)
+    new ModelLeaf(leafLearner.train(trainingData).getModel().asInstanceOf[Model[PredictionResult[T]]], depth, trainingData.size.toDouble)
   }
 
   override def getFeatureImportance(): mutable.ArraySeq[Double] = mutable.ArraySeq.fill(trainingData.head._1.size)(0.0)
 }
 
-class ModelLeaf[T](model: Model[PredictionResult[T]], depth: Int, numFeatures: Int, trainingWeight: Double) extends ModelNode[PredictionResult[T]] {
+class ModelLeaf[T](model: Model[PredictionResult[T]], depth: Int, trainingWeight: Double) extends ModelNode[PredictionResult[T]] {
   override def transform(input: Vector[AnyVal]): (PredictionResult[T], TreeMeta) = {
     (model.transform(Seq(input)), TreeMeta(depth))
   }

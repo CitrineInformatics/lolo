@@ -4,8 +4,7 @@ import java.io.{ByteArrayInputStream, ByteArrayOutputStream, ObjectInputStream, 
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.zip._
-
-import io.citrine.lolo.PredictionResult
+import io.citrine.lolo.{MultiTaskModelPredictionResult, PredictionResult}
 
 /**
   * Tool used to transfer data from LoloPy to the JVM
@@ -21,7 +20,7 @@ object LoloPyDataLoader {
     * @param bigEndian Whether the numbers are is big-endian or not
     * @return The array as a Scala array
     */
-  def getFeatureArray(input: Array[Byte], numAttributes : Integer, bigEndian: Boolean) : Seq[Vector[Double]] = {
+  def getFeatureArray(input: Array[Byte], numAttributes: Integer, bigEndian: Boolean) : Seq[Vector[Double]] = {
     // Get ordering
     val ordering = if (bigEndian) ByteOrder.BIG_ENDIAN else ByteOrder.LITTLE_ENDIAN
 
@@ -83,6 +82,16 @@ object LoloPyDataLoader {
   }
 
   /**
+    * Generate the results of a multitask regression model, which are assumed to be all doubles
+    * @param predictionResult result of predicting on a multitask model
+    * @return Byte array of doubles in native system order (the caller must then reshape the result into a 2d array)
+    */
+  def getMultiRegressionExpected(predictionResult: MultiTaskModelPredictionResult): Array[Byte] = {
+    val predResults = predictionResult.getExpected().asInstanceOf[Seq[Seq[Double]]].flatten
+    send1DArray(predResults)
+  }
+
+  /**
     * Send the training entry importance scores to the Python client
     * @param predictionResult Prediction result object
     * @return Byte of array of doubles in native system order
@@ -99,6 +108,31 @@ object LoloPyDataLoader {
   def getRegressionUncertainty(predictionResult: PredictionResult[Any]): Array[Byte] = {
     val predResults : Seq[Double] = predictionResult.getUncertainty().get.asInstanceOf[Seq[Double]]
     send1DArray(predResults)
+  }
+
+  /**
+    * Get the uncertainties of a multitask regression model, which are assumed to be all doubles
+    * @param predictionResult result of predicting on a multitask model
+    * @return Byte array of doubles in native system order (the caller must then reshape the result into a 2d array)
+    */
+  def getMultiRegressionUncertainty(predictionResult: MultiTaskModelPredictionResult): Array[Byte] = {
+    val uncertaintyResults = predictionResult.getUncertainty().get.asInstanceOf[Seq[Seq[Double]]].flatten
+    send1DArray(uncertaintyResults)
+  }
+
+  /**
+    * Get the correlation coefficients between the uncertainties of a multitask regression model.
+    * By calling this method for all (i, j) pairs, one can construct a correlation matrix.
+    * Combined with getMultiRegressionUncertainty, one can construct the covariance matrix.
+    *
+    * @param predictionResult result of predicting on a multitask model
+    * @param i index of the first output
+    * @param j index of the second output
+    * @return Byte array of doubles in native system order
+    */
+  def getRegressionCorrelation(predictionResult: MultiTaskModelPredictionResult, i: Int, j: Int): Array[Byte] = {
+    val correlationResults = predictionResult.getUncertaintyCorrelation(i, j).get
+    send1DArray(correlationResults)
   }
 
   /**

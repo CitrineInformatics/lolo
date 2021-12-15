@@ -1,6 +1,6 @@
 package io.citrine.lolo.transformers
 
-import breeze.linalg.{DenseMatrix, DenseVector, det}
+import breeze.linalg.{DenseMatrix, det}
 import io.citrine.lolo.TestUtils
 import io.citrine.lolo.linear.{GuessTheMeanLearner, LinearRegressionLearner}
 import io.citrine.lolo.stats.functions.Friedman
@@ -248,17 +248,18 @@ class FeatureRotatorTest {
 
     // Sparsify the categorical labels
     val sparseCatLabel = catLabel.map(x => if (rng.nextBoolean()) x else null)
+    val labels = Vector(doubleLabel, sparseCatLabel).transpose
 
     // Train and evaluate rotated models on original and rotated features
-    val baseLearner = new MultiTaskTreeLearner()
-    val rotatedLearner = new MultiTaskFeatureRotator(MultiTaskTreeLearner())
+    val baseLearner = MultiTaskTreeLearner()
+    val rotatedLearner = MultiTaskFeatureRotator(MultiTaskTreeLearner())
 
-    val baseTrainingResult = baseLearner.train(inputs, Seq(doubleLabel, sparseCatLabel))
-    val baseDoubleModel = baseTrainingResult.head.getModel()
-    val baseCatModel = baseTrainingResult.last.getModel()
-    val rotatedTrainingResult = rotatedLearner.train(inputs, Seq(doubleLabel, sparseCatLabel))
-    val rotatedDoubleModel = rotatedTrainingResult.head.getModel().asInstanceOf[RotatedFeatureModel[Double]]
-    val rotatedCatModel = rotatedTrainingResult.last.getModel().asInstanceOf[RotatedFeatureModel[Boolean]]
+    val baseTrainingResult = baseLearner.train(inputs.zip(labels))
+    val baseDoubleModel = baseTrainingResult.getModels().head
+    val baseCatModel = baseTrainingResult.getModels().last
+    val rotatedTrainingResult = rotatedLearner.train(inputs.zip(labels))
+    val rotatedDoubleModel = rotatedTrainingResult.getModels().head.asInstanceOf[RotatedFeatureModel[Double]]
+    val rotatedCatModel = rotatedTrainingResult.getModels().last.asInstanceOf[RotatedFeatureModel[Boolean]]
 
     // Check double labels are the same
     val baseDoubleResult = baseDoubleModel.transform(inputs).getExpected()

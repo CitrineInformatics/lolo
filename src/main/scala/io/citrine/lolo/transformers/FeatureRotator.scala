@@ -43,24 +43,21 @@ case class MultiTaskFeatureRotator(baseLearner: MultiTaskLearner) extends MultiT
   /**
     * Create linear transformations for continuous features and labels & pass data through to learner
     *
-    * @param inputs  to train on
-    * @param labels  sequence of sequences of labels
+    * @param trainingData  to train on
     * @param weights for the training rows, if applicable
     * @return a sequence of training results, one for each label
     */
   override def train(
-                     inputs: Seq[Vector[Any]],
-                     labels: Seq[Seq[Any]],
-                     weights: Option[Seq[Double]]
-                    ): Seq[RotatedFeatureTrainingResult] = {
+                      trainingData: Seq[(Vector[Any], Vector[Any])],
+                      weights: Option[Seq[Double]]
+                    ): MultiTaskRotatedFeatureTrainingResult = {
+    val inputs = trainingData.map(_._1)
+    val labels = trainingData.map(_._2)
     val featuresToRotate = FeatureRotator.getDoubleFeatures(inputs.head)
     val trans = FeatureRotator.getRandomRotation(inputs.head.length)
     val rotatedFeatures = FeatureRotator.applyRotation(inputs, featuresToRotate, trans)
-    val baseTrainingResult = baseLearner.train(rotatedFeatures, labels, weights)
-
-    baseTrainingResult.map { case (base) =>
-      RotatedFeatureTrainingResult(base, featuresToRotate, trans)
-    }
+    val baseTrainingResult = baseLearner.train(rotatedFeatures.zip(labels), weights)
+    MultiTaskRotatedFeatureTrainingResult(baseTrainingResult, featuresToRotate, trans)
   }
 }
 
@@ -93,6 +90,34 @@ case class RotatedFeatureTrainingResult(
       x.map {
         case (v: Vector[Any], e: Any, a: Any) => (FeatureRotator.applyOneRotation(v, rotatedFeatures, trans), e, a)
       }
+    }
+  }
+}
+
+/**
+  * Training result bundling the base learner's multitask training result with the list of rotated features and the transformation
+  *
+  * @param baseTrainingResult training result to which to delegate prediction on rotated features
+  * @param rotatedFeatures indices of features to rotate
+  * @param trans matrix to apply to features
+  */
+case class MultiTaskRotatedFeatureTrainingResult(
+                                                  baseTrainingResult: MultiTaskTrainingResult,
+                                                  rotatedFeatures: IndexedSeq[Int],
+                                                  trans: DenseMatrix[Double]
+                                                ) extends MultiTaskTrainingResult {
+  override def getModel(): MultiTaskModel = new ParallelModels(getModels(), baseTrainingResult.getModel().getRealLabels)
+
+  override def getModels(): Seq[Model[PredictionResult[Any]]] = baseTrainingResult.getModels().map { model =>
+    RotatedFeatureModel(model, rotatedFeatures, trans)
+  }
+
+  override def getPredictedVsActual(): Option[Seq[(Vector[Any], Seq[Option[Any]], Seq[Option[Any]])]] = {
+    baseTrainingResult.getPredictedVsActual() match {
+      case None => None
+      case Some(predictedVsActual) => Some(predictedVsActual.map { case (inputs: Vector[Any], predicted: Seq[Option[Any]], actual: Seq[Option[Any]]) =>
+        (FeatureRotator.applyOneRotation(inputs, rotatedFeatures, trans), predicted, actual)
+      })
     }
   }
 }

@@ -3,7 +3,6 @@ from abc import abstractmethod, ABCMeta
 import numpy as np
 from lolopy.loloserver import get_java_gateway
 from lolopy.utils import send_feature_array, send_1D_array
-import random
 from sklearn.base import BaseEstimator, RegressorMixin, ClassifierMixin, is_regressor
 from sklearn.exceptions import NotFittedError
 
@@ -22,12 +21,12 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
     In lolo, learners are not specific to a regression or classification problem and the type of problem is determined
     when fitting data is provided to the algorithm.
     In contrast, Scikit-learn learners for regression or classification problems are different classes.
-    We have implemented `BaseLoloRegressor` and `BaseLoloClassifier` abstract classes to make it easier for creating
+    We have implemented `BaseLoloRegressor` and `BaseLoloClassifier` abstract classes to make it easier to create
     a classification or regression version of a Lolo base class.
     The pattern for creating a scikit-learn compatible learner is to first implement the `_make_learner` and `__init__`
     operations in a special "Mixin" class that inherits from `BaseLoloLearner`, and then create a regression- or
     classification-specific class that inherits from both `BaseClassifier` or `BaseRegressor` and your new "Mixin".
-    See the RandomForest models as an example for this approach.
+    See the RandomForest models as an example of this approach.
     """
 
     def __init__(self):
@@ -35,6 +34,7 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
 
         # Create a placeholder for the model
         self.model_ = None
+        self._num_outputs = None
         self._compress_level = 9
         self.feature_importances_ = None
         
@@ -69,6 +69,15 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
     def fit(self, X, y, weights=None):
         # Instantiate the JVM object
         learner = self._make_learner()
+
+        # Determine the number of outputs
+        y_shape = np.asarray(y).shape
+        if len(y_shape) == 1:
+            self._num_outputs = 1
+        elif len(y_shape) == 2:
+            self._num_outputs = y.shape[1]
+        else:
+            raise ValueError("Output array must be either 1- or 2-dimensional")
 
         # Convert all of the training data to Java arrays
         train_data, weights_java = self._convert_train_data(X, y, weights)
@@ -123,15 +132,17 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
         if weights is None:
             weights = np.ones(len(y))
 
-        # Convert x, y, and w to float64 and int8 with native ordering
-
+        # Convert y and w to float64 or int32 with native ordering
         y = np.array(y, dtype=np.float64 if is_regressor(self) else np.int32)
         weights = np.array(weights, dtype=np.float64)
 
-
-        # Convert X and y to Java Objects
+        # Convert X, y, and w to Java Objects
         X_java = send_feature_array(self.gateway, X)
-        y_java = send_1D_array(self.gateway, y, is_regressor(self))
+        if self._num_outputs == 1:
+            y_java = send_1D_array(self.gateway, y, is_regressor(self))
+        else:
+            y_java = send_feature_array(self.gateway, y)
+
         assert y_java.length() == len(y) == len(X)
         w_java = send_1D_array(self.gateway, weights, True)
         assert w_java.length() == len(weights)
@@ -192,26 +203,74 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
 class BaseLoloRegressor(BaseLoloLearner, RegressorMixin):
     """Abstract class for models that produce regression models.
 
-    Implements the predict operation"""
+    As written, this allows for both single-task and multi-task models.
+    Implements the predict operation."""
 
-    def predict(self, X, return_std=False):
+    def predict(self, X, return_std = False, return_cov_matrix = False):
+        """
+        Apply the model to a matrix of inputs, producing predictions and optionally some measure of uncertainty
+
+        Args:
+            X (ndarray): Input array
+            return_std (bool): if True, return the standard deviations along with the predictions
+            return_cov_matrix (bool): If True, return the covariance matrix along with the predictions
+        Returns
+            Sequence of predictions OR
+            (Sequence of predictions, Sequence of standard deviations) OR
+            (Sequence of predictions, Sequence of covariance matrices).
+            Each prediction and standard deviation is a float (for single-output learners) or an array (for multi-output learners).
+            Each covariance matrix entry is a (# outputs x # outputs) matrix.
+        """
+        if return_std and return_cov_matrix:
+            raise ValueError("Only one of return_std or return_cov_matrix can be True")
         # Start the prediction process
         pred_result = self._get_prediction_result(X)
 
         # Pull out the expected values
-        y_pred_byte = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getRegressionExpected(pred_result)
-        y_pred = np.frombuffer(y_pred_byte, dtype='float')  # Lolo gives a byte array back
+        if self._num_outputs == 1:
+            y_pred_byte = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getRegressionExpected(pred_result)
+            y_pred = np.frombuffer(y_pred_byte, dtype='float')  # Lolo gives a byte array back
+        else:
+            y_pred_byte = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getMultiRegressionExpected(pred_result)
+            y_pred = np.frombuffer(y_pred_byte, dtype='float').reshape(-1, self._num_outputs)
 
-        # If desired, return the uncertainty too
         if return_std:
-            # TODO: This part fails on Windows because the NativeSystemBLAS is not found. Fix that
-            # TODO: This is only valid for regression models. Perhaps make a "LoloRegressor" class
-            y_std_bytes = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getRegressionUncertainty(pred_result)
-            y_std = np.frombuffer(y_std_bytes, 'float')
+            y_std = self._get_std(X, pred_result)
             return y_pred, y_std
+
+        if return_cov_matrix:
+            corr_matrix = self._get_corr_matrix(X, pred_result)
+            y_std = self._get_std(X, pred_result).reshape(-1, self._num_outputs)
+            sigma_sq_matrix = np.array([np.outer(y_std[i, :], y_std[i, :]) for i in range(len(X))])
+            # both sigma_squared and correlation matrices have size (# predictions, # outputs, # outputs).
+            # They are multiplied term-by-term to produce the covariance matrix.
+            cov_matrix = sigma_sq_matrix * corr_matrix
+            return y_pred, cov_matrix
 
         # Get the expected values
         return y_pred
+
+    def _get_std(self, X, pred_result):
+        # TODO: This part fails on Windows because the NativeSystemBLAS is not found. Fix that
+        if self._num_outputs == 1:
+            y_std_bytes = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getRegressionUncertainty(pred_result)
+            return np.frombuffer(y_std_bytes, 'float')
+        else:
+            y_std_bytes = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getMultiRegressionUncertainty(pred_result)
+            return np.frombuffer(y_std_bytes, 'float').reshape(-1, self._num_outputs)
+
+    def _get_corr_matrix(self, X, pred_result):
+        num_predictions = len(X)
+        corr_matrix = np.zeros((num_predictions, self._num_outputs, self._num_outputs))
+        idx = np.arange(self._num_outputs)
+        corr_matrix[:, idx, idx] = 1.0
+        for i in range(self._num_outputs - 1):
+            for j in range(i + 1, self._num_outputs):
+                rho_bytes = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getRegressionCorrelation(pred_result, i, j)
+                rho = np.frombuffer(rho_bytes, 'float')
+                corr_matrix[:, i, j] = rho
+                corr_matrix[:, j, i] = rho
+        return corr_matrix
 
 
 class BaseLoloClassifier(BaseLoloLearner, ClassifierMixin):

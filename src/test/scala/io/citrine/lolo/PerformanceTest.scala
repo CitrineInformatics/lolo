@@ -91,17 +91,17 @@ class PerformanceTest {
 
   def testMultitaskOverhead(N: Int): (Double, Double) = {
     val subset = trainingData.take(N)
-    val inputs = subset.map(_._1)
-    val realLabels = subset.map(_._2)
+    val (inputs, realLabels) = subset.unzip
     val catLabels = realLabels.map(_ > realLabels.sum / realLabels.size)
+    val labels = Vector(realLabels, catLabels).transpose
 
     val trainSingle: Double = Stopwatch.time({
-      new Bagger(new RegressionTreeLearner()).train(inputs.zip(realLabels)).getLoss()
-      new Bagger(new ClassificationTreeLearner()).train(inputs.zip(catLabels)).getLoss()
+      new Bagger(RegressionTreeLearner()).train(inputs.zip(realLabels)).getLoss()
+      new Bagger(ClassificationTreeLearner()).train(inputs.zip(catLabels)).getLoss()
     }, minRun = 1, maxRun = 1)
 
     val trainMulti: Double = Stopwatch.time({
-      new MultiTaskBagger(new MultiTaskTreeLearner()).train(inputs, Seq(realLabels, catLabels)).map(_.getLoss())
+      MultiTaskBagger(MultiTaskTreeLearner()).train(inputs.zip(labels)).getLoss()
     }, minRun = 1, maxRun = 1)
 
     (trainMulti, trainSingle)
