@@ -68,8 +68,8 @@ case class RandomForest(
           numFeatures = numFeatures,
           minLeafInstances = minLeafInstances,
           maxDepth = maxDepth,
-          splitter = RegressionSplitter(randomizePivotLocation),
-          rng = rng
+          splitter = RegressionSplitter(randomizePivotLocation, rng = new Random(rng.nextLong())),
+          rng = new Random(rng.nextLong())
         )
 
         val bagger = Bagger(
@@ -90,7 +90,7 @@ case class RandomForest(
           maxDepth = maxDepth,
           minLeafInstances = minLeafInstances,
           randomizePivotLocation = randomizePivotLocation,
-          rng = rng
+          rng = new Random(rng.nextLong())
         ))
         val bagger = MultiTaskBagger(
            if (randomlyRotateFeatures) MultiTaskFeatureRotator(DTLearner) else DTLearner,
@@ -107,8 +107,8 @@ case class RandomForest(
           numFeatures = numFeatures,
           minLeafInstances = minLeafInstances,
           maxDepth = maxDepth,
-          splitter = ClassificationSplitter(randomizePivotLocation),
-          rng = rng
+          splitter = ClassificationSplitter(randomizePivotLocation, rng = new Random(rng.nextLong())),
+          rng = new Random(rng.nextLong())
         )
         val bagger = Bagger(
           if (randomlyRotateFeatures) FeatureRotator(DTLearner) else DTLearner,
