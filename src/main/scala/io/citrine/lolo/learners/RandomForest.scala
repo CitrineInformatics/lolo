@@ -68,7 +68,7 @@ case class RandomForest(
           numFeatures = numFeatures,
           minLeafInstances = minLeafInstances,
           maxDepth = maxDepth,
-          splitter = RegressionSplitter(randomizePivotLocation),
+          splitter = RegressionSplitter(randomizePivotLocation, rng = rng),
           rng = rng
         )
 
@@ -107,7 +107,7 @@ case class RandomForest(
           numFeatures = numFeatures,
           minLeafInstances = minLeafInstances,
           maxDepth = maxDepth,
-          splitter = ClassificationSplitter(randomizePivotLocation),
+          splitter = ClassificationSplitter(randomizePivotLocation, rng = rng),
           rng = rng
         )
         val bagger = Bagger(
