@@ -209,7 +209,7 @@ class RandomForestTest {
     */
   @Test
   def testShapley(): Unit = {
-    rng.setSeed(3751L)
+    rng.setSeed(3753L)
 
     // Example from Lundberg paper (https://arxiv.org/pdf/1802.03888.pdf)
     val trainingData1 = Seq(
