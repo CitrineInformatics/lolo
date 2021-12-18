@@ -90,7 +90,7 @@ case class RandomForest(
           maxDepth = maxDepth,
           minLeafInstances = minLeafInstances,
           randomizePivotLocation = randomizePivotLocation,
-          rng = new Random(rng.nextLong())
+          rng = rng
         ))
         val bagger = MultiTaskBagger(
            if (randomlyRotateFeatures) MultiTaskFeatureRotator(DTLearner) else DTLearner,
