@@ -69,7 +69,7 @@ case class RandomForest(
           minLeafInstances = minLeafInstances,
           maxDepth = maxDepth,
           splitter = RegressionSplitter(randomizePivotLocation, rng = rng),
-          rng =rng
+          rng = rng
         )
 
         val bagger = Bagger(
