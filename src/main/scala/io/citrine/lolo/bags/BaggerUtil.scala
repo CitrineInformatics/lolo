@@ -21,6 +21,8 @@ protected case class BaggerHelper(
                                    useJackknife: Boolean,
                                    uncertaintyCalibration: Boolean
                                  ) {
+
+  /** Does the training data represent a regression problem? */
   val isRegression: Boolean = trainingData.map{_._2}.find{ _ != null } match {
     case Some(_: Double) => true
     case Some(_: Any) => false
@@ -54,7 +56,7 @@ protected case class BaggerHelper(
     * Calculate the uncertainty calibration ratio, which is the 68th percentile of error/uncertainty.
     * for the training points. If a point has 0 uncertainty, the ratio is 1 iff error is also 0, or infinity otherwise.
     */
-  val ratio = if (uncertaintyCalibration && isRegression && useJackknife) {
+  val ratio: Double = if (uncertaintyCalibration && isRegression && useJackknife) {
     Async.canStop()
     oobErrors.map {
       case (_, 0.0, 0.0) => 1.0
@@ -69,7 +71,7 @@ protected case class BaggerHelper(
   /**
     * Data on which to train a bias learner.
     */
-  lazy val biasTraining = oobErrors.map { case (f, e, u) =>
+  lazy val biasTraining: Seq[(Vector[Any], Double)] = oobErrors.map { case (f, e, u) =>
     // Math.E is only statistically correct.  It should be actualBags / Nib.transpose(i).count(_ == 0)
     // Or, better yet, filter the bags that don't include the training example
     val bias = Math.E * Math.max(Math.abs(e) - u * ratio, 0)
