@@ -136,14 +136,17 @@ case class Bagger(
     }
 
     /* Calculate the uncertainty calibration ratio, which is the 68th percentile of error/uncertainty
-    for the training points. If a point has 0 uncertainty, the ratio is 1 if error is also 0, otherwise infinity */
+    for the training points. If a point has 0 uncertainty, the ratio is 1 if error is also 0, otherwise infinity.
+    If the 68th percentile ratio is infinity, default to 1.0. This is a not unreasonable result when the number of
+    training data and bags are small, meaning there may be only 1 or 2 out-of-bag models. */
     val ratio = if (uncertaintyCalibration && isRegression && useJackknife) {
       Async.canStop()
-      oobErrors.map {
+      val oneSigmaRatio = oobErrors.map {
         case (_, 0.0, 0.0) => 1.0
         case (_, _, 0.0) => Double.PositiveInfinity
         case (_, error, uncertainty) => Math.abs(error / uncertainty)
       }.sorted.drop((oobErrors.size * 0.68).toInt).head
+      if (oneSigmaRatio.isPosInfinity) 1.0 else oneSigmaRatio
     } else {
       1.0
     }

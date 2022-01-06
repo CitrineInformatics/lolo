@@ -56,11 +56,12 @@ protected case class BaggerHelper(
     */
   val ratio = if (uncertaintyCalibration && isRegression && useJackknife) {
     Async.canStop()
-    oobErrors.map {
+    val oneSigmaRatio = oobErrors.map {
       case (_, 0.0, 0.0) => 1.0
       case (_, _, 0.0) => Double.PositiveInfinity
       case (_, error, uncertainty) => Math.abs(error / uncertainty)
     }.sorted.drop((oobErrors.size * 0.68).toInt).head
+    if (oneSigmaRatio.isPosInfinity) 1.0 else oneSigmaRatio
   } else {
     1.0
   }
