@@ -113,7 +113,7 @@ class MultiTaskBaggedTrainingResult(
                                      rescaleRatios: Seq[Double]
                                    ) extends MultiTaskTrainingResult {
 
-  lazy val model = new MultiTaskBaggedModel(models, Nib, useJackknife, biasModels)
+  lazy val model = new MultiTaskBaggedModel(models, Nib, useJackknife, biasModels, rescaleRatios)
 
   // Each entry is a tuple, (feature vector, seq of predicted labels, seq of actual labels).
   // The labels are of type Option[Any] because a given training datum might not have a value for every single label.
@@ -190,20 +190,22 @@ class MultiTaskBaggedTrainingResult(
   * @param Nib          matrix representing number of times each training datum appears in each bag
   * @param useJackknife whether to enable jackknife uncertainty estimate
   * @param biasModels   sequence of optional bias-correction models, one for each label
+  * @param rescaleRatios  sequence of uncertainty calibration ratios for each label
   */
 class MultiTaskBaggedModel(
                             models: ParSeq[MultiTaskModel],
                             Nib: Vector[Vector[Int]],
                             useJackknife: Boolean,
-                            biasModels: Seq[Option[Model[PredictionResult[Double]]]]
+                            biasModels: Seq[Option[Model[PredictionResult[Double]]]],
+                            rescaleRatios: Seq[Double]
                           ) extends MultiTaskModel {
 
   lazy val groupedModels: Seq[BaggedModel[Any]] = Seq.tabulate(numLabels) { i =>
     val thisLabelsModels = models.map(_.getModels(i))
     if (getRealLabels(i)) {
-      new BaggedModel[Double](thisLabelsModels.asInstanceOf[ParSeq[Model[PredictionResult[Double]]]], Nib, useJackknife, biasModels(i))
+      new BaggedModel[Double](thisLabelsModels.asInstanceOf[ParSeq[Model[PredictionResult[Double]]]], Nib, useJackknife, biasModels(i), rescaleRatios(i))
     } else {
-      new BaggedModel(thisLabelsModels, Nib, useJackknife, biasModels(i))
+      new BaggedModel(thisLabelsModels, Nib, useJackknife, biasModels(i), rescaleRatios(i))
     }
   }
 

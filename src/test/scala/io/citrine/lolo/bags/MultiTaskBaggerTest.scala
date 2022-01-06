@@ -31,7 +31,7 @@ class MultiTaskBaggerTest {
     )
     val reshapedTrainingData = trainingData.map { case (input, label) => (input, Vector(label))}
     val DTLearner = MultiTaskTreeLearner()
-    val baggedLearner = MultiTaskBagger(DTLearner, numBags = trainingData.size, randBasis = TestUtils.getBreezeRandBasis(10478L))
+    val baggedLearner = MultiTaskBagger(DTLearner, numBags = trainingData.size, randBasis = TestUtils.getBreezeRandBasis(10478L), uncertaintyCalibration = true)
     val RFMeta = baggedLearner.train(reshapedTrainingData)
     val RF = RFMeta.getModels().head
 
@@ -40,7 +40,7 @@ class MultiTaskBaggerTest {
     val means = results.getExpected()
     val sigma: Seq[Double] = results.getUncertainty().get.asInstanceOf[Seq[Double]]
     assert(sigma.forall(_ >= 0.0))
-
+    assert(results.asInstanceOf[MultiPredictionBaggedResult].rescale != 1.0, "uncertainty calibration ratio was not included in prediction result")
     assert(results.getGradient().isEmpty, "Returned a gradient when there shouldn't be one")
     assert(RFMeta.getLoss().get < 1.0, "Loss of bagger is larger than expected")
   }
@@ -179,13 +179,17 @@ class MultiTaskBaggerTest {
       learner,
       numBags = numBags,
       biasLearner = Some(RegressionTreeLearner(maxDepth = 2)),
-      randBasis = TestUtils.getBreezeRandBasis(78495L)
+      randBasis = TestUtils.getBreezeRandBasis(78495L),
+      uncertaintyCalibration = true
     )
     val RF = baggedLearner.train(inputs.zip(labels))
 
     val testInputs = inputs.take(numTest)
     val predictionResult = RF.getModel().transform(testInputs)
     assert(predictionResult.predictions.length == numBags)
+
+    // because the uncertainty is recalibrated, the prediction result should have a rescale value that is not equal to 1.0
+    assert(predictionResult.baggedPredictions.head.asInstanceOf[MultiPredictionBaggedResult].rescale != 1.0)
 
     // The prediction made by the full model and the prediction made by just the categorical model should agree
     // and both be equal to the training label.
