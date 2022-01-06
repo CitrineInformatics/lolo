@@ -114,67 +114,23 @@ case class Bagger(
       .reduce(Bagger.combineImportance)
       .map(_.map(_ / importances.size))
 
-    /* Out-of-bag error and uncertainty for each point, calculating by combining the result of each tree.
-    Define as lazy so we only compute them if they are needed for the ratio or bias learner calculation */
-    lazy val oobErrors: Seq[(Vector[Any], Double, Double)] = trainingData.indices.flatMap { idx =>
-      val oobModels = models.zip(Nib.map(_ (idx))).filter(_._2 == 0).map(_._1).asInstanceOf[ParSeq[Model[PredictionResult[Double]]]]
-      if (oobModels.size < 2) {
-        None
-      } else {
-        Async.canStop()
-        val model = new BaggedModel(oobModels, Nib.filter {
-          _ (idx) == 0
-        }, useJackknife, disableBootstrap = disableBootstrap)
-        val predicted = model.transform(Seq(trainingData(idx)._1))
-        val error = predicted.getExpected().head - trainingData(idx)._2.asInstanceOf[Double]
-        val uncertainty = predicted match {
-          case x: RegressionResult => x.getStdDevObs.get.head
-          case _: Any => throw new UnsupportedOperationException("Computing oobErrors for classification is not supported.")
-        }
-        Some(trainingData(idx)._1, error, uncertainty)
-      }
-    }
-
-    /* Calculate the uncertainty calibration ratio, which is the 68th percentile of error/uncertainty
-    for the training points. If a point has 0 uncertainty, the ratio is 1 if error is also 0, otherwise infinity.
-    If the 68th percentile ratio is infinity, default to 1.0. This is a not unreasonable result when the number of
-    training data and bags are small, meaning there may be only 1 or 2 out-of-bag models. */
-    val ratio = if (uncertaintyCalibration && isRegression && useJackknife) {
-      Async.canStop()
-      val oneSigmaRatio = oobErrors.map {
-        case (_, 0.0, 0.0) => 1.0
-        case (_, _, 0.0) => Double.PositiveInfinity
-        case (_, error, uncertainty) => Math.abs(error / uncertainty)
-      }.sorted.drop((oobErrors.size * 0.68).toInt).head
-      if (oneSigmaRatio.isPosInfinity) 1.0 else oneSigmaRatio
-    } else {
-      1.0
-    }
-    assert(!ratio.isNaN && !ratio.isInfinity, s"Uncertainty calibration ratio is not real: $ratio")
 
     /* Wrap the models in a BaggedModel object */
-    if (biasLearner.isEmpty || oobErrors.isEmpty) {
+    val helper = BaggerHelper(models, trainingData, Nib, useJackknife, uncertaintyCalibration)
+    if (biasLearner.isEmpty || helper.oobErrors.isEmpty) {
       Async.canStop()
       if (isRegression) {
-        new BaggedTrainingResult(models.asInstanceOf[ParSeq[Model[PredictionResult[Double]]]], averageImportance, Nib, trainingData, useJackknife, None, ratio, disableBootstrap)
+        new BaggedTrainingResult(models.asInstanceOf[ParSeq[Model[PredictionResult[Double]]]], averageImportance, Nib, trainingData, useJackknife, rescale = helper.ratio, disableBootstrap = disableBootstrap)
       } else {
-        new BaggedTrainingResult(models, averageImportance, Nib, trainingData, useJackknife, None, ratio, disableBootstrap)
+        new BaggedTrainingResult(models, averageImportance, Nib, trainingData, useJackknife, rescale = helper.ratio, disableBootstrap = disableBootstrap)
       }
     } else {
-      val biasTraining = oobErrors.map { case (f, e, u) =>
-        // Math.E is only statistically correct.  It should be actualBags / Nib.transpose(i).count(_ == 0)
-        // Or, better yet, filter the bags that don't include the training example
-        val bias = Math.max(Math.abs(e) - u * ratio, 0)
-        (f, bias)
-      }
       Async.canStop()
-      val biasModel = biasLearner.get.train(biasTraining).getModel().asInstanceOf[Model[PredictionResult[Double]]]
-      Async.canStop()
-
+      val biasModel = biasLearner.get.train(helper.biasTraining).getModel().asInstanceOf[Model[PredictionResult[Double]]]
       if (isRegression) {
-        new BaggedTrainingResult[Double](models.asInstanceOf[ParSeq[Model[PredictionResult[Double]]]], averageImportance, Nib, trainingData, useJackknife, Some(biasModel), ratio, disableBootstrap)
+        new BaggedTrainingResult[Double](models.asInstanceOf[ParSeq[Model[PredictionResult[Double]]]], averageImportance, Nib, trainingData, useJackknife, Some(biasModel), helper.ratio, disableBootstrap)
       } else {
-        new BaggedTrainingResult[Any](models, averageImportance, Nib, trainingData, useJackknife, None, ratio, disableBootstrap)
+        new BaggedTrainingResult[Any](models, averageImportance, Nib, trainingData, useJackknife, None, helper.ratio, disableBootstrap)
       }
     }
   }

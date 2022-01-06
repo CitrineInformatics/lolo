@@ -29,6 +29,7 @@ protected case class BaggerHelper(
 
   /**
     * Seq of tuples containing training data paired with their out-of-bag residuals and uncertainty estimates.
+    * Defined as lazy so it's only computed if needed for the ratio or bias learner calculations.
     */
   lazy val oobErrors: Seq[(Vector[Any], Double, Double)] = trainingData.indices.flatMap { idx =>
     val oobModels = models.zip(Nib.map(_ (idx))).filter(_._2 == 0).map(_._1).asInstanceOf[ParSeq[Model[PredictionResult[Double]]]]
@@ -43,7 +44,7 @@ protected case class BaggerHelper(
       val predicted = model.transform(Seq(trainingData(idx)._1))
       val error = predicted.getExpected().head - trainingData(idx)._2.asInstanceOf[Double]
       val uncertainty = predicted match {
-        case x: RegressionResult => x.getStdDevObs.get.head
+        case x: RegressionResult => x.getStdDevObs().get.head
         case _: Any => throw new UnsupportedOperationException("Computing oobErrors for classification is not supported.")
       }
       Some(trainingData(idx)._1, error, uncertainty)
@@ -53,6 +54,8 @@ protected case class BaggerHelper(
   /**
     * Calculate the uncertainty calibration ratio, which is the 68th percentile of error/uncertainty.
     * for the training points. If a point has 0 uncertainty, the ratio is 1 iff error is also 0, or infinity otherwise.
+    * If the 68th percentile ratio is infinity, default to 1.0. This is not unreasonable when the number of training data
+    * and bags are small, meaning there may only be 2 out-of-bag models.
     */
   val ratio = if (uncertaintyCalibration && isRegression && useJackknife) {
     Async.canStop()
