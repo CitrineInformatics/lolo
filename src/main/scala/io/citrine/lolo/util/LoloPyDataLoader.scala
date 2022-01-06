@@ -20,7 +20,7 @@ object LoloPyDataLoader {
     * @param bigEndian Whether the numbers are is big-endian or not
     * @return The array as a Scala array
     */
-  def getFeatureArray(input: Array[Byte], numAttributes: Integer, bigEndian: Boolean) : Seq[Vector[Double]] = {
+  def getFeatureArray(input: Array[Byte], numAttributes: Integer, bigEndian: Boolean): Seq[Vector[Double]] = {
     // Get ordering
     val ordering = if (bigEndian) ByteOrder.BIG_ENDIAN else ByteOrder.LITTLE_ENDIAN
 
@@ -32,14 +32,13 @@ object LoloPyDataLoader {
     (0 until nDigits).map(x => buffer.getDouble(x * 8)).grouped(numAttributes).map(_.toVector).toVector
   }
 
-
   /**
     * Receive a 1D array of floats or integers
     * @param input Input byte array
     * @param getDouble Whether to read doubles (or integers)
     * @param bigEndian Whether the file
     */
-  def get1DArray(input: Array[Byte], getDouble: Boolean, bigEndian: Boolean) : Seq[Any] = {
+  def get1DArray(input: Array[Byte], getDouble: Boolean, bigEndian: Boolean): Seq[Any] = {
     // Get ordering
     val ordering = if (bigEndian) ByteOrder.BIG_ENDIAN else ByteOrder.LITTLE_ENDIAN
 
@@ -67,7 +66,7 @@ object LoloPyDataLoader {
     * @param y Label array
     * @return Zipped arrays
     */
-  def zipTrainingData(X: Seq[Vector[Double]], y: Seq[Any]) : Seq[(Vector[Double], Any)] = {
+  def zipTrainingData(X: Seq[Vector[Double]], y: Seq[Any]): Seq[(Vector[Double], Any)] = {
     X.zip(y)
   }
 
@@ -76,8 +75,8 @@ object LoloPyDataLoader {
     * @param predictionResult Prediction result object
     * @return Byte array of doubles in native system order
     */
-  def getRegressionExpected(predictionResult: PredictionResult[Any]) : Array[Byte] = {
-    val predResults : Seq[Double] = predictionResult.getExpected().asInstanceOf[Seq[Double]]
+  def getRegressionExpected(predictionResult: PredictionResult[Any]): Array[Byte] = {
+    val predResults: Seq[Double] = predictionResult.getExpected().asInstanceOf[Seq[Double]]
     send1DArray(predResults)
   }
 
@@ -96,7 +95,7 @@ object LoloPyDataLoader {
     * @param predictionResult Prediction result object
     * @return Byte of array of doubles in native system order
     */
-  def getImportanceScores(predictionResult: PredictionResult[Any]) : Array[Byte] = {
+  def getImportanceScores(predictionResult: PredictionResult[Any]): Array[Byte] = {
     send1DArray(predictionResult.getImportanceScores().get.flatten)
   }
 
@@ -106,7 +105,7 @@ object LoloPyDataLoader {
     * @return Byte array of doubles in native system order
     */
   def getRegressionUncertainty(predictionResult: PredictionResult[Any]): Array[Byte] = {
-    val predResults : Seq[Double] = predictionResult.getUncertainty().get.asInstanceOf[Seq[Double]]
+    val predResults: Seq[Double] = predictionResult.getUncertainty().get.asInstanceOf[Seq[Double]]
     send1DArray(predResults)
   }
 
@@ -173,9 +172,11 @@ object LoloPyDataLoader {
   def getClassifierProbabilities(predictionResult: PredictionResult[Any], nClasses: Int): Array[Byte] = {
     // Get an iterator over the number of classes
     val classes = 0 until nClasses
-    val probs = predictionResult.getUncertainty().get.asInstanceOf[Seq[Map[Int, Double]]].map(
-      x => classes.map(i => x.getOrElse(i, 0.0))
-    )
+    val probs = predictionResult
+      .getUncertainty()
+      .get
+      .asInstanceOf[Seq[Map[Int, Double]]]
+      .map(x => classes.map(i => x.getOrElse(i, 0.0)))
     val buffer = ByteBuffer.allocate(nClasses * probs.length * 8).order(ByteOrder.nativeOrder())
     probs.flatten.foreach(buffer.putDouble)
     buffer.array
@@ -190,7 +191,7 @@ object LoloPyDataLoader {
     * @param compressLevel Compression level used to condense the serialized representation
     * @return Object as a serialized byte array
     */
-  def serializeObject(obj : Any, compressLevel: Int) : Array[Byte] = {
+  def serializeObject(obj: Any, compressLevel: Int): Array[Byte] = {
     // Thanks to: https://stackoverflow.com/questions/39369319/convert-any-type-in-scala-to-arraybyte-and-back
     val stream: ByteArrayOutputStream = new ByteArrayOutputStream()
     val compressedStream: DeflaterOutputStream = new DeflaterOutputStream(stream, new Deflater(compressLevel))
@@ -207,7 +208,7 @@ object LoloPyDataLoader {
     * @param bytes Bytes to be unserialized
     * @return The object
     */
-  def deserializeObject(bytes: Array[Byte]) : Any = {
+  def deserializeObject(bytes: Array[Byte]): Any = {
     val stream = new ObjectInputStream(new InflaterInputStream(new ByteArrayInputStream(bytes)))
     val obj = stream.readObject()
     stream.close()
@@ -220,7 +221,7 @@ object LoloPyDataLoader {
     * @param uncertainty Uncertainty of the predictions
     * @return Prediction result object
     */
-  def makeRegressionPredictionResult(expected: Seq[Double], uncertainty: Seq[Double]) : PredictionResult[Double] = {
+  def makeRegressionPredictionResult(expected: Seq[Double], uncertainty: Seq[Double]): PredictionResult[Double] = {
     new PredictionResult[Double] {
       override def getExpected(): Seq[Double] = expected
       override def getUncertainty(includeNoise: Boolean = true): Option[Seq[Any]] = Some(uncertainty)

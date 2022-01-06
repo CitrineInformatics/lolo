@@ -18,7 +18,8 @@ class MultiTaskTreeTest {
   val rng = new Random(1012795L)
 
   /* Setup some data */
-  val raw: Seq[(Vector[Double], Double)] = TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, seed = rng.nextLong())
+  val raw: Seq[(Vector[Double], Double)] =
+    TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, seed = rng.nextLong())
   val (inputs: Seq[Vector[Double]], realLabel: Seq[Double]) = raw.unzip
   val catLabel: Seq[Boolean] = raw.map(_._2 > realLabel.max / 2.0)
   val labels = Vector(realLabel, catLabel).transpose
@@ -93,7 +94,7 @@ class MultiTaskTreeTest {
     assert(multiF1 > singleF1)
   }
 
-  /** Test that the resulting predictions are independent of whether the trees are stored in one model or several models.*/
+  /** Test that the resulting predictions are independent of whether the trees are stored in one model or several models. */
   @Test
   def testSingleModelEquality(): Unit = {
     // Train twice with the same seed, first outputting two models and then outputting a combined model.
@@ -126,5 +127,3 @@ class MultiTaskTreeTest {
   }
 
 }
-
-

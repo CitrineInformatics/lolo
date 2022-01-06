@@ -1,6 +1,6 @@
 package io.citrine.lolo.linear
 
-import breeze.linalg.{DenseMatrix, DenseVector, diag, pinv, sum}
+import breeze.linalg.{diag, pinv, sum, DenseMatrix, DenseVector}
 import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
 
 /**
@@ -11,9 +11,9 @@ import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
   * @param fitIntercept whether to fit an intercept or not
   */
 case class LinearRegressionLearner(
-                                    regParam: Option[Double] = None,
-                                    fitIntercept: Boolean = true
-                                  ) extends Learner {
+    regParam: Option[Double] = None,
+    fitIntercept: Boolean = true
+) extends Learner {
 
   /**
     * Train a linear model via direct inversion.
@@ -22,7 +22,10 @@ case class LinearRegressionLearner(
     * @param weights      for the training rows, if applicable
     * @return a model
     */
-  override def train(trainingData: Seq[(Vector[Any], Any)], weights: Option[Seq[Double]]): LinearRegressionTrainingResult = {
+  override def train(
+      trainingData: Seq[(Vector[Any], Any)],
+      weights: Option[Seq[Double]]
+  ): LinearRegressionTrainingResult = {
     val n = trainingData.size
 
     /* Get the indices of the continuous features */
@@ -37,10 +40,13 @@ case class LinearRegressionLearner(
         unregularized && constant // remove constant features if there's no regularization
       }
 
-
     /* If we are fitting the intercept, add a row of 1s */
     val At = if (fitIntercept) {
-      new DenseMatrix(indices.size + 1, n, trainingData.map(r => indices.map(r._1(_).asInstanceOf[Double]) :+ 1.0).flatten.toArray)
+      new DenseMatrix(
+        indices.size + 1,
+        n,
+        trainingData.map(r => indices.map(r._1(_).asInstanceOf[Double]) :+ 1.0).flatten.toArray
+      )
     } else {
       new DenseMatrix(indices.size, n, trainingData.map(r => indices.map(r._1(_).asInstanceOf[Double])).flatten.toArray)
     }
@@ -127,10 +133,10 @@ class LinearRegressionTrainingResult(model: LinearRegressionModel) extends Train
   * @param indices   optional indices from which to extract real features
   */
 class LinearRegressionModel(
-                             beta: DenseVector[Double],
-                             intercept: Double,
-                             indices: Option[(Vector[Int], Int)] = None
-                           ) extends Model[LinearRegressionResult] {
+    beta: DenseVector[Double],
+    intercept: Double,
+    indices: Option[(Vector[Int], Int)] = None
+) extends Model[LinearRegressionResult] {
 
   /**
     * Apply the model to a seq of inputs
@@ -139,10 +145,12 @@ class LinearRegressionModel(
     * @return a predictionresult which includes, at least, the expected outputs
     */
   override def transform(inputs: Seq[Vector[Any]]): LinearRegressionResult = {
-    val filteredInputs = indices.map { case (ind, size) => inputs.map(inp => ind.map(inp(_))) }.getOrElse(inputs).flatten.asInstanceOf[Seq[Double]]
-    val inputMatrix = new DenseMatrix(filteredInputs.size / inputs.size, inputs.size,
-      filteredInputs.toArray
-    )
+    val filteredInputs = indices
+      .map { case (ind, size) => inputs.map(inp => ind.map(inp(_))) }
+      .getOrElse(inputs)
+      .flatten
+      .asInstanceOf[Seq[Double]]
+    val inputMatrix = new DenseMatrix(filteredInputs.size / inputs.size, inputs.size, filteredInputs.toArray)
     val resultVector = beta.t * inputMatrix + intercept
     val result = resultVector.t.toArray.toSeq
     val grad = getBeta()
@@ -150,16 +158,20 @@ class LinearRegressionModel(
   }
 
   /**
-    *
     * Get the beta from the linear model \beta^T X = y
     * @return beta as a vector of double
     */
   def getBeta(): Vector[Double] = {
-    indices.map { case (inds, size) =>
-      val empty = DenseVector.zeros[Double](size)
-      inds.zipWithIndex.foreach { case (j, i) => empty(j) = beta(i) }
-      empty
-    }.getOrElse(beta).toArray.toVector
+    indices
+      .map {
+        case (inds, size) =>
+          val empty = DenseVector.zeros[Double](size)
+          inds.zipWithIndex.foreach { case (j, i) => empty(j) = beta(i) }
+          empty
+      }
+      .getOrElse(beta)
+      .toArray
+      .toVector
   }
 }
 
@@ -170,6 +182,7 @@ class LinearRegressionModel(
   * @param grad   gradient vector, which are just the linear coefficients
   */
 class LinearRegressionResult(values: Seq[Double], grad: Vector[Double]) extends PredictionResult[Double] {
+
   /**
     * Get the expected values for this prediction
     *

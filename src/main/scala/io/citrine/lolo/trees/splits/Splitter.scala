@@ -35,13 +35,13 @@ object Splitter {
     * @return the best split of this feature
     */
   def getBestRealSplit[T](
-                           data: Seq[(Vector[AnyVal], T, Double)],
-                           calculator: ImpurityCalculator[T],
-                           index: Int,
-                           minCount: Int,
-                           randomizePivotLocation: Boolean = false,
-                           rng: Random = Random
-                         ): (Split, Double) = {
+      data: Seq[(Vector[AnyVal], T, Double)],
+      calculator: ImpurityCalculator[T],
+      index: Int,
+      minCount: Int,
+      randomizePivotLocation: Boolean = false,
+      rng: Random = Random
+  ): (Split, Double) = {
     /* Pull out the feature that's considered here and sort by it */
     val thinData = data.map(dat => (dat._1(index).asInstanceOf[Double], dat._2, dat._3)).sortBy(_._1)
     val features = thinData.map(x => x._1)

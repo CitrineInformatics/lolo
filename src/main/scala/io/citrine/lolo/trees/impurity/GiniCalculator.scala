@@ -3,16 +3,15 @@ package io.citrine.lolo.trees.impurity
 /**
   * Calculate the weighted Gini Impurity: weight * (1 - \sum_j f_j^2), where f_j is the frequency of the jth label
   *
-  *
   * @param totalCategoryWeights the total weight of each label
   * @param totalSquareSum       the sum of the squares of the weights
   * @param totalWeight          the total weight over all the labels
   */
 class GiniCalculator(
-                      totalCategoryWeights: Array[Double],
-                      totalSquareSum: Double,
-                      totalWeight: Double
-                    ) extends ImpurityCalculator[Char] {
+    totalCategoryWeights: Array[Double],
+    totalSquareSum: Double,
+    totalWeight: Double
+) extends ImpurityCalculator[Char] {
 
   def add(value: Char, weight: Double): Double = {
     if (value > 0) {
@@ -73,6 +72,7 @@ class GiniCalculator(
   * Companion object
   */
 object GiniCalculator {
+
   /**
     * Build a GiniCalculator from weighted data
     *
@@ -87,13 +87,12 @@ object GiniCalculator {
     }
 
     val weightsArray = new Array[Double](totalCategoryWeights.keySet.max + 1)
-    val totalSquareSum = totalCategoryWeights.map { case (k, v) =>
-      weightsArray(k) = v
-      Math.pow(v, 2)
+    val totalSquareSum = totalCategoryWeights.map {
+      case (k, v) =>
+        weightsArray(k) = v
+        Math.pow(v, 2)
     }.sum
     val totalWeight = totalCategoryWeights.values.sum
     new GiniCalculator(weightsArray, totalSquareSum, totalWeight)
   }
 }
-
-

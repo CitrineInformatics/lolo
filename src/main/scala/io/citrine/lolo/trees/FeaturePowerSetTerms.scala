@@ -17,13 +17,17 @@ package io.citrine.lolo.trees
   * @param weightWhenIncluded factor of the weight of the leaf when the feature is included
   */
 case class FeatureWeightFactor(
-                                weightWhenExcluded: Double,
-                                weightWhenIncluded: Double
-                              ) {
-  require(weightWhenIncluded == 0.0 || weightWhenIncluded == 1.0,
-    s"Got weightWhenIncluded=$weightWhenIncluded, but should only ever be 0.0 or 1.0")
-  require(weightWhenExcluded > 0 && weightWhenExcluded < 1,
-    s"Got weightWhenExcluded=$weightWhenExcluded, but should be > 0 and < 1")
+    weightWhenExcluded: Double,
+    weightWhenIncluded: Double
+) {
+  require(
+    weightWhenIncluded == 0.0 || weightWhenIncluded == 1.0,
+    s"Got weightWhenIncluded=$weightWhenIncluded, but should only ever be 0.0 or 1.0"
+  )
+  require(
+    weightWhenExcluded > 0 && weightWhenExcluded < 1,
+    s"Got weightWhenExcluded=$weightWhenExcluded, but should be > 0 and < 1"
+  )
 }
 
 /**
@@ -60,9 +64,9 @@ class FeaturePowerSetTerms(maxFeatures: Int) {
     * @return this (in-place)
     */
   def extend(
-              weightWhenExcluded: Double,
-              weightWhenIncluded: Double
-            ): FeaturePowerSetTerms = {
+      weightWhenExcluded: Double,
+      weightWhenIncluded: Double
+  ): FeaturePowerSetTerms = {
     size += 1
 
     // use a single scratch variable so we can do a forward in-place update

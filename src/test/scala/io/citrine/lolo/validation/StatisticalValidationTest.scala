@@ -17,7 +17,8 @@ class StatisticalValidationTest {
     val dataGenerator = TestUtils.iterateTrainingData(8, Friedman.friedmanSilverman)
 
     val metrics = Map("rmse" -> RootMeanSquareError)
-    val (rmseFromCV, uncertaintyFromCV) = CrossValidation.kFoldCrossvalidation(dataSet, learner, metrics, k = 4, nTrial = 4)("rmse")
+    val (rmseFromCV, uncertaintyFromCV) =
+      CrossValidation.kFoldCrossvalidation(dataSet, learner, metrics, k = 4, nTrial = 4)("rmse")
 
     val (rmseFromStats, uncertaintyFromStats) = Merit.estimateMerits(
       StatisticalValidation(rng = rng).generativeValidation(dataGenerator, learner, 96, 32, 16),

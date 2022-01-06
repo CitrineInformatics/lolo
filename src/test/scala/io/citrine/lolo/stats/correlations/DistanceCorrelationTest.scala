@@ -24,7 +24,6 @@ class DistanceCorrelationTest {
     assert(dcorr < 0.15, s"dCorr for independent vars is ${dcorr}")
   }
 
-
   @Test
   def testLinear(): Unit = {
     val X: Seq[Double] = Seq.tabulate(N)(i => rng.nextDouble())

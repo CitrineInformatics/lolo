@@ -31,19 +31,20 @@ import scala.util.Random
   * @param rng            random number generator to use
   */
 case class ExtraRandomTrees(
-                             numTrees: Int = -1,
-                             useJackknife: Boolean = false,
-                             biasLearner: Option[Learner] = None,
-                             leafLearner: Option[Learner] = None,
-                             subsetStrategy: Any = "auto",
-                             minLeafInstances: Int = 1,
-                             maxDepth: Int = Integer.MAX_VALUE,
-                             uncertaintyCalibration: Boolean = false,
-                             disableBootstrap: Boolean = true,
-                             randomlyRotateFeatures: Boolean = false,
-                             rng: Random = Random
-                           ) extends Learner {
-    /**
+    numTrees: Int = -1,
+    useJackknife: Boolean = false,
+    biasLearner: Option[Learner] = None,
+    leafLearner: Option[Learner] = None,
+    subsetStrategy: Any = "auto",
+    minLeafInstances: Int = 1,
+    maxDepth: Int = Integer.MAX_VALUE,
+    uncertaintyCalibration: Boolean = false,
+    disableBootstrap: Boolean = true,
+    randomlyRotateFeatures: Boolean = false,
+    rng: Random = Random
+) extends Learner {
+
+  /**
     * Train an extremely randomized tree ensemble model
     *
     * @param trainingData to train on

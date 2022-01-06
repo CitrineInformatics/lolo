@@ -35,7 +35,8 @@ class BaggerTest {
       inputBins = Seq((0, 8))
     )
     val DTLearner = RegressionTreeLearner(numFeatures = 3, rng = rng)
-    val baggedLearner = Bagger(DTLearner, numBags = trainingData.size, randBasis = TestUtils.getBreezeRandBasis(rng.nextLong()))
+    val baggedLearner =
+      Bagger(DTLearner, numBags = trainingData.size, randBasis = TestUtils.getBreezeRandBasis(rng.nextLong()))
     val RFMeta = baggedLearner.train(trainingData)
     val RF = RFMeta.getModel()
 
@@ -61,11 +62,14 @@ class BaggerTest {
     rng.setSeed(24795L)
 
     val trainingData = TestUtils.binTrainingData(
-      TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, seed = rng.nextLong()),
-      inputBins = Seq((0, 8)), responseBins = Some(8)
+      TestUtils
+        .generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, seed = rng.nextLong()),
+      inputBins = Seq((0, 8)),
+      responseBins = Some(8)
     )
     val DTLearner = ClassificationTreeLearner()
-    val baggedLearner = Bagger(DTLearner, numBags = trainingData.size / 2, randBasis = TestUtils.getBreezeRandBasis(rng.nextLong()))
+    val baggedLearner =
+      Bagger(DTLearner, numBags = trainingData.size / 2, randBasis = TestUtils.getBreezeRandBasis(rng.nextLong()))
     val RFMeta = baggedLearner.train(trainingData)
     val RF = RFMeta.getModel()
 
@@ -76,10 +80,11 @@ class BaggerTest {
 
     val uncertainty = results.getUncertainty()
     assert(uncertainty.isDefined)
-    assert(trainingData.map(_._2).zip(uncertainty.get).forall { case (a, probs) =>
-      val classProbabilities = probs.asInstanceOf[Map[Any, Double]]
-      val maxProb = classProbabilities(a)
-      maxProb > 0.5 && maxProb < 1.0 && Math.abs(classProbabilities.values.sum - 1.0) < 1.0e-6
+    assert(trainingData.map(_._2).zip(uncertainty.get).forall {
+      case (a, probs) =>
+        val classProbabilities = probs.asInstanceOf[Map[Any, Double]]
+        val maxProb = classProbabilities(a)
+        maxProb > 0.5 && maxProb < 1.0 && Math.abs(classProbabilities.values.sum - 1.0) < 1.0e-6
     })
     assert(results.getGradient().isEmpty, "Returned a gradient when there shouldn't be one")
 
@@ -105,11 +110,17 @@ class BaggerTest {
     val trainingData = TestUtils.generateTrainingData(128, nFeatures, xscale = width, seed = rng.nextLong())
     val DTLearner = RegressionTreeLearner(numFeatures = nFeatures, rng = rng)
     val bias = RegressionTreeLearner(maxDepth = 4, rng = rng)
-    val baggedLearner = Bagger(DTLearner, numBags = bagsPerRow * trainingData.size, biasLearner = Some(bias), randBasis = TestUtils.getBreezeRandBasis(rng.nextLong()))
+    val baggedLearner = Bagger(
+      DTLearner,
+      numBags = bagsPerRow * trainingData.size,
+      biasLearner = Some(bias),
+      randBasis = TestUtils.getBreezeRandBasis(rng.nextLong())
+    )
     val RFMeta = baggedLearner.train(trainingData)
     val RF = RFMeta.getModel()
 
-    val interiorTestSet = TestUtils.generateTrainingData(128, nFeatures, xscale = width / 2.0, xoff = width / 4.0, seed = rng.nextLong())
+    val interiorTestSet =
+      TestUtils.generateTrainingData(128, nFeatures, xscale = width / 2.0, xoff = width / 4.0, seed = rng.nextLong())
     val fullTestSet = TestUtils.generateTrainingData(128, nFeatures, xscale = width, seed = rng.nextLong())
 
     val interiorStandardRMSE = BaggerTest.getStandardRMSE(interiorTestSet, RF)
@@ -130,7 +141,8 @@ class BaggerTest {
 
     // setup some training data with constant labels
     val nFeatures = 5
-    val X: Vector[Vector[Any]] = TestUtils.generateTrainingData(128, nFeatures, xscale = 0.5, seed = rng.nextLong()).map(_._1)
+    val X: Vector[Vector[Any]] =
+      TestUtils.generateTrainingData(128, nFeatures, xscale = 0.5, seed = rng.nextLong()).map(_._1)
     val y: Vector[Any] = X.map(_ => 0.0)
 
     // setup a relatively complicated random forest (turn a bunch of stuff on)
@@ -146,11 +158,13 @@ class BaggerTest {
       new Standardizer(DTLearner),
       numBags = 64,
       useJackknife = true,
-      biasLearner = Some(RegressionTreeLearner(
-        maxDepth = 3,
-        leafLearner = Some(GuessTheMeanLearner(rng = rng)),
-        splitter = RegressionSplitter(randomizePivotLocation = true),
-        rng = rng)
+      biasLearner = Some(
+        RegressionTreeLearner(
+          maxDepth = 3,
+          leafLearner = Some(GuessTheMeanLearner(rng = rng)),
+          splitter = RegressionSplitter(randomizePivotLocation = true),
+          rng = rng
+        )
       ),
       uncertaintyCalibration = true,
       randBasis = TestUtils.getBreezeRandBasis(rng.nextLong())
@@ -160,12 +174,12 @@ class BaggerTest {
     val model = bagger.train(X.zip(y)).getModel()
 
     // Generate a new test set and make sure the predictions are 0 +/- 0
-    val testX: Vector[Vector[Any]] = TestUtils.generateTrainingData(128, nFeatures, xscale = 0.5, seed = rng.nextLong()).map(_._1)
+    val testX: Vector[Vector[Any]] =
+      TestUtils.generateTrainingData(128, nFeatures, xscale = 0.5, seed = rng.nextLong()).map(_._1)
     val predictions = model.transform(testX)
     assert(predictions.getExpected().forall(_ == 0.0))
     assert(predictions.getUncertainty().get.forall(_ == 0.0))
   }
-
 
   /**
     * Test the scores on a smaller example, because computing them all can be expensive.
@@ -182,7 +196,11 @@ class BaggerTest {
     val csv = TestUtils.readCsv("double_example.csv")
     val trainingData = csv.map(vec => (vec.init, vec.last.asInstanceOf[Double]))
     val DTLearner = RegressionTreeLearner(rng = rng)
-    val baggedLearner = Bagger(DTLearner, numBags = trainingData.size * 16, randBasis = TestUtils.getBreezeRandBasis(rng.nextLong())) // use lots of trees to reduce noise
+    val baggedLearner = Bagger(
+      DTLearner,
+      numBags = trainingData.size * 16,
+      randBasis = TestUtils.getBreezeRandBasis(rng.nextLong())
+    ) // use lots of trees to reduce noise
     val RF = baggedLearner.train(trainingData).getModel()
 
     /* Call transform on the training data */
@@ -190,7 +208,8 @@ class BaggerTest {
     val scores = results.getImportanceScores().get
     val corners = Seq(0, 7, 56, 63)
     corners.foreach { i =>
-      assert(scores(i)(i) == scores(i).max,
+      assert(
+        scores(i)(i) == scores(i).max,
         s"The corner at $i didn't have the highest score: ${scores(i)(i)} vs ${scores(i).max}"
       )
     }
@@ -209,13 +228,23 @@ class BaggerTest {
     )
     val DTLearner = RegressionTreeLearner(numFeatures = 3, rng = rng)
     val start = System.nanoTime()
-    Bagger(DTLearner, numBags = trainingData.size, uncertaintyCalibration = false, randBasis = TestUtils.getBreezeRandBasis(rng.nextLong()))
+    Bagger(
+      DTLearner,
+      numBags = trainingData.size,
+      uncertaintyCalibration = false,
+      randBasis = TestUtils.getBreezeRandBasis(rng.nextLong())
+    )
       .train(trainingData)
       .getModel()
     val unCalibratedTime = 1.0e-9 * (System.nanoTime() - start)
 
     val startAgain = System.nanoTime()
-    Bagger(DTLearner, numBags = 64, uncertaintyCalibration = true, randBasis = TestUtils.getBreezeRandBasis(rng.nextLong()))
+    Bagger(
+      DTLearner,
+      numBags = 64,
+      uncertaintyCalibration = true,
+      randBasis = TestUtils.getBreezeRandBasis(rng.nextLong())
+    )
       .train(trainingData)
       .getModel()
     val calibratedTime = 1.0e-9 * (System.nanoTime() - startAgain)
@@ -232,7 +261,8 @@ class BaggerTest {
 
     val trainingData = TestUtils.generateTrainingData(2048, 12, noise = 0.1, function = Friedman.friedmanSilverman)
     val DTLearner = RegressionTreeLearner(numFeatures = 3, rng = rng)
-    val baggedLearner = Bagger(DTLearner, numBags = trainingData.size, randBasis = TestUtils.getBreezeRandBasis(rng.nextLong()))
+    val baggedLearner =
+      Bagger(DTLearner, numBags = trainingData.size, randBasis = TestUtils.getBreezeRandBasis(rng.nextLong()))
 
     // Create a future to run train
     val tmpPool = Executors.newFixedThreadPool(1)
@@ -258,8 +288,8 @@ class BaggerTest {
       assert(false, "Future completed")
     } catch {
       case _: CancellationException =>
-      case _: InterruptedException =>
-      case _: Throwable => assert(false, "Future threw an exception")
+      case _: InterruptedException  =>
+      case _: Throwable             => assert(false, "Future threw an exception")
     }
 
     // Shutdown the pool
@@ -297,14 +327,25 @@ class BaggerTest {
       splitter = RegressionSplitter(randomizePivotLocation = true, rng = rng),
       rng = rng
     )
-    val trainedModel: BaggedModel[Any] = Bagger(DTLearner, numBags = 16, useJackknife = true,
-      uncertaintyCalibration = true, randBasis = TestUtils.getBreezeRandBasis(rng.nextLong()))
+    val trainedModel: BaggedModel[Any] = Bagger(
+      DTLearner,
+      numBags = 16,
+      useJackknife = true,
+      uncertaintyCalibration = true,
+      randBasis = TestUtils.getBreezeRandBasis(rng.nextLong())
+    )
       .train(trainingData)
       .getModel()
 
     try {
-      val _: BaggedModel[Any] = Bagger(DTLearner, numBags = 16, useJackknife = true,
-        uncertaintyCalibration = true, disableBootstrap = true, randBasis = TestUtils.getBreezeRandBasis(rng.nextLong()))
+      val _: BaggedModel[Any] = Bagger(
+        DTLearner,
+        numBags = 16,
+        useJackknife = true,
+        uncertaintyCalibration = true,
+        disableBootstrap = true,
+        randBasis = TestUtils.getBreezeRandBasis(rng.nextLong())
+      )
         .train(trainingData)
         .getModel()
       fail("Setting both uncertaintyCalibration and disableBootstrap should throw an exception.")
@@ -324,13 +365,16 @@ class BaggerTest {
   def testUncertaintyFloor(): Unit = {
     rng.setSeed(24795L)
     (0 until 16384).foreach { idx =>
-      val trainingData = TestUtils.generateTrainingData(16, 5, noise = 0.0, function = Friedman.friedmanSilverman, seed = rng.nextLong())
+      val trainingData =
+        TestUtils.generateTrainingData(16, 5, noise = 0.0, function = Friedman.friedmanSilverman, seed = rng.nextLong())
       val DTLearner = RegressionTreeLearner(numFeatures = 2, rng = rng)
       val sigma = Bagger(DTLearner, numBags = 7, randBasis = TestUtils.getBreezeRandBasis(rng.nextLong()))
         .train(trainingData)
         .getModel()
         .transform(trainingData.map(_._1))
-        .getUncertainty().get.asInstanceOf[Seq[Double]]
+        .getUncertainty()
+        .get
+        .asInstanceOf[Seq[Double]]
       assert(sigma.forall(_ > 0.0), s"Found an predicted uncertainty of ${sigma.min} during trial $idx")
     }
   }
@@ -344,13 +388,21 @@ class BaggerTest {
   def testUncertaintyFloorWithBias(): Unit = {
     rng.setSeed(24795L)
     (0 until 1024).foreach { idx =>
-      val trainingData = TestUtils.generateTrainingData(16, 5, noise = 0.0, function = Friedman.friedmanSilverman, seed = rng.nextLong())
+      val trainingData =
+        TestUtils.generateTrainingData(16, 5, noise = 0.0, function = Friedman.friedmanSilverman, seed = rng.nextLong())
       val DTLearner = RegressionTreeLearner(numFeatures = 2, rng = rng)
-      val sigma = Bagger(DTLearner, numBags = 7, biasLearner = Some(GuessTheMeanLearner(rng = rng)), randBasis = TestUtils.getBreezeRandBasis(rng.nextLong()))
+      val sigma = Bagger(
+        DTLearner,
+        numBags = 7,
+        biasLearner = Some(GuessTheMeanLearner(rng = rng)),
+        randBasis = TestUtils.getBreezeRandBasis(rng.nextLong())
+      )
         .train(trainingData)
         .getModel()
         .transform(trainingData.map(_._1))
-        .getUncertainty().get.asInstanceOf[Seq[Double]]
+        .getUncertainty()
+        .get
+        .asInstanceOf[Seq[Double]]
       assert(sigma.forall(_ > 0.0), s"Found an predicted uncertainty of ${sigma.min} during trial $idx")
     }
   }
@@ -362,29 +414,39 @@ class BaggerTest {
   def testShapley(): Unit = {
     rng.setSeed(24795L)
     val nCols = 5
-    val trainingData = TestUtils.generateTrainingData(64, nCols, noise = 0.0, function = Friedman.friedmanSilverman, seed = rng.nextLong())
+    val trainingData = TestUtils.generateTrainingData(
+      64,
+      nCols,
+      noise = 0.0,
+      function = Friedman.friedmanSilverman,
+      seed = rng.nextLong()
+    )
     val DTLearner = RegressionTreeLearner(numFeatures = nCols, rng = rng)
     val model = Bagger(DTLearner, randBasis = TestUtils.getBreezeRandBasis(rng.nextLong()))
       .train(trainingData)
       .getModel()
     val trees = model.getModels()
-    trainingData.foreach { case (x, _) =>
-      val shapley = model.shapley(x).get
+    trainingData.foreach {
+      case (x, _) =>
+        val shapley = model.shapley(x).get
 
-      // Do a quick sanity check on the output format.
-      assert(shapley.cols == nCols)
-      assert(shapley.rows == 1)
+        // Do a quick sanity check on the output format.
+        assert(shapley.cols == nCols)
+        assert(shapley.rows == 1)
 
-      // Compute the mean shap value over trees and ensure the bagged model gives the same result.
-      val treeMean = (1.0 / trees.length) * trees.map { t =>
-        t.shapley(x).get
-      }.reduce[DenseMatrix[Double]] { case (a: DenseMatrix[Double], b: DenseMatrix[Double]) =>
-        a +:+ b
-      }
-      val atol = 1e-8
-      assert(
-        (treeMean - shapley).toDenseVector.toScalaVector.forall { x => Math.abs(x) < atol }
-      )
+        // Compute the mean shap value over trees and ensure the bagged model gives the same result.
+        val treeMean = (1.0 / trees.length) * trees
+          .map { t =>
+            t.shapley(x).get
+          }
+          .reduce[DenseMatrix[Double]] {
+            case (a: DenseMatrix[Double], b: DenseMatrix[Double]) =>
+              a +:+ b
+          }
+        val atol = 1e-8
+        assert(
+          (treeMean - shapley).toDenseVector.toScalaVector.forall { x => Math.abs(x) < atol }
+        )
     }
   }
 }
@@ -393,6 +455,7 @@ class BaggerTest {
   * Companion driver
   */
 object BaggerTest {
+
   /**
     * Test driver
     *
@@ -413,7 +476,13 @@ object BaggerTest {
       (4 to 8 by 2).foreach { nRowsLog: Int =>
         val nRows = 1 << nRowsLog
         (1 to 3).foreach { repNum =>
-          val trainingData = TestUtils.generateTrainingData(nRows, nCols, noise = 0.0, function = Friedman.friedmanSilverman, seed = rng.nextLong())
+          val trainingData = TestUtils.generateTrainingData(
+            nRows,
+            nCols,
+            noise = 0.0,
+            function = Friedman.friedmanSilverman,
+            seed = rng.nextLong()
+          )
           val DTLearner = RegressionTreeLearner(numFeatures = nCols, rng = rng)
           println(s"Training model nCols=$nCols\tnRows=$nRows\trepNum=$repNum")
           val model = Bagger(DTLearner, randBasis = TestUtils.getBreezeRandBasis(rng.nextLong()))
@@ -421,12 +490,13 @@ object BaggerTest {
             .getModel()
           println(s"Trained")
 
-          rng.shuffle(trainingData).take(16).zipWithIndex.foreach { case (x, i) =>
-            val t0 = System.nanoTime()
-            val shapley = model.shapley(x._1).get
-            val t1 = System.nanoTime()
-            pw.write(s"$nCols\t$nRows\t$repNum\t$i\t${t1-t0}\n")
-            pw.flush()
+          rng.shuffle(trainingData).take(16).zipWithIndex.foreach {
+            case (x, i) =>
+              val t0 = System.nanoTime()
+              val shapley = model.shapley(x._1).get
+              val t1 = System.nanoTime()
+              pw.write(s"$nCols\t$nRows\t$repNum\t$i\t${t1 - t0}\n")
+              pw.flush()
           }
         }
       }
@@ -436,13 +506,19 @@ object BaggerTest {
 
   def getStandardRMSE(testSet: Seq[(Vector[Any], Double)], model: BaggedModel[Any]): Double = {
     val predictions = model.transform(testSet.map(_._1))
-    val pva = testSet.map(_._2).zip(
-      predictions.getExpected().asInstanceOf[Seq[Double]].zip(
-        predictions.getUncertainty().get.asInstanceOf[Seq[Double]]
+    val pva = testSet
+      .map(_._2)
+      .zip(
+        predictions
+          .getExpected()
+          .asInstanceOf[Seq[Double]]
+          .zip(
+            predictions.getUncertainty().get.asInstanceOf[Seq[Double]]
+          )
       )
-    )
-    val standardError = pva.map { case (a: Double, (p: Double, u: Double)) =>
-      Math.abs(a - p) / u
+    val standardError = pva.map {
+      case (a: Double, (p: Double, u: Double)) =>
+        Math.abs(a - p) / u
     }
     Math.sqrt(standardError.map(Math.pow(_, 2.0)).sum / testSet.size)
   }

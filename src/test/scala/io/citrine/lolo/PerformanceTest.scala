@@ -27,7 +27,13 @@ class PerformanceTest {
     * @param quiet        whether to print messages to the screen
     * @return the training and application time, in seconds
     */
-  def timedTest(trainingData: Seq[(Vector[Any], Any)], n: Int, k: Int, b: Int, quiet: Boolean = true): (Double, Double) = {
+  def timedTest(
+      trainingData: Seq[(Vector[Any], Any)],
+      n: Int,
+      k: Int,
+      b: Int,
+      quiet: Boolean = true
+  ): (Double, Double) = {
     val data = trainingData.map(p => (p._1.take(k), p._2)).take(n)
     val inputs = data.map(_._1)
     val DTLearner = if (trainingData.head._2.isInstanceOf[Double]) {
@@ -37,14 +43,26 @@ class PerformanceTest {
     }
     val baggedLearner = new Bagger(DTLearner, numBags = b)
 
-    val timeTraining = Stopwatch.time({
-      baggedLearner.train(data).getModel()
-    }, benchmark = "None", minRun = 4, targetError = 0.1, maxRun = 32)
+    val timeTraining = Stopwatch.time(
+      {
+        baggedLearner.train(data).getModel()
+      },
+      benchmark = "None",
+      minRun = 4,
+      targetError = 0.1,
+      maxRun = 32
+    )
     val model = baggedLearner.train(data).getModel()
 
-    val timePredicting = Stopwatch.time({
-      model.transform(inputs).getUncertainty()
-    }, benchmark = "None", minRun = 4, targetError = 0.1, maxRun = 32)
+    val timePredicting = Stopwatch.time(
+      {
+        model.transform(inputs).getUncertainty()
+      },
+      benchmark = "None",
+      minRun = 4,
+      targetError = 0.1,
+      maxRun = 32
+    )
 
     if (!quiet) println(f"${timeTraining}%10.4f, ${timePredicting}%10.4f, ${n}%6d, ${k}%6d, ${b}%6d")
     (timeTraining, timePredicting)
@@ -59,8 +77,10 @@ class PerformanceTest {
     if (!quiet) println(f"${"Train"}%10s, ${"Apply"}%10s, ${"N"}%6s, ${"K"}%6s, ${"B"}%6s")
     timedTest(trainingData, Ns.head, Ks.head, Bs.head, true)
     val (bTrain, bApply) = Bs.map(b => timedTest(trainingData, Ns.head, Ks.head, b, quiet)).unzip
-    val (kTrain, kApply) = (bTrain.zip(bApply).take(1) ++ Ks.tail.map(k => timedTest(trainingData, Ns.head, k, Bs.head, quiet))).unzip
-    val (nTrain, nApply) = (bTrain.zip(bApply).take(1) ++ Ns.tail.map(n => timedTest(trainingData, n, Ks.head, Bs.head, quiet))).unzip
+    val (kTrain, kApply) =
+      (bTrain.zip(bApply).take(1) ++ Ks.tail.map(k => timedTest(trainingData, Ns.head, k, Bs.head, quiet))).unzip
+    val (nTrain, nApply) =
+      (bTrain.zip(bApply).take(1) ++ Ns.tail.map(n => timedTest(trainingData, n, Ks.head, Bs.head, quiet))).unzip
 
     val bTrainScale = (1 until bTrain.size).map(i => bTrain(i) / bTrain(i - 1))
     val nTrainScale = (1 until nTrain.size).map(i => nTrain(i) / nTrain(i - 1))
@@ -82,7 +102,6 @@ class PerformanceTest {
 
   /**
     * Test the absolute performance to check for overall regressions
-    *
     */
   def testAbsolute(): Unit = {
     val (nominalTrain, nominalPredict) = timedTest(classificationData, 1024, 32, 1024)
@@ -95,14 +114,22 @@ class PerformanceTest {
     val catLabels = realLabels.map(_ > realLabels.sum / realLabels.size)
     val labels = Vector(realLabels, catLabels).transpose
 
-    val trainSingle: Double = Stopwatch.time({
-      new Bagger(RegressionTreeLearner()).train(inputs.zip(realLabels)).getLoss()
-      new Bagger(ClassificationTreeLearner()).train(inputs.zip(catLabels)).getLoss()
-    }, minRun = 1, maxRun = 1)
+    val trainSingle: Double = Stopwatch.time(
+      {
+        new Bagger(RegressionTreeLearner()).train(inputs.zip(realLabels)).getLoss()
+        new Bagger(ClassificationTreeLearner()).train(inputs.zip(catLabels)).getLoss()
+      },
+      minRun = 1,
+      maxRun = 1
+    )
 
-    val trainMulti: Double = Stopwatch.time({
-      MultiTaskBagger(MultiTaskTreeLearner()).train(inputs.zip(labels)).getLoss()
-    }, minRun = 1, maxRun = 1)
+    val trainMulti: Double = Stopwatch.time(
+      {
+        MultiTaskBagger(MultiTaskTreeLearner()).train(inputs.zip(labels)).getLoss()
+      },
+      minRun = 1,
+      maxRun = 1
+    )
 
     (trainMulti, trainSingle)
   }

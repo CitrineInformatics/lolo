@@ -31,18 +31,18 @@ import scala.util.Random
   * @param rng            random number generator to use for stochastic functionality
   */
 case class RandomForest(
-                         numTrees: Int = -1,
-                         useJackknife: Boolean = true,
-                         biasLearner: Option[Learner] = None,
-                         leafLearner: Option[Learner] = None,
-                         subsetStrategy: Any = "auto",
-                         minLeafInstances: Int = 1,
-                         maxDepth: Int = Integer.MAX_VALUE,
-                         uncertaintyCalibration: Boolean = false,
-                         randomizePivotLocation: Boolean = false,
-                         randomlyRotateFeatures: Boolean = false,
-                         rng: Random = Random
-                       ) extends Learner {
+    numTrees: Int = -1,
+    useJackknife: Boolean = true,
+    biasLearner: Option[Learner] = None,
+    leafLearner: Option[Learner] = None,
+    subsetStrategy: Any = "auto",
+    minLeafInstances: Int = 1,
+    maxDepth: Int = Integer.MAX_VALUE,
+    uncertaintyCalibration: Boolean = false,
+    randomizePivotLocation: Boolean = false,
+    randomlyRotateFeatures: Boolean = false,
+    rng: Random = Random
+) extends Learner {
 
   /**
     * Train a random forest model
@@ -83,17 +83,21 @@ case class RandomForest(
         bagger.train(trainingData, weights)
       case _: Seq[Any] =>
         if (leafLearner.isDefined && !leafLearner.get.isInstanceOf[GuessTheMeanLearner]) {
-          throw new IllegalArgumentException("Multitask random forest does not support leaf learners other than guess-the-mean")
+          throw new IllegalArgumentException(
+            "Multitask random forest does not support leaf learners other than guess-the-mean"
+          )
         }
-        val DTLearner = new MultiTaskStandardizer(MultiTaskTreeLearner(
-          numFeatures = numFeatures,
-          maxDepth = maxDepth,
-          minLeafInstances = minLeafInstances,
-          randomizePivotLocation = randomizePivotLocation,
-          rng = rng
-        ))
+        val DTLearner = new MultiTaskStandardizer(
+          MultiTaskTreeLearner(
+            numFeatures = numFeatures,
+            maxDepth = maxDepth,
+            minLeafInstances = minLeafInstances,
+            randomizePivotLocation = randomizePivotLocation,
+            rng = rng
+          )
+        )
         val bagger = MultiTaskBagger(
-           if (randomlyRotateFeatures) MultiTaskFeatureRotator(DTLearner) else DTLearner,
+          if (randomlyRotateFeatures) MultiTaskFeatureRotator(DTLearner) else DTLearner,
           numBags = numTrees,
           useJackknife = useJackknife,
           biasLearner = biasLearner,

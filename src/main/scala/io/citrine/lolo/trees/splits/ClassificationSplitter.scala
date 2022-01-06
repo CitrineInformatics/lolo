@@ -9,7 +9,8 @@ import scala.util.Random
   *
   * Created by maxhutch on 12/2/16.
   */
-case class ClassificationSplitter(randomizedPivotLocation: Boolean = false, rng: Random = Random) extends Splitter[Char]{
+case class ClassificationSplitter(randomizedPivotLocation: Boolean = false, rng: Random = Random)
+    extends Splitter[Char] {
 
   /**
     * Get the best split, considering numFeature random features (w/o replacement)
@@ -19,10 +20,10 @@ case class ClassificationSplitter(randomizedPivotLocation: Boolean = false, rng:
     * @return a split object that optimally divides data
     */
   def getBestSplit(
-                    data: Seq[(Vector[AnyVal], Char, Double)],
-                    numFeatures: Int,
-                    minInstances: Int
-                  ): (Split, Double) = {
+      data: Seq[(Vector[AnyVal], Char, Double)],
+      numFeatures: Int,
+      minInstances: Int
+  ): (Split, Double) = {
     var bestSplit: Split = new NoSplit()
     var bestImpurity = Double.MaxValue
 
@@ -34,12 +35,12 @@ case class ClassificationSplitter(randomizedPivotLocation: Boolean = false, rng:
     /* Try every feature index */
     val featureIndices: Seq[Int] = rep._1.indices
     rng.shuffle(featureIndices).take(numFeatures).foreach { index =>
-
       /* Use different spliters for each type */
       val (possibleSplit, possibleImpurity) = rep._1(index) match {
-        case _: Double => Splitter.getBestRealSplit[Char](data, calculator, index, minInstances, randomizedPivotLocation, rng)
+        case _: Double =>
+          Splitter.getBestRealSplit[Char](data, calculator, index, minInstances, randomizedPivotLocation, rng)
         case _: Char => getBestCategoricalSplit(data, calculator, index, minInstances)
-        case _: Any => throw new IllegalArgumentException("Trying to split unknown feature type")
+        case _: Any  => throw new IllegalArgumentException("Trying to split unknown feature type")
       }
 
       /* Keep track of the best split */
@@ -57,11 +58,11 @@ case class ClassificationSplitter(randomizedPivotLocation: Boolean = false, rng:
   }
 
   def getBestCategoricalSplit(
-                               data: Seq[(Vector[AnyVal], Char, Double)],
-                               calculator: GiniCalculator,
-                               index: Int,
-                               minCount: Int
-                             ): (CategoricalSplit, Double) = {
+      data: Seq[(Vector[AnyVal], Char, Double)],
+      calculator: GiniCalculator,
+      index: Int,
+      minCount: Int
+  ): (CategoricalSplit, Double) = {
     val thinData = data.map(dat => (dat._1(index).asInstanceOf[Char], dat._2, dat._3))
     val groupedData = thinData.groupBy(_._1).mapValues { g =>
       val dict = g.groupBy(_._2).mapValues(v => v.map(_._3).sum)
@@ -80,8 +81,9 @@ case class ClassificationSplitter(randomizedPivotLocation: Boolean = false, rng:
     (0 until orderedNames.size - 1).foreach { j =>
       val gd = groupedData(orderedNames(j))
       val dict = gd._1
-      dict.foreach { case (y, w) =>
-        calculator.add(y, w)
+      dict.foreach {
+        case (y, w) =>
+          calculator.add(y, w)
       }
       leftNum = leftNum + gd._3
 
