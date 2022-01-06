@@ -38,7 +38,7 @@ case class RandomForest(
                          subsetStrategy: Any = "auto",
                          minLeafInstances: Int = 1,
                          maxDepth: Int = Integer.MAX_VALUE,
-                         uncertaintyCalibration: Boolean = false,
+                         uncertaintyCalibration: Boolean = true,
                          randomizePivotLocation: Boolean = false,
                          randomlyRotateFeatures: Boolean = false,
                          rng: Random = Random

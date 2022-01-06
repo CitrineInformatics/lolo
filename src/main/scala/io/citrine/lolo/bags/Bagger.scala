@@ -28,7 +28,7 @@ case class Bagger(
                    numBags: Int = -1,
                    useJackknife: Boolean = true,
                    biasLearner: Option[Learner] = None,
-                   uncertaintyCalibration: Boolean = false,
+                   uncertaintyCalibration: Boolean = true,
                    disableBootstrap: Boolean = false,
                    randBasis: RandBasis = Rand
                  ) extends Learner {
