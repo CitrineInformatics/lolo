@@ -58,7 +58,7 @@ def root_mean_squared_error(y_true, y_pred, rng=None):
     return _call_lolo_merit('RootMeanSquareError', y_true, y_pred, rng)
 
 
-def standard_confidence(y_true, y_pred, y_std, rng=None):
+def standard_confidence(y_true, y_pred, y_std, rng=None, observational=True):
     """Fraction of entries that have errors within the predicted confidence interval. 
     
     Args:
@@ -69,10 +69,10 @@ def standard_confidence(y_true, y_pred, y_std, rng=None):
         (double): standard confidence
     """
 
-    return _call_lolo_merit('StandardConfidence', y_true, y_pred, rng, y_std)
+    return _call_lolo_merit('StandardConfidence', y_true, y_pred, rng, y_std, observational)
 
 
-def standard_error(y_true, y_pred, y_std, rng=None, rescale=1.0):
+def standard_error(y_true, y_pred, y_std, rng=None, rescale=1.0, observational=True):
     """Root mean square of the error divided by the predicted uncertainty 
     
     Args:
@@ -84,10 +84,10 @@ def standard_error(y_true, y_pred, y_std, rng=None, rescale=1.0):
         (double): standard error
     """
 
-    return _call_lolo_merit('StandardError', y_true, y_pred, rng, y_std, float(rescale))
+    return _call_lolo_merit('StandardError', y_true, y_pred, rng, y_std, float(rescale), observational)
 
 
-def uncertainty_correlation(y_true, y_pred, y_std, rng=None):
+def uncertainty_correlation(y_true, y_pred, y_std, rng=None, observational=True):
     """Measure of the correlation between the predicted uncertainty and error magnitude
     
     Args:
@@ -97,4 +97,4 @@ def uncertainty_correlation(y_true, y_pred, y_std, rng=None):
     Returns:
         (double):
     """
-    return _call_lolo_merit('UncertaintyCorrelation', y_true, y_pred, rng, y_std)
+    return _call_lolo_merit('UncertaintyCorrelation', y_true, y_pred, rng, y_std, observational)
