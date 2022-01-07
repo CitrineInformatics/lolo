@@ -15,6 +15,7 @@ class RandomHyperOptimizer(rng: Random = Random) extends HyperOptimizer {
 
   /** Keep track of the best hypers outside of the optimize call so it persists across calls */
   var best: Map[String, Any] = Map()
+
   /** Likewise with the lowest loss */
   var loss = Double.MaxValue
 
@@ -25,11 +26,16 @@ class RandomHyperOptimizer(rng: Random = Random) extends HyperOptimizer {
     * @param numIterations number of draws to take
     * @return the best hyper map found in give iterations and the corresponding loss
     */
-  override def optimize(trainingData: Seq[(Vector[Any], Any)], numIterations: Int, builder: Map[String, Any] => Learner): (Map[String, Any], Double) = {
+  override def optimize(
+      trainingData: Seq[(Vector[Any], Any)],
+      numIterations: Int,
+      builder: Map[String, Any] => Learner
+  ): (Map[String, Any], Double) = {
     /* Just draw numIteration times */
     (0 until numIterations).foreach { i =>
-      val testHypers = hyperGrids.map { case (n, v) =>
-        n -> rng.shuffle(v).head
+      val testHypers = hyperGrids.map {
+        case (n, v) =>
+          n -> rng.shuffle(v).head
       }
       val testLearner = builder(testHypers)
       val res = testLearner.train(trainingData)

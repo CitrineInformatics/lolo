@@ -14,7 +14,7 @@ class ExtraRandomRegressionSplitterTest {
   def testZeroVariance(): Unit = {
     val rng = new Random(278345L)
     val splitter = ExtraRandomRegressionSplitter(rng)
-    val testData = Seq.fill(64){
+    val testData = Seq.fill(64) {
       val x = rng.nextDouble()
       val y = 1.0
       val weight = 1.0
@@ -36,7 +36,7 @@ class ExtraRandomRegressionSplitterTest {
   def testLowVariance(): Unit = {
     val rng = new Random(278345L)
     val splitter = ExtraRandomRegressionSplitter(rng)
-    val testData = Seq.fill(256){
+    val testData = Seq.fill(256) {
       val x = rng.nextDouble()
       val y = rng.nextGaussian() * 1.0e-9 + 1.0
       val weight = 1.0
@@ -57,9 +57,12 @@ class ExtraRandomRegressionSplitterTest {
     val baseGrid = Seq(0.0, 1.2)
     Seq(1, 5, 9).foreach { numFeatures =>
       // Arrange training input data as a regular grid, and then as a Gaussian-distributed sample.
-      Seq(TestUtils.enumerateGrid(Seq.fill(numFeatures)(baseGrid)), Seq.fill(64)(Vector.fill(numFeatures)(rng.nextGaussian()))).foreach { xTrain =>
+      Seq(
+        TestUtils.enumerateGrid(Seq.fill(numFeatures)(baseGrid)),
+        Seq.fill(64)(Vector.fill(numFeatures)(rng.nextGaussian()))
+      ).foreach { xTrain =>
         // Have ExtraRandomSplitter.getBestSplit choose a split from this number of randomly-chosen features.
-        (1 to numFeatures by Math.max(numFeatures/2,1)).foreach { numFeaturesToConsider =>
+        (1 to numFeatures by Math.max(numFeatures / 2, 1)).foreach { numFeaturesToConsider =>
           // Repeat with the same training inputs a few times with different random number streams.
           (1 to 4).foreach { repetitionNumber =>
             // Feature indices, which will be used to determine which features will be considered by the splitter (and in which order).
@@ -83,28 +86,42 @@ class ExtraRandomRegressionSplitterTest {
             val randomUniforms = Seq.fill(numFeatures)(rng.nextDouble())
 
             // Compute where the cut points should be placed, based on the the sequence of randomUniforms.
-            val cutPoints = shuffledFeatureIndices.zip(randomUniforms).map { case (i, u) =>
-              val x = trainingData.map(_._1(i))
-              val xmin = x.min
-              val xmax = x.max
-              val cutPoint = xmin + u * (xmax - xmin)
-              (i, cutPoint)
-            }.sortBy(_._1).map(_._2)
+            val cutPoints = shuffledFeatureIndices
+              .zip(randomUniforms)
+              .map {
+                case (i, u) =>
+                  val x = trainingData.map(_._1(i))
+                  val xmin = x.min
+                  val xmax = x.max
+                  val cutPoint = xmin + u * (xmax - xmin)
+                  (i, cutPoint)
+              }
+              .sortBy(_._1)
+              .map(_._2)
 
             // Compute the sum of variances across partitions of each possible cut.
             val varianceSums = featureIndices.map { k =>
-              trainingData.groupBy { v => v._1(k) < cutPoints(k) }.flatMap { case (_, subset) =>
-                val mean = subset.map(_._2).sum / subset.length
-                subset.map { case (_, yi, _) =>
-                  Math.pow(yi - mean, 2)
+              trainingData
+                .groupBy { v => v._1(k) < cutPoints(k) }
+                .flatMap {
+                  case (_, subset) =>
+                    val mean = subset.map(_._2).sum / subset.length
+                    subset.map {
+                      case (_, yi, _) =>
+                        Math.pow(yi - mean, 2)
+                    }
                 }
-              }.sum
+                .sum
             }
 
             // Choose the index on which a split results in the lowest sum of variances.
-            val indexOfBest = shuffledFeatureIndices.take(numFeaturesToConsider).map { i =>
-              (i, varianceSums(i))
-            }.minBy(_._2)._1
+            val indexOfBest = shuffledFeatureIndices
+              .take(numFeaturesToConsider)
+              .map { i =>
+                (i, varianceSums(i))
+              }
+              .minBy(_._2)
+              ._1
 
             // Instantiate the splitter to test, passing in the random number generator that is reset to its former state used above.
             rng.setSeed(sharedSeed)
@@ -116,15 +133,23 @@ class ExtraRandomRegressionSplitterTest {
             val testCaveatMessage = "NOTE: this test may inaccurately fail due to changes in the sequence of rng calls."
             assert(bestSplit._1.getIndex() == indexOfBest, s"Incorrect index of best split. $testCaveatMessage")
             // Do a sanity check about the directionality of turnLeft to ensure this test is valid.
-            assert(bestSplit._1.turnLeft(Vector.fill(numFeatures)(xTrain.flatten.min)),
-              s"Unexpected directionality of turnLeft, which is probably a bug with the test itself.")
-            assert(!bestSplit._1.turnLeft(Vector.fill(numFeatures)(xTrain.flatten.max)),
-              s"Unexpected directionality of turnLeft, which is probably a bug with the test itself.")
+            assert(
+              bestSplit._1.turnLeft(Vector.fill(numFeatures)(xTrain.flatten.min)),
+              s"Unexpected directionality of turnLeft, which is probably a bug with the test itself."
+            )
+            assert(
+              !bestSplit._1.turnLeft(Vector.fill(numFeatures)(xTrain.flatten.max)),
+              s"Unexpected directionality of turnLeft, which is probably a bug with the test itself."
+            )
             // And ensure that we're turning at the right place.
-            assert(bestSplit._1.turnLeft(Vector.fill(numFeatures)(cutPoints(indexOfBest) - 1e-8)),
-              s"Split not placed at correct location. $testCaveatMessage")
-            assert(!bestSplit._1.turnLeft(Vector.fill(numFeatures)(cutPoints(indexOfBest) + 1e-8)),
-              s"Split not placed at correct location. $testCaveatMessage")
+            assert(
+              bestSplit._1.turnLeft(Vector.fill(numFeatures)(cutPoints(indexOfBest) - 1e-8)),
+              s"Split not placed at correct location. $testCaveatMessage"
+            )
+            assert(
+              !bestSplit._1.turnLeft(Vector.fill(numFeatures)(cutPoints(indexOfBest) + 1e-8)),
+              s"Split not placed at correct location. $testCaveatMessage"
+            )
           }
         }
       }

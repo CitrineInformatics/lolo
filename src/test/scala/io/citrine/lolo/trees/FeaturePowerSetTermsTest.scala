@@ -1,6 +1,6 @@
 package io.citrine.lolo.trees
 
-import breeze.linalg.{DenseVector, norm}
+import breeze.linalg.{norm, DenseVector}
 import org.junit.Test
 import org.scalatest.Assertions._
 
@@ -64,8 +64,9 @@ class FeaturePowerSetTermsTest {
     assert(path.size == newPath.size + 3)
 
     newPath = path.copy()
-    path.weightBySubsetSize.zip(newPath.weightBySubsetSize).foreach { case (p, np) =>
-      assert(p == np)
+    path.weightBySubsetSize.zip(newPath.weightBySubsetSize).foreach {
+      case (p, np) =>
+        assert(p == np)
     }
   }
 
@@ -88,8 +89,9 @@ class FeaturePowerSetTermsTest {
     val anotherSet = new FeaturePowerSetTerms(secondFactors.size)
     secondFactors.foreach(x => anotherSet.extend(x._1, x._2))
 
-    val thinedSet = firstFactors.foldLeft(set) { case (tmp, x) =>
-      tmp.unwind(x._1, x._2)
+    val thinedSet = firstFactors.foldLeft(set) {
+      case (tmp, x) =>
+        tmp.unwind(x._1, x._2)
     }
 
     val anotherWeights = new DenseVector(anotherSet.weightBySubsetSize)

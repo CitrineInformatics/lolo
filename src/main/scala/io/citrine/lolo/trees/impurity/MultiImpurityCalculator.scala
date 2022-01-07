@@ -6,8 +6,8 @@ package io.citrine.lolo.trees.impurity
   * @param calculators to use to compute the impurity of each index
   */
 class MultiImpurityCalculator(
-                               calculators: Seq[ImpurityCalculator[AnyVal]]
-                             ) extends ImpurityCalculator[Array[AnyVal]] {
+    calculators: Seq[ImpurityCalculator[AnyVal]]
+) extends ImpurityCalculator[Array[AnyVal]] {
 
   /**
     * Add the value to each calculator
@@ -17,12 +17,13 @@ class MultiImpurityCalculator(
     * @return the impurity after adding
     */
   def add(value: Array[AnyVal], weight: Double): Double = {
-    value.zip(calculators).map { case (v, calc) =>
-      if (v.isInstanceOf[Double]) {
-        calc.asInstanceOf[ImpurityCalculator[Double]].add(v.asInstanceOf[Double], weight)
-      } else if (v.isInstanceOf[Char]) {
-        calc.asInstanceOf[ImpurityCalculator[Char]].add(v.asInstanceOf[Char], weight)
-      }
+    value.zip(calculators).map {
+      case (v, calc) =>
+        if (v.isInstanceOf[Double]) {
+          calc.asInstanceOf[ImpurityCalculator[Double]].add(v.asInstanceOf[Double], weight)
+        } else if (v.isInstanceOf[Char]) {
+          calc.asInstanceOf[ImpurityCalculator[Char]].add(v.asInstanceOf[Char], weight)
+        }
     }
 
     getImpurity
@@ -36,12 +37,13 @@ class MultiImpurityCalculator(
     * @return the impurity after removing
     */
   def remove(value: Array[AnyVal], weight: Double): Double = {
-    value.zip(calculators).map { case (v, calc) =>
-      if (v.isInstanceOf[Double]) {
-        calc.asInstanceOf[ImpurityCalculator[Double]].remove(v.asInstanceOf[Double], weight)
-      } else if (v.isInstanceOf[Char]) {
-        calc.asInstanceOf[ImpurityCalculator[Char]].remove(v.asInstanceOf[Char], weight)
-      }
+    value.zip(calculators).map {
+      case (v, calc) =>
+        if (v.isInstanceOf[Double]) {
+          calc.asInstanceOf[ImpurityCalculator[Double]].remove(v.asInstanceOf[Double], weight)
+        } else if (v.isInstanceOf[Char]) {
+          calc.asInstanceOf[ImpurityCalculator[Char]].remove(v.asInstanceOf[Char], weight)
+        }
     }
 
     getImpurity
@@ -68,6 +70,7 @@ class MultiImpurityCalculator(
   * Companion object
   */
 object MultiImpurityCalculator {
+
   /**
     * Build the calculators for each index and then wrap them in the MultiImpurityCalculator
     *
@@ -78,17 +81,15 @@ object MultiImpurityCalculator {
   def build(labels: Seq[Array[AnyVal]], weights: Seq[Double]): MultiImpurityCalculator = {
     val calculators: Seq[ImpurityCalculator[AnyVal]] = labels.transpose.map { labelSeq =>
       if (labelSeq.head.isInstanceOf[Double]) {
-        VarianceCalculator.build(labelSeq.asInstanceOf[Seq[Double]], weights)
+        VarianceCalculator
+          .build(labelSeq.asInstanceOf[Seq[Double]], weights)
           .asInstanceOf[ImpurityCalculator[AnyVal]]
       } else {
-        GiniCalculator.build(labelSeq.asInstanceOf[Seq[Char]].zip(weights))
+        GiniCalculator
+          .build(labelSeq.asInstanceOf[Seq[Char]].zip(weights))
           .asInstanceOf[ImpurityCalculator[AnyVal]]
       }
     }
     new MultiImpurityCalculator(calculators)
   }
 }
-
-
-
-

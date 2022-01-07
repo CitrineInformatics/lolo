@@ -33,6 +33,7 @@ class CategoricalEncoder[T](encoding: Map[T, Char]) extends Serializable {
 
 /** Companion object */
 object CategoricalEncoder {
+
   /**
     * Build an encoder from a list of input values
     *
@@ -52,11 +53,12 @@ object CategoricalEncoder {
     * @return input with categoricals encoded as chars
     */
   def encodeInput(input: Vector[Any], encoders: Seq[Option[CategoricalEncoder[Any]]]): Vector[AnyVal] = {
-    input.zip(encoders).map { case (v, e) =>
-      e match {
-        case Some(x) => x.encode(v)
-        case None => v.asInstanceOf[AnyVal]
-      }
+    input.zip(encoders).map {
+      case (v, e) =>
+        e match {
+          case Some(x) => x.encode(v)
+          case None    => v.asInstanceOf[AnyVal]
+        }
     }
   }
 }

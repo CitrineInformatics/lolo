@@ -25,14 +25,15 @@ trait Model[+T <: PredictionResult[Any]] extends Serializable {
     *         The output dimension is 1 for single-task regression, or equal to the number of classification categories.
     */
   def shapley(
-               input: Vector[Any],
-               omitFeatures: Set[Int] = Set()
-             ): Option[DenseMatrix[Double]] = None
+      input: Vector[Any],
+      omitFeatures: Set[Int] = Set()
+  ): Option[DenseMatrix[Double]] = None
 
 }
 
 /** A model that predicts a sequence of values, corresponding to multiple labels. */
 trait MultiTaskModel extends Model[MultiTaskModelPredictionResult] {
+
   /** The number of labels. Every prediction must have this length. */
   val numLabels: Int
 
@@ -56,9 +57,10 @@ class ParallelModels(models: Seq[Model[PredictionResult[Any]]], realLabels: Seq[
 
   override def getModels: Seq[Model[PredictionResult[Any]]] = models
 
-  override def transform(inputs: Seq[Vector[Any]]) = new ParallelModelsPredictionResult(
-    models.map { model =>
-      model.transform(inputs).getExpected()
-    }.transpose
-  )
+  override def transform(inputs: Seq[Vector[Any]]) =
+    new ParallelModelsPredictionResult(
+      models.map { model =>
+        model.transform(inputs).getExpected()
+      }.transpose
+    )
 }

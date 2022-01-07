@@ -1,6 +1,6 @@
 package io.citrine.lolo.stats.metrics
 
-import breeze.linalg.{DenseMatrix, sum}
+import breeze.linalg.{sum, DenseMatrix}
 
 /**
   * Created by maxhutch on 12/28/16.

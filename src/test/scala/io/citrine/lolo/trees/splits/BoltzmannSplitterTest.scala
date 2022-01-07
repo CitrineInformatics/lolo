@@ -13,7 +13,7 @@ class BoltzmannSplitterTest {
   @Test
   def testZeroVariance(): Unit = {
     val splitter = BoltzmannSplitter(1.0e-9, rng = rng)
-    val testData = Seq.fill(64){
+    val testData = Seq.fill(64) {
       val x = rng.nextDouble()
       val y = 1.0
       val weight = 1.0
@@ -34,7 +34,7 @@ class BoltzmannSplitterTest {
   @Test
   def testLowVariance(): Unit = {
     val splitter = BoltzmannSplitter(1.0e-18, rng = rng)
-    val testData = Seq.fill(256){
+    val testData = Seq.fill(256) {
       val x = rng.nextDouble()
       val y = rng.nextGaussian() * 1.0e-9 + 1.0
       val weight = 1.0

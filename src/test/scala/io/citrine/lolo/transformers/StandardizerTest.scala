@@ -17,7 +17,8 @@ import scala.util.Random
 class StandardizerTest {
   val rng = new Random(823478686L)
 
-  val data: Vector[(Vector[Double], Double)] = TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman)
+  val data: Vector[(Vector[Double], Double)] =
+    TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman)
   val weights: Vector[Double] = Vector.fill(data.size)(if (rng.nextBoolean()) rng.nextDouble() else 0.0)
 
   // Creating another dataset which has 1 feature that has 0 variance.
@@ -30,7 +31,7 @@ class StandardizerTest {
 
     val standardInputs = Standardizer.applyStandardization(inputs, inputTransforms)
     standardInputs.head.indices.foreach { i =>
-      val values = standardInputs.map(_ (i).asInstanceOf[Double])
+      val values = standardInputs.map(_(i).asInstanceOf[Double])
       val mean = values.sum / values.size
       assert(mean < 1.0e-9, s"Standard input ${i} has non-zero mean ${mean}")
 
@@ -62,8 +63,9 @@ class StandardizerTest {
     val standardModel = standardLearner.train(data).getModel()
     val standardResult = standardModel.transform(data.map(_._1)).getExpected()
 
-    result.zip(standardResult).foreach { case (free: Double, standard: Double) =>
-      assert(Math.abs(free - standard) < 1.0e-9, s"${free} and ${standard} should be the same")
+    result.zip(standardResult).foreach {
+      case (free: Double, standard: Double) =>
+        assert(Math.abs(free - standard) < 1.0e-9, s"${free} and ${standard} should be the same")
     }
   }
 
@@ -84,13 +86,15 @@ class StandardizerTest {
     val standardExpected = standardResult.getExpected()
     val standardGradient = standardResult.getGradient()
 
-    expected.zip(standardExpected).foreach { case (free: Double, standard: Double) =>
-      assert(Math.abs(free - standard) < 1.0e-9, s"${free} and ${standard} should be the same")
+    expected.zip(standardExpected).foreach {
+      case (free: Double, standard: Double) =>
+        assert(Math.abs(free - standard) < 1.0e-9, s"${free} and ${standard} should be the same")
     }
 
-    gradient.get.zip(standardGradient.get).foreach { case (free, standard) =>
-      val diff = free.zip(standard).map { case (f, s) => Math.abs(f - s) }.max
-      assert(diff < 1.0e-9, "Gradients should be the same")
+    gradient.get.zip(standardGradient.get).foreach {
+      case (free, standard) =>
+        val diff = free.zip(standard).map { case (f, s) => Math.abs(f - s) }.max
+        assert(diff < 1.0e-9, "Gradients should be the same")
     }
   }
 
@@ -113,20 +117,28 @@ class StandardizerTest {
     val standardExpected = standardResult.getExpected()
     val standardGradient = standardResult.getGradient()
 
-
-    gradient.get.toList.flatten.zip(standardGradient.get.toList.flatten).foreach { case (free: Double, standard: Double) =>
-      assert(Math.abs(free - standard) < 1.0e-9, s"Failed test for gradient. ${free} and ${standard} gradients should be the same")
+    gradient.get.toList.flatten.zip(standardGradient.get.toList.flatten).foreach {
+      case (free: Double, standard: Double) =>
+        assert(
+          Math.abs(free - standard) < 1.0e-9,
+          s"Failed test for gradient. ${free} and ${standard} gradients should be the same"
+        )
     }
 
     // The gradient wrt the first constant feature is ill-defined without regularization
-    gradient.get.zip(standardGradient.get).foreach { case (free, standard) =>
-      val diff = free.zip(standard).map { case (f, s) => Math.abs(f - s) }.max
-      assert(diff < 1.0e-9, s"Gradients should be the same. The diff is $diff")
+    gradient.get.zip(standardGradient.get).foreach {
+      case (free, standard) =>
+        val diff = free.zip(standard).map { case (f, s) => Math.abs(f - s) }.max
+        assert(diff < 1.0e-9, s"Gradients should be the same. The diff is $diff")
     }
 
     // This test fails ~30% of the time when nRows=30, but its not clear why.
-    expected.zip(standardExpected).foreach { case (free: Double, standard: Double) =>
-      assert(Math.abs(free - standard) < 1.0e-9, s"Failed test for expected. ${free} and ${standard} should be the same")
+    expected.zip(standardExpected).foreach {
+      case (free: Double, standard: Double) =>
+        assert(
+          Math.abs(free - standard) < 1.0e-9,
+          s"Failed test for expected. ${free} and ${standard} should be the same"
+        )
     }
   }
 
@@ -143,16 +155,16 @@ class StandardizerTest {
     val standardModel = standardLearner.train(data).getModel()
     val standardResult = standardModel.transform(data.map(_._1)).getExpected()
 
-    result.zip(standardResult).foreach { case (free: Double, standard: Double) =>
-      assert(Math.abs(free - standard) > 1.0e-9, s"${free} and ${standard} should NOT be the same")
+    result.zip(standardResult).foreach {
+      case (free: Double, standard: Double) =>
+        assert(Math.abs(free - standard) > 1.0e-9, s"${free} and ${standard} should NOT be the same")
     }
   }
 
   @Test
   def testStandardClassification(): Unit = {
     val trainingData = TestUtils.binTrainingData(
-      TestUtils.generateTrainingData(2048, 12, noise = 0.1,
-        function = Friedman.friedmanSilverman),
+      TestUtils.generateTrainingData(2048, 12, noise = 0.1, function = Friedman.friedmanSilverman),
       responseBins = Some(2)
     )
 
@@ -163,8 +175,9 @@ class StandardizerTest {
     val standardLearner = Standardizer(learner)
     val standardModel = standardLearner.train(trainingData).getModel()
     val standardResult = standardModel.transform(trainingData.map(_._1)).getExpected()
-    result.zip(standardResult).foreach { case (free: String, standard: String) =>
-      assert(free == standard, s"Standard classification tree should be the same")
+    result.zip(standardResult).foreach {
+      case (free: String, standard: String) =>
+        assert(free == standard, s"Standard classification tree should be the same")
     }
   }
 

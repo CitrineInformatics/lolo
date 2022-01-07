@@ -35,8 +35,10 @@ class ExtraRandomTreesTest {
       val sigma: Seq[Double] = results.getUncertainty(observational = false).get.asInstanceOf[Seq[Double]]
       assert(sigma.forall(_ >= 0.0))
 
-      assert(results.getUncertainty(observational = true).isEmpty,
-        "Observational uncertainty should be empty, since jackknife is disabled.")
+      assert(
+        results.getUncertainty(observational = true).isEmpty,
+        "Observational uncertainty should be empty, since jackknife is disabled."
+      )
 
       assert(results.getGradient().isEmpty, "Returned a gradient when there shouldn't be one")
 
@@ -59,27 +61,38 @@ class ExtraRandomTreesTest {
     val nTest = nTrain
     val nBins = 8
     val trainingData = TestUtils.binTrainingData(
-      TestUtils.generateTrainingData(nTrain, 5, noise = 0.0, function = Friedman.friedmanSilverman, seed = rng.nextLong()),
+      TestUtils
+        .generateTrainingData(nTrain, 5, noise = 0.0, function = Friedman.friedmanSilverman, seed = rng.nextLong()),
       responseBins = Some(nBins)
     )
 
     /* Generate small perturbations from the training data */
-    val testData = trainingData.map { r =>
-      (r._1.map { _.asInstanceOf[Double] + 0.05 * rng.nextGaussian() }, r._2)
-    }.take(nTest)
+    val testData = trainingData
+      .map { r =>
+        (r._1.map { _.asInstanceOf[Double] + 0.05 * rng.nextGaussian() }, r._2)
+      }
+      .take(nTest)
 
     Seq(true, false).foreach { randomlyRotateFeatures =>
       Seq(true, false).foreach { disableBootstrap =>
         Seq(1, 2).foreach { minLeafInstances =>
           rng.setSeed(238834L)
 
-          val RFMeta = ExtraRandomTrees(numTrees = trainingData.size * 4, randomlyRotateFeatures = randomlyRotateFeatures,
-            disableBootstrap = disableBootstrap, rng = rng, minLeafInstances = minLeafInstances
+          val RFMeta = ExtraRandomTrees(
+            numTrees = trainingData.size * 4,
+            randomlyRotateFeatures = randomlyRotateFeatures,
+            disableBootstrap = disableBootstrap,
+            rng = rng,
+            minLeafInstances = minLeafInstances
           ).train(trainingData)
           val RF = RFMeta.getModel()
 
           /* Inspect the results on the training set */
-          val trueRateTrainingSet = trainingData.map(_._2).zip(RF.transform(trainingData.map(_._1)).getExpected()).count { case (a, p) => a == p }.toDouble / nTrain
+          val trueRateTrainingSet = trainingData
+            .map(_._2)
+            .zip(RF.transform(trainingData.map(_._1)).getExpected())
+            .count { case (a, p) => a == p }
+            .toDouble / nTrain
           if (minLeafInstances == 1 && disableBootstrap) {
             assert(trueRateTrainingSet == 1.0)
           } else {
@@ -95,10 +108,11 @@ class ExtraRandomTreesTest {
           /* Check that class probabilities are reasonable */
           val uncertainty = results.getUncertainty()
           assert(uncertainty.isDefined)
-          assert(testData.map(_._2).zip(uncertainty.get).forall { case (a, probs) =>
-            val classProbabilities = probs.asInstanceOf[Map[Any, Double]]
-            val maxProb = classProbabilities(a)
-            maxProb > 1.0/(2*nBins) && maxProb < 1.0 && Math.abs(classProbabilities.values.sum - 1.0) < 1.0e-6
+          assert(testData.map(_._2).zip(uncertainty.get).forall {
+            case (a, probs) =>
+              val classProbabilities = probs.asInstanceOf[Map[Any, Double]]
+              val maxProb = classProbabilities(a)
+              maxProb > 1.0 / (2 * nBins) && maxProb < 1.0 && Math.abs(classProbabilities.values.sum - 1.0) < 1.0e-6
           })
         }
       }
@@ -113,47 +127,64 @@ class ExtraRandomTreesTest {
   def testClassificationUnbiased(): Unit = {
     rng.setSeed(257834L)
     val numTrials = 20
-    val (winsSuffixed, winsPrefixed): (Int,Int) = (0 until numTrials).map { _ =>
-      val nTrain = 64
-      val nTest = 16
-      val (mainTrainingData, testData) = {
-        val allData = TestUtils.binTrainingData(
-          TestUtils.generateTrainingData(nTrain + nTest, 5, noise = 0.1, function = Friedman.friedmanSilverman, seed = rng.nextLong()),
-          responseBins = Some(2)
+    val (winsSuffixed, winsPrefixed): (Int, Int) = (0 until numTrials)
+      .map { _ =>
+        val nTrain = 64
+        val nTest = 16
+        val (mainTrainingData, testData) = {
+          val allData = TestUtils.binTrainingData(
+            TestUtils.generateTrainingData(
+              nTrain + nTest,
+              5,
+              noise = 0.1,
+              function = Friedman.friedmanSilverman,
+              seed = rng.nextLong()
+            ),
+            responseBins = Some(2)
+          )
+          (allData.take(nTrain), allData.takeRight(nTest))
+        }
+        val dupeLabel = "DUPE"
+        val trainingDataSuffixed = mainTrainingData ++ Seq(
+          (mainTrainingData.head._1, dupeLabel)
         )
-        (allData.take(nTrain), allData.takeRight(nTest))
-      }
-      val dupeLabel = "DUPE"
-      val trainingDataSuffixed = mainTrainingData ++ Seq(
-        (mainTrainingData.head._1, dupeLabel)
-      )
-      val trainingDataPrefixed = Seq(
-        (mainTrainingData.head._1, dupeLabel)
-      ) ++ mainTrainingData
+        val trainingDataPrefixed = Seq(
+          (mainTrainingData.head._1, dupeLabel)
+        ) ++ mainTrainingData
 
-      val RFSuffixed = ExtraRandomTrees(numTrees = trainingDataSuffixed.size * 2, rng = rng).train(trainingDataSuffixed)
-      val RFPrefixed = ExtraRandomTrees(numTrees = trainingDataPrefixed.size * 2, rng = rng).train(trainingDataPrefixed)
-      val predictedSuffixed = RFSuffixed.getModel().transform(testData.map(_._1))
-      val predictedPrefixed = RFPrefixed.getModel().transform(testData.map(_._1))
-      val extraLabelCountSuffixed = predictedSuffixed.getExpected().count { case p: String => p == dupeLabel }
-      val extraLabelCountPrefixed = predictedPrefixed.getExpected().count { case p: String => p == dupeLabel }
+        val RFSuffixed =
+          ExtraRandomTrees(numTrees = trainingDataSuffixed.size * 2, rng = rng).train(trainingDataSuffixed)
+        val RFPrefixed =
+          ExtraRandomTrees(numTrees = trainingDataPrefixed.size * 2, rng = rng).train(trainingDataPrefixed)
+        val predictedSuffixed = RFSuffixed.getModel().transform(testData.map(_._1))
+        val predictedPrefixed = RFPrefixed.getModel().transform(testData.map(_._1))
+        val extraLabelCountSuffixed = predictedSuffixed.getExpected().count { case p: String => p == dupeLabel }
+        val extraLabelCountPrefixed = predictedPrefixed.getExpected().count { case p: String => p == dupeLabel }
 
-      if (extraLabelCountSuffixed > extraLabelCountPrefixed) {
-        (1,0)
-      } else if (extraLabelCountSuffixed < extraLabelCountPrefixed) {
-        (0,1)
-      } else {
-        (0,0)
+        if (extraLabelCountSuffixed > extraLabelCountPrefixed) {
+          (1, 0)
+        } else if (extraLabelCountSuffixed < extraLabelCountPrefixed) {
+          (0, 1)
+        } else {
+          (0, 0)
+        }
       }
-    }.asInstanceOf[Seq[(Int,Int)]].reduce{(a: (Int,Int),b: (Int,Int))=>(a._1 + b._1, a._2 + b._2)}
+      .asInstanceOf[Seq[(Int, Int)]]
+      .reduce { (a: (Int, Int), b: (Int, Int)) => (a._1 + b._1, a._2 + b._2) }
 
     // Posterior beta distribution with Jeffreys prior.
     val d = new Beta(winsSuffixed + 0.5, winsPrefixed + 0.5)
     val l = d.inverseCdf(2e-6)
-    val r = d.inverseCdf(1-2e-6)
+    val r = d.inverseCdf(1 - 2e-6)
     val tol = 1e-2
-    assert(l < 0.5 - tol, f"Bias detected toward prefixed duplicate rows: rate ${d.mean}%.3f (1e-6 CI ${l}%.3f - ${r}%.3f) should be close to 0.5")
-    assert(r > 0.5 + tol, f"Bias detected toward suffixed duplicate rows: rate ${d.mean}%.3f (1e-6 CI ${l}%.3f - ${r}%.3f) should be close to 0.5")
+    assert(
+      l < 0.5 - tol,
+      f"Bias detected toward prefixed duplicate rows: rate ${d.mean}%.3f (1e-6 CI ${l}%.3f - ${r}%.3f) should be close to 0.5"
+    )
+    assert(
+      r > 0.5 + tol,
+      f"Bias detected toward suffixed duplicate rows: rate ${d.mean}%.3f (1e-6 CI ${l}%.3f - ${r}%.3f) should be close to 0.5"
+    )
   }
 
   /**

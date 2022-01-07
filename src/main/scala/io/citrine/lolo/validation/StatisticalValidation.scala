@@ -28,12 +28,12 @@ case class StatisticalValidation(rng: Random = Random) {
     * @return predicted-vs-actual data that can be fed into a metric or visualization
     */
   def generativeValidation[T](
-                               source: Iterator[(Vector[Any], T)],
-                               learner: Learner,
-                               nTrain: Int,
-                               nTest: Int,
-                               nRound: Int
-                             ): Iterator[(PredictionResult[T], Seq[T])] = {
+      source: Iterator[(Vector[Any], T)],
+      learner: Learner,
+      nTrain: Int,
+      nTest: Int,
+      nRound: Int
+  ): Iterator[(PredictionResult[T], Seq[T])] = {
     Iterator.tabulate(nRound) { _ =>
       val trainingData: Seq[(Vector[Any], T)] = source.take(nTrain).toSeq
       val model = learner.train(trainingData).getModel()
@@ -62,12 +62,12 @@ case class StatisticalValidation(rng: Random = Random) {
     * @return predicted-vs-actual data that can be fed into a metric or visualization
     */
   def generativeValidation[T](
-                               source: Iterable[(Vector[Any], T)],
-                               learner: Learner,
-                               nTrain: Int,
-                               nTest: Int,
-                               nRound: Int
-                             ): Iterator[(PredictionResult[T], Seq[T])] = {
+      source: Iterable[(Vector[Any], T)],
+      learner: Learner,
+      nTrain: Int,
+      nTest: Int,
+      nRound: Int
+  ): Iterator[(PredictionResult[T], Seq[T])] = {
     Iterator.tabulate(nRound) { _ =>
       val subset = rng.shuffle(source).take(nTrain + nTest)
       val (trainingData: Seq[(Vector[Any], T)], testData: Seq[(Vector[Any], T)]) = subset.splitAt(nTrain)

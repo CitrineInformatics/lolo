@@ -1,7 +1,7 @@
 package io.citrine.lolo.transformers
 
 import io.citrine.lolo._
-import breeze.linalg.{DenseMatrix, DenseVector, diag, qr}
+import breeze.linalg.{diag, qr, DenseMatrix, DenseVector}
 import breeze.linalg.qr.QR
 import breeze.numerics.signum
 import breeze.stats.distributions.Gaussian
@@ -24,9 +24,9 @@ case class FeatureRotator(baseLearner: Learner) extends Learner {
     * @return training result containing a model
     */
   override def train(
-                     trainingData: Seq[(Vector[Any], Any)],
-                     weights: Option[Seq[Double]]
-                    ): RotatedFeatureTrainingResult = {
+      trainingData: Seq[(Vector[Any], Any)],
+      weights: Option[Seq[Double]]
+  ): RotatedFeatureTrainingResult = {
     val featuresToRotate = FeatureRotator.getDoubleFeatures(trainingData.head._1)
     val trans = FeatureRotator.getRandomRotation(featuresToRotate.length)
 
@@ -48,9 +48,9 @@ case class MultiTaskFeatureRotator(baseLearner: MultiTaskLearner) extends MultiT
     * @return a sequence of training results, one for each label
     */
   override def train(
-                      trainingData: Seq[(Vector[Any], Vector[Any])],
-                      weights: Option[Seq[Double]]
-                    ): MultiTaskRotatedFeatureTrainingResult = {
+      trainingData: Seq[(Vector[Any], Vector[Any])],
+      weights: Option[Seq[Double]]
+  ): MultiTaskRotatedFeatureTrainingResult = {
     val inputs = trainingData.map(_._1)
     val labels = trainingData.map(_._2)
     val featuresToRotate = FeatureRotator.getDoubleFeatures(inputs.head)
@@ -69,10 +69,10 @@ case class MultiTaskFeatureRotator(baseLearner: MultiTaskLearner) extends MultiT
   * @param trans matrix to apply to features
   */
 case class RotatedFeatureTrainingResult(
-                                   baseTrainingResult: TrainingResult,
-                                   rotatedFeatures: IndexedSeq[Int],
-                                   trans: DenseMatrix[Double]
-                                  ) extends TrainingResult {
+    baseTrainingResult: TrainingResult,
+    rotatedFeatures: IndexedSeq[Int],
+    trans: DenseMatrix[Double]
+) extends TrainingResult {
 
   /**
     * Get the model contained in the training result
@@ -102,22 +102,25 @@ case class RotatedFeatureTrainingResult(
   * @param trans matrix to apply to features
   */
 case class MultiTaskRotatedFeatureTrainingResult(
-                                                  baseTrainingResult: MultiTaskTrainingResult,
-                                                  rotatedFeatures: IndexedSeq[Int],
-                                                  trans: DenseMatrix[Double]
-                                                ) extends MultiTaskTrainingResult {
+    baseTrainingResult: MultiTaskTrainingResult,
+    rotatedFeatures: IndexedSeq[Int],
+    trans: DenseMatrix[Double]
+) extends MultiTaskTrainingResult {
   override def getModel(): MultiTaskModel = new ParallelModels(getModels(), baseTrainingResult.getModel().getRealLabels)
 
-  override def getModels(): Seq[Model[PredictionResult[Any]]] = baseTrainingResult.getModels().map { model =>
-    RotatedFeatureModel(model, rotatedFeatures, trans)
-  }
+  override def getModels(): Seq[Model[PredictionResult[Any]]] =
+    baseTrainingResult.getModels().map { model =>
+      RotatedFeatureModel(model, rotatedFeatures, trans)
+    }
 
   override def getPredictedVsActual(): Option[Seq[(Vector[Any], Seq[Option[Any]], Seq[Option[Any]])]] = {
     baseTrainingResult.getPredictedVsActual() match {
       case None => None
-      case Some(predictedVsActual) => Some(predictedVsActual.map { case (inputs: Vector[Any], predicted: Seq[Option[Any]], actual: Seq[Option[Any]]) =>
-        (FeatureRotator.applyOneRotation(inputs, rotatedFeatures, trans), predicted, actual)
-      })
+      case Some(predictedVsActual) =>
+        Some(predictedVsActual.map {
+          case (inputs: Vector[Any], predicted: Seq[Option[Any]], actual: Seq[Option[Any]]) =>
+            (FeatureRotator.applyOneRotation(inputs, rotatedFeatures, trans), predicted, actual)
+        })
     }
   }
 }
@@ -131,10 +134,10 @@ case class MultiTaskRotatedFeatureTrainingResult(
   * @tparam T label type
   */
 case class RotatedFeatureModel[T](
-                             baseModel: Model[PredictionResult[T]],
-                             rotatedFeatures: IndexedSeq[Int],
-                             trans: DenseMatrix[Double]
-                            ) extends Model[PredictionResult[T]] {
+    baseModel: Model[PredictionResult[T]],
+    rotatedFeatures: IndexedSeq[Int],
+    trans: DenseMatrix[Double]
+) extends Model[PredictionResult[T]] {
 
   /**
     * Transform the inputs and then apply the base model
@@ -143,7 +146,7 @@ case class RotatedFeatureModel[T](
     * @return a RotatedFeaturePredictionResult which includes, at least, the expected outputs
     */
   override def transform(inputs: Seq[Vector[Any]]): RotatedFeaturePrediction[T] = {
-    val rotatedInputs = FeatureRotator.applyRotation(inputs, rotatedFeatures,  trans)
+    val rotatedInputs = FeatureRotator.applyRotation(inputs, rotatedFeatures, trans)
     RotatedFeaturePrediction(baseModel.transform(rotatedInputs), rotatedFeatures, trans)
   }
 }
@@ -157,10 +160,11 @@ case class RotatedFeatureModel[T](
   * @tparam T label type
   */
 case class RotatedFeaturePrediction[T](
-                                  baseResult: PredictionResult[T],
-                                  rotatedFeatures: IndexedSeq[Int],
-                                  trans: DenseMatrix[Double]
-                                 ) extends PredictionResult[T] {
+    baseResult: PredictionResult[T],
+    rotatedFeatures: IndexedSeq[Int],
+    trans: DenseMatrix[Double]
+) extends PredictionResult[T] {
+
   /**
     * Get the expected values for this prediction by delegating to baseResult
     *
@@ -169,10 +173,10 @@ case class RotatedFeaturePrediction[T](
   override def getExpected(): Seq[T] = baseResult.getExpected().asInstanceOf[Seq[T]]
 
   /**
-   * Get the uncertainty of the prediction by delegating to baseResult
-   *
-   * @return uncertainty of each prediction
-   */
+    * Get the uncertainty of the prediction by delegating to baseResult
+    *
+    * @return uncertainty of each prediction
+    */
   override def getUncertainty(observational: Boolean): Option[Seq[Any]] = baseResult.getUncertainty(observational)
 
   /**
@@ -203,7 +207,7 @@ object FeatureRotator {
     val X = DenseMatrix.rand(dimension, dimension, Gaussian(0, 1))
     val QR(_Q, _R) = qr(X)
     val d = signum(diag(_R))
-    val detV = d.reduce((a,b) => a*b)
+    val detV = d.reduce((a, b) => a * b)
     detV * diag(d) * _Q.toDenseMatrix
   }
 
@@ -218,21 +222,22 @@ object FeatureRotator {
   }
 
   /**
-   * Apply rotation to a vector.
-   *
-   * @param input vector to rotate
-   * @param featuresToRotate vector of feature indices included in rotation
-   * @param trans linear transformation matrix to apply
-   * @return rotated vectors
-   */
+    * Apply rotation to a vector.
+    *
+    * @param input vector to rotate
+    * @param featuresToRotate vector of feature indices included in rotation
+    * @param trans linear transformation matrix to apply
+    * @return rotated vectors
+    */
   def applyOneRotation(
-                    input: Vector[Any],
-                    featuresToRotate: IndexedSeq[Int],
-                    trans: DenseMatrix[Double]
-                   ): Vector[Any] = {
+      input: Vector[Any],
+      featuresToRotate: IndexedSeq[Int],
+      trans: DenseMatrix[Double]
+  ): Vector[Any] = {
     val out = input.toArray
-    val rotated: DenseVector[Double] = trans * DenseVector(featuresToRotate.map(i => input(i)).asInstanceOf[Seq[Double]].toArray)
-    featuresToRotate.indices.foreach{ i =>
+    val rotated: DenseVector[Double] =
+      trans * DenseVector(featuresToRotate.map(i => input(i)).asInstanceOf[Seq[Double]].toArray)
+    featuresToRotate.indices.foreach { i =>
       out(featuresToRotate(i)) = rotated(i)
     }
     out.toVector
@@ -247,10 +252,10 @@ object FeatureRotator {
     * @return sequence of rotated vectors
     */
   def applyRotation(
-                    input: Seq[Vector[Any]],
-                    featuresToRotate: IndexedSeq[Int],
-                    trans: DenseMatrix[Double]
-                   ): Seq[Vector[Any]] = {
+      input: Seq[Vector[Any]],
+      featuresToRotate: IndexedSeq[Int],
+      trans: DenseMatrix[Double]
+  ): Seq[Vector[Any]] = {
     input.map { x => applyOneRotation(x, featuresToRotate, trans) }
   }
 }

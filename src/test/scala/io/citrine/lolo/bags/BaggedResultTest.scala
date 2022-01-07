@@ -25,8 +25,20 @@ class BaggedResultTest {
 
     Array(
       Bagger(DTLearner, numBags = 64, biasLearner = None, uncertaintyCalibration = false, useJackknife = true),
-      Bagger(DTLearner, numBags = 64, biasLearner = Some(biasLearner), uncertaintyCalibration = true, useJackknife = false),
-      Bagger(DTLearner, numBags = 64, biasLearner = Some(biasLearner), uncertaintyCalibration = true, useJackknife = true),
+      Bagger(
+        DTLearner,
+        numBags = 64,
+        biasLearner = Some(biasLearner),
+        uncertaintyCalibration = true,
+        useJackknife = false
+      ),
+      Bagger(
+        DTLearner,
+        numBags = 64,
+        biasLearner = Some(biasLearner),
+        uncertaintyCalibration = true,
+        useJackknife = true
+      ),
       Bagger(DTLearner, numBags = 64, biasLearner = None, uncertaintyCalibration = false, useJackknife = false)
     ).foreach { bagger =>
       testConsistency(trainingData, bagger.train(trainingData).getModel())
@@ -46,24 +58,28 @@ class BaggedResultTest {
         Seq(16).foreach { nCols =>
           Seq(2).map { n => n * nRows }.foreach { nBags =>
             // Used for error output.
-            val configDescription = s"learner=${baseLearner.getClass().toString()}\tnRows=$nRows\tnCols=$nCols\tnumBags=$nBags"
+            val configDescription =
+              s"learner=${baseLearner.getClass().toString()}\tnRows=$nRows\tnCols=$nCols\tnumBags=$nBags"
 
             val sigmaObsAndSigmaMean: Seq[(Double, Double)] = (1 to 20).flatMap { _ =>
-              val trainingDataTmp = TestUtils.generateTrainingData(nRows, nCols, noise = 0.0, function = _ => 0.0, seed = rng.nextLong())
-              val trainingData = (trainingDataTmp).map { x => (x._1, x._2 + noiseLevel * rng.nextDouble()) }
+              val trainingDataTmp =
+                TestUtils.generateTrainingData(nRows, nCols, noise = 0.0, function = _ => 0.0, seed = rng.nextLong())
+              val trainingData = trainingDataTmp.map { x => (x._1, x._2 + noiseLevel * rng.nextDouble()) }
               val baggedLearner = Bagger(baseLearner, numBags = nBags, uncertaintyCalibration = true)
               val RFMeta = baggedLearner.train(trainingData)
               val RF = RFMeta.getModel()
               val results = RF.transform(trainingData.take(4).map(_._1))
 
               val sigmaMean: Seq[Double] = results.getUncertainty(observational = false).get.asInstanceOf[Seq[Double]]
-              sigmaMean.zip(results.asInstanceOf[RegressionResult].getStdDevMean().get).foreach { case (a, b) =>
-                assert(a == b, s"Expected getUncertainty(observational=false)=getStdDevMean() for $configDescription")
+              sigmaMean.zip(results.asInstanceOf[RegressionResult].getStdDevMean().get).foreach {
+                case (a, b) =>
+                  assert(a == b, s"Expected getUncertainty(observational=false)=getStdDevMean() for $configDescription")
               }
 
               val sigmaObs: Seq[Double] = results.getUncertainty().get.asInstanceOf[Seq[Double]]
-              sigmaObs.zip(results.asInstanceOf[RegressionResult].getStdDevObs().get).foreach { case (a, b) =>
-                assert(a == b, s"Expected getUncertainty()=getStdDevObs() for $configDescription")
+              sigmaObs.zip(results.asInstanceOf[RegressionResult].getStdDevObs().get).foreach {
+                case (a, b) =>
+                  assert(a == b, s"Expected getUncertainty()=getStdDevObs() for $configDescription")
               }
 
               // We have strong theoretical guarantees on the behavior of GuessTheMeanLearner, so let's exercise them.
@@ -71,29 +87,41 @@ class BaggedResultTest {
               {
                 val rtolLower = baseLearner match {
                   case _: GuessTheMeanLearner => 3.5
-                  case _: Any => 10.0
+                  case _: Any                 => 10.0
                 }
                 val rtolUpper = baseLearner match {
                   case _: GuessTheMeanLearner => 1.0
-                  case _: Any => 1.0
+                  case _: Any                 => 1.0
                 }
                 sigmaObs.foreach { s =>
-                  assert(rtolLower * s > noiseLevel, s"Observational StdDev getUncertainty() is too small for $configDescription")
-                  assert(s < rtolUpper * noiseLevel, s"Observational StdDev getUncertainty() is too large for $configDescription")
+                  assert(
+                    rtolLower * s > noiseLevel,
+                    s"Observational StdDev getUncertainty() is too small for $configDescription"
+                  )
+                  assert(
+                    s < rtolUpper * noiseLevel,
+                    s"Observational StdDev getUncertainty() is too large for $configDescription"
+                  )
                 }
               }
               {
                 val rtolLower = baseLearner match {
                   case _: GuessTheMeanLearner => 5.0
-                  case _: Any => 1e3
+                  case _: Any                 => 1e3
                 }
                 val rtolUpper = baseLearner match {
                   case _: GuessTheMeanLearner => 1.0
-                  case _: Any => 10.0
+                  case _: Any                 => 10.0
                 }
                 sigmaMean.foreach { s =>
-                  assert(rtolLower * s > (noiseLevel / Math.sqrt(nRows)), s"Mean StdDev getUncertainty(observational=false)=$s is too small for $configDescription.")
-                  assert(s < (rtolUpper * noiseLevel / Math.sqrt(nRows)), s"Mean StdDev getUncertainty(observational=false)=$s is too large for $configDescription")
+                  assert(
+                    rtolLower * s > (noiseLevel / Math.sqrt(nRows)),
+                    s"Mean StdDev getUncertainty(observational=false)=$s is too small for $configDescription."
+                  )
+                  assert(
+                    s < (rtolUpper * noiseLevel / Math.sqrt(nRows)),
+                    s"Mean StdDev getUncertainty(observational=false)=$s is too large for $configDescription"
+                  )
                 }
               }
 
@@ -111,7 +139,10 @@ class BaggedResultTest {
             val minRateSigmaObsGreater = 0.9
             val level = 1e-4
             val probSigmaObsLess = d.cdf(minRateSigmaObsGreater)
-            assert(probSigmaObsLess < level, s"Uncertainty should be greater when observational = true for $configDescription")
+            assert(
+              probSigmaObsLess < level,
+              s"Uncertainty should be greater when observational = true for $configDescription"
+            )
           }
         }
       }
@@ -127,24 +158,36 @@ class BaggedResultTest {
     */
   private def testConsistency(trainingData: Seq[(Vector[Any], Any)], model: BaggedModel[Any]): Unit = {
     val testSubset = rng.shuffle(trainingData).take(16)
-    val (singleValues, singleObsUnc, singleMeanUnc) = testSubset.map { case (x, _) =>
-      val res = model.transform(Seq(x))
-      (res.getExpected().head.asInstanceOf[Double], res.getUncertainty(true).get.head.asInstanceOf[Double], res.getUncertainty(false).get.head.asInstanceOf[Double])
+    val (singleValues, singleObsUnc, singleMeanUnc) = testSubset.map {
+      case (x, _) =>
+        val res = model.transform(Seq(x))
+        (
+          res.getExpected().head.asInstanceOf[Double],
+          res.getUncertainty(true).get.head.asInstanceOf[Double],
+          res.getUncertainty(false).get.head.asInstanceOf[Double]
+        )
     }.unzip3
 
     val (multiValues, multiObsUnc, multiMeanUnc) = {
       val res = model.transform(testSubset.map(_._1))
-      (res.getExpected().map(_.asInstanceOf[Double]), res.getUncertainty(true).get.map(_.asInstanceOf[Double]), res.getUncertainty(false).get.map(_.asInstanceOf[Double]))
+      (
+        res.getExpected().map(_.asInstanceOf[Double]),
+        res.getUncertainty(true).get.map(_.asInstanceOf[Double]),
+        res.getUncertainty(false).get.map(_.asInstanceOf[Double])
+      )
     }
 
-    singleValues.zip(multiValues).zipWithIndex.foreach { case ((x, y), idx) =>
-      assert(Math.abs(x - y) < 1.0e-9, s"Mean Uncertainty $x was not $y for $idx")
+    singleValues.zip(multiValues).zipWithIndex.foreach {
+      case ((x, y), idx) =>
+        assert(Math.abs(x - y) < 1.0e-9, s"Mean Uncertainty $x was not $y for $idx")
     }
-    singleObsUnc.zip(multiObsUnc).zipWithIndex.foreach { case ((x, y), idx) =>
-      assert(Math.abs(x - y) < 1.0e-9, s"Obs Uncertainty $x was not $y for $idx")
+    singleObsUnc.zip(multiObsUnc).zipWithIndex.foreach {
+      case ((x, y), idx) =>
+        assert(Math.abs(x - y) < 1.0e-9, s"Obs Uncertainty $x was not $y for $idx")
     }
-    singleMeanUnc.zip(multiMeanUnc).zipWithIndex.foreach { case ((x, y), idx) =>
-      assert(Math.abs(x - y) < 1.0e-9, s"Mean Uncertainty $x was not $y for $idx")
+    singleMeanUnc.zip(multiMeanUnc).zipWithIndex.foreach {
+      case ((x, y), idx) =>
+        assert(Math.abs(x - y) < 1.0e-9, s"Mean Uncertainty $x was not $y for $idx")
     }
   }
 }
