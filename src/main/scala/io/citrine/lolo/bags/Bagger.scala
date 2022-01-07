@@ -51,11 +51,6 @@ case class Bagger(
       s"We need to have at least ${Bagger.minimumTrainingSize} rows, only ${trainingData.size} given"
     )
 
-    val isRegression: Boolean = trainingData.head._2 match {
-      case _: Double => true
-      case _: Any => false
-    }
-
     /* Use unit weights if none are specified */
     val weightsActual = weights.getOrElse(Seq.fill(trainingData.size)(1.0))
 
@@ -114,24 +109,35 @@ case class Bagger(
       .reduce(Bagger.combineImportance)
       .map(_.map(_ / importances.size))
 
-
     /* Wrap the models in a BaggedModel object */
     val helper = BaggerHelper(models, trainingData, Nib, useJackknife, uncertaintyCalibration)
-    if (biasLearner.isEmpty || helper.oobErrors.isEmpty) {
+    val biasModel = if (biasLearner.isDefined && helper.oobErrors.nonEmpty && helper.isRegression) {
       Async.canStop()
-      if (isRegression) {
-        new BaggedTrainingResult(models.asInstanceOf[ParSeq[Model[PredictionResult[Double]]]], averageImportance, Nib, trainingData, useJackknife, rescale = helper.ratio, disableBootstrap = disableBootstrap)
-      } else {
-        new BaggedTrainingResult(models, averageImportance, Nib, trainingData, useJackknife, rescale = helper.ratio, disableBootstrap = disableBootstrap)
-      }
+      Some(biasLearner.get.train(helper.biasTraining).getModel().asInstanceOf[Model[PredictionResult[Double]]])
+    } else None
+
+    if (helper.isRegression) {
+      new BaggedTrainingResult[Double](
+        models = models.asInstanceOf[ParSeq[Model[PredictionResult[Double]]]],
+        featureImportance = averageImportance,
+        Nib = Nib,
+        trainingData = trainingData,
+        useJackknife = useJackknife,
+        biasModel = biasModel,
+        rescale = helper.ratio,
+        disableBootstrap = disableBootstrap
+      )
     } else {
-      Async.canStop()
-      val biasModel = biasLearner.get.train(helper.biasTraining).getModel().asInstanceOf[Model[PredictionResult[Double]]]
-      if (isRegression) {
-        new BaggedTrainingResult[Double](models.asInstanceOf[ParSeq[Model[PredictionResult[Double]]]], averageImportance, Nib, trainingData, useJackknife, Some(biasModel), helper.ratio, disableBootstrap)
-      } else {
-        new BaggedTrainingResult[Any](models, averageImportance, Nib, trainingData, useJackknife, None, helper.ratio, disableBootstrap)
-      }
+      new BaggedTrainingResult[Any](
+        models = models,
+        featureImportance = averageImportance,
+        Nib = Nib,
+        trainingData = trainingData,
+        useJackknife = useJackknife,
+        biasModel = biasModel,
+        rescale = helper.ratio,
+        disableBootstrap = disableBootstrap
+      )
     }
   }
 }
