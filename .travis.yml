@@ -24,7 +24,7 @@ jobs:
   include:
   - stage: test
     script:
-    - sbt +scalafmtCheckAll
+    - sbt scalafmtCheckAll
     - sbt +test
   - stage: test
     before_install:
