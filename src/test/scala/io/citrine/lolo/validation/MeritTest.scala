@@ -92,7 +92,7 @@ class MeritTest {
     val rng = new Random(34578L)
     val pva = getNormalPVA(uncertaintyCorrelation = 1.0, batchSize = 256, numBatch = 32, rng = rng)
     val expected = 0.68
-    val (confidence, uncertainty) = StandardConfidence().estimate(pva, rng = rng)
+    val (confidence, uncertainty) = StandardConfidence.estimate(pva, rng = rng)
     assert(Math.abs(confidence - expected) < 3 * uncertainty, "Confidence estimate was not accurate enough")
     assert(uncertainty < 0.05, s"Confidence estimate was not precise enough")
   }
@@ -119,7 +119,7 @@ class MeritTest {
     val rng = new Random(34578L)
     val pva = getNormalPVA(noiseScale = 0.01, uncertaintyCorrelation = 1.0, batchSize = 256, numBatch = 32, rng = rng)
     val expected = 1.0
-    val (corr, uncertainty) = UncertaintyCorrelation().estimate(pva, rng = rng)
+    val (corr, uncertainty) = UncertaintyCorrelation.estimate(pva, rng = rng)
     assert(Math.abs(corr - expected) < 3 * uncertainty, "Uncertainty correlation estimate was not accurate enough")
     assert(uncertainty < 0.05, s"Uncertainty correlation estimate was not precise enough")
   }
@@ -132,7 +132,7 @@ class MeritTest {
     val rng = new Random(34578L)
     val pva = getNormalPVA(noiseScale = 0.01, uncertaintyCorrelation = 0.0, batchSize = 256, numBatch = 32, rng = rng)
     val expected = 0.0
-    val (corr, uncertainty) = UncertaintyCorrelation().estimate(pva, rng = rng)
+    val (corr, uncertainty) = UncertaintyCorrelation.estimate(pva, rng = rng)
     assert(Math.abs(corr - expected) < 3 * uncertainty, "Uncertainty correlation estimate was not accurate enough")
     assert(uncertainty < 0.05, s"Uncertainty correlation estimate was not precise enough")
   }

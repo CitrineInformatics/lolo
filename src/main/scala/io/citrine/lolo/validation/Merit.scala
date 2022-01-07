@@ -62,11 +62,11 @@ case object CoefficientOfDetermination extends Merit[Double] {
 /**
   * The fraction of predictions that fall within the predicted uncertainty
   */
-case class StandardConfidence(observational: Boolean = true) extends Merit[Double] {
+case object StandardConfidence extends Merit[Double] {
   override def evaluate(predictionResult: PredictionResult[Double], actual: Seq[Double], rng: Random = Random): Double = {
-    if (predictionResult.getUncertainty(observational).isEmpty) return 0.0
+    if (predictionResult.getUncertainty().isEmpty) return 0.0
 
-    (predictionResult.getExpected(), predictionResult.getUncertainty(observational).get, actual).zipped.count {
+    (predictionResult.getExpected(), predictionResult.getUncertainty().get, actual).zipped.count {
       case (x, sigma: Double, y) => Math.abs(x - y) < sigma
     } / predictionResult.getExpected().size.toDouble
   }
@@ -75,10 +75,10 @@ case class StandardConfidence(observational: Boolean = true) extends Merit[Doubl
 /**
   * Root mean square of (the error divided by the predicted uncertainty)
   */
-case class StandardError(rescale: Double = 1.0, observational: Boolean = true) extends Merit[Double] {
+case class StandardError(rescale: Double = 1.0) extends Merit[Double] {
   override def evaluate(predictionResult: PredictionResult[Double], actual: Seq[Double], rng: Random = Random): Double = {
-    if (predictionResult.getUncertainty(observational).isEmpty) return Double.PositiveInfinity
-    val standardized = (predictionResult.getExpected(), predictionResult.getUncertainty(observational).get, actual).zipped.map {
+    if (predictionResult.getUncertainty().isEmpty) return Double.PositiveInfinity
+    val standardized = (predictionResult.getExpected(), predictionResult.getUncertainty().get, actual).zipped.map {
       case (x, sigma: Double, y) => (x - y) / sigma
     }
     rescale * Math.sqrt(standardized.map(Math.pow(_, 2.0)).sum / standardized.size)
@@ -96,11 +96,11 @@ case class StandardError(rescale: Double = 1.0, observational: Boolean = true) e
   * In the absence of a closed form for that coefficient, it is model empirically by drawing from N(0, x) to produce
   * an "ideal" error series from which the correlation coefficient can be estimated.
   */
-case class UncertaintyCorrelation(observational: Boolean = true) extends Merit[Double] {
+case object UncertaintyCorrelation extends Merit[Double] {
   override def evaluate(predictionResult: PredictionResult[Double], actual: Seq[Double], rng: Random = Random): Double = {
     val predictedUncertaintyActual: Seq[(Double, Double, Double)] = (
       predictionResult.getExpected(),
-      predictionResult.getUncertainty(observational).get.asInstanceOf[Seq[Double]],
+      predictionResult.getUncertainty().get.asInstanceOf[Seq[Double]],
       actual
     ).zipped.toSeq
 
