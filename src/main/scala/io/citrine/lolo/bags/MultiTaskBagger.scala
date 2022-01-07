@@ -23,7 +23,7 @@ case class MultiTaskBagger(
                             numBags: Int = -1,
                             useJackknife: Boolean = true,
                             biasLearner: Option[Learner] = None,
-                            uncertaintyCalibration: Boolean = false,
+                            uncertaintyCalibration: Boolean = true,
                             randBasis: RandBasis = Rand
                           ) extends MultiTaskLearner {
 
