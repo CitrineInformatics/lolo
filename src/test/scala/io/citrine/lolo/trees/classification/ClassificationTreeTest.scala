@@ -28,8 +28,7 @@ class ClassificationTreeTest {
     val DTLearner = new ClassificationTreeLearner()
     val DTMeta = DTLearner.train(X)
     val DT = DTMeta.getModel()
-    assert(DTMeta.getFeatureImportance()
-      .get.forall(v => !v.isNaN))
+    assert(DTMeta.getFeatureImportance().get.forall(v => !v.isNaN))
   }
 
   @Test
@@ -37,8 +36,7 @@ class ClassificationTreeTest {
     val rnd = new Random(seed = 0L)
     assert(rnd.nextLong() == -4962768465676381896L)
     val trainingData = TestUtils.binTrainingData(
-      TestUtils.generateTrainingData(2048, 12, noise = 0.1,
-        function = Friedman.friedmanSilverman),
+      TestUtils.generateTrainingData(2048, 12, noise = 0.1, function = Friedman.friedmanSilverman),
       responseBins = Some(2)
     )
     val DTLearner = ClassificationTreeLearner()
@@ -47,8 +45,9 @@ class ClassificationTreeTest {
 
     /* We should be able to memorize the inputs */
     val output = DT.transform(trainingData.map(_._1))
-    trainingData.zip(output.getExpected()).foreach { case ((x, a), p) =>
-      assert(a == p, s"${a} != ${p} for ${x}")
+    trainingData.zip(output.getExpected()).foreach {
+      case ((x, a), p) =>
+        assert(a == p, s"${a} != ${p} for ${x}")
     }
     assert(output.getGradient().isEmpty)
     output.getDepth().foreach(d => assert(d > 0))
@@ -81,8 +80,9 @@ class ClassificationTreeTest {
 
     /* We should be able to memorize the inputs */
     val output = DT.transform(trainingData.map(_._1))
-    trainingData.zip(output.getExpected()).foreach { case ((x, a), p) =>
-      assert(a == p, s"${a} != ${p} for ${x}")
+    trainingData.zip(output.getExpected()).foreach {
+      case ((x, a), p) =>
+        assert(a == p, s"${a} != ${p} for ${x}")
     }
     assert(output.getGradient().isEmpty)
     output.getDepth().foreach(d => assert(d > 4 && d < 17, s"Depth is ${d}"))
@@ -99,7 +99,8 @@ class ClassificationTreeTest {
   def testCategorical(): Unit = {
     val trainingData = TestUtils.binTrainingData(
       TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman),
-      inputBins = Seq((0, 8)), responseBins = Some(16)
+      inputBins = Seq((0, 8)),
+      responseBins = Some(16)
     )
     val DTLearner = ClassificationTreeLearner()
     val N = 100
@@ -112,8 +113,9 @@ class ClassificationTreeTest {
 
     /* We should be able to memorize the inputs */
     val output = DT.transform(trainingData.map(_._1))
-    trainingData.zip(output.getExpected()).foreach { case ((x, a), p) =>
-      assert(a == p)
+    trainingData.zip(output.getExpected()).foreach {
+      case ((x, a), p) =>
+        assert(a == p)
     }
     assert(output.getGradient().isEmpty)
     output.getDepth().foreach(d => assert(d > 3 && d < 18, s"Depth is ${d}"))
@@ -122,6 +124,7 @@ class ClassificationTreeTest {
 
 /** Companion driver */
 object ClassificationTreeTest {
+
   /**
     * Test driver
     *

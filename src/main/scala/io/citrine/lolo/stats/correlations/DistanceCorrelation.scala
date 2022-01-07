@@ -1,6 +1,6 @@
 package io.citrine.lolo.stats.correlations
 
-import breeze.linalg.{*, DenseMatrix, DenseVector, sum}
+import breeze.linalg.{*, sum, DenseMatrix, DenseVector}
 
 /**
   * Object for computing distance correlations
@@ -19,14 +19,16 @@ object DistanceCorrelation {
     * @return a double centered distance matrix
     */
   def doubleCenter[T](x: Seq[T], distance: (T, T) => Double): DenseMatrix[Double] = {
-    val pairDistances: DenseMatrix[Double] = DenseMatrix.tabulate(x.size, x.size) { case (i, j) =>
-      distance(x(i), x(j))
+    val pairDistances: DenseMatrix[Double] = DenseMatrix.tabulate(x.size, x.size) {
+      case (i, j) =>
+        distance(x(i), x(j))
     }
     val grandMean = sum(pairDistances) / (x.size * x.size)
     val colSum: DenseVector[Double] = sum(pairDistances(*, ::))
     val colMean: DenseVector[Double] = colSum *:* (1.0 / x.size)
-    DenseMatrix.tabulate(x.size, x.size) { case (i, j) =>
-      pairDistances(i, j) - colMean(i) - colMean(j) + grandMean
+    DenseMatrix.tabulate(x.size, x.size) {
+      case (i, j) =>
+        pairDistances(i, j) - colMean(i) - colMean(j) + grandMean
     }
   }
 

@@ -19,37 +19,65 @@ import io.citrine.lolo.{Learner, PredictionResult}
   * @param splitter         used to select splits
   */
 class ClassificationTrainingNode(
-                                  trainingData: Seq[(Vector[AnyVal], Char, Double)],
-                                  leafLearner: Learner,
-                                  split: Split,
-                                  deltaImpurity: Double,
-                                  numFeatures: Int,
-                                  minLeafInstances: Int,
-                                  remainingDepth: Int,
-                                  maxDepth: Int,
-                                  numClasses: Int,
-                                  splitter: Splitter[Char]
-                                ) extends TrainingNode(trainingData, remainingDepth) {
+    trainingData: Seq[(Vector[AnyVal], Char, Double)],
+    leafLearner: Learner,
+    split: Split,
+    deltaImpurity: Double,
+    numFeatures: Int,
+    minLeafInstances: Int,
+    remainingDepth: Int,
+    maxDepth: Int,
+    numClasses: Int,
+    splitter: Splitter[Char]
+) extends TrainingNode(trainingData, remainingDepth) {
 
   assert(trainingData.size > 1, "If we are going to split, we need at least 2 training rows")
-  assert(!split.isInstanceOf[NoSplit], s"Empty split split for training data: \n${trainingData.map(_.toString() + "\n")}")
+  assert(
+    !split.isInstanceOf[NoSplit],
+    s"Empty split split for training data: \n${trainingData.map(_.toString() + "\n")}"
+  )
 
   lazy val (leftTrain, rightTrain) = trainingData.partition(r => split.turnLeft(r._1))
-  assert(leftTrain.size > 0 && rightTrain.size > 0, s"Split ${split} resulted in zero size: ${trainingData.map(_._1(split.getIndex()))}")
+  assert(
+    leftTrain.size > 0 && rightTrain.size > 0,
+    s"Split ${split} resulted in zero size: ${trainingData.map(_._1(split.getIndex()))}"
+  )
 
-  lazy val leftChild = ClassificationTrainingNode.buildChild(leftTrain, leafLearner, minLeafInstances, remainingDepth, maxDepth, numFeatures, numClasses, splitter)
+  lazy val leftChild = ClassificationTrainingNode.buildChild(
+    leftTrain,
+    leafLearner,
+    minLeafInstances,
+    remainingDepth,
+    maxDepth,
+    numFeatures,
+    numClasses,
+    splitter
+  )
 
-  lazy val rightChild = ClassificationTrainingNode.buildChild(rightTrain, leafLearner, minLeafInstances, remainingDepth, maxDepth, numFeatures, numClasses, splitter)
-
+  lazy val rightChild = ClassificationTrainingNode.buildChild(
+    rightTrain,
+    leafLearner,
+    minLeafInstances,
+    remainingDepth,
+    maxDepth,
+    numFeatures,
+    numClasses,
+    splitter
+  )
 
   /**
     * Get the lightweight prediction node for the output tree
     *
     * @return lightweight prediction node
     */
-  override def getNode(): ModelNode[PredictionResult[Char]] = new InternalModelNode(
-    split, leftChild.getNode(), rightChild.getNode(), numClasses, trainingData.size.toDouble
-  )
+  override def getNode(): ModelNode[PredictionResult[Char]] =
+    new InternalModelNode(
+      split,
+      leftChild.getNode(),
+      rightChild.getNode(),
+      numClasses,
+      trainingData.size.toDouble
+    )
 
   override def getFeatureImportance(): scala.collection.mutable.ArraySeq[Double] = {
     val improvement = deltaImpurity
@@ -60,6 +88,7 @@ class ClassificationTrainingNode(
 }
 
 object ClassificationTrainingNode {
+
   /**
     * Build a child node by pre-computing a split
     *
@@ -77,19 +106,34 @@ object ClassificationTrainingNode {
     * @return the child node, either a RegressionTrainingNode or TrainingLeaf
     */
   def buildChild(
-                  trainingData: Seq[(Vector[AnyVal], Char, Double)],
-                  leafLearner: Learner,
-                  minLeafInstances: Int,
-                  remainingDepth: Int,
-                  maxDepth: Int,
-                  numFeatures: Int,
-                  numClasses: Int,
-                  splitter: Splitter[Char]
-                ): TrainingNode[AnyVal, Char] = {
-    if (trainingData.size >= 2 * minLeafInstances && remainingDepth > 0 && trainingData.exists(_._2 != trainingData.head._2)) {
+      trainingData: Seq[(Vector[AnyVal], Char, Double)],
+      leafLearner: Learner,
+      minLeafInstances: Int,
+      remainingDepth: Int,
+      maxDepth: Int,
+      numFeatures: Int,
+      numClasses: Int,
+      splitter: Splitter[Char]
+  ): TrainingNode[AnyVal, Char] = {
+    if (
+      trainingData.size >= 2 * minLeafInstances && remainingDepth > 0 && trainingData.exists(
+        _._2 != trainingData.head._2
+      )
+    ) {
       val (leftSplit, leftDelta) = splitter.getBestSplit(trainingData, numFeatures, minLeafInstances)
       if (!leftSplit.isInstanceOf[NoSplit]) {
-        new ClassificationTrainingNode(trainingData, leafLearner, leftSplit, leftDelta, numFeatures, minLeafInstances, remainingDepth - 1, maxDepth, numClasses, splitter)
+        new ClassificationTrainingNode(
+          trainingData,
+          leafLearner,
+          leftSplit,
+          leftDelta,
+          numFeatures,
+          minLeafInstances,
+          remainingDepth - 1,
+          maxDepth,
+          numClasses,
+          splitter
+        )
       } else {
         new TrainingLeaf(trainingData, leafLearner, maxDepth - remainingDepth)
       }

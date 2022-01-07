@@ -16,29 +16,38 @@ object TestUtils {
   def readCsv(name: String): Seq[Vector[Any]] = {
     val stream = getClass.getClassLoader.getResourceAsStream(name)
     val bs = scala.io.Source.fromInputStream(stream)
-    val res = bs.getLines().flatMap{line =>
-      Try(line.split(",").map(_.trim).map { token =>
-        try {
-          token.toDouble
-        } catch {
-          case _: Throwable if token == "NaN" => Double.NaN
-          case _: Throwable if token.nonEmpty => token
-        }
-      }.toVector).toOption
-    }.toVector
+    val res = bs
+      .getLines()
+      .flatMap { line =>
+        Try(
+          line
+            .split(",")
+            .map(_.trim)
+            .map { token =>
+              try {
+                token.toDouble
+              } catch {
+                case _: Throwable if token == "NaN" => Double.NaN
+                case _: Throwable if token.nonEmpty => token
+              }
+            }
+            .toVector
+        ).toOption
+      }
+      .toVector
     bs.close()
     res
   }
 
   def generateTrainingData(
-                            rows: Int,
-                            cols: Int,
-                            function: (Seq[Double] => Double) = Friedman.friedmanGrosseSilverman,
-                            xscale: Double = 1.0,
-                            xoff: Double = 0.0,
-                            noise: Double = 0.0,
-                            seed: Long = 0L
-                          ): Vector[(Vector[Double], Double)] = {
+      rows: Int,
+      cols: Int,
+      function: (Seq[Double] => Double) = Friedman.friedmanGrosseSilverman,
+      xscale: Double = 1.0,
+      xoff: Double = 0.0,
+      noise: Double = 0.0,
+      seed: Long = 0L
+  ): Vector[(Vector[Double], Double)] = {
     val rnd = new Random(seed)
     Vector.fill(rows) {
       val input = Vector.fill(cols)(xscale * rnd.nextDouble() + xoff)
@@ -60,22 +69,22 @@ object TestUtils {
     require(rho >= -1.0 && rho <= 1.0, "correlation coefficient must be between -1.0 and 1.0")
     val Y = Seq.fill(X.length)(rng.nextGaussian())
     val linearLearner = LinearRegressionLearner()
-    val linearModel = linearLearner.train(X.zip(Y).map { case (x, y) => (Vector(x), y) } ).getModel()
+    val linearModel = linearLearner.train(X.zip(Y).map { case (x, y) => (Vector(x), y) }).getModel()
     val yPred = linearModel.transform(X.map(Vector(_))).getExpected()
     val residuals = Y.zip(yPred).map { case (actual, predicted) => actual - predicted }
     val stdX = math.sqrt(variance(X))
     val stdResiduals = math.sqrt(variance(residuals))
-    X.zip(residuals).map { case (x, residual) => rho * stdResiduals * x + math.sqrt(1 - rho * rho) * stdX * residual}
+    X.zip(residuals).map { case (x, residual) => rho * stdResiduals * x + math.sqrt(1 - rho * rho) * stdX * residual }
   }
 
   def iterateTrainingData(
-                           cols: Int,
-                           function: (Seq[Double] => Double) = Friedman.friedmanGrosseSilverman,
-                           xscale: Double = 1.0,
-                           xoff: Double = 0.0,
-                           noise: Double = 0.0,
-                           seed: Long = 0L
-                          ): Iterator[(Vector[Double], Double)] = {
+      cols: Int,
+      function: (Seq[Double] => Double) = Friedman.friedmanGrosseSilverman,
+      xscale: Double = 1.0,
+      xoff: Double = 0.0,
+      noise: Double = 0.0,
+      seed: Long = 0L
+  ): Iterator[(Vector[Double], Double)] = {
     val rnd = new Random(seed)
     Iterator.continually {
       val input = Vector.fill(cols)(xscale * rnd.nextDouble() + xoff)
@@ -83,21 +92,25 @@ object TestUtils {
     }
   }
 
-  def binTrainingData(continuousData: Seq[(Vector[Double], Double)],
-                      inputBins: Seq[(Int, Int)] = Seq(),
-                      responseBins: Option[Int] = None
-                     ): Seq[(Vector[Any], Any)] = {
+  def binTrainingData(
+      continuousData: Seq[(Vector[Double], Double)],
+      inputBins: Seq[(Int, Int)] = Seq(),
+      responseBins: Option[Int] = None
+  ): Seq[(Vector[Any], Any)] = {
     var outputData: Seq[(Vector[Any], Any)] = continuousData
-    inputBins.foreach { case (index, nBins) =>
-      outputData = outputData.map { case (input, response) =>
-        (input.updated(index, Math.round(input(index).asInstanceOf[Double] * nBins).toString), response)
-      }
+    inputBins.foreach {
+      case (index, nBins) =>
+        outputData = outputData.map {
+          case (input, response) =>
+            (input.updated(index, Math.round(input(index).asInstanceOf[Double] * nBins).toString), response)
+        }
     }
     responseBins.foreach { nBins =>
       val max = continuousData.map(_._2).max
       val min = continuousData.map(_._2).min
-      outputData = outputData.map { case (input, response) =>
-        (input, Math.round(response.asInstanceOf[Double] * nBins / (max - min)).toString)
+      outputData = outputData.map {
+        case (input, response) =>
+          (input, Math.round(response.asInstanceOf[Double] * nBins / (max - min)).toString)
       }
     }
     outputData
@@ -121,6 +134,6 @@ object TestUtils {
     }
   }
 
-  def getBreezeRandBasis(seed: Long): RandBasis = new RandBasis(new ThreadLocalRandomGenerator(new MersenneTwister(seed)))
+  def getBreezeRandBasis(seed: Long): RandBasis =
+    new RandBasis(new ThreadLocalRandomGenerator(new MersenneTwister(seed)))
 }
-

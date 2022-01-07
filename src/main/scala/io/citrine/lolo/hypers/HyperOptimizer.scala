@@ -32,5 +32,9 @@ abstract class HyperOptimizer() {
     * @param numIterations to take before terminating
     * @return the best hyper map found in give iterations and the corresponding loss
     */
-  def optimize(trainingData: Seq[(Vector[Any], Any)], numIterations: Int = 8, builder: Map[String, Any] => Learner): (Map[String, Any], Double)
+  def optimize(
+      trainingData: Seq[(Vector[Any], Any)],
+      numIterations: Int = 8,
+      builder: Map[String, Any] => Learner
+  ): (Map[String, Any], Double)
 }

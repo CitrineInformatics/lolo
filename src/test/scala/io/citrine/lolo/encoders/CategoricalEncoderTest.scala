@@ -1,6 +1,6 @@
 package io.citrine.lolo.encoders
 
-import org.junit.{ Assert, Test }
+import org.junit.{Assert, Test}
 
 import java.io._
 
@@ -65,6 +65,7 @@ class CategoricalEncoderTest {
 
 /** Companion driver */
 object CategoricalEncoderTest {
+
   /**
     * Test driver
     *

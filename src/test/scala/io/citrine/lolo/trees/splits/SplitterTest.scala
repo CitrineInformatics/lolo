@@ -35,14 +35,20 @@ class SplitterTest {
     val totalVariance = (leftNum * (leftSquareSum / leftNum - Math.pow(leftSum / leftNum, 2)) +
       rightNum * (rightSquareSum / rightNum - Math.pow(rightSum / rightNum, 2))) / totalNum
     val totalVarianceShorter = (leftNum * (leftSquareSum / leftNum - Math.pow(leftSum / leftNum, 2)) +
-      (totalNum - leftNum) * ((totalSquareSum - leftSquareSum) / (totalNum - leftNum) - Math.pow((totalSum - leftSum) / (totalNum - leftNum), 2))) / totalNum
+      (totalNum - leftNum) * ((totalSquareSum - leftSquareSum) / (totalNum - leftNum) - Math.pow(
+        (totalSum - leftSum) / (totalNum - leftNum),
+        2
+      ))) / totalNum
 
     val totalVarianceSuperShort = (
       -Math.pow(leftSum, 2) / leftNum - Math.pow((totalSum - leftSum), 2) / (totalNum - leftNum)
-      ) / totalNum + (totalSquareSum / totalNum)
+    ) / totalNum + (totalSquareSum / totalNum)
 
     assert(Math.abs(totalVariance - totalVarianceShorter) < 1.0e-9, s"${totalVariance} != ${totalVarianceShorter}")
-    assert(Math.abs(totalVariance - totalVarianceSuperShort) < 1.0e-9, s"${totalVariance} != ${totalVarianceSuperShort}")
+    assert(
+      Math.abs(totalVariance - totalVarianceSuperShort) < 1.0e-9,
+      s"${totalVariance} != ${totalVarianceSuperShort}"
+    )
   }
 
   /**
@@ -68,6 +74,7 @@ class SplitterTest {
 
 /** Companion driver */
 object SplitterTest {
+
   /**
     * Test driver
     *

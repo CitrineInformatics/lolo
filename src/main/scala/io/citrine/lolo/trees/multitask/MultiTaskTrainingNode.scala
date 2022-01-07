@@ -21,19 +21,23 @@ import scala.util.Random
   * @param rng random number generator, for reproducibility
   */
 class MultiTaskTrainingNode(
-                             inputs: Seq[(Vector[AnyVal], Array[AnyVal], Double)],
-                             numFeatures: Int,
-                             maxDepth: Int,
-                             minInstances: Int,
-                             randomizePivotLocation: Boolean = false,
-                             rng: Random = Random
-                           ) {
+    inputs: Seq[(Vector[AnyVal], Array[AnyVal], Double)],
+    numFeatures: Int,
+    maxDepth: Int,
+    minInstances: Int,
+    randomizePivotLocation: Boolean = false,
+    rng: Random = Random
+) {
 
   // Compute a split
   val (split, deltaImpurity) = if (maxDepth <= 0) {
     (new NoSplit, 0.0)
   } else {
-    MultiTaskSplitter(rng = rng, randomizePivotLocation = randomizePivotLocation).getBestSplit(inputs, numFeatures, minInstances)
+    MultiTaskSplitter(rng = rng, randomizePivotLocation = randomizePivotLocation).getBestSplit(
+      inputs,
+      numFeatures,
+      minInstances
+    )
   }
 
   // Try to construct left and right children
@@ -42,8 +46,26 @@ class MultiTaskTrainingNode(
     case _: Any =>
       val (leftData, rightData) = inputs.partition(row => split.turnLeft(row._1))
       (
-        Some(new MultiTaskTrainingNode(leftData, numFeatures, maxDepth - 1, minInstances, randomizePivotLocation, rng = rng)),
-        Some(new MultiTaskTrainingNode(rightData, numFeatures, maxDepth - 1, minInstances, randomizePivotLocation, rng = rng))
+        Some(
+          new MultiTaskTrainingNode(
+            leftData,
+            numFeatures,
+            maxDepth - 1,
+            minInstances,
+            randomizePivotLocation,
+            rng = rng
+          )
+        ),
+        Some(
+          new MultiTaskTrainingNode(
+            rightData,
+            numFeatures,
+            maxDepth - 1,
+            minInstances,
+            randomizePivotLocation,
+            rng = rng
+          )
+        )
       )
   }
 
@@ -62,7 +84,8 @@ class MultiTaskTrainingNode(
     // get feature importance from the children if they exist, or from this node if it is a leaf
     (leftChild, rightChild) match {
       case (Some(theLeftChild), Some(theRightChild)) if left.nonEmpty && right.nonEmpty =>
-        val ans = theLeftChild.getFeatureImportance(index).zip(theRightChild.getFeatureImportance(index)).map(p => p._1 + p._2)
+        val ans =
+          theLeftChild.getFeatureImportance(index).zip(theRightChild.getFeatureImportance(index)).map(p => p._1 + p._2)
         ans(split.getIndex()) = ans(split.getIndex()) + deltaImpurity
         ans
       case (Some(theLeftChild), _) if left.nonEmpty =>
@@ -71,9 +94,17 @@ class MultiTaskTrainingNode(
         theRightChild.getFeatureImportance(index)
       case (_, _) =>
         if (label.isInstanceOf[Double]) {
-          new RegressionTrainingLeaf(reducedData.asInstanceOf[Seq[(Vector[AnyVal], Double, Double)]], GuessTheMeanLearner(), 1).getFeatureImportance()
+          new RegressionTrainingLeaf(
+            reducedData.asInstanceOf[Seq[(Vector[AnyVal], Double, Double)]],
+            GuessTheMeanLearner(),
+            1
+          ).getFeatureImportance()
         } else {
-          new TrainingLeaf[Char](reducedData.asInstanceOf[Seq[(Vector[AnyVal], Char, Double)]], GuessTheMeanLearner(), 1).getFeatureImportance()
+          new TrainingLeaf[Char](
+            reducedData.asInstanceOf[Seq[(Vector[AnyVal], Char, Double)]],
+            GuessTheMeanLearner(),
+            1
+          ).getFeatureImportance()
         }
     }
   }
@@ -98,7 +129,7 @@ class MultiTaskTrainingNode(
             split,
             theLeftChild.getNode(index).asInstanceOf[ModelNode[PredictionResult[Double]]],
             theRightChild.getNode(index).asInstanceOf[ModelNode[PredictionResult[Double]]],
-            outputDimension = 0,  // Don't support multitask SHAP at this time.
+            outputDimension = 0, // Don't support multitask SHAP at this time.
             trainingWeight = reducedData.length.toDouble
           )
         } else {
@@ -107,7 +138,7 @@ class MultiTaskTrainingNode(
             split,
             theLeftChild.getNode(index).asInstanceOf[ModelNode[PredictionResult[Char]]],
             theRightChild.getNode(index).asInstanceOf[ModelNode[PredictionResult[Char]]],
-            outputDimension = 0,  // Don't support multitask SHAP at this time.
+            outputDimension = 0, // Don't support multitask SHAP at this time.
             trainingWeight = reducedData.length.toDouble
           )
         }
@@ -117,9 +148,17 @@ class MultiTaskTrainingNode(
         theRightChild.getNode(index)
       case (_, _) =>
         if (label.isInstanceOf[Double]) {
-          new RegressionTrainingLeaf(reducedData.asInstanceOf[Seq[(Vector[AnyVal], Double, Double)]], GuessTheMeanLearner(), 1).getNode()
+          new RegressionTrainingLeaf(
+            reducedData.asInstanceOf[Seq[(Vector[AnyVal], Double, Double)]],
+            GuessTheMeanLearner(),
+            1
+          ).getNode()
         } else {
-          new TrainingLeaf[Char](reducedData.asInstanceOf[Seq[(Vector[AnyVal], Char, Double)]], GuessTheMeanLearner(), 1).getNode()
+          new TrainingLeaf[Char](
+            reducedData.asInstanceOf[Seq[(Vector[AnyVal], Char, Double)]],
+            GuessTheMeanLearner(),
+            1
+          ).getNode()
         }
     }
   }

@@ -31,7 +31,10 @@ import scala.util.Random
   *                    The temperature can be thought of as a hyperparameter.
   */
 case class BoltzmannSplitter(temperature: Double, rng: Random = Random) extends Splitter[Double] {
-  require(temperature >= Float.MinPositiveValue, s"Temperature must be >= ${Float.MinPositiveValue} to avoid numerical underflows")
+  require(
+    temperature >= Float.MinPositiveValue,
+    s"Temperature must be >= ${Float.MinPositiveValue} to avoid numerical underflows"
+  )
 
   /**
     * Get the a split probabalisticly, considering numFeature random features (w/o replacement), ensuring that the
@@ -42,7 +45,11 @@ case class BoltzmannSplitter(temperature: Double, rng: Random = Random) extends 
     * @param minInstances minimum instances permitted in a post-split partition
     * @return a split object that optimally divides data
     */
-  def getBestSplit(data: Seq[(Vector[AnyVal], Double, Double)], numFeatures: Int, minInstances: Int): (Split, Double) = {
+  def getBestSplit(
+      data: Seq[(Vector[AnyVal], Double, Double)],
+      numFeatures: Int,
+      minInstances: Int
+  ): (Split, Double) = {
     /* Pre-compute these for the variance calculation */
     val calculator = VarianceCalculator.build(data.map(_._2), data.map(_._3))
     val initialVariance = calculator.getImpurity
@@ -62,8 +69,8 @@ case class BoltzmannSplitter(temperature: Double, rng: Random = Random) extends 
       /* Use different spliters for each type */
       rep._1(index) match {
         case _: Double => BoltzmannSplitter.getBestRealSplit(data, calculator, index, minInstances, beta, rng)
-        case _: Char => BoltzmannSplitter.getBestCategoricalSplit(data, calculator, index, minInstances, beta, rng)
-        case _: Any => throw new IllegalArgumentException("Trying to split unknown feature type")
+        case _: Char   => BoltzmannSplitter.getBestCategoricalSplit(data, calculator, index, minInstances, beta, rng)
+        case _: Any    => throw new IllegalArgumentException("Trying to split unknown feature type")
       }
     }
 
@@ -82,13 +89,14 @@ case class BoltzmannSplitter(temperature: Double, rng: Random = Random) extends 
     val draw = rng.nextDouble() * totalProbability
     // could be a scanLeft + find, but this is more readable
     var cumSum: Double = 0.0
-    possibleSplits.foreach { case SplitterResult(split, variance, score, base) =>
-      // Here's the probability rebasing again
-      cumSum = cumSum + score * Math.exp(base - rebase)
-      if (draw < cumSum) {
-        val deltaImpurity = initialVariance - variance
-        return (split, deltaImpurity)
-      }
+    possibleSplits.foreach {
+      case SplitterResult(split, variance, score, base) =>
+        // Here's the probability rebasing again
+        cumSum = cumSum + score * Math.exp(base - rebase)
+        if (draw < cumSum) {
+          val deltaImpurity = initialVariance - variance
+          return (split, deltaImpurity)
+        }
     }
     // This shouldn't ever be hit
     throw new RuntimeException(s"Draw was beyond all the probabilities ${draw} ${totalProbability}")
@@ -121,13 +129,13 @@ object BoltzmannSplitter {
     * @return the best split of this feature, along with its score, base, and result variance
     */
   def getBestRealSplit(
-                        data: Seq[(Vector[AnyVal], Double, Double)],
-                        calculator: VarianceCalculator,
-                        index: Int,
-                        minCount: Int,
-                        beta: Double,
-                        rng: Random
-                      ): Option[SplitterResult] = {
+      data: Seq[(Vector[AnyVal], Double, Double)],
+      calculator: VarianceCalculator,
+      index: Int,
+      minCount: Int,
+      beta: Double,
+      rng: Random
+  ): Option[SplitterResult] = {
     /* Pull out the feature that's considered here and sort by it */
     val thinData = data.map(dat => (dat._1(index).asInstanceOf[Double], dat._2, dat._3)).sortBy(_._1)
 
@@ -160,11 +168,12 @@ object BoltzmannSplitter {
     val totalScore = possibleSplits.map { case (s, _, _) => Math.exp(s - base) }.sum
     val draw = rng.nextDouble() * totalScore
     var cumSum: Double = 0.0
-    possibleSplits.foreach { case (score, pivot, variance) =>
-      cumSum = cumSum + Math.exp(score - base)
-      if (draw < cumSum) {
-        return Some(SplitterResult(new RealSplit(index, pivot), variance, totalScore, base))
-      }
+    possibleSplits.foreach {
+      case (score, pivot, variance) =>
+        cumSum = cumSum + Math.exp(score - base)
+        if (draw < cumSum) {
+          return Some(SplitterResult(new RealSplit(index, pivot), variance, totalScore, base))
+        }
     }
     // This should never be hit; it would mean there's a bug in the logic above ^^
     throw new RuntimeException(s"Draw was beyond all the probabilities: ${draw} > $cumSum")
@@ -181,19 +190,20 @@ object BoltzmannSplitter {
     * @return the best split of this feature, along with its score, base, and result variance
     */
   def getBestCategoricalSplit(
-                               data: Seq[(Vector[AnyVal], Double, Double)],
-                               calculator: VarianceCalculator,
-                               index: Int,
-                               minCount: Int,
-                               beta: Double,
-                               rng: Random
-                             ): Option[SplitterResult] = {
+      data: Seq[(Vector[AnyVal], Double, Double)],
+      calculator: VarianceCalculator,
+      index: Int,
+      minCount: Int,
+      beta: Double,
+      rng: Random
+  ): Option[SplitterResult] = {
     /* Extract the features at the index */
     val thinData = data.map(dat => (dat._1(index).asInstanceOf[Char], dat._2, dat._3))
     val totalWeight = thinData.map(_._3).sum
 
     /* Group the data by categorical feature and compute the weighted sum and sum of the weights for each */
-    val groupedData = thinData.groupBy(_._1).mapValues(g => (g.map(v => v._2 * v._3).sum, g.map(_._3).sum, g.size)).toMap
+    val groupedData =
+      thinData.groupBy(_._1).mapValues(g => (g.map(v => v._2 * v._3).sum, g.map(_._3).sum, g.size)).toMap
 
     /* Make sure there is more than one member for most of the classes */
     val nonTrivial: Double = groupedData.filter(_._2._3 > 1).map(_._2._2).sum
@@ -234,11 +244,12 @@ object BoltzmannSplitter {
     val totalScore = possibleSplits.map { case (s, _, _) => Math.exp(s - base) }.sum
     val draw = rng.nextDouble() * totalScore
     var cumSum: Double = 0.0
-    possibleSplits.foreach { case (score, includeSet, variance) =>
-      cumSum = cumSum + Math.exp(score - base)
-      if (draw < cumSum) {
-        return Some(SplitterResult(new CategoricalSplit(index, includeSet), variance, totalScore, base))
-      }
+    possibleSplits.foreach {
+      case (score, includeSet, variance) =>
+        cumSum = cumSum + Math.exp(score - base)
+        if (draw < cumSum) {
+          return Some(SplitterResult(new CategoricalSplit(index, includeSet), variance, totalScore, base))
+        }
     }
     // This should never be hit; it would mean there's a bug in the logic above ^^
     throw new RuntimeException(s"Draw was beyond all the probabilities: $draw > $cumSum")
