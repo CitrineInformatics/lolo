@@ -4,8 +4,7 @@ import org.junit.Test
 
 import scala.util.Random
 
-/**
-  * Created by maxhutch on 12/23/16.
+/** Created by maxhutch on 12/23/16.
   */
 @Test
 class DistanceCorrelationTest {

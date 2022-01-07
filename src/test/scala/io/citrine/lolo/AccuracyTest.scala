@@ -8,8 +8,7 @@ import org.junit.Test
 
 import scala.util.Random
 
-/**
-  * Created by maxhutch on 7/10/17.
+/** Created by maxhutch on 7/10/17.
   */
 class AccuracyTest {
   val rng = new Random(234785L)
@@ -32,58 +31,29 @@ class AccuracyTest {
     learner.train(trainingData).getLoss().get
   }
 
-  /**
-    * Test that setting rng yields repeatable results.
+  /** Test that setting rng yields repeatable results.
     */
-  /**
-    * DISABLED until implementing perfect reproducibility.
-    *  @Test
-    *  def testRepeatable(): Unit = {
-    *    val (errorsStandardTree, errorsAnnealingTree, errorsUnrandomizedTree) = (1 to 4).map { _ =>
-    *      val seed = 354128L
-    *      val rng = new Random(seed)
-    *      val errorStandardTree = {
-    *        val baseLearner = RegressionTreeLearner(
-    *          numFeatures = nFeat,
-    *          splitter = RegressionSplitter(randomizePivotLocation = true, rng = rng),
-    *          rng = rng
-    *        )
-    *        val learner = new Bagger(baseLearner, numBags = nRow * 8, randBasis = TestUtils.getBreezeRandBasis(rng.nextLong()))
-    *        computeMetrics(learner)
-    *      }
-    *      rng.setSeed(seed)
-    *      val errorAnnealingTree = {
-    *        val baseLearner = RegressionTreeLearner(
-    *          numFeatures = nFeat,
-    *          splitter = BoltzmannSplitter(temperature = Float.MinPositiveValue, rng = rng),
-    *          rng = rng
-    *        )
-    *        val learner = new Bagger(baseLearner, numBags = nRow * 8, randBasis = TestUtils.getBreezeRandBasis(rng.nextLong()))
-    *        computeMetrics(learner)
-    *      }
-    *      rng.setSeed(seed)
-    *      val randBasis = TestUtils.getBreezeRandBasis(rng.nextLong())
-    *      val errorUnrandomizedTree = {
-    *        val baseLearner = RegressionTreeLearner(
-    *          numFeatures = nFeat,
-    *          splitter = RegressionSplitter(randomizePivotLocation = false, rng = rng),
-    *          rng = rng
-    *        )
-    *        val learner = new Bagger(baseLearner, numBags = nRow * 8, randBasis = randBasis)
-    *        computeMetrics(learner)
-    *      }
-    *      (errorStandardTree, errorAnnealingTree, errorUnrandomizedTree)
-    *    }.unzip3
+  /** DISABLED until implementing perfect reproducibility.
+    * @Test
+    *   def testRepeatable(): Unit = { val (errorsStandardTree, errorsAnnealingTree, errorsUnrandomizedTree) = (1 to
+    *   4).map { _ => val seed = 354128L val rng = new Random(seed) val errorStandardTree = { val baseLearner =
+    *   RegressionTreeLearner( numFeatures = nFeat, splitter = RegressionSplitter(randomizePivotLocation = true, rng =
+    *   rng), rng = rng ) val learner = new Bagger(baseLearner, numBags = nRow * 8, randBasis =
+    *   TestUtils.getBreezeRandBasis(rng.nextLong())) computeMetrics(learner) } rng.setSeed(seed) val errorAnnealingTree
+    * = { val baseLearner = RegressionTreeLearner( numFeatures = nFeat, splitter = BoltzmannSplitter(temperature =
+    * Float.MinPositiveValue, rng = rng), rng = rng ) val learner = new Bagger(baseLearner, numBags = nRow * 8,
+    * randBasis = TestUtils.getBreezeRandBasis(rng.nextLong())) computeMetrics(learner) } rng.setSeed(seed) val
+    * randBasis = TestUtils.getBreezeRandBasis(rng.nextLong()) val errorUnrandomizedTree = { val baseLearner =
+    * RegressionTreeLearner( numFeatures = nFeat, splitter = RegressionSplitter(randomizePivotLocation = false, rng =
+    * rng), rng = rng ) val learner = new Bagger(baseLearner, numBags = nRow * 8, randBasis = randBasis)
+    * computeMetrics(learner) } (errorStandardTree, errorAnnealingTree, errorUnrandomizedTree) }.unzip3
     *
-    *    val atol = 1e-12
-    *    assert(errorsStandardTree.forall{ e => Math.abs(e - errorsStandardTree.head) < atol })
-    *    assert(errorsAnnealingTree.forall{ e => Math.abs(e - errorsStandardTree.head) < atol })
-    *    assert(errorsUnrandomizedTree.forall{ e => Math.abs(e - errorsUnrandomizedTree.head) < atol })
-    *  }
+    * val atol = 1e-12 assert(errorsStandardTree.forall{ e => Math.abs(e - errorsStandardTree.head) < atol })
+    * assert(errorsAnnealingTree.forall{ e => Math.abs(e - errorsStandardTree.head) < atol })
+    * assert(errorsUnrandomizedTree.forall{ e => Math.abs(e - errorsUnrandomizedTree.head) < atol }) }
     */
 
-  /**
-    * Quick sanity check of the test setup
+  /** Quick sanity check of the test setup
     */
   @Test
   def testRandomForest(): Unit = {
@@ -94,8 +64,7 @@ class AccuracyTest {
     assert(error < 4.0, "Error increased, probably due to a change in configuration")
   }
 
-  /**
-    * Check that a low-temperature Boltzmann Tree recovers the performance of a normal RF (with randomized pivots)
+  /** Check that a low-temperature Boltzmann Tree recovers the performance of a normal RF (with randomized pivots)
     */
   @Test
   def testLowTLimit(): Unit = {
@@ -129,11 +98,10 @@ class AccuracyTest {
   }
 }
 
-/**
-  * Driver code to study the performance vs temperature
+/** Driver code to study the performance vs temperature
   *
-  * This isn't cast as a test, but can be used to try to understand the behavior of Boltzmann trees on some simple problems.
-  * TODO: turn this into a demo or otherwise relocate it before the Boltzmann tree release
+  * This isn't cast as a test, but can be used to try to understand the behavior of Boltzmann trees on some simple
+  * problems. TODO: turn this into a demo or otherwise relocate it before the Boltzmann tree release
   */
 object AccuracyTest {
 
@@ -144,15 +112,21 @@ object AccuracyTest {
     )
     .asInstanceOf[Seq[(Vector[Any], Double)]]
 
-  /**
-    * Compute the RMSE and standard residual for a Boltzmann tree with the given temperature
-    * @param nRow training set size
-    * @param nFeat number of features
-    * @param nFeatSub number of features considered per split
-    * @param nScal number of trees, as a multiple of the training set size
-    * @param minInstances minimum tree node size
-    * @param temperature of the boltzmann tree
-    * @return (RMSE, standard residual)
+  /** Compute the RMSE and standard residual for a Boltzmann tree with the given temperature
+    * @param nRow
+    *   training set size
+    * @param nFeat
+    *   number of features
+    * @param nFeatSub
+    *   number of features considered per split
+    * @param nScal
+    *   number of trees, as a multiple of the training set size
+    * @param minInstances
+    *   minimum tree node size
+    * @param temperature
+    *   of the boltzmann tree
+    * @return
+    *   (RMSE, standard residual)
     */
   def computeMetrics(
       nRow: Int,

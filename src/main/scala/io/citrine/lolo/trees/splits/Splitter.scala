@@ -4,8 +4,7 @@ import io.citrine.lolo.trees.impurity.ImpurityCalculator
 
 import scala.util.Random
 
-/**
-  * Created by maxhutch on 7/5/17.
+/** Created by maxhutch on 7/5/17.
   */
 trait Splitter[T] {
   def getBestSplit(data: Seq[(Vector[AnyVal], T, Double)], numFeatures: Int, minInstances: Int): (Split, Double)
@@ -22,17 +21,21 @@ object Splitter {
     }
   }
 
-  /**
-    * Find the best split on a continuous variable.
-    * This is a typical implementation for decision trees: it finds the pivot that maximizes the decrease in impurity.
-    * Some splitters might forego this method and implement different ways of choosing a pivot point.
+  /** Find the best split on a continuous variable. This is a typical implementation for decision trees: it finds the
+    * pivot that maximizes the decrease in impurity. Some splitters might forego this method and implement different
+    * ways of choosing a pivot point.
     *
-    * @param data  to split
-    * @param index of the feature to split on
-    * @param minCount minimum number of data points to allow in each of the resulting splits
-    * @param randomizePivotLocation whether generate splits by drawing a random value uniformly between the two split points.
-    *                               This can improve generalizability, particularly as part of an ensemble.
-    * @return the best split of this feature
+    * @param data
+    *   to split
+    * @param index
+    *   of the feature to split on
+    * @param minCount
+    *   minimum number of data points to allow in each of the resulting splits
+    * @param randomizePivotLocation
+    *   whether generate splits by drawing a random value uniformly between the two split points. This can improve
+    *   generalizability, particularly as part of an ensemble.
+    * @return
+    *   the best split of this feature
     */
   def getBestRealSplit[T](
       data: Seq[(Vector[AnyVal], T, Double)],

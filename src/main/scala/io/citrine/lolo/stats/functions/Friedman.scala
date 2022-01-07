@@ -1,19 +1,18 @@
 package io.citrine.lolo.stats.functions
 
-/**
-  * Created by maxhutch on 1/5/17.
+/** Created by maxhutch on 1/5/17.
   */
 object Friedman {
 
-  /**
-    * Test function on X \in [0,1]^5 by Friedman and Silverman (1989)
+  /** Test function on X \in [0,1]^5 by Friedman and Silverman (1989)
     *
-    * From:
-    * Friedman, Jerome H., and Bernard W. Silverman. "Flexible parsimonious smoothing and additive modeling."
+    * From: Friedman, Jerome H., and Bernard W. Silverman. "Flexible parsimonious smoothing and additive modeling."
     * Technometrics 31, no. 1 (1989): 3-21.
     *
-    * @param x input vector of length 5 or more
-    * @return test function(x)
+    * @param x
+    *   input vector of length 5 or more
+    * @return
+    *   test function(x)
     */
   def friedmanSilverman(x: Seq[Double]): Double = {
     val x_pad = x.padTo(5, 0.0)
@@ -22,15 +21,15 @@ object Friedman {
     ) + x_pad(4)
   }
 
-  /**
-    * Test function on X \in [0,1]^5 by Friedman, Grosse, and Stuetzle (1983)
+  /** Test function on X \in [0,1]^5 by Friedman, Grosse, and Stuetzle (1983)
     *
-    * From:
-    * Friedman, Jerome H., Eric Grosse, and Werner Stuetzle. "Multidimensional additive spline approximation."
+    * From: Friedman, Jerome H., Eric Grosse, and Werner Stuetzle. "Multidimensional additive spline approximation."
     * SIAM Journal on Scientific and Statistical Computing 4, no. 2 (1983): 291-301.
     *
-    * @param x input vector of length 5 or more
-    * @return test function(x)
+    * @param x
+    *   input vector of length 5 or more
+    * @return
+    *   test function(x)
     */
   def friedmanGrosseSilverman(x: Seq[Double]): Double = {
     val x_pad = x.padTo(5, 0.0)

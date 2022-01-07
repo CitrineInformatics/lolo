@@ -4,14 +4,12 @@ import org.junit.{Assert, Test}
 
 import java.io._
 
-/**
-  * Created by maxhutch on 12/1/16.
+/** Created by maxhutch on 12/1/16.
   */
 @Test
 class CategoricalEncoderTest {
 
-  /**
-    * Test that encoding preserves equality, unknown goes to zero
+  /** Test that encoding preserves equality, unknown goes to zero
     */
   @Test
   def testStringEncoder(): Unit = {
@@ -66,10 +64,10 @@ class CategoricalEncoderTest {
 /** Companion driver */
 object CategoricalEncoderTest {
 
-  /**
-    * Test driver
+  /** Test driver
     *
-    * @param argv args
+    * @param argv
+    *   args
     */
   def main(argv: Array[String]): Unit = {
     new CategoricalEncoderTest().testStringEncoder()

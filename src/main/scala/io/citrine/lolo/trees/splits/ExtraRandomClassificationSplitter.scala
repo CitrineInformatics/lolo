@@ -4,24 +4,26 @@ import io.citrine.lolo.trees.impurity.{GiniCalculator, ImpurityCalculator}
 
 import scala.util.Random
 
-/**
-  * A splitter that defines Extremely Randomized Trees
+/** A splitter that defines Extremely Randomized Trees
   *
   * This is based on Geurts, P., Ernst, D. & Wehenkel, L. Extremely randomized trees. Mach Learn 63, 3–42 (2006).
   * https://doi.org/10.1007/s10994-006-6226-1.
   *
-  * @param rng random number generator
+  * @param rng
+  *   random number generator
   */
 case class ExtraRandomClassificationSplitter(
     rng: Random = Random
 ) extends Splitter[Char] {
 
-  /**
-    * Get the best split, considering numFeature random features (w/o replacement)
+  /** Get the best split, considering numFeature random features (w/o replacement)
     *
-    * @param data        to split
-    * @param numFeatures to consider, randomly
-    * @return a split object that optimally divides data
+    * @param data
+    *   to split
+    * @param numFeatures
+    *   to consider, randomly
+    * @return
+    *   a split object that optimally divides data
     */
   def getBestSplit(
       data: Seq[(Vector[AnyVal], Char, Double)],
@@ -60,13 +62,16 @@ case class ExtraRandomClassificationSplitter(
     }
   }
 
-  /**
-    * Find the best split on a continuous variable.
+  /** Find the best split on a continuous variable.
     *
-    * @param data  to split
-    * @param index of the feature to split on
-    * @param minCount minimum number of data points to allow in each of the resulting splits
-    * @return the best split of this feature
+    * @param data
+    *   to split
+    * @param index
+    *   of the feature to split on
+    * @param minCount
+    *   minimum number of data points to allow in each of the resulting splits
+    * @return
+    *   the best split of this feature
     */
   def getBestRealSplit(
       data: Seq[(Vector[AnyVal], Char, Double)],
@@ -93,12 +98,14 @@ case class ExtraRandomClassificationSplitter(
     (split, calculator.getImpurity)
   }
 
-  /**
-    * Get find the best categorical splitter.
+  /** Get find the best categorical splitter.
     *
-    * @param data  to split
-    * @param index of the feature to split on
-    * @return the best split of this feature
+    * @param data
+    *   to split
+    * @param index
+    *   of the feature to split on
+    * @return
+    *   the best split of this feature
     */
   def getBestCategoricalSplit(
       data: Seq[(Vector[AnyVal], Char, Double)],

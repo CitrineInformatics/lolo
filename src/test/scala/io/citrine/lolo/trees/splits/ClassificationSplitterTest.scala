@@ -4,16 +4,14 @@ import io.citrine.lolo.TestUtils
 import io.citrine.lolo.encoders.CategoricalEncoder
 import io.citrine.theta.Stopwatch
 
-/**
-  * Hold some performance profiling routines.
+/** Hold some performance profiling routines.
   *
-  * NOTE: performance on travis isn't sufficiently stable to run these continouously.
-  * For now, they are intended as developer tools for collecting performance signal.
+  * NOTE: performance on travis isn't sufficiently stable to run these continouously. For now, they are intended as
+  * developer tools for collecting performance signal.
   */
 class ClassificationSplitterTest {
 
-  /**
-    * Evaluate the split finding performance on large and small datasets
+  /** Evaluate the split finding performance on large and small datasets
     */
   def testSplitterPerformance(): Unit = {
     val timeLarge = Stopwatch.time {
@@ -30,8 +28,7 @@ class ClassificationSplitterTest {
 
 }
 
-/**
-  * Setup the test data
+/** Setup the test data
   */
 object ClassificationSplitterTest {
   val nRow = 4096
@@ -44,17 +41,16 @@ object ClassificationSplitterTest {
   )
 
   val encoder = CategoricalEncoder.buildEncoder(testData.map(_._2))
-  val encodedData = testData.map {
-    case (f, l) =>
-      (f.asInstanceOf[Vector[AnyVal]], encoder.encode(l), 1.0)
+  val encodedData = testData.map { case (f, l) =>
+    (f.asInstanceOf[Vector[AnyVal]], encoder.encode(l), 1.0)
   }
 
   val subset = encodedData.take(nSubset)
 
-  /**
-    * Run the tests
+  /** Run the tests
     *
-    * @param args foo
+    * @param args
+    *   foo
     */
   def main(args: Array[String]): Unit = {
     new ClassificationSplitterTest().testSplitterPerformance()

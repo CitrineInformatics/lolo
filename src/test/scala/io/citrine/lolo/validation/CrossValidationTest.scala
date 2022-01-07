@@ -10,8 +10,7 @@ import scala.util.Random
 class CrossValidationTest {
   val rng = new Random(92486L)
 
-  /**
-    * Test that CV results are consistent with out-of-bag estimates from the bagged learner
+  /** Test that CV results are consistent with out-of-bag estimates from the bagged learner
     *
     * Who cross-validates the cross-validator?
     */
@@ -29,8 +28,8 @@ class CrossValidationTest {
       trainingResult
         .getPredictedVsActual()
         .get
-        .map {
-          case (_, p: Double, a: Double) => Math.pow(p - a, 2.0)
+        .map { case (_, p: Double, a: Double) =>
+          Math.pow(p - a, 2.0)
         }
         .sum / trainingResult.getPredictedVsActual().get.size
     )

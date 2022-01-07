@@ -4,12 +4,10 @@ import io.citrine.lolo.Learner
 
 import scala.util.Random
 
-/**
-  * Search for hypers by randomly sampling the search space
+/** Search for hypers by randomly sampling the search space
   *
-  * This optimizer can be evaluated multiple times and will persist the best results across those
-  * calls.
-  * Created by maxhutch on 12/7/16.
+  * This optimizer can be evaluated multiple times and will persist the best results across those calls. Created by
+  * maxhutch on 12/7/16.
   */
 class RandomHyperOptimizer(rng: Random = Random) extends HyperOptimizer {
 
@@ -19,12 +17,14 @@ class RandomHyperOptimizer(rng: Random = Random) extends HyperOptimizer {
   /** Likewise with the lowest loss */
   var loss = Double.MaxValue
 
-  /**
-    * Search over numIterations random draws for the search space
+  /** Search over numIterations random draws for the search space
     *
-    * @param trainingData  the data to train/test on
-    * @param numIterations number of draws to take
-    * @return the best hyper map found in give iterations and the corresponding loss
+    * @param trainingData
+    *   the data to train/test on
+    * @param numIterations
+    *   number of draws to take
+    * @return
+    *   the best hyper map found in give iterations and the corresponding loss
     */
   override def optimize(
       trainingData: Seq[(Vector[Any], Any)],
@@ -33,9 +33,8 @@ class RandomHyperOptimizer(rng: Random = Random) extends HyperOptimizer {
   ): (Map[String, Any], Double) = {
     /* Just draw numIteration times */
     (0 until numIterations).foreach { i =>
-      val testHypers = hyperGrids.map {
-        case (n, v) =>
-          n -> rng.shuffle(v).head
+      val testHypers = hyperGrids.map { case (n, v) =>
+        n -> rng.shuffle(v).head
       }
       val testLearner = builder(testHypers)
       val res = testLearner.train(trainingData)

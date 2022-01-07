@@ -13,22 +13,30 @@ import org.apache.commons.math3.random.MersenneTwister
 
 import scala.util.Random
 
-/**
-  * Standard random forest as a wrapper around bagged decision trees
-  * Created by maxhutch on 1/9/17.
+/** Standard random forest as a wrapper around bagged decision trees Created by maxhutch on 1/9/17.
   *
-  * @param numTrees       number of trees to use (-1 => number of training instances)
-  * @param useJackknife   whether to use jackknife based variance estimates
-  * @param biasLearner    learner to model bias (absolute residual)
-  * @param leafLearner    learner to use at the leaves of the trees
-  * @param subsetStrategy for random feature selection at each split
-  *                       (auto => all fetures for regression, sqrt for classification)
-  * @param minLeafInstances minimum number of instances per leave in each tree
-  * @param maxDepth       maximum depth of each tree in the forest (default: unlimited)
-  * @param uncertaintyCalibration whether to empirically recalibrate the predicted uncertainties (default: false)
-  * @param randomizePivotLocation whether to generate splits randomly between the data points (default: false)
-  * @param randomlyRotateFeatures whether to randomly rotate real features for each tree in the forest (default: false)
-  * @param rng            random number generator to use for stochastic functionality
+  * @param numTrees
+  *   number of trees to use (-1 => number of training instances)
+  * @param useJackknife
+  *   whether to use jackknife based variance estimates
+  * @param biasLearner
+  *   learner to model bias (absolute residual)
+  * @param leafLearner
+  *   learner to use at the leaves of the trees
+  * @param subsetStrategy
+  *   for random feature selection at each split (auto => all fetures for regression, sqrt for classification)
+  * @param minLeafInstances
+  *   minimum number of instances per leave in each tree
+  * @param maxDepth
+  *   maximum depth of each tree in the forest (default: unlimited)
+  * @param uncertaintyCalibration
+  *   whether to empirically recalibrate the predicted uncertainties (default: false)
+  * @param randomizePivotLocation
+  *   whether to generate splits randomly between the data points (default: false)
+  * @param randomlyRotateFeatures
+  *   whether to randomly rotate real features for each tree in the forest (default: false)
+  * @param rng
+  *   random number generator to use for stochastic functionality
   */
 case class RandomForest(
     numTrees: Int = -1,
@@ -38,21 +46,23 @@ case class RandomForest(
     subsetStrategy: Any = "auto",
     minLeafInstances: Int = 1,
     maxDepth: Int = Integer.MAX_VALUE,
-    uncertaintyCalibration: Boolean = false,
+    uncertaintyCalibration: Boolean = true,
     randomizePivotLocation: Boolean = false,
     randomlyRotateFeatures: Boolean = false,
     rng: Random = Random
 ) extends Learner {
 
-  /**
-    * Train a random forest model
+  /** Train a random forest model
     *
-    * If the training labels are Doubles, this is a regression forest; otherwise, a classification forest.
-    * Options like the number of trees are set via setHyper
+    * If the training labels are Doubles, this is a regression forest; otherwise, a classification forest. Options like
+    * the number of trees are set via setHyper
     *
-    * @param trainingData to train on
-    * @param weights      for the training rows, if applicable
-    * @return training result containing a model
+    * @param trainingData
+    *   to train on
+    * @param weights
+    *   for the training rows, if applicable
+    * @return
+    *   training result containing a model
     */
   override def train(trainingData: Seq[(Vector[Any], Any)], weights: Option[Seq[Double]]): TrainingResult = {
     val breezeRandBasis: RandBasis = new RandBasis(new ThreadLocalRandomGenerator(new MersenneTwister(rng.nextLong())))

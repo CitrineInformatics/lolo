@@ -4,8 +4,7 @@ import io.citrine.lolo.trees.splits.{NoSplit, Split, Splitter}
 import io.citrine.lolo.trees.{InternalModelNode, ModelNode, TrainingNode}
 import io.citrine.lolo.{Learner, PredictionResult}
 
-/**
-  * Created by maxhutch on 1/12/17.
+/** Created by maxhutch on 1/12/17.
   */
 class RegressionTrainingNode(
     trainingData: Seq[(Vector[AnyVal], Double, Double)],
@@ -54,10 +53,10 @@ class RegressionTrainingNode(
     numFeatures
   )
 
-  /**
-    * Get the lightweight prediction node for the output tree
+  /** Get the lightweight prediction node for the output tree
     *
-    * @return lightweight prediction node
+    * @return
+    *   lightweight prediction node
     */
   override def getNode(): ModelNode[PredictionResult[Double]] = {
     new InternalModelNode[PredictionResult[Double]](
@@ -69,13 +68,13 @@ class RegressionTrainingNode(
     )
   }
 
-  /**
-    * Get the feature importance from the subtree
+  /** Get the feature importance from the subtree
     *
-    * This routine sums the importance from the children and adds the local
-    * improvement to the feature used in this split
+    * This routine sums the importance from the children and adds the local improvement to the feature used in this
+    * split
     *
-    * @return feature importance as a vector
+    * @return
+    *   feature importance as a vector
     */
   override def getFeatureImportance(): scala.collection.mutable.ArraySeq[Double] = {
     val improvement = deltaImpurity
@@ -85,24 +84,28 @@ class RegressionTrainingNode(
   }
 }
 
-/**
-  * Companion object to hold helper functions
+/** Companion object to hold helper functions
   */
 object RegressionTrainingNode {
 
-  /**
-    * Build a child node by pre-computing a split
+  /** Build a child node by pre-computing a split
     *
-    * If there isn't a split, the child is a leaf; otherwise, the child is
-    * another training node
+    * If there isn't a split, the child is a leaf; otherwise, the child is another training node
     *
-    * @param trainingData     for the child
-    * @param leafLearner      to pass through
-    * @param minLeafInstances minimum training instances per node
-    * @param remainingDepth   the number of splits left
-    * @param maxDepth         to compute depth via remainingDepth
-    * @param numFeatures      to consider in the split
-    * @return the child node, either a RegressionTrainingNode or TrainingLeaf
+    * @param trainingData
+    *   for the child
+    * @param leafLearner
+    *   to pass through
+    * @param minLeafInstances
+    *   minimum training instances per node
+    * @param remainingDepth
+    *   the number of splits left
+    * @param maxDepth
+    *   to compute depth via remainingDepth
+    * @param numFeatures
+    *   to consider in the split
+    * @return
+    *   the child node, either a RegressionTrainingNode or TrainingLeaf
     */
   def buildChild(
       trainingData: Seq[(Vector[AnyVal], Double, Double)],

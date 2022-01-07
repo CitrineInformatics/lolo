@@ -9,16 +9,21 @@ import io.citrine.lolo.trees.{InternalModelNode, ModelNode, TrainingLeaf}
 import scala.collection.mutable
 import scala.util.Random
 
-/**
-  * Node in a multi-task training tree, which can produce nodes for its model trees.
-  * Splits are chosen using a MultiTaskSplitter, which considers the sum impurity decrease across all tasks.
+/** Node in a multi-task training tree, which can produce nodes for its model trees. Splits are chosen using a
+  * MultiTaskSplitter, which considers the sum impurity decrease across all tasks.
   *
-  * @param inputs data on which to select splits and form models
-  * @param numFeatures to randomly select from at each split (negative values indicate that all features should be considered)
-  * @param maxDepth to grow the tree to
-  * @param minInstances minimum number of training instances per leaf
-  * @param randomizePivotLocation whether to generate splits randomly between the data points
-  * @param rng random number generator, for reproducibility
+  * @param inputs
+  *   data on which to select splits and form models
+  * @param numFeatures
+  *   to randomly select from at each split (negative values indicate that all features should be considered)
+  * @param maxDepth
+  *   to grow the tree to
+  * @param minInstances
+  *   minimum number of training instances per leaf
+  * @param randomizePivotLocation
+  *   whether to generate splits randomly between the data points
+  * @param rng
+  *   random number generator, for reproducibility
   */
 class MultiTaskTrainingNode(
     inputs: Seq[(Vector[AnyVal], Array[AnyVal], Double)],

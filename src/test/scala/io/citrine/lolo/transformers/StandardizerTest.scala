@@ -10,8 +10,7 @@ import org.junit.Test
 
 import scala.util.Random
 
-/**
-  * Created by maxhutch on 2/19/17.
+/** Created by maxhutch on 2/19/17.
   */
 @Test
 class StandardizerTest {
@@ -50,8 +49,7 @@ class StandardizerTest {
     assert(Math.abs(variance - 1.0) < 1.0e-9, s"Standard output has non-unit variance ${variance}")
   }
 
-  /**
-    * Guess the mean should be invariant under standardization
+  /** Guess the mean should be invariant under standardization
     */
   @Test
   def testStandardGTM(): Unit = {
@@ -63,14 +61,12 @@ class StandardizerTest {
     val standardModel = standardLearner.train(data).getModel()
     val standardResult = standardModel.transform(data.map(_._1)).getExpected()
 
-    result.zip(standardResult).foreach {
-      case (free: Double, standard: Double) =>
-        assert(Math.abs(free - standard) < 1.0e-9, s"${free} and ${standard} should be the same")
+    result.zip(standardResult).foreach { case (free: Double, standard: Double) =>
+      assert(Math.abs(free - standard) < 1.0e-9, s"${free} and ${standard} should be the same")
     }
   }
 
-  /**
-    * Linear regression should be invariant under standardization
+  /** Linear regression should be invariant under standardization
     */
   @Test
   def testStandardLinear(): Unit = {
@@ -86,22 +82,20 @@ class StandardizerTest {
     val standardExpected = standardResult.getExpected()
     val standardGradient = standardResult.getGradient()
 
-    expected.zip(standardExpected).foreach {
-      case (free: Double, standard: Double) =>
-        assert(Math.abs(free - standard) < 1.0e-9, s"${free} and ${standard} should be the same")
+    expected.zip(standardExpected).foreach { case (free: Double, standard: Double) =>
+      assert(Math.abs(free - standard) < 1.0e-9, s"${free} and ${standard} should be the same")
     }
 
-    gradient.get.zip(standardGradient.get).foreach {
-      case (free, standard) =>
-        val diff = free.zip(standard).map { case (f, s) => Math.abs(f - s) }.max
-        assert(diff < 1.0e-9, "Gradients should be the same")
+    gradient.get.zip(standardGradient.get).foreach { case (free, standard) =>
+      val diff = free.zip(standard).map { case (f, s) => Math.abs(f - s) }.max
+      assert(diff < 1.0e-9, "Gradients should be the same")
     }
   }
 
-  /**
-    * When the variance of a particular feature is 0
+  /** When the variance of a particular feature is 0
     *
-    * @author Astha Garg
+    * @author
+    *   Astha Garg
     */
   @Test
   def testStandardWithConstantFeature(): Unit = {
@@ -126,24 +120,21 @@ class StandardizerTest {
     }
 
     // The gradient wrt the first constant feature is ill-defined without regularization
-    gradient.get.zip(standardGradient.get).foreach {
-      case (free, standard) =>
-        val diff = free.zip(standard).map { case (f, s) => Math.abs(f - s) }.max
-        assert(diff < 1.0e-9, s"Gradients should be the same. The diff is $diff")
+    gradient.get.zip(standardGradient.get).foreach { case (free, standard) =>
+      val diff = free.zip(standard).map { case (f, s) => Math.abs(f - s) }.max
+      assert(diff < 1.0e-9, s"Gradients should be the same. The diff is $diff")
     }
 
     // This test fails ~30% of the time when nRows=30, but its not clear why.
-    expected.zip(standardExpected).foreach {
-      case (free: Double, standard: Double) =>
-        assert(
-          Math.abs(free - standard) < 1.0e-9,
-          s"Failed test for expected. ${free} and ${standard} should be the same"
-        )
+    expected.zip(standardExpected).foreach { case (free: Double, standard: Double) =>
+      assert(
+        Math.abs(free - standard) < 1.0e-9,
+        s"Failed test for expected. ${free} and ${standard} should be the same"
+      )
     }
   }
 
-  /**
-    * Ridge regression should depend on standardization
+  /** Ridge regression should depend on standardization
     */
   @Test
   def testStandardRidge(): Unit = {
@@ -155,9 +146,8 @@ class StandardizerTest {
     val standardModel = standardLearner.train(data).getModel()
     val standardResult = standardModel.transform(data.map(_._1)).getExpected()
 
-    result.zip(standardResult).foreach {
-      case (free: Double, standard: Double) =>
-        assert(Math.abs(free - standard) > 1.0e-9, s"${free} and ${standard} should NOT be the same")
+    result.zip(standardResult).foreach { case (free: Double, standard: Double) =>
+      assert(Math.abs(free - standard) > 1.0e-9, s"${free} and ${standard} should NOT be the same")
     }
   }
 
@@ -175,14 +165,12 @@ class StandardizerTest {
     val standardLearner = Standardizer(learner)
     val standardModel = standardLearner.train(trainingData).getModel()
     val standardResult = standardModel.transform(trainingData.map(_._1)).getExpected()
-    result.zip(standardResult).foreach {
-      case (free: String, standard: String) =>
-        assert(free == standard, s"Standard classification tree should be the same")
+    result.zip(standardResult).foreach { case (free: String, standard: String) =>
+      assert(free == standard, s"Standard classification tree should be the same")
     }
   }
 
-  /**
-    * Test that multitask sandardization has the proper performance and invariants
+  /** Test that multitask sandardization has the proper performance and invariants
     */
   @Test
   def testMultiTaskStandardizer(): Unit = {

@@ -6,28 +6,29 @@ import org.knowm.xchart.XYSeries.XYSeriesRenderStyle
 import org.knowm.xchart._
 import org.knowm.xchart.internal.chartpart.Chart
 
-/**
-  * Visualization on predicted vs actual data of type T
+/** Visualization on predicted vs actual data of type T
   */
 trait Visualization[T] {
 
-  /**
-    * Produce a visualization, as a [[Chart]], from predicted-vs-actual data
+  /** Produce a visualization, as a [[Chart]], from predicted-vs-actual data
     */
   def visualize(data: Iterable[(PredictionResult[T], Seq[T])]): Chart[_, _]
 }
 
-/**
-  * Histogram of the error divided by the predicted uncertainty
+/** Histogram of the error divided by the predicted uncertainty
   *
   * Gaussian and Cauchy fits are preformed via quantiles:
-  *  - standard deviation is taken as the 68th percentile standard error
-  *  - gamma is taken as the 50th percentile standard error
+  *   - standard deviation is taken as the 68th percentile standard error
+  *   - gamma is taken as the 50th percentile standard error
   *
-  * @param nBins       number of bins in the histogram
-  * @param range       of the horizontal axis, e.g. x \in [-range/2, range/2]
-  * @param fitGaussian whether to fit and plot a Gaussian distribution
-  * @param fitCauchy   whether to fit and plot a Cauchy distribution
+  * @param nBins
+  *   number of bins in the histogram
+  * @param range
+  *   of the horizontal axis, e.g. x \in [-range/2, range/2]
+  * @param fitGaussian
+  *   whether to fit and plot a Gaussian distribution
+  * @param fitCauchy
+  *   whether to fit and plot a Cauchy distribution
   */
 case class StandardResidualHistogram(
     nBins: Int = 128,
@@ -37,9 +38,8 @@ case class StandardResidualHistogram(
 ) extends Visualization[Double] {
 
   override def visualize(data: Iterable[(PredictionResult[Double], Seq[Double])]): CategoryChart = {
-    val pua: Seq[(Double, Double, Double)] = data.flatMap {
-      case (predictions, actual) =>
-        (predictions.getExpected(), predictions.getUncertainty().get.asInstanceOf[Seq[Double]], actual).zipped.toSeq
+    val pua: Seq[(Double, Double, Double)] = data.flatMap { case (predictions, actual) =>
+      (predictions.getExpected(), predictions.getUncertainty().get.asInstanceOf[Seq[Double]], actual).zipped.toSeq
     }.toSeq
 
     val standardErrors = pua.map { case (predicted, sigma, actual) => (predicted - actual) / sigma }.sorted
@@ -48,9 +48,8 @@ case class StandardResidualHistogram(
       (range * idx.toDouble / nBins, range * (idx.toDouble + 1) / nBins)
     }
 
-    val counts = bins.map {
-      case (min, max) =>
-        ((min + max) / 2.0, standardErrors.count(x => x >= min && x < max) / (standardErrors.size * (max - min)))
+    val counts = bins.map { case (min, max) =>
+      ((min + max) / 2.0, standardErrors.count(x => x >= min && x < max) / (standardErrors.size * (max - min)))
     }
 
     val chart: CategoryChart = new CategoryChartBuilder().build()
@@ -76,19 +75,17 @@ case class StandardResidualHistogram(
   }
 }
 
-/**
-  * Plot the predicted value vs the actual value, with predicted uncertainty as error bars
+/** Plot the predicted value vs the actual value, with predicted uncertainty as error bars
   */
 case class PredictedVsActual() extends Visualization[Double] {
 
   override def visualize(data: Iterable[(PredictionResult[Double], Seq[Double])]): XYChart = {
     val chart = new XYChart(500, 500)
 
-    val flattened: Iterable[(Double, Double, Double)] = data.flatMap {
-      case (pred, actual: Seq[Double]) =>
-        val foo: Seq[(Double, Double, Double)] =
-          (actual, pred.getExpected(), pred.getUncertainty().get.asInstanceOf[Seq[Double]]).zipped.toSeq
-        foo
+    val flattened: Iterable[(Double, Double, Double)] = data.flatMap { case (pred, actual: Seq[Double]) =>
+      val foo: Seq[(Double, Double, Double)] =
+        (actual, pred.getExpected(), pred.getUncertainty().get.asInstanceOf[Seq[Double]]).zipped.toSeq
+      foo
     }
 
     val actual = flattened.map(_._1).toArray
@@ -112,21 +109,21 @@ case class PredictedVsActual() extends Visualization[Double] {
 
 /** Visualization of the error compared to the predicted uncertainty
   *
-  * @param magnitude whether to plot the error or the magnitude (abs) of the error
+  * @param magnitude
+  *   whether to plot the error or the magnitude (abs) of the error
   */
 case class ErrorVsUncertainty(magnitude: Boolean = true) extends Visualization[Double] {
 
   override def visualize(data: Iterable[(PredictionResult[Double], Seq[Double])]): XYChart = {
     val chart = new XYChart(500, 500)
 
-    val flattened: Iterable[(Double, Double)] = data.flatMap {
-      case (pred, actual: Seq[Double]) =>
-        val sigmas = pred.getUncertainty().get.asInstanceOf[Seq[Double]]
-        val errors = actual.zip(pred.getExpected()).map {
-          case (x, y) if magnitude => Math.abs(x - y)
-          case (x, y)              => y - x
-        }
-        (sigmas, errors).zipped.toSeq
+    val flattened: Iterable[(Double, Double)] = data.flatMap { case (pred, actual: Seq[Double]) =>
+      val sigmas = pred.getUncertainty().get.asInstanceOf[Seq[Double]]
+      val errors = actual.zip(pred.getExpected()).map {
+        case (x, y) if magnitude => Math.abs(x - y)
+        case (x, y)              => y - x
+      }
+      (sigmas, errors).zipped.toSeq
     }
 
     val sigma = flattened.map(_._1).toArray

@@ -4,20 +4,21 @@ import io.citrine.lolo.trees.impurity.GiniCalculator
 
 import scala.util.Random
 
-/**
-  * Find the best split for classification problems.
+/** Find the best split for classification problems.
   *
   * Created by maxhutch on 12/2/16.
   */
 case class ClassificationSplitter(randomizedPivotLocation: Boolean = false, rng: Random = Random)
     extends Splitter[Char] {
 
-  /**
-    * Get the best split, considering numFeature random features (w/o replacement)
+  /** Get the best split, considering numFeature random features (w/o replacement)
     *
-    * @param data        to split
-    * @param numFeatures to consider, randomly
-    * @return a split object that optimally divides data
+    * @param data
+    *   to split
+    * @param numFeatures
+    *   to consider, randomly
+    * @return
+    *   a split object that optimally divides data
     */
   def getBestSplit(
       data: Seq[(Vector[AnyVal], Char, Double)],
@@ -81,9 +82,8 @@ case class ClassificationSplitter(randomizedPivotLocation: Boolean = false, rng:
     (0 until orderedNames.size - 1).foreach { j =>
       val gd = groupedData(orderedNames(j))
       val dict = gd._1
-      dict.foreach {
-        case (y, w) =>
-          calculator.add(y, w)
+      dict.foreach { case (y, w) =>
+        calculator.add(y, w)
       }
       leftNum = leftNum + gd._3
 

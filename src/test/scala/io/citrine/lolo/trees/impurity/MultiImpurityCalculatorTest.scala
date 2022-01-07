@@ -2,14 +2,12 @@ package io.citrine.lolo.trees.impurity
 
 import org.junit.Test
 
-/**
-  * Created by maxhutch on 12/1/16.
+/** Created by maxhutch on 12/1/16.
   */
 @Test
 class MultiImpurityCalculatorTest {
 
-  /**
-    * Test calculation of impurity on a known set
+  /** Test calculation of impurity on a known set
     */
   @Test
   def testImpurity(): Unit = {

@@ -3,24 +3,26 @@ package io.citrine.lolo.linear
 import breeze.linalg.{diag, pinv, sum, DenseMatrix, DenseVector}
 import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
 
-/**
-  * Linear and ridge regression learner
+/** Linear and ridge regression learner
   *
   * Created by maxhutch on 12/6/16.
   *
-  * @param fitIntercept whether to fit an intercept or not
+  * @param fitIntercept
+  *   whether to fit an intercept or not
   */
 case class LinearRegressionLearner(
     regParam: Option[Double] = None,
     fitIntercept: Boolean = true
 ) extends Learner {
 
-  /**
-    * Train a linear model via direct inversion.
+  /** Train a linear model via direct inversion.
     *
-    * @param trainingData to train on
-    * @param weights      for the training rows, if applicable
-    * @return a model
+    * @param trainingData
+    *   to train on
+    * @param weights
+    *   for the training rows, if applicable
+    * @return
+    *   a model
     */
   override def train(
       trainingData: Seq[(Vector[Any], Any)],
@@ -104,19 +106,19 @@ case class LinearRegressionLearner(
   }
 }
 
-/**
-  * Simple container around the model
+/** Simple container around the model
   *
-  * @param model contained
+  * @param model
+  *   contained
   */
 class LinearRegressionTrainingResult(model: LinearRegressionModel) extends TrainingResult {
 
   override def getModel(): LinearRegressionModel = model
 
-  /**
-    * Get a measure of the importance of the model features
+  /** Get a measure of the importance of the model features
     *
-    * @return feature influences as an array of doubles
+    * @return
+    *   feature influences as an array of doubles
     */
   override def getFeatureImportance(): Option[Vector[Double]] = {
     val beta: Vector[Double] = model.getBeta().map(Math.abs)
@@ -125,12 +127,14 @@ class LinearRegressionTrainingResult(model: LinearRegressionModel) extends Train
   }
 }
 
-/**
-  * Linear regression model as a coefficient vector and intercept
+/** Linear regression model as a coefficient vector and intercept
   *
-  * @param beta      coefficient vector
-  * @param intercept intercept
-  * @param indices   optional indices from which to extract real features
+  * @param beta
+  *   coefficient vector
+  * @param intercept
+  *   intercept
+  * @param indices
+  *   optional indices from which to extract real features
   */
 class LinearRegressionModel(
     beta: DenseVector[Double],
@@ -138,11 +142,12 @@ class LinearRegressionModel(
     indices: Option[(Vector[Int], Int)] = None
 ) extends Model[LinearRegressionResult] {
 
-  /**
-    * Apply the model to a seq of inputs
+  /** Apply the model to a seq of inputs
     *
-    * @param inputs to apply the model to
-    * @return a predictionresult which includes, at least, the expected outputs
+    * @param inputs
+    *   to apply the model to
+    * @return
+    *   a predictionresult which includes, at least, the expected outputs
     */
   override def transform(inputs: Seq[Vector[Any]]): LinearRegressionResult = {
     val filteredInputs = indices
@@ -157,17 +162,16 @@ class LinearRegressionModel(
     new LinearRegressionResult(result, grad)
   }
 
-  /**
-    * Get the beta from the linear model \beta^T X = y
-    * @return beta as a vector of double
+  /** Get the beta from the linear model \beta^T X = y
+    * @return
+    *   beta as a vector of double
     */
   def getBeta(): Vector[Double] = {
     indices
-      .map {
-        case (inds, size) =>
-          val empty = DenseVector.zeros[Double](size)
-          inds.zipWithIndex.foreach { case (j, i) => empty(j) = beta(i) }
-          empty
+      .map { case (inds, size) =>
+        val empty = DenseVector.zeros[Double](size)
+        inds.zipWithIndex.foreach { case (j, i) => empty(j) = beta(i) }
+        empty
       }
       .getOrElse(beta)
       .toArray
@@ -175,25 +179,26 @@ class LinearRegressionModel(
   }
 }
 
-/**
-  * Simple container around the result and coefficient array
+/** Simple container around the result and coefficient array
   *
-  * @param values computed from the model
-  * @param grad   gradient vector, which are just the linear coefficients
+  * @param values
+  *   computed from the model
+  * @param grad
+  *   gradient vector, which are just the linear coefficients
   */
 class LinearRegressionResult(values: Seq[Double], grad: Vector[Double]) extends PredictionResult[Double] {
 
-  /**
-    * Get the expected values for this prediction
+  /** Get the expected values for this prediction
     *
-    * @return expected value of each prediction
+    * @return
+    *   expected value of each prediction
     */
   override def getExpected(): Seq[Double] = values
 
-  /**
-    * Get the gradient, which is uniform
+  /** Get the gradient, which is uniform
     *
-    * @return a vector of doubles for each prediction
+    * @return
+    *   a vector of doubles for each prediction
     */
   override def getGradient(): Option[Seq[Vector[Double]]] = Some(Seq.fill(values.size)(grad))
 }

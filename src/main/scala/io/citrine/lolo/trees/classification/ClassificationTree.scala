@@ -8,14 +8,18 @@ import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
 
 import scala.util.Random
 
-/**
-  * Created by maxhutch on 12/2/16.
+/** Created by maxhutch on 12/2/16.
   *
-  * @param numFeatures subset of features to select splits from
-  * @param maxDepth maximum depth of tree
-  * @param minLeafInstances minimum training instances per node
-  * @param leafLearner to train on leaves
-  * @param splitter used to select splits
+  * @param numFeatures
+  *   subset of features to select splits from
+  * @param maxDepth
+  *   maximum depth of tree
+  * @param minLeafInstances
+  *   minimum training instances per node
+  * @param leafLearner
+  *   to train on leaves
+  * @param splitter
+  *   used to select splits
   */
 case class ClassificationTreeLearner(
     numFeatures: Int = -1,
@@ -28,12 +32,14 @@ case class ClassificationTreeLearner(
 
   @transient private lazy val myLeafLearner: Learner = leafLearner.getOrElse(GuessTheMeanLearner(rng = rng))
 
-  /**
-    * Train classification tree
+  /** Train classification tree
     *
-    * @param trainingData to train on
-    * @param weights      for the training rows, if applicable
-    * @return a classification tree
+    * @param trainingData
+    *   to train on
+    * @param weights
+    *   for the training rows, if applicable
+    * @return
+    *   a classification tree
     */
   override def train(
       trainingData: Seq[(Vector[Any], Any)],
@@ -43,13 +49,12 @@ case class ClassificationTreeLearner(
     val repInput = trainingData.head._1
 
     /* Create encoders for any categorical features */
-    val inputEncoders: Seq[Option[CategoricalEncoder[Any]]] = repInput.zipWithIndex.map {
-      case (v, i) =>
-        if (v.isInstanceOf[Double]) {
-          None
-        } else {
-          Some(CategoricalEncoder.buildEncoder(trainingData.map(_._1(i))))
-        }
+    val inputEncoders: Seq[Option[CategoricalEncoder[Any]]] = repInput.zipWithIndex.map { case (v, i) =>
+      if (v.isInstanceOf[Double]) {
+        None
+      } else {
+        Some(CategoricalEncoder.buildEncoder(trainingData.map(_._1(i))))
+      }
     }
 
     val outputEncoder = CategoricalEncoder.buildEncoder(trainingData.map(_._2))
@@ -61,9 +66,8 @@ case class ClassificationTreeLearner(
     /* Add the weights to the (features, label) tuples and remove any with zero weight */
     val finalTraining = encodedTraining
       .zip(weights.getOrElse(Seq.fill(trainingData.size)(1.0)))
-      .map {
-        case ((f, l), w) =>
-          (f, l, w)
+      .map { case ((f, l), w) =>
+        (f, l, w)
       }
       .filter(_._3 > 0)
       .toVector
@@ -119,16 +123,15 @@ class ClassificationTrainingResult(
 
   override def getModel(): ClassificationTree = model
 
-  /**
-    * Get a measure of the importance of the model features
+  /** Get a measure of the importance of the model features
     *
-    * @return feature influences as an array of doubles
+    * @return
+    *   feature influences as an array of doubles
     */
   override def getFeatureImportance(): Option[Vector[Double]] = Some(importanceNormalized.toVector)
 }
 
-/**
-  * Classification tree
+/** Classification tree
   */
 class ClassificationTree(
     rootModelNode: ModelNode[PredictionResult[Char]],
@@ -136,11 +139,12 @@ class ClassificationTree(
     outputEncoder: CategoricalEncoder[Any]
 ) extends Model[ClassificationResult] {
 
-  /**
-    * Apply the model to a seq of inputs
+  /** Apply the model to a seq of inputs
     *
-    * @param inputs to apply the model to
-    * @return a predictionresult which includes, at least, the expected outputs
+    * @param inputs
+    *   to apply the model to
+    * @return
+    *   a predictionresult which includes, at least, the expected outputs
     */
   override def transform(inputs: Seq[Vector[Any]]): ClassificationResult = {
     new ClassificationResult(
@@ -150,18 +154,17 @@ class ClassificationTree(
   }
 }
 
-/**
-  * Classification result
+/** Classification result
   */
 class ClassificationResult(
     predictions: Seq[(PredictionResult[Char], TreeMeta)],
     outputEncoder: CategoricalEncoder[Any]
 ) extends PredictionResult[Any] {
 
-  /**
-    * Get the expected values for this prediction
+  /** Get the expected values for this prediction
     *
-    * @return expected value of each prediction
+    * @return
+    *   expected value of each prediction
     */
   override def getExpected(): Seq[Any] = predictions.map(p => outputEncoder.decode(p._1.getExpected().head))
 

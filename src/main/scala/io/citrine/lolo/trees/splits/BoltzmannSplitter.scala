@@ -6,29 +6,29 @@ import io.citrine.lolo.trees.splits.BoltzmannSplitter.SplitterResult
 import scala.collection.mutable
 import scala.util.Random
 
-/**
-  * Find a split for a regression problem
+/** Find a split for a regression problem
   *
-  * The splits are picked with a probability that is related to the reduction in variance:
-  * P(split) ~ exp[ - {remaining variance} / ({temperature} * {total variance}) ]
-  * recalling that the "variance" here is weighted by the sample size (so its really the sum of the square difference
-  * from the mean of that side of the split).  This is analogous to simulated annealing and Metropolis-Hastings.
+  * The splits are picked with a probability that is related to the reduction in variance: P(split) ~ exp[ - {remaining
+  * variance} / ({temperature} * {total variance}) ] recalling that the "variance" here is weighted by the sample size
+  * (so its really the sum of the square difference from the mean of that side of the split). This is analogous to
+  * simulated annealing and Metropolis-Hastings.
   *
   * The motivation here is to reduce the correlation of the trees by making random choices between splits that are
-  * almost just as good as the strictly optimal one.  Reducing the correlation between trees will reduce the variance
-  * in an ensemble method (e.g. random forests): the variance will both decrease more quickly with the tree count and
-  * will reach a lower floor.  In this paragraph, we're using "variance" as in "bias-variance trade-off".
+  * almost just as good as the strictly optimal one. Reducing the correlation between trees will reduce the variance in
+  * an ensemble method (e.g. random forests): the variance will both decrease more quickly with the tree count and will
+  * reach a lower floor. In this paragraph, we're using "variance" as in "bias-variance trade-off".
   *
   * Division by the local total variance make the splitting behavior invariant to data size and the scale of the labels.
-  * That means, however, that you can't set the temperature based on a known absolute noise scale.  For that, you'd want
+  * That means, however, that you can't set the temperature based on a known absolute noise scale. For that, you'd want
   * to divide by the total weight rather than the total variance.
   *
   * TODO: allow the rescaling to happen based on the total weight instead of the total variance, as an option
   *
   * Created by maxhutch on 11/29/16.
   *
-  * @param temperature used to control how sensitive the probability of a split is to its change in variance.
-  *                    The temperature can be thought of as a hyperparameter.
+  * @param temperature
+  *   used to control how sensitive the probability of a split is to its change in variance. The temperature can be
+  *   thought of as a hyperparameter.
   */
 case class BoltzmannSplitter(temperature: Double, rng: Random = Random) extends Splitter[Double] {
   require(
@@ -36,14 +36,17 @@ case class BoltzmannSplitter(temperature: Double, rng: Random = Random) extends 
     s"Temperature must be >= ${Float.MinPositiveValue} to avoid numerical underflows"
   )
 
-  /**
-    * Get the a split probabalisticly, considering numFeature random features (w/o replacement), ensuring that the
+  /** Get the a split probabalisticly, considering numFeature random features (w/o replacement), ensuring that the
     * resulting partitions have at least minInstances in them
     *
-    * @param data         to split
-    * @param numFeatures  to consider, randomly
-    * @param minInstances minimum instances permitted in a post-split partition
-    * @return a split object that optimally divides data
+    * @param data
+    *   to split
+    * @param numFeatures
+    *   to consider, randomly
+    * @param minInstances
+    *   minimum instances permitted in a post-split partition
+    * @return
+    *   a split object that optimally divides data
     */
   def getBestSplit(
       data: Seq[(Vector[AnyVal], Double, Double)],
@@ -89,14 +92,13 @@ case class BoltzmannSplitter(temperature: Double, rng: Random = Random) extends 
     val draw = rng.nextDouble() * totalProbability
     // could be a scanLeft + find, but this is more readable
     var cumSum: Double = 0.0
-    possibleSplits.foreach {
-      case SplitterResult(split, variance, score, base) =>
-        // Here's the probability rebasing again
-        cumSum = cumSum + score * Math.exp(base - rebase)
-        if (draw < cumSum) {
-          val deltaImpurity = initialVariance - variance
-          return (split, deltaImpurity)
-        }
+    possibleSplits.foreach { case SplitterResult(split, variance, score, base) =>
+      // Here's the probability rebasing again
+      cumSum = cumSum + score * Math.exp(base - rebase)
+      if (draw < cumSum) {
+        val deltaImpurity = initialVariance - variance
+        return (split, deltaImpurity)
+      }
     }
     // This shouldn't ever be hit
     throw new RuntimeException(s"Draw was beyond all the probabilities ${draw} ${totalProbability}")
@@ -105,11 +107,10 @@ case class BoltzmannSplitter(temperature: Double, rng: Random = Random) extends 
 
 object BoltzmannSplitter {
 
-  /**
-    * Container for function returns, like a decorated tuple
+  /** Container for function returns, like a decorated tuple
     *
-    * The true score (proportional to draw probability) is rebasedScore * Math.exp(base).  This decomposition
-    * is such that rebasedScore should always be >= 1.0.
+    * The true score (proportional to draw probability) is rebasedScore * Math.exp(base). This decomposition is such
+    * that rebasedScore should always be >= 1.0.
     */
   protected case class SplitterResult(split: Split, variance: Double, rebasedScore: Double, base: Double) {
     // The rebasing procedure should result in rebasedScores that are >= 1.0 with finite bases
@@ -118,15 +119,20 @@ object BoltzmannSplitter {
     require(!base.isNegInfinity)
   }
 
-  /**
-    * Find the best split on a continuous variable
+  /** Find the best split on a continuous variable
     *
-    * @param data  to split
-    * @param calculator that will efficiently compute the impurity (variance in this case)
-    * @param index of the feature to split on
-    * @param minCount minimum number of training instances to leave in each of the children nodes
-    * @param beta the inverse temperature (1.0 / (temperature * initial variance)) to scale the variances by
-    * @return the best split of this feature, along with its score, base, and result variance
+    * @param data
+    *   to split
+    * @param calculator
+    *   that will efficiently compute the impurity (variance in this case)
+    * @param index
+    *   of the feature to split on
+    * @param minCount
+    *   minimum number of training instances to leave in each of the children nodes
+    * @param beta
+    *   the inverse temperature (1.0 / (temperature * initial variance)) to scale the variances by
+    * @return
+    *   the best split of this feature, along with its score, base, and result variance
     */
   def getBestRealSplit(
       data: Seq[(Vector[AnyVal], Double, Double)],
@@ -168,26 +174,30 @@ object BoltzmannSplitter {
     val totalScore = possibleSplits.map { case (s, _, _) => Math.exp(s - base) }.sum
     val draw = rng.nextDouble() * totalScore
     var cumSum: Double = 0.0
-    possibleSplits.foreach {
-      case (score, pivot, variance) =>
-        cumSum = cumSum + Math.exp(score - base)
-        if (draw < cumSum) {
-          return Some(SplitterResult(new RealSplit(index, pivot), variance, totalScore, base))
-        }
+    possibleSplits.foreach { case (score, pivot, variance) =>
+      cumSum = cumSum + Math.exp(score - base)
+      if (draw < cumSum) {
+        return Some(SplitterResult(new RealSplit(index, pivot), variance, totalScore, base))
+      }
     }
     // This should never be hit; it would mean there's a bug in the logic above ^^
     throw new RuntimeException(s"Draw was beyond all the probabilities: ${draw} > $cumSum")
   }
 
-  /**
-    * Find the best categorical splitter.
+  /** Find the best categorical splitter.
     *
-    * @param data  to split
-    * @param calculator that will efficiently compute the impurity (variance in this case)
-    * @param index of the feature to split on
-    * @param minCount minimum number of training instances to leave in each of the children nodes
-    * @param beta the inverse temperature (1.0 / (temperature * initial variance)) to scale the variances by
-    * @return the best split of this feature, along with its score, base, and result variance
+    * @param data
+    *   to split
+    * @param calculator
+    *   that will efficiently compute the impurity (variance in this case)
+    * @param index
+    *   of the feature to split on
+    * @param minCount
+    *   minimum number of training instances to leave in each of the children nodes
+    * @param beta
+    *   the inverse temperature (1.0 / (temperature * initial variance)) to scale the variances by
+    * @return
+    *   the best split of this feature, along with its score, base, and result variance
     */
   def getBestCategoricalSplit(
       data: Seq[(Vector[AnyVal], Double, Double)],
@@ -244,12 +254,11 @@ object BoltzmannSplitter {
     val totalScore = possibleSplits.map { case (s, _, _) => Math.exp(s - base) }.sum
     val draw = rng.nextDouble() * totalScore
     var cumSum: Double = 0.0
-    possibleSplits.foreach {
-      case (score, includeSet, variance) =>
-        cumSum = cumSum + Math.exp(score - base)
-        if (draw < cumSum) {
-          return Some(SplitterResult(new CategoricalSplit(index, includeSet), variance, totalScore, base))
-        }
+    possibleSplits.foreach { case (score, includeSet, variance) =>
+      cumSum = cumSum + Math.exp(score - base)
+      if (draw < cumSum) {
+        return Some(SplitterResult(new CategoricalSplit(index, includeSet), variance, totalScore, base))
+      }
     }
     // This should never be hit; it would mean there's a bug in the logic above ^^
     throw new RuntimeException(s"Draw was beyond all the probabilities: $draw > $cumSum")

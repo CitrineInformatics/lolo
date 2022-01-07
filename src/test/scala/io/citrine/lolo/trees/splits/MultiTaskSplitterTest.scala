@@ -5,15 +5,13 @@ import org.junit.Test
 
 import scala.util.Random
 
-/**
-  * Created by maxhutch on 12/1/16.
+/** Created by maxhutch on 12/1/16.
   */
 @Test
 class MultiTaskSplitterTest {
   val rng = new Random(38945L)
 
-  /**
-    * Test that the real split goes in the right place
+  /** Test that the real split goes in the right place
     */
   @Test
   def testBestRealSplit(): Unit = {
@@ -32,8 +30,7 @@ class MultiTaskSplitterTest {
     assert(impurity == 0.5)
   }
 
-  /**
-    * Test that a categorical split goes in the right place
+  /** Test that a categorical split goes in the right place
     */
   @Test
   def testBestCategoricalSplit(): Unit = {
@@ -53,8 +50,7 @@ class MultiTaskSplitterTest {
     assert(impurity == 0.5)
   }
 
-  /**
-    * Make sure the split functions when one of the labels is completely missing
+  /** Make sure the split functions when one of the labels is completely missing
     */
   @Test
   def testAllEmptyLabels(): Unit = {

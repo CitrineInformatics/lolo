@@ -4,22 +4,28 @@ import io.citrine.lolo.{Learner, PredictionResult}
 
 import scala.util.Random
 
-/**
-  * Methods tha use cross-validation to calculate predicted-vs-actual data and metric estimates
+/** Methods tha use cross-validation to calculate predicted-vs-actual data and metric estimates
   */
 case object CrossValidation {
 
-  /**
-    * Driver to apply named metrics to k-fold cross-validated predicted-vs-actual
+  /** Driver to apply named metrics to k-fold cross-validated predicted-vs-actual
     *
-    * @param trainingData to cross-validate with
-    * @param learner      to cross-validate
-    * @param metrics      apply to the predicted-vs-actual data
-    * @param k            number of folds
-    * @param nTrial       number of times to refold the data to improve statistics
-    * @param rng          random number generator to use in choosing folds
-    * @tparam T type of the response, e.g. Double for scalar regression
-    * @return a Map from the name of the metric to its mean value and the error in that mean
+    * @param trainingData
+    *   to cross-validate with
+    * @param learner
+    *   to cross-validate
+    * @param metrics
+    *   apply to the predicted-vs-actual data
+    * @param k
+    *   number of folds
+    * @param nTrial
+    *   number of times to refold the data to improve statistics
+    * @param rng
+    *   random number generator to use in choosing folds
+    * @tparam T
+    *   type of the response, e.g. Double for scalar regression
+    * @return
+    *   a Map from the name of the metric to its mean value and the error in that mean
     */
   def kFoldCrossvalidation[T](
       trainingData: Seq[(Vector[Any], T)],
@@ -36,15 +42,20 @@ case object CrossValidation {
     )
   }
 
-  /**
-    * Use k-fold cross-validation to create predicted vs actual results
+  /** Use k-fold cross-validation to create predicted vs actual results
     *
-    * @param trainingData to cross-validate with
-    * @param learner      to cross-validate
-    * @param k            number of folds
-    * @param nTrial       number of times to re-fold the data to improve statistics
-    * @tparam T type of the response, e.g. Double for scalar regression
-    * @return an iterable over predicted-vs-actual for each fold
+    * @param trainingData
+    *   to cross-validate with
+    * @param learner
+    *   to cross-validate
+    * @param k
+    *   number of folds
+    * @param nTrial
+    *   number of times to re-fold the data to improve statistics
+    * @tparam T
+    *   type of the response, e.g. Double for scalar regression
+    * @return
+    *   an iterable over predicted-vs-actual for each fold
     */
   def kFoldPvA[T](
       trainingData: Seq[(Vector[Any], T)],

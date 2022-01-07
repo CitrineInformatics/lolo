@@ -12,15 +12,13 @@ import org.scalatest.Assertions._
 
 import scala.util.Random
 
-/**
-  * Created by maxhutch on 11/29/16.
+/** Created by maxhutch on 11/29/16.
   */
 @Test
 class RegressionTreeTest {
   val rng = new Random(90476L)
 
-  /**
-    * Trivial models with no splits should have finite feature importance.
+  /** Trivial models with no splits should have finite feature importance.
     */
   @Test
   def testFeatureImportanceNaN(): Unit = {
@@ -35,8 +33,7 @@ class RegressionTreeTest {
     assert(DTMeta.getFeatureImportance().get.forall(v => !v.isNaN))
   }
 
-  /**
-    * Test a simple tree with only real inputs
+  /** Test a simple tree with only real inputs
     */
   @Test
   def testSimpleTree(): Unit = {
@@ -47,17 +44,14 @@ class RegressionTreeTest {
 
     /* We should be able to memorize the inputs */
     val output = DT.transform(trainingData.map(_._1))
-    trainingData.zip(output.getExpected()).foreach {
-      case ((x, a), p) =>
-        assert(Math.abs(a - p) < 1.0e-9)
+    trainingData.zip(output.getExpected()).foreach { case ((x, a), p) =>
+      assert(Math.abs(a - p) < 1.0e-9)
     }
     assert(output.getGradient().isEmpty)
     output.getDepth().foreach(d => assert(d > 3 && d < 9, s"Depth is ${d}"))
   }
 
-  /**
-    * Test a simple tree with only real inputs
-    * Even with randomization, the training data should be memorized
+  /** Test a simple tree with only real inputs Even with randomization, the training data should be memorized
     */
   @Test
   def testrandomizePivotLocation(): Unit = {
@@ -68,16 +62,14 @@ class RegressionTreeTest {
 
     /* We should be able to memorize the inputs */
     val output = DT.transform(trainingData.map(_._1))
-    trainingData.zip(output.getExpected()).foreach {
-      case ((x, a), p) =>
-        assert(Math.abs(a - p) < 1.0e-9)
+    trainingData.zip(output.getExpected()).foreach { case ((x, a), p) =>
+      assert(Math.abs(a - p) < 1.0e-9)
     }
     assert(output.getGradient().isEmpty)
     output.getDepth().foreach(d => assert(d > 3 && d < 9, s"Depth is ${d}"))
   }
 
-  /**
-    * Test a larger case and time it as a benchmark guideline
+  /** Test a larger case and time it as a benchmark guideline
     */
   @Test
   def longerTest(): Unit = {
@@ -94,9 +86,8 @@ class RegressionTreeTest {
 
     /* We should be able to memorize the inputs */
     val output = DT.transform(trainingData.map(_._1))
-    trainingData.zip(output.getExpected()).foreach {
-      case ((x, a), p) =>
-        assert(Math.abs(a - p) < 1.0e-9)
+    trainingData.zip(output.getExpected()).foreach { case ((x, a), p) =>
+      assert(Math.abs(a - p) < 1.0e-9)
     }
     assert(output.getGradient().isEmpty)
     output.getDepth().foreach(d => assert(d > 4 && d < 20, s"Depth is ${d}"))
@@ -110,8 +101,7 @@ class RegressionTreeTest {
     oos.writeObject(DT)
   }
 
-  /**
-    * Train with a categorical variable
+  /** Train with a categorical variable
     */
   @Test
   def testCategorical(): Unit = {
@@ -134,9 +124,8 @@ class RegressionTreeTest {
 
     /* We should be able to memorize the inputs */
     val output = DT.transform(trainingData.map(_._1))
-    trainingData.zip(output.getExpected()).foreach {
-      case ((x, a), p) =>
-        assert(Math.abs(a - p) < 1.0e-9)
+    trainingData.zip(output.getExpected()).foreach { case ((x, a), p) =>
+      assert(Math.abs(a - p) < 1.0e-9)
     }
     assert(output.getGradient().isEmpty)
     output.getDepth().foreach(d => assert(d > 4 && d < 21, s"Depth is ${d}"))
@@ -149,8 +138,7 @@ class RegressionTreeTest {
     oos.writeObject(DT)
   }
 
-  /**
-    * Train with linear leaves.  This case is under-constriained, so we should hit the results exactly
+  /** Train with linear leaves. This case is under-constriained, so we should hit the results exactly
     */
   @Test
   def testLinearLeaves(): Unit = {
@@ -163,9 +151,8 @@ class RegressionTreeTest {
 
     /* We should be able to memorize the inputs */
     val output = DT.transform(trainingData.map(_._1))
-    trainingData.zip(output.getExpected()).foreach {
-      case ((x, a), p) =>
-        assert(Math.abs(a - p) < 1.0e-9)
+    trainingData.zip(output.getExpected()).foreach { case ((x, a), p) =>
+      assert(Math.abs(a - p) < 1.0e-9)
     }
     assert(output.getGradient().isDefined)
     output.getDepth().foreach(d => assert(d > 4 && d < 18, s"Depth is ${d}"))
@@ -181,8 +168,7 @@ class RegressionTreeTest {
     oos.writeObject(DT)
   }
 
-  /**
-    * Test a really short tree to make sure the linear model feature importance gets carried through
+  /** Test a really short tree to make sure the linear model feature importance gets carried through
     */
   @Test
   def testStumpWithLinearLeaf(): Unit = {
@@ -216,8 +202,7 @@ class RegressionTreeTest {
     assert(result.getDepth().forall(_ == 0), s"Expected all the predictions to be depth 0")
   }
 
-  /**
-    * Test with random weights to ensure all feature importances of stump tree with linear leaves are non-negative
+  /** Test with random weights to ensure all feature importances of stump tree with linear leaves are non-negative
     */
   @Test
   def testWeights(): Unit = {
@@ -239,8 +224,7 @@ class RegressionTreeTest {
     assert(importances.forall(_ >= 0.0), "Found negative feature importance")
   }
 
-  /**
-    * Test a simple tree with only real inputs
+  /** Test a simple tree with only real inputs
     */
   @Test
   def testSimpleBoltzmannTree(): Unit = {
@@ -251,23 +235,24 @@ class RegressionTreeTest {
 
     /* We should be able to memorize the inputs */
     val output = DT.transform(trainingData.map(_._1))
-    trainingData.zip(output.getExpected()).foreach {
-      case ((x, a), p) =>
-        assert(Math.abs(a - p) < 1.0e-9)
+    trainingData.zip(output.getExpected()).foreach { case ((x, a), p) =>
+      assert(Math.abs(a - p) < 1.0e-9)
     }
     assert(output.getGradient().isEmpty)
-    output.getDepth().zip(output.getExpected()).foreach {
-      case (d, y) =>
-        assert(d > 3 && d < 9, s"Depth is $d at y=$y")
+    output.getDepth().zip(output.getExpected()).foreach { case (d, y) =>
+      assert(d > 3 && d < 9, s"Depth is $d at y=$y")
     }
   }
 
-  /**
-    * Convenience method to compare the Shapley value at a test location for a tree trained on trainingData to a known reference.
+  /** Convenience method to compare the Shapley value at a test location for a tree trained on trainingData to a known
+    * reference.
     *
-    * @param trainingData on which to train a regression tree
-    * @param evalLocation at which to evaluate the Shapley value
-    * @param expected     known reference Shapley value to which to compare (fails upon mismatch)
+    * @param trainingData
+    *   on which to train a regression tree
+    * @param evalLocation
+    *   at which to evaluate the Shapley value
+    * @param expected
+    *   known reference Shapley value to which to compare (fails upon mismatch)
     */
   def shapleyCompare(
       trainingData: Seq[(Vector[Double], Double)],
@@ -286,15 +271,14 @@ class RegressionTreeTest {
       case _ => fail("Unexpected return type.")
     }
     assert(
-      expected.zip(actual).forall {
-        case (e: Double, a: Double) => Math.abs(e - a) < 1e-12
+      expected.zip(actual).forall { case (e: Double, a: Double) =>
+        Math.abs(e - a) < 1e-12
       },
       s"Shapley value ${actual} does not match reference ${expected}."
     )
   }
 
-  /**
-    * Test Shapley value for  a simple tree.
+  /** Test Shapley value for a simple tree.
     */
   @Test
   def testShapley(): Unit = {
@@ -358,10 +342,10 @@ class RegressionTreeTest {
 /** Companion driver */
 object RegressionTreeTest {
 
-  /**
-    * Test driver
+  /** Test driver
     *
-    * @param argv args
+    * @param argv
+    *   args
     */
   def main(argv: Array[String]): Unit = {
     new RegressionTreeTest().testSimpleBoltzmannTree()

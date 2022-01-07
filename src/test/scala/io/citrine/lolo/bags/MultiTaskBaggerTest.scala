@@ -13,15 +13,13 @@ import org.scalatest.Assertions._
 
 import scala.util.Random
 
-/**
-  * Created by maxhutch on 11/29/16.
+/** Created by maxhutch on 11/29/16.
   */
 @Test
 class MultiTaskBaggerTest {
   val rng = new Random(37895L)
 
-  /**
-    * Test that we get a reasonable output on a single regression problem
+  /** Test that we get a reasonable output on a single regression problem
     */
   @Test
   def testSingleRegression(): Unit = {
@@ -52,8 +50,7 @@ class MultiTaskBaggerTest {
     assert(RFMeta.getLoss().get < 1.0, "Loss of bagger is larger than expected")
   }
 
-  /**
-    * Test UQ on multitask regression with a single regression problem.
+  /** Test UQ on multitask regression with a single regression problem.
     */
   @Test
   def testBaggedMultiTaskGetUncertainty(): Unit = {
@@ -161,8 +158,7 @@ class MultiTaskBaggerTest {
     }
   }
 
-  /**
-    * Test the we get a reasonable result on a single classification problem
+  /** Test the we get a reasonable result on a single classification problem
     */
   @Test
   def testClassificationBagger(): Unit = {
@@ -185,13 +181,12 @@ class MultiTaskBaggerTest {
 
     val uncertainty = results.getUncertainty()
     assert(uncertainty.isDefined)
-    trainingData.map(_._2).zip(uncertainty.get).foreach {
-      case (a, probs) =>
-        val classProbabilities = probs.asInstanceOf[Map[Any, Double]]
-        val maxProb = classProbabilities(a)
-        assert(maxProb >= 0.5)
-        assert(maxProb < 1.0)
-        assert(Math.abs(classProbabilities.values.sum - 1.0) < 1.0e-6)
+    trainingData.map(_._2).zip(uncertainty.get).foreach { case (a, probs) =>
+      val classProbabilities = probs.asInstanceOf[Map[Any, Double]]
+      val maxProb = classProbabilities(a)
+      assert(maxProb >= 0.5)
+      assert(maxProb < 1.0)
+      assert(Math.abs(classProbabilities.values.sum - 1.0) < 1.0e-6)
     }
     assert(results.getGradient().isEmpty, "Returned a gradient when there shouldn't be one")
   }
@@ -274,9 +269,8 @@ class MultiTaskBaggerTest {
 
   }
 
-  /**
-    * Test that multi-task (regression, classification) with sparse classification labels
-    * outperforms a direct classification model on the same label
+  /** Test that multi-task (regression, classification) with sparse classification labels outperforms a direct
+    * classification model on the same label
     */
   @Test
   def testSparseMixedBagged(): Unit = {

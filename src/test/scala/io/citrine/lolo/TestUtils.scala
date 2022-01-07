@@ -8,8 +8,7 @@ import org.apache.commons.math3.random.MersenneTwister
 
 import scala.util.{Random, Try}
 
-/**
-  * Created by maxhutch on 11/28/16.
+/** Created by maxhutch on 11/28/16.
   */
 object TestUtils {
 
@@ -56,14 +55,17 @@ object TestUtils {
   }
 
   /** Given a univariate data set, construct a corresponding data set with the desired Pearson correlation coefficient.
-    * The procedure is to generate new data randomly, calculate the residuals of a linear regression,
-    * and then create a suitable linear combination of X and the residuals.
-    * Source: https://stats.stackexchange.com/a/313138
+    * The procedure is to generate new data randomly, calculate the residuals of a linear regression, and then create a
+    * suitable linear combination of X and the residuals. Source: https://stats.stackexchange.com/a/313138
     *
-    * @param X    sequence of values
-    * @param rho  desired Pearson correlation coefficient
-    * @param rng  random number generator
-    * @return     sequence of values that have desired correlation with X
+    * @param X
+    *   sequence of values
+    * @param rho
+    *   desired Pearson correlation coefficient
+    * @param rng
+    *   random number generator
+    * @return
+    *   sequence of values that have desired correlation with X
     */
   def makeLinearCorrelatedData(X: Seq[Double], rho: Double, rng: Random = new Random()): Seq[Double] = {
     require(rho >= -1.0 && rho <= 1.0, "correlation coefficient must be between -1.0 and 1.0")
@@ -98,29 +100,27 @@ object TestUtils {
       responseBins: Option[Int] = None
   ): Seq[(Vector[Any], Any)] = {
     var outputData: Seq[(Vector[Any], Any)] = continuousData
-    inputBins.foreach {
-      case (index, nBins) =>
-        outputData = outputData.map {
-          case (input, response) =>
-            (input.updated(index, Math.round(input(index).asInstanceOf[Double] * nBins).toString), response)
-        }
+    inputBins.foreach { case (index, nBins) =>
+      outputData = outputData.map { case (input, response) =>
+        (input.updated(index, Math.round(input(index).asInstanceOf[Double] * nBins).toString), response)
+      }
     }
     responseBins.foreach { nBins =>
       val max = continuousData.map(_._2).max
       val min = continuousData.map(_._2).min
-      outputData = outputData.map {
-        case (input, response) =>
-          (input, Math.round(response.asInstanceOf[Double] * nBins / (max - min)).toString)
+      outputData = outputData.map { case (input, response) =>
+        (input, Math.round(response.asInstanceOf[Double] * nBins / (max - min)).toString)
       }
     }
     outputData
   }
 
-  /**
-    * Enumerate the cartesian product of items in baseGrids.
+  /** Enumerate the cartesian product of items in baseGrids.
     *
-    * @param baseGrids a sequence of 1-d mesh specifications, one for each dimension of the output vectors
-    * @return a sequence of vectors enumerating the cartesian product of items in baseGrids
+    * @param baseGrids
+    *   a sequence of 1-d mesh specifications, one for each dimension of the output vectors
+    * @return
+    *   a sequence of vectors enumerating the cartesian product of items in baseGrids
     */
   def enumerateGrid(baseGrids: Seq[Seq[Double]]): Seq[Vector[Double]] = {
     if (baseGrids.length == 1) {

@@ -4,8 +4,7 @@ import org.junit.Test
 
 class SplitTest {
 
-  /**
-    * Make sure that splits on NaN will distinguish between NaN and non-NaN values.
+  /** Make sure that splits on NaN will distinguish between NaN and non-NaN values.
     */
   @Test
   def testSplitNaN(): Unit = {

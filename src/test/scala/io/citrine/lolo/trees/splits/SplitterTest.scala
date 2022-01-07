@@ -5,15 +5,13 @@ import org.junit.Test
 
 import scala.util.Random
 
-/**
-  * Created by maxhutch on 12/1/16.
+/** Created by maxhutch on 12/1/16.
   */
 @Test
 class SplitterTest {
   val rng = new Random(39578L)
 
-  /**
-    * Test different variance formulations
+  /** Test different variance formulations
     */
   @Test
   def testTotalVarianceCalculation(): Unit = {
@@ -51,11 +49,10 @@ class SplitterTest {
     )
   }
 
-  /**
-    * Test that large features that are almost the same don't end up being split
+  /** Test that large features that are almost the same don't end up being split
     *
-    * There are numerical issues with the features are distinct but there is no double precision
-    * value in between them to split on.  This results in post-split partitions with zero size
+    * There are numerical issues with the features are distinct but there is no double precision value in between them
+    * to split on. This results in post-split partitions with zero size
     */
   @Test
   def testLargeDuplicates(): Unit = {
@@ -75,10 +72,10 @@ class SplitterTest {
 /** Companion driver */
 object SplitterTest {
 
-  /**
-    * Test driver
+  /** Test driver
     *
-    * @param argv args
+    * @param argv
+    *   args
     */
   def main(argv: Array[String]): Unit = {
     new SplitterTest().testLargeDuplicates()

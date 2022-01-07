@@ -68,6 +68,17 @@ The [sbt-ci-release plugin](https://github.com/olafurpg/sbt-ci-release) will use
 On the other hand, `lolopy` versions are still read from `setup.py`, so version bumps are needed for successful releases.
 Failing to bump the `lolopy` version number will result in a skipped `lolopy` release rather than a build failure.
 
+## Code Formatting
+- Consistent formatting is enforced by scalafmt.
+- The easiest way to check whether scalafmt is satisfied is to run scalafmt from the command line: `sbt scalafmtCheckAll`.
+  This will check whether any files need to be reformatted.
+  Pull requests are gated on this running successfully.
+  You can automatically check whether code is formatted properly before pushing to an upstream repository using a git hook.
+  To set this up, install the pre-commit framework by following the instructions [here](https://pre-commit.com/#installation).
+  Then enable the hooks in `.pre-commit-config.yaml` by running `pre-commit install --hook-type pre-push` from the root directory.
+  This will run `scalafmtCheckAll` before pushing to a remote repo.
+- To ensure code is formatted properly, you can run `sbt scalafmtAll` from the command line or configure your IDE to format files on save.
+
 # Authors
 
 See [Contributors](https://github.com/CitrineInformatics/lolo/graphs/contributors)

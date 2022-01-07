@@ -7,8 +7,7 @@ import scala.util.Random
 
 class ExtraRandomRegressionSplitterTest {
 
-  /**
-    * Test that uniform labels result in "NoSplit" with zero reduced impurity
+  /** Test that uniform labels result in "NoSplit" with zero reduced impurity
     */
   @Test
   def testZeroVariance(): Unit = {
@@ -26,10 +25,9 @@ class ExtraRandomRegressionSplitterTest {
     assert(improvement == 0, "Can't improve on no variance")
   }
 
-  /**
-    * Test that very small random signals don't lead to exceptions.
+  /** Test that very small random signals don't lead to exceptions.
     *
-    * Note that this test will return NoSplit occasionally, when the starting impurity is numerically zero.  That's OK
+    * Note that this test will return NoSplit occasionally, when the starting impurity is numerically zero. That's OK
     * though.
     */
   @Test
@@ -46,8 +44,7 @@ class ExtraRandomRegressionSplitterTest {
     splitter.getBestSplit(testData, 1, 1)
   }
 
-  /**
-    * Test correctness of the split.
+  /** Test correctness of the split.
     *
     * Specifically, this test ensures that ExtraRandomSplitter.getBestSplit selects the split
     */
@@ -88,13 +85,12 @@ class ExtraRandomRegressionSplitterTest {
             // Compute where the cut points should be placed, based on the the sequence of randomUniforms.
             val cutPoints = shuffledFeatureIndices
               .zip(randomUniforms)
-              .map {
-                case (i, u) =>
-                  val x = trainingData.map(_._1(i))
-                  val xmin = x.min
-                  val xmax = x.max
-                  val cutPoint = xmin + u * (xmax - xmin)
-                  (i, cutPoint)
+              .map { case (i, u) =>
+                val x = trainingData.map(_._1(i))
+                val xmin = x.min
+                val xmax = x.max
+                val cutPoint = xmin + u * (xmax - xmin)
+                (i, cutPoint)
               }
               .sortBy(_._1)
               .map(_._2)
@@ -103,13 +99,11 @@ class ExtraRandomRegressionSplitterTest {
             val varianceSums = featureIndices.map { k =>
               trainingData
                 .groupBy { v => v._1(k) < cutPoints(k) }
-                .flatMap {
-                  case (_, subset) =>
-                    val mean = subset.map(_._2).sum / subset.length
-                    subset.map {
-                      case (_, yi, _) =>
-                        Math.pow(yi - mean, 2)
-                    }
+                .flatMap { case (_, subset) =>
+                  val mean = subset.map(_._2).sum / subset.length
+                  subset.map { case (_, yi, _) =>
+                    Math.pow(yi - mean, 2)
+                  }
                 }
                 .sum
             }

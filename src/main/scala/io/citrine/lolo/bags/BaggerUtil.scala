@@ -5,14 +5,18 @@ import io.citrine.lolo.{Model, PredictionResult, RegressionResult}
 
 import scala.collection.parallel.immutable.ParSeq
 
-/**
-  * Helper class to subsume shared functionality of Bagger and MultiTaskBagger.
+/** Helper class to subsume shared functionality of Bagger and MultiTaskBagger.
   *
-  * @param models collection of trained models
-  * @param trainingData on which models were trained
-  * @param Nib vector (over models) of vectors (over training data) of the number of repeats in each model's bag
-  * @param useJackknife whether to use jackknife for uncertainty quantification
-  * @param uncertaintyCalibration whether to apply empirical uncertainty calibration
+  * @param models
+  *   collection of trained models
+  * @param trainingData
+  *   on which models were trained
+  * @param Nib
+  *   vector (over models) of vectors (over training data) of the number of repeats in each model's bag
+  * @param useJackknife
+  *   whether to use jackknife for uncertainty quantification
+  * @param uncertaintyCalibration
+  *   whether to apply empirical uncertainty calibration
   */
 protected case class BaggerHelper(
     models: ParSeq[Model[PredictionResult[Any]]],
@@ -27,8 +31,8 @@ protected case class BaggerHelper(
     case None            => throw new IllegalArgumentException(s"Unable to find a non-null label")
   }
 
-  /**
-    * Seq of tuples containing training data paired with their out-of-bag residuals and uncertainty estimates.
+  /** Seq of tuples containing training data paired with their out-of-bag residuals and uncertainty estimates. Defined
+    * as lazy so it's only computed if needed for the ratio or bias learner calculations.
     */
   lazy val oobErrors: Seq[(Vector[Any], Double, Double)] = trainingData.indices.flatMap { idx =>
     val oobModels =
@@ -48,7 +52,7 @@ protected case class BaggerHelper(
       val predicted = model.transform(Seq(trainingData(idx)._1))
       val error = predicted.getExpected().head - trainingData(idx)._2.asInstanceOf[Double]
       val uncertainty = predicted match {
-        case x: RegressionResult => x.getStdDevObs.get.head
+        case x: RegressionResult => x.getStdDevObs().get.head
         case _: Any =>
           throw new UnsupportedOperationException("Computing oobErrors for classification is not supported.")
       }
@@ -56,13 +60,14 @@ protected case class BaggerHelper(
     }
   }
 
-  /**
-    * Calculate the uncertainty calibration ratio, which is the 68th percentile of error/uncertainty.
-    * for the training points. If a point has 0 uncertainty, the ratio is 1 iff error is also 0, or infinity otherwise.
+  /** Calculate the uncertainty calibration ratio, which is the 68th percentile of error/uncertainty. for the training
+    * points. If a point has 0 uncertainty, the ratio is 1 iff error is also 0, or infinity otherwise. If the 68th
+    * percentile ratio is infinity, default to 1.0. This is not unreasonable when the number of training data and bags
+    * are small, meaning there may only be 2 out-of-bag models.
     */
   val ratio = if (uncertaintyCalibration && isRegression && useJackknife) {
     Async.canStop()
-    oobErrors
+    val oneSigmaRatio = oobErrors
       .map {
         case (_, 0.0, 0.0)           => 1.0
         case (_, _, 0.0)             => Double.PositiveInfinity
@@ -71,19 +76,18 @@ protected case class BaggerHelper(
       .sorted
       .drop((oobErrors.size * 0.68).toInt)
       .head
+    if (oneSigmaRatio.isPosInfinity) 1.0 else oneSigmaRatio
   } else {
     1.0
   }
   assert(!ratio.isNaN && !ratio.isInfinity, s"Uncertainty calibration ratio is not real: $ratio")
 
-  /**
-    * Data on which to train a bias learner.
+  /** Data on which to train a bias learner.
     */
-  lazy val biasTraining = oobErrors.map {
-    case (f, e, u) =>
-      // Math.E is only statistically correct.  It should be actualBags / Nib.transpose(i).count(_ == 0)
-      // Or, better yet, filter the bags that don't include the training example
-      val bias = Math.E * Math.max(Math.abs(e) - u * ratio, 0)
-      (f, bias)
+  lazy val biasTraining = oobErrors.map { case (f, e, u) =>
+    // Math.E is only statistically correct.  It should be actualBags / Nib.transpose(i).count(_ == 0)
+    // Or, better yet, filter the bags that don't include the training example
+    val bias = Math.E * Math.max(Math.abs(e) - u * ratio, 0)
+    (f, bias)
   }
 }

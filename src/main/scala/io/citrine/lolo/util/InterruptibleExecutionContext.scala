@@ -4,11 +4,9 @@ import java.util.concurrent.Executors
 
 import scala.concurrent.ExecutionContext
 
-/**
-  * Checks if thread was interrupted before performing a task.
+/** Checks if thread was interrupted before performing a task.
   *
-  * Thin wrapper around the global execution context
-  * Created by maxhutch on 4/20/17.
+  * Thin wrapper around the global execution context Created by maxhutch on 4/20/17.
   */
 class InterruptibleExecutionContext(executionContext: ExecutionContext) extends ExecutionContext {
   override def execute(runnable: Runnable): Unit = {
@@ -21,8 +19,7 @@ class InterruptibleExecutionContext(executionContext: ExecutionContext) extends 
   }
 }
 
-/**
-  * Provide default InterruptibleExecutionContext based on the global EC
+/** Provide default InterruptibleExecutionContext based on the global EC
   */
 object InterruptibleExecutionContext {
   private val default = new InterruptibleExecutionContext(

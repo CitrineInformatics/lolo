@@ -2,16 +2,16 @@ package io.citrine.lolo.stats.metrics
 
 import breeze.linalg.{sum, DenseMatrix}
 
-/**
-  * Created by maxhutch on 12/28/16.
+/** Created by maxhutch on 12/28/16.
   */
 object ClassificationMetrics {
 
-  /**
-    * Compute the weighted average f1 score across the labels
+  /** Compute the weighted average f1 score across the labels
     *
-    * @param predictedVsActual to evaluate
-    * @return the weighted average f1 score
+    * @param predictedVsActual
+    *   to evaluate
+    * @return
+    *   the weighted average f1 score
     */
   def f1scores(predictedVsActual: Seq[(Vector[Any], Any, Any)]): Double = {
     // the test set and training set might have different labels, so we might
@@ -39,7 +39,8 @@ object ClassificationMetrics {
     f1scores(predicted.zip(actual).map(x => (Vector(), x._1, x._2)))
   }
 
-  /** Compute the loss on a scale from 0 (perfect model, f1 = 1.0) to infinity (f1 = 0, all predictions are incorrect) */
+  /** Compute the loss on a scale from 0 (perfect model, f1 = 1.0) to infinity (f1 = 0, all predictions are incorrect)
+    */
   def loss(predictedVsActual: Seq[(Vector[Any], Any, Any)]): Double = {
     val f1 = f1scores(predictedVsActual)
     if (f1 > 0.0) 1.0 / f1 - 1.0 else Double.MaxValue

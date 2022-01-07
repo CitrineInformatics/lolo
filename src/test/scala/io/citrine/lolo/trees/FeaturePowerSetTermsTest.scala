@@ -9,8 +9,7 @@ import scala.util.Random
 @Test
 class FeaturePowerSetTermsTest {
 
-  /**
-    * Test a few simple extend cases explicitly
+  /** Test a few simple extend cases explicitly
     */
   @Test
   def testExtend() {
@@ -29,8 +28,7 @@ class FeaturePowerSetTermsTest {
     assert(Math.abs(path.weightBySubsetSize(2) - 0.0) < 1e-9)
   }
 
-  /**
-    * Test that the order that we extend by doesn't matter
+  /** Test that the order that we extend by doesn't matter
     */
   @Test
   def testExtendOrderInvariant(): Unit = {
@@ -64,14 +62,12 @@ class FeaturePowerSetTermsTest {
     assert(path.size == newPath.size + 3)
 
     newPath = path.copy()
-    path.weightBySubsetSize.zip(newPath.weightBySubsetSize).foreach {
-      case (p, np) =>
-        assert(p == np)
+    path.weightBySubsetSize.zip(newPath.weightBySubsetSize).foreach { case (p, np) =>
+      assert(p == np)
     }
   }
 
-  /**
-    * Test that unwind will reverse an extend
+  /** Test that unwind will reverse an extend
     */
   @Test
   def testUnwind(): Unit = {
@@ -89,9 +85,8 @@ class FeaturePowerSetTermsTest {
     val anotherSet = new FeaturePowerSetTerms(secondFactors.size)
     secondFactors.foreach(x => anotherSet.extend(x._1, x._2))
 
-    val thinedSet = firstFactors.foldLeft(set) {
-      case (tmp, x) =>
-        tmp.unwind(x._1, x._2)
+    val thinedSet = firstFactors.foldLeft(set) { case (tmp, x) =>
+      tmp.unwind(x._1, x._2)
     }
 
     val anotherWeights = new DenseVector(anotherSet.weightBySubsetSize)

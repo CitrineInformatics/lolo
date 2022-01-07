@@ -12,8 +12,7 @@ import org.junit.Test
 
 import scala.util.Random
 
-/**
-  * Created by gregor-robinson on 2020-01-06.
+/** Created by gregor-robinson on 2020-01-06.
   */
 @Test
 class FeatureRotatorTest {
@@ -97,8 +96,7 @@ class FeatureRotatorTest {
     }
   }
 
-  /**
-    * Functions getLoss and getPredictedVsActual should pass through to base learner.
+  /** Functions getLoss and getPredictedVsActual should pass through to base learner.
     */
   @Test
   def testPassthroughFunctions(): Unit = {
@@ -110,17 +108,15 @@ class FeatureRotatorTest {
     )
 
     rotatedTrainingResult.getPredictedVsActual().foreach { x =>
-      x.zip(data).foreach {
-        case (a, b) =>
-          assert(a._1 == b._1, "getPredictedVsActual must return the correct training inputs.")
-          assert(a._2 == b._2, "getPredictedVsActual must return the correct predicted value.")
-          assert(a._3 == b._2, "getPredictedVsActual must return the correct actual value.")
+      x.zip(data).foreach { case (a, b) =>
+        assert(a._1 == b._1, "getPredictedVsActual must return the correct training inputs.")
+        assert(a._2 == b._2, "getPredictedVsActual must return the correct predicted value.")
+        assert(a._3 == b._2, "getPredictedVsActual must return the correct actual value.")
       }
     }
   }
 
-  /**
-    * Guess the mean should be invariant under rotation.
+  /** Guess the mean should be invariant under rotation.
     */
   @Test
   def testRotatedGTM(): Unit = {
@@ -132,14 +128,12 @@ class FeatureRotatorTest {
     val rotatedModel = rotatedLearner.train(data).getModel()
     val rotatedResult = rotatedModel.transform(data.map(_._1)).getExpected()
 
-    result.zip(rotatedResult).foreach {
-      case (free: Double, rotated: Double) =>
-        assert(Math.abs(free - rotated) < 1.0e-9, s"${free} and ${rotated} should be the same")
+    result.zip(rotatedResult).foreach { case (free: Double, rotated: Double) =>
+      assert(Math.abs(free - rotated) < 1.0e-9, s"${free} and ${rotated} should be the same")
     }
   }
 
-  /**
-    * Linear regression should be invariant under rotation
+  /** Linear regression should be invariant under rotation
     */
   @Test
   def testRotatedLinear(): Unit = {
@@ -155,20 +149,17 @@ class FeatureRotatorTest {
     val rotatedExpected = rotatedResult.getExpected()
     val rotatedGradient = rotatedResult.getGradient()
 
-    expected.zip(rotatedExpected).foreach {
-      case (free: Double, rotated: Double) =>
-        assert(Math.abs(free - rotated) < 1.0e-9, s"${free} and ${rotated} should be the same")
+    expected.zip(rotatedExpected).foreach { case (free: Double, rotated: Double) =>
+      assert(Math.abs(free - rotated) < 1.0e-9, s"${free} and ${rotated} should be the same")
     }
 
-    gradient.get.zip(rotatedGradient.get).foreach {
-      case (free, rotated) =>
-        val diff = free.zip(rotated).map { case (f, s) => Math.abs(f - s) }.max
-        assert(diff < 1.0e-9, "Gradients should be the same")
+    gradient.get.zip(rotatedGradient.get).foreach { case (free, rotated) =>
+      val diff = free.zip(rotated).map { case (f, s) => Math.abs(f - s) }.max
+      assert(diff < 1.0e-9, "Gradients should be the same")
     }
   }
 
-  /**
-    * Ridge regression should not depend on rotation
+  /** Ridge regression should not depend on rotation
     */
   @Test
   def testRotatedRidge(): Unit = {
@@ -180,14 +171,12 @@ class FeatureRotatorTest {
     val rotatedModel = rotatedLearner.train(data).getModel()
     val rotatedResult = rotatedModel.transform(data.map(_._1)).getExpected()
 
-    result.zip(rotatedResult).foreach {
-      case (free: Double, rotated: Double) =>
-        assert(Math.abs(free - rotated) < 1.0e-9, s"${free} and ${rotated} should be the same")
+    result.zip(rotatedResult).foreach { case (free: Double, rotated: Double) =>
+      assert(Math.abs(free - rotated) < 1.0e-9, s"${free} and ${rotated} should be the same")
     }
   }
 
-  /**
-    * Verify expected properties of rotated-input regression trees
+  /** Verify expected properties of rotated-input regression trees
     */
   @Test
   def testRotatedRegressionTree(): Unit = {
@@ -198,9 +187,8 @@ class FeatureRotatorTest {
     val rotatedLearner = new FeatureRotator(learner)
     val rotatedModel = rotatedLearner.train(data).getModel().asInstanceOf[RotatedFeatureModel[Double]]
     var rotatedResult = rotatedModel.transform(data.map(_._1)).getExpected()
-    result.zip(rotatedResult).foreach {
-      case (free: Double, rotated: Double) =>
-        assert(Math.abs(free - rotated) < 1.0e-9, s"${free} and ${rotated} should be the same")
+    result.zip(rotatedResult).foreach { case (free: Double, rotated: Double) =>
+      assert(Math.abs(free - rotated) < 1.0e-9, s"${free} and ${rotated} should be the same")
     }
 
     val rotatedData = FeatureRotator.applyRotation(data.map(_._1), rotatedModel.rotatedFeatures, rotatedModel.trans)
@@ -218,8 +206,7 @@ class FeatureRotatorTest {
     )
   }
 
-  /**
-    * Verify expected properties of rotated-input classification trees
+  /** Verify expected properties of rotated-input classification trees
     */
   @Test
   def testRotatedClassificationTree(): Unit = {
@@ -236,9 +223,8 @@ class FeatureRotatorTest {
     val rotatedModel = rotatedLearner.train(classificationData).getModel().asInstanceOf[RotatedFeatureModel[String]]
     var rotatedResult = rotatedModel.transform(classificationData.map(_._1)).getExpected()
 
-    result.zip(rotatedResult).foreach {
-      case (free: Any, rotated: Any) =>
-        assert(free == rotated, s"${free} and ${rotated} should be the same")
+    result.zip(rotatedResult).foreach { case (free: Any, rotated: Any) =>
+      assert(free == rotated, s"${free} and ${rotated} should be the same")
     }
 
     val rotatedData =
@@ -257,8 +243,7 @@ class FeatureRotatorTest {
     )
   }
 
-  /**
-    * Verify that rotated-input multi-task trees have expected properties
+  /** Verify that rotated-input multi-task trees have expected properties
     */
   @Test
   def testMultiTaskRotator(): Unit = {
@@ -287,9 +272,8 @@ class FeatureRotatorTest {
     // Check double labels are the same
     val baseDoubleResult = baseDoubleModel.transform(inputs).getExpected()
     val rotatedDoubleResult = rotatedDoubleModel.transform(inputs).getExpected()
-    baseDoubleResult.zip(rotatedDoubleResult).foreach {
-      case (br: Double, rr: Double) =>
-        assert(Math.abs(br - rr) < 1e-9, "Predicted double label not the same in rotated learner.")
+    baseDoubleResult.zip(rotatedDoubleResult).foreach { case (br: Double, rr: Double) =>
+      assert(Math.abs(br - rr) < 1e-9, "Predicted double label not the same in rotated learner.")
     }
 
     // Check categorical labels are close
@@ -330,8 +314,8 @@ class FeatureRotatorTest {
         .transform(rotatedInputs)
         .getExpected()
         .zip(baseCatModel.transform(rotatedInputs).getExpected())
-        .count {
-          case (a: Boolean, b: Boolean) => a != b
+        .count { case (a: Boolean, b: Boolean) =>
+          a != b
         } > 0,
       s"Categorical labels should substantially change when we feed in different inputs."
     )
@@ -341,8 +325,8 @@ class FeatureRotatorTest {
         .transform(inputs)
         .getExpected()
         .zip(rotatedCatModel.baseModel.transform(rotatedInputs).getExpected)
-        .count {
-          case (a: Boolean, b: Boolean) => a != b
+        .count { case (a: Boolean, b: Boolean) =>
+          a != b
         } == 0,
       s"Categorical labels should be identical when we feed rotated inputs into base learner."
     )

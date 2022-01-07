@@ -7,8 +7,7 @@ import scala.util.Random
 class BoltzmannSplitterTest {
   val rng = new Random(45321L)
 
-  /**
-    * Test that uniform labels result in "NoSplit" with zero reduced impurity
+  /** Test that uniform labels result in "NoSplit" with zero reduced impurity
     */
   @Test
   def testZeroVariance(): Unit = {
@@ -25,10 +24,9 @@ class BoltzmannSplitterTest {
     assert(improvement == 0, "Can't improve on no variance")
   }
 
-  /**
-    * Test that very small random signals don't lead to exceptions.
+  /** Test that very small random signals don't lead to exceptions.
     *
-    * Note that this test will return NoSplit occasionally, when the starting impurity is numerically zero.  That's OK
+    * Note that this test will return NoSplit occasionally, when the starting impurity is numerically zero. That's OK
     * though.
     */
   @Test

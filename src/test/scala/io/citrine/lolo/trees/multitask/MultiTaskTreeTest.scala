@@ -10,8 +10,7 @@ import org.scalatest.Assertions._
 
 import scala.util.Random
 
-/**
-  * Created by maxhutch on 11/29/16.
+/** Created by maxhutch on 11/29/16.
   */
 @Test
 class MultiTaskTreeTest {
@@ -24,8 +23,7 @@ class MultiTaskTreeTest {
   val catLabel: Seq[Boolean] = raw.map(_._2 > realLabel.max / 2.0)
   val labels = Vector(realLabel, catLabel).transpose
 
-  /**
-    * Test that the tree memorizes the data when it is complete
+  /** Test that the tree memorizes the data when it is complete
     */
   @Test
   def testTwoLabels(): Unit = {
@@ -41,8 +39,7 @@ class MultiTaskTreeTest {
     assert(catLabel.zip(catResults).forall(p => p._1 == p._2))
   }
 
-  /**
-    * Test that the tree memorizes the data when it is sparse
+  /** Test that the tree memorizes the data when it is sparse
     */
   @Test
   def testSparseExact(): Unit = {
@@ -64,8 +61,7 @@ class MultiTaskTreeTest {
     assert(sparseCat.zip(catResults).forall(p => p._1 == null || p._1 == p._2))
   }
 
-  /**
-    * Test that the multitask tree on sparse boolean labels is better than single task
+  /** Test that the multitask tree on sparse boolean labels is better than single task
     */
   @Test
   def testSparseQuantitative(): Unit = {
@@ -94,7 +90,9 @@ class MultiTaskTreeTest {
     assert(multiF1 > singleF1)
   }
 
-  /** Test that the resulting predictions are independent of whether the trees are stored in one model or several models. */
+  /** Test that the resulting predictions are independent of whether the trees are stored in one model or several
+    * models.
+    */
   @Test
   def testSingleModelEquality(): Unit = {
     // Train twice with the same seed, first outputting two models and then outputting a combined model.

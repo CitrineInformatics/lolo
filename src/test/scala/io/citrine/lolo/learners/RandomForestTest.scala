@@ -10,15 +10,13 @@ import org.scalatest.Assertions._
 
 import scala.util.Random
 
-/**
-  * Created by maxhutch on 1/9/17.
+/** Created by maxhutch on 1/9/17.
   */
 @Test
 class RandomForestTest {
   val rng = new Random(92345L)
 
-  /**
-    * Test that the regression forest does the same thing as the regression bagger
+  /** Test that the regression forest does the same thing as the regression bagger
     */
   @Test
   def testRegressionForest(): Unit = {
@@ -72,8 +70,7 @@ class RandomForestTest {
     assert(results.getUncertaintyCorrelation(0, 2).isDefined)
   }
 
-  /**
-    * Test that the regression forest does the same thing as the classification bagger
+  /** Test that the regression forest does the same thing as the classification bagger
     */
   @Test
   def testClassificationForest(): Unit = {
@@ -97,18 +94,16 @@ class RandomForestTest {
 
       val uncertainty = results.getUncertainty()
       assert(uncertainty.isDefined)
-      assert(trainingData.map(_._2).zip(uncertainty.get).forall {
-        case (a, probs) =>
-          val classProbabilities = probs.asInstanceOf[Map[Any, Double]]
-          val maxProb = classProbabilities(a)
-          maxProb > 0.5 && maxProb < 1.0 && Math.abs(classProbabilities.values.sum - 1.0) < 1.0e-6
+      assert(trainingData.map(_._2).zip(uncertainty.get).forall { case (a, probs) =>
+        val classProbabilities = probs.asInstanceOf[Map[Any, Double]]
+        val maxProb = classProbabilities(a)
+        maxProb > 0.5 && maxProb < 1.0 && Math.abs(classProbabilities.values.sum - 1.0) < 1.0e-6
       })
     }
   }
 
-  /**
-    * Ensure classification forest isn't biased toward one or the other ordering of class labels
-    * when there are duplicate inputs.
+  /** Ensure classification forest isn't biased toward one or the other ordering of class labels when there are
+    * duplicate inputs.
     */
   @Test
   def testClassificationForestUnbiased(): Unit = {
@@ -161,9 +156,8 @@ class RandomForestTest {
     )
   }
 
-  /**
-    * Randomized splits should do really well on linear signals when there are lots of trees.  Test that they
-    * outperform mid-point splits
+  /** Randomized splits should do really well on linear signals when there are lots of trees. Test that they outperform
+    * mid-point splits
     */
   @Test
   def testRandomizedSplitLocations(): Unit = {
@@ -197,8 +191,7 @@ class RandomForestTest {
     assert(lossWithRandomization < lossWithoutRandomization)
   }
 
-  /**
-    * Make sure that we can draw training weights consistently even when the training size is small
+  /** Make sure that we can draw training weights consistently even when the training size is small
     */
   @Test
   def testWeightsWithSmallData(): Unit = {
@@ -226,13 +219,12 @@ class RandomForestTest {
       }
       case _ => fail("Unexpected return type.")
     }
-    expected.zip(actual).foreach {
-      case (e: Double, a: Double) => assert(Math.abs(e - a) / a < rtol)
+    expected.zip(actual).foreach { case (e: Double, a: Double) =>
+      assert(Math.abs(e - a) / a < rtol)
     }
   }
 
-  /**
-    * Test Shapley value for  a simple tree.
+  /** Test Shapley value for a simple tree.
     */
   @Test
   def testShapley(): Unit = {

@@ -4,8 +4,7 @@ import org.junit.Test
 
 class LinearTest {
 
-  /**
-    * Simple test of linear function
+  /** Simple test of linear function
     */
   @Test
   def testSimpleLinear(): Unit = {

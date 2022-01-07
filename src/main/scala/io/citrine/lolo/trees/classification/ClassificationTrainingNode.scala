@@ -4,19 +4,28 @@ import io.citrine.lolo.trees.splits.{NoSplit, Split, Splitter}
 import io.citrine.lolo.trees.{InternalModelNode, ModelNode, TrainingLeaf, TrainingNode}
 import io.citrine.lolo.{Learner, PredictionResult}
 
-/**
-  * Created by maxhutch on 1/12/17.
+/** Created by maxhutch on 1/12/17.
   *
-  * @param trainingData     that this node sees
-  * @param leafLearner      to train on leaves
-  * @param split            used to split this node's direct descendants
-  * @param deltaImpurity    change in training set impurity between this node vs direct descendants
-  * @param numFeatures      number of features used in selecting splits
-  * @param minLeafInstances minimum training instances per node
-  * @param remainingDepth   to stop growing the node
-  * @param maxDepth         maximum depth of tree
-  * @param numClasses       total number of classes, used as an output dimensionality
-  * @param splitter         used to select splits
+  * @param trainingData
+  *   that this node sees
+  * @param leafLearner
+  *   to train on leaves
+  * @param split
+  *   used to split this node's direct descendants
+  * @param deltaImpurity
+  *   change in training set impurity between this node vs direct descendants
+  * @param numFeatures
+  *   number of features used in selecting splits
+  * @param minLeafInstances
+  *   minimum training instances per node
+  * @param remainingDepth
+  *   to stop growing the node
+  * @param maxDepth
+  *   maximum depth of tree
+  * @param numClasses
+  *   total number of classes, used as an output dimensionality
+  * @param splitter
+  *   used to select splits
   */
 class ClassificationTrainingNode(
     trainingData: Seq[(Vector[AnyVal], Char, Double)],
@@ -65,10 +74,10 @@ class ClassificationTrainingNode(
     splitter
   )
 
-  /**
-    * Get the lightweight prediction node for the output tree
+  /** Get the lightweight prediction node for the output tree
     *
-    * @return lightweight prediction node
+    * @return
+    *   lightweight prediction node
     */
   override def getNode(): ModelNode[PredictionResult[Char]] =
     new InternalModelNode(
@@ -89,21 +98,28 @@ class ClassificationTrainingNode(
 
 object ClassificationTrainingNode {
 
-  /**
-    * Build a child node by pre-computing a split
+  /** Build a child node by pre-computing a split
     *
-    * If there isn't a split, the child is a leaf; otherwise, the child is
-    * another training node
+    * If there isn't a split, the child is a leaf; otherwise, the child is another training node
     *
-    * @param trainingData     for the child
-    * @param leafLearner      to pass through
-    * @param minLeafInstances minimum training instances per node
-    * @param remainingDepth   the number of splits left
-    * @param maxDepth         to compute depth via remainingDepth
-    * @param numFeatures      to consider in the split
-    * @param numClasses       total number of classes, used as an output dimensionality
-    * @param splitter         used to select splits
-    * @return the child node, either a RegressionTrainingNode or TrainingLeaf
+    * @param trainingData
+    *   for the child
+    * @param leafLearner
+    *   to pass through
+    * @param minLeafInstances
+    *   minimum training instances per node
+    * @param remainingDepth
+    *   the number of splits left
+    * @param maxDepth
+    *   to compute depth via remainingDepth
+    * @param numFeatures
+    *   to consider in the split
+    * @param numClasses
+    *   total number of classes, used as an output dimensionality
+    * @param splitter
+    *   used to select splits
+    * @return
+    *   the child node, either a RegressionTrainingNode or TrainingLeaf
     */
   def buildChild(
       trainingData: Seq[(Vector[AnyVal], Char, Double)],

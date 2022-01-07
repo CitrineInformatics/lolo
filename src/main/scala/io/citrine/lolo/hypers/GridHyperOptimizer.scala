@@ -2,19 +2,20 @@ package io.citrine.lolo.hypers
 
 import io.citrine.lolo.Learner
 
-/**
-  * Brute force search over the grid of hypers
+/** Brute force search over the grid of hypers
   *
   * Created by maxhutch on 12/7/16.
   */
 case class GridHyperOptimizer() extends HyperOptimizer {
 
-  /**
-    * Search by enumerating every combination of hyper values
+  /** Search by enumerating every combination of hyper values
     *
-    * @param trainingData  the data to train/test on
-    * @param numIterations ignored, since this is a brute force search
-    * @return the best hyper map found in the search space
+    * @param trainingData
+    *   the data to train/test on
+    * @param numIterations
+    *   ignored, since this is a brute force search
+    * @return
+    *   the best hyper map found in the search space
     */
   override def optimize(
       trainingData: Seq[(Vector[Any], Any)],
@@ -31,11 +32,10 @@ case class GridHyperOptimizer() extends HyperOptimizer {
       var j = i
       var testHypers: Map[String, Any] = Map()
       /* For each hyper dimension, pull an index with mod and then shift */
-      sizes.foreach {
-        case (name, size) =>
-          val index = j % size
-          testHypers = testHypers + ((name, hyperGrids(name)(index)))
-          j = j / size
+      sizes.foreach { case (name, size) =>
+        val index = j % size
+        testHypers = testHypers + ((name, hyperGrids(name)(index)))
+        j = j / size
       }
 
       /* Set up a learner with these parameters and compute the loss */

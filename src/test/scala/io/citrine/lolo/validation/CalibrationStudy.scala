@@ -241,9 +241,8 @@ object CalibrationStudy {
       calibrate: Boolean = true,
       range: Double = 4.0
   ): CategoryChart = {
-    val data: Seq[(Double, Double, Double)] = source.flatMap {
-      case (predictions, actual) =>
-        (predictions.getExpected(), predictions.getUncertainty().get.asInstanceOf[Seq[Double]], actual).zipped.toSeq
+    val data: Seq[(Double, Double, Double)] = source.flatMap { case (predictions, actual) =>
+      (predictions.getExpected(), predictions.getUncertainty().get.asInstanceOf[Seq[Double]], actual).zipped.toSeq
     }.toSeq
 
     val standardErrors = data.map { case (predicted, sigma, actual) => (predicted - actual) / sigma }
@@ -254,9 +253,8 @@ object CalibrationStudy {
       (span * idx.toDouble / nBins, span * (idx.toDouble + 1) / nBins)
     }
 
-    val counts = bins.map {
-      case (min, max) =>
-        ((min + max) / 2.0, standardErrors.count(x => x >= min && x < max) / (standardErrors.size * (max - min)))
+    val counts = bins.map { case (min, max) =>
+      ((min + max) / 2.0, standardErrors.count(x => x >= min && x < max) / (standardErrors.size * (max - min)))
     }
 
     val normalVar = if (calibrate) {

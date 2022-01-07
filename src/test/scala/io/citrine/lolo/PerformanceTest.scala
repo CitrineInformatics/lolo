@@ -6,26 +6,30 @@ import io.citrine.lolo.trees.multitask.MultiTaskTreeLearner
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
 import io.citrine.theta.Stopwatch
 
-/**
-  * Performance tests
+/** Performance tests
   *
-  * NOTE: the performance is not sufficiently stable on travis to
-  * run these continuously.  Therefore, they've had their @Test annotations
-  * removed and are meant to be run locally to collect a performance signal while developing.
+  * NOTE: the performance is not sufficiently stable on travis to run these continuously. Therefore, they've had their
+  * @Test
+  *   annotations removed and are meant to be run locally to collect a performance signal while developing.
   *
   * Created by maxhutch on 12/29/16.
   */
 class PerformanceTest {
 
-  /**
-    * Time training and application of models
+  /** Time training and application of models
     *
-    * @param trainingData which is used both to train and then later apply the models to
-    * @param n            number of training rows to take
-    * @param k            number of features to consider per split
-    * @param b            number of trees in the forest
-    * @param quiet        whether to print messages to the screen
-    * @return the training and application time, in seconds
+    * @param trainingData
+    *   which is used both to train and then later apply the models to
+    * @param n
+    *   number of training rows to take
+    * @param k
+    *   number of features to consider per split
+    * @param b
+    *   number of trees in the forest
+    * @param quiet
+    *   whether to print messages to the screen
+    * @return
+    *   the training and application time, in seconds
     */
   def timedTest(
       trainingData: Seq[(Vector[Any], Any)],
@@ -100,8 +104,7 @@ class PerformanceTest {
     assert(nApplyScale.forall(s => s < Math.sqrt(32.0) && s > Math.sqrt(4.0)), nApplyScale)
   }
 
-  /**
-    * Test the absolute performance to check for overall regressions
+  /** Test the absolute performance to check for overall regressions
     */
   def testAbsolute(): Unit = {
     val (nominalTrain, nominalPredict) = timedTest(classificationData, 1024, 32, 1024)

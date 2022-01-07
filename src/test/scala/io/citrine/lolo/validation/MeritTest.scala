@@ -10,17 +10,21 @@ import scala.util.{Random, Try}
 
 class MeritTest {
 
-  /**
-    * Generate test data by adding Gaussian noise to a uniformly distributed response
+  /** Generate test data by adding Gaussian noise to a uniformly distributed response
     *
-    * Uncertainty estimates are also produced.  The degree of correlation between the uncertainty estimate and the
-    * error is configurable.
+    * Uncertainty estimates are also produced. The degree of correlation between the uncertainty estimate and the error
+    * is configurable.
     *
-    * @param noiseScale             the scale of the errors added to the responses
-    * @param uncertaintyCorrelation the degree of correlation between the predicted uncertainty and the local error scale
-    * @param batchSize              the number of predictions per result
-    * @param numBatch               the number of prediction results produced
-    * @return predicted-vs-actual data in the format expected by Metric.estimate
+    * @param noiseScale
+    *   the scale of the errors added to the responses
+    * @param uncertaintyCorrelation
+    *   the degree of correlation between the predicted uncertainty and the local error scale
+    * @param batchSize
+    *   the number of predictions per result
+    * @param numBatch
+    *   the number of prediction results produced
+    * @return
+    *   predicted-vs-actual data in the format expected by Metric.estimate
     */
   private def getNormalPVA(
       noiseScale: Double = 1.0,
@@ -61,8 +65,7 @@ class MeritTest {
     }
   }
 
-  /**
-    * Test that the RMSE comes out correctly
+  /** Test that the RMSE comes out correctly
     */
   @Test
   def testRMSE(): Unit = {
@@ -73,8 +76,7 @@ class MeritTest {
     assert(uncertainty < 0.05, s"RMSE estimate was not precise enough")
   }
 
-  /**
-    * Test that the coefficient of determination comes out right
+  /** Test that the coefficient of determination comes out right
     */
   @Test
   def testCoefficientOfDeterminization(): Unit = {
@@ -86,8 +88,7 @@ class MeritTest {
     assert(uncertainty < 0.05, s"R^2 estimate was not precise enough")
   }
 
-  /**
-    * Test that the standard confidence comes out right
+  /** Test that the standard confidence comes out right
     */
   @Test
   def testStandardConfidence(): Unit = {
@@ -99,8 +100,7 @@ class MeritTest {
     assert(uncertainty < 0.05, s"Confidence estimate was not precise enough")
   }
 
-  /**
-    * Test that the standard error comes out right
+  /** Test that the standard error comes out right
     */
   @Test
   def testStandardError(): Unit = {
@@ -112,8 +112,7 @@ class MeritTest {
     assert(uncertainty < 0.05, s"Standard error estimate was not precise enough")
   }
 
-  /**
-    * Test that the UncertaintyCorrelation is correct when perfectly correlated
+  /** Test that the UncertaintyCorrelation is correct when perfectly correlated
     */
   @Test
   def testPerfectUncertaintyCorrelation(): Unit = {
@@ -125,8 +124,7 @@ class MeritTest {
     assert(uncertainty < 0.05, s"Uncertainty correlation estimate was not precise enough")
   }
 
-  /**
-    * Test that the UncertaintyCorrelation is correct when there is no correlation
+  /** Test that the UncertaintyCorrelation is correct when there is no correlation
     */
   @Test
   def testZeroUncertaintyCorrelation(): Unit = {
@@ -141,8 +139,7 @@ class MeritTest {
 
 object MeritTest {
 
-  /**
-    * Driver to test tolerance calibration so the false negative rate is low
+  /** Driver to test tolerance calibration so the false negative rate is low
     */
   def main(args: Array[String]): Unit = {
     val N = 1024

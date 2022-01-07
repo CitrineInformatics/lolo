@@ -1,11 +1,13 @@
 package io.citrine.lolo.trees.impurity
 
-/**
-  * Calculate the weighted Gini Impurity: weight * (1 - \sum_j f_j^2), where f_j is the frequency of the jth label
+/** Calculate the weighted Gini Impurity: weight * (1 - \sum_j f_j^2), where f_j is the frequency of the jth label
   *
-  * @param totalCategoryWeights the total weight of each label
-  * @param totalSquareSum       the sum of the squares of the weights
-  * @param totalWeight          the total weight over all the labels
+  * @param totalCategoryWeights
+  *   the total weight of each label
+  * @param totalSquareSum
+  *   the sum of the squares of the weights
+  * @param totalWeight
+  *   the total weight over all the labels
   */
 class GiniCalculator(
     totalCategoryWeights: Array[Double],
@@ -68,16 +70,16 @@ class GiniCalculator(
   private var rightSquareSum: Double = totalSquareSum
 }
 
-/**
-  * Companion object
+/** Companion object
   */
 object GiniCalculator {
 
-  /**
-    * Build a GiniCalculator from weighted data
+  /** Build a GiniCalculator from weighted data
     *
-    * @param data to build the calculator for
-    * @return a GiniCalculator
+    * @param data
+    *   to build the calculator for
+    * @return
+    *   a GiniCalculator
     */
   def build(data: Seq[(Char, Double)]): GiniCalculator = {
     // Be sure to filter out missing labels, which are marked as 0.toChar
@@ -87,10 +89,9 @@ object GiniCalculator {
     }
 
     val weightsArray = new Array[Double](totalCategoryWeights.keySet.max + 1)
-    val totalSquareSum = totalCategoryWeights.map {
-      case (k, v) =>
-        weightsArray(k) = v
-        Math.pow(v, 2)
+    val totalSquareSum = totalCategoryWeights.map { case (k, v) =>
+      weightsArray(k) = v
+      Math.pow(v, 2)
     }.sum
     val totalWeight = totalCategoryWeights.values.sum
     new GiniCalculator(weightsArray, totalSquareSum, totalWeight)

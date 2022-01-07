@@ -4,19 +4,21 @@ import io.citrine.lolo.trees.impurity.MultiImpurityCalculator
 
 import scala.util.Random
 
-/**
-  * Created by maxhutch on 11/29/16.
+/** Created by maxhutch on 11/29/16.
   */
 case class MultiTaskSplitter(randomizePivotLocation: Boolean = false, rng: Random = Random)
     extends Splitter[Array[AnyVal]] {
 
-  /**
-    * Get the best split, considering numFeature random features (w/o replacement)
+  /** Get the best split, considering numFeature random features (w/o replacement)
     *
-    * @param data        to split
-    * @param numFeatures to consider, randomly
-    * @param minInstances the minimum number of data points on a split node
-    * @return a split object that optimally divides data
+    * @param data
+    *   to split
+    * @param numFeatures
+    *   to consider, randomly
+    * @param minInstances
+    *   the minimum number of data points on a split node
+    * @return
+    *   a split object that optimally divides data
     */
   def getBestSplit(
       data: Seq[(Vector[AnyVal], Array[AnyVal], Double)],
@@ -56,13 +58,16 @@ case class MultiTaskSplitter(randomizePivotLocation: Boolean = false, rng: Rando
     }
   }
 
-  /**
-    * Get find the best categorical splitter.
+  /** Get find the best categorical splitter.
     *
-    * @param data        to split
-    * @param totalWeight Pre-computed data.map(d => d._3).sum
-    * @param index       of the feature to split on
-    * @return the best split of this feature
+    * @param data
+    *   to split
+    * @param totalWeight
+    *   Pre-computed data.map(d => d._3).sum
+    * @param index
+    *   of the feature to split on
+    * @return
+    *   the best split of this feature
     */
   def getBestCategoricalSplit(
       data: Seq[(Vector[AnyVal], Array[AnyVal], Double)],
@@ -115,11 +120,12 @@ case class MultiTaskSplitter(randomizePivotLocation: Boolean = false, rng: Rando
     }
   }
 
-  /**
-    * Compute the impurity of a set of weighted labels
+  /** Compute the impurity of a set of weighted labels
     *
-    * @param labels is a seq of (Array of multiple labels, single weight)
-    * @return the impurity, which is in [0, number of labels * sum of weights]
+    * @param labels
+    *   is a seq of (Array of multiple labels, single weight)
+    * @return
+    *   the impurity, which is in [0, number of labels * sum of weights]
     */
   def computeImpurity(labels: Seq[(Array[AnyVal], Double)]): Double = {
     val calculator = MultiImpurityCalculator.build(labels.map(_._1), labels.map(_._2))

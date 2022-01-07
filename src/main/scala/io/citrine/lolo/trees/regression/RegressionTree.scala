@@ -9,17 +9,22 @@ import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
 
 import scala.util.Random
 
-/**
-  * Learner for regression trees
+/** Learner for regression trees
   *
   * Created by maxhutch on 11/28/16.
   *
-  * @param numFeatures to randomly select from at each split (default: all)
-  * @param maxDepth    to grow the tree to
-  * @param minLeafInstances minimum number of training instances per leaf
-  * @param leafLearner learner to train the leaves with
-  * @param splitter to determine the best split of the node data
-  * @param rng random number generator, for reproducibility
+  * @param numFeatures
+  *   to randomly select from at each split (default: all)
+  * @param maxDepth
+  *   to grow the tree to
+  * @param minLeafInstances
+  *   minimum number of training instances per leaf
+  * @param leafLearner
+  *   learner to train the leaves with
+  * @param splitter
+  *   to determine the best split of the node data
+  * @param rng
+  *   random number generator, for reproducibility
   */
 case class RegressionTreeLearner(
     numFeatures: Int = -1,
@@ -33,12 +38,14 @@ case class RegressionTreeLearner(
   /** Learner to use for training the leaves */
   @transient private lazy val myLeafLearner = leafLearner.getOrElse(GuessTheMeanLearner(rng = rng))
 
-  /**
-    * Train the tree by recursively partitioning (splitting) the training data on a single feature
+  /** Train the tree by recursively partitioning (splitting) the training data on a single feature
     *
-    * @param trainingData to train on
-    * @param weights      for the training rows, if applicable
-    * @return a RegressionTree
+    * @param trainingData
+    *   to train on
+    * @param weights
+    *   for the training rows, if applicable
+    * @return
+    *   a RegressionTree
     */
   override def train(
       trainingData: Seq[(Vector[Any], Any)],
@@ -53,13 +60,12 @@ case class RegressionTreeLearner(
     val repInput = trainingData.head._1
 
     /* Create encoders for any categorical features */
-    val encoders: Seq[Option[CategoricalEncoder[Any]]] = repInput.zipWithIndex.map {
-      case (v, i) =>
-        if (v.isInstanceOf[Double]) {
-          None
-        } else {
-          Some(CategoricalEncoder.buildEncoder(trainingData.map(_._1(i))))
-        }
+    val encoders: Seq[Option[CategoricalEncoder[Any]]] = repInput.zipWithIndex.map { case (v, i) =>
+      if (v.isInstanceOf[Double]) {
+        None
+      } else {
+        Some(CategoricalEncoder.buildEncoder(trainingData.map(_._1(i))))
+      }
     }
 
     /* Encode the training data */
@@ -68,9 +74,8 @@ case class RegressionTreeLearner(
     /* Add the weights to the (features, label) tuples and remove any with zero weight */
     val finalTraining = encodedTraining
       .zip(weights.getOrElse(Seq.fill(trainingData.size)(1.0)))
-      .map {
-        case ((f, l), w) =>
-          (f, l.asInstanceOf[Double], w)
+      .map { case ((f, l), w) =>
+        (f, l.asInstanceOf[Double], w)
       }
       .filter(_._3 > 0)
       .toVector
@@ -127,30 +132,32 @@ class RegressionTreeTrainingResult(
 
   override def getModel(): RegressionTree = model
 
-  /**
-    * Return the pre-computed influences
+  /** Return the pre-computed influences
     *
-    * @return feature influences as an array of doubles
+    * @return
+    *   feature influences as an array of doubles
     */
   override def getFeatureImportance(): Option[Vector[Double]] = Some(importanceNormalized.toVector)
 }
 
-/**
-  * Container holding a model node, encoders, and the feature influences
+/** Container holding a model node, encoders, and the feature influences
   *
-  * @param root     of the tree
-  * @param encoders for categorical variables
+  * @param root
+  *   of the tree
+  * @param encoders
+  *   for categorical variables
   */
 class RegressionTree(
     root: ModelNode[PredictionResult[Double]],
     encoders: Seq[Option[CategoricalEncoder[Any]]]
 ) extends Model[RegressionTreeResult] {
 
-  /**
-    * Apply the model by calling predict and wrapping the results
+  /** Apply the model by calling predict and wrapping the results
     *
-    * @param inputs to apply the model to
-    * @return a prediction result which includes only the expected outputs
+    * @param inputs
+    *   to apply the model to
+    * @return
+    *   a prediction result which includes only the expected outputs
     */
   override def transform(inputs: Seq[Vector[Any]]): RegressionTreeResult = {
     new RegressionTreeResult(
@@ -158,14 +165,16 @@ class RegressionTree(
     )
   }
 
-  /**
-    * Compute Shapley feature attributions for a given input
+  /** Compute Shapley feature attributions for a given input
     *
-    * @param input for which to compute feature attributions.
-    * @param omitFeatures feature indices to omit in computing Shapley values
-    * @return array of Shapley feature attributions, one per input feature, each a vector of
-    *         One Vector[Double] per feature, each of length equal to the output dimension.
-    *         The output dimension is 1 for single-task regression, or equal to the number of classification categories.
+    * @param input
+    *   for which to compute feature attributions.
+    * @param omitFeatures
+    *   feature indices to omit in computing Shapley values
+    * @return
+    *   array of Shapley feature attributions, one per input feature, each a vector of One Vector[Double] per feature,
+    *   each of length equal to the output dimension. The output dimension is 1 for single-task regression, or equal to
+    *   the number of classification categories.
     */
   override def shapley(input: Vector[Any], omitFeatures: Set[Int] = Set()): Option[DenseMatrix[Double]] = {
     root.shapley(CategoricalEncoder.encodeInput(input, encoders), omitFeatures)
@@ -173,24 +182,24 @@ class RegressionTree(
 
 }
 
-/**
-  * Simple wrapper around a sequence of predictions
+/** Simple wrapper around a sequence of predictions
   *
-  * @param predictions sequence of predictions
+  * @param predictions
+  *   sequence of predictions
   */
 class RegressionTreeResult(predictions: Seq[(PredictionResult[Double], TreeMeta)]) extends PredictionResult[Double] {
 
-  /**
-    * Get the predictions
+  /** Get the predictions
     *
-    * @return expected value of each prediction
+    * @return
+    *   expected value of each prediction
     */
   override def getExpected(): Seq[Double] = predictions.map(_._1.getExpected().head)
 
-  /**
-    * Get the gradient or sensitivity of each prediction
+  /** Get the gradient or sensitivity of each prediction
     *
-    * @return a vector of doubles for each prediction
+    * @return
+    *   a vector of doubles for each prediction
     */
   override def getGradient(): Option[Seq[Vector[Double]]] = {
     if (!predictions.head._1.getGradient().isDefined) {

@@ -16,15 +16,13 @@ import org.scalatest.Assertions._
 
 import scala.util.Random
 
-/**
-  * Created by maxhutch on 11/29/16.
+/** Created by maxhutch on 11/29/16.
   */
 @Test
 class BaggerTest {
   val rng = new Random(97793500L)
 
-  /**
-    * Test the fit performance of the regression bagger
+  /** Test the fit performance of the regression bagger
     */
   @Test
   def testRegressionBagger(): Unit = {
@@ -54,8 +52,7 @@ class BaggerTest {
     assert(importances(1) == importances.max)
   }
 
-  /**
-    * Test the fit performance of the classification bagger
+  /** Test the fit performance of the classification bagger
     */
   @Test
   def testClassificationBagger(): Unit = {
@@ -80,11 +77,10 @@ class BaggerTest {
 
     val uncertainty = results.getUncertainty()
     assert(uncertainty.isDefined)
-    assert(trainingData.map(_._2).zip(uncertainty.get).forall {
-      case (a, probs) =>
-        val classProbabilities = probs.asInstanceOf[Map[Any, Double]]
-        val maxProb = classProbabilities(a)
-        maxProb > 0.5 && maxProb < 1.0 && Math.abs(classProbabilities.values.sum - 1.0) < 1.0e-6
+    assert(trainingData.map(_._2).zip(uncertainty.get).forall { case (a, probs) =>
+      val classProbabilities = probs.asInstanceOf[Map[Any, Double]]
+      val maxProb = classProbabilities(a)
+      maxProb > 0.5 && maxProb < 1.0 && Math.abs(classProbabilities.values.sum - 1.0) < 1.0e-6
     })
     assert(results.getGradient().isEmpty, "Returned a gradient when there shouldn't be one")
 
@@ -93,13 +89,11 @@ class BaggerTest {
     assert(importances.slice(0, 5).min > importances.slice(5, importances.size).max)
   }
 
-  /**
-    * Test that the uncertainty metrics are properly calibrated
+  /** Test that the uncertainty metrics are properly calibrated
     *
-    * This test is based on the "standard" RMSE, which is computed by dividing the error
-    * by the predicted uncertainty.  On the exterior, these is an additional extrapolative
-    * uncertainty that isn't captured well by this method, so we test the interior and the full
-    * set independently
+    * This test is based on the "standard" RMSE, which is computed by dividing the error by the predicted uncertainty.
+    * On the exterior, these is an additional extrapolative uncertainty that isn't captured well by this method, so we
+    * test the interior and the full set independently
     */
   def testUncertaintyCalibration(): Unit = {
     rng.setSeed(24795L)
@@ -132,8 +126,7 @@ class BaggerTest {
     assert(fullStandardRMSE > 1.0, "Standard RMSE over the full domain should be greater than 1.0")
   }
 
-  /**
-    * Test the behavior of a random forest when the labels are constant
+  /** Test the behavior of a random forest when the labels are constant
     */
   @Test
   def testUncertaintyCalibrationWithConstantResponse(): Unit = {
@@ -181,13 +174,12 @@ class BaggerTest {
     assert(predictions.getUncertainty().get.forall(_ == 0.0))
   }
 
-  /**
-    * Test the scores on a smaller example, because computing them all can be expensive.
+  /** Test the scores on a smaller example, because computing them all can be expensive.
     *
-    * In general, we don't even know that the self-score (score on a prediction on oneself) is maximal.  For example,
-    * consider a training point that is sandwiched between two other points, i.e. y in | x     x y x    x |.  However,
-    * this training data is on a 2D grid, so we know the corners of that grid need to have maximal self-scores.  Those
-    * are at indices 0, 7, 56, and 63.
+    * In general, we don't even know that the self-score (score on a prediction on oneself) is maximal. For example,
+    * consider a training point that is sandwiched between two other points, i.e. y in | x x y x x |. However, this
+    * training data is on a 2D grid, so we know the corners of that grid need to have maximal self-scores. Those are at
+    * indices 0, 7, 56, and 63.
     */
   @Test
   def testScores(): Unit = {
@@ -215,8 +207,7 @@ class BaggerTest {
     }
   }
 
-  /**
-    * Test the relative training time of a calibrated vs an uncalibrated forest
+  /** Test the relative training time of a calibrated vs an uncalibrated forest
     */
   @Test
   def calibrationTimeTest(): Unit = {
@@ -252,8 +243,7 @@ class BaggerTest {
     assert(calibratedTime < unCalibratedTime, s"The calibration scheme has experienced a dramatic slowdown")
   }
 
-  /**
-    * Test that the bagged learner can be interrupted
+  /** Test that the bagged learner can be interrupted
     */
   @Test
   def testInterrupt(): Unit = {
@@ -301,10 +291,9 @@ class BaggerTest {
     assert(totalTime < 2.0, "Thread took too long to terminate")
   }
 
-  /**
-    * Test that uncertainty recalibration functions correctly with small amounts of data. In some cases,
-    * especially with a simple, binary function, it is possible to have every tree make the correct prediction, leading
-    * to uncertainty = 0, and if not handled correctly, an uncertainty rescaling ratio that is NaN.
+  /** Test that uncertainty recalibration functions correctly with small amounts of data. In some cases, especially with
+    * a simple, binary function, it is possible to have every tree make the correct prediction, leading to uncertainty =
+    * 0, and if not handled correctly, an uncertainty rescaling ratio that is NaN.
     *
     * Note that this is an unusual case, and is not caught by testUncertaintyFloor()
     */
@@ -354,12 +343,11 @@ class BaggerTest {
     }
   }
 
-  /**
-    * Test that the uncertainty is always positive (and non-zero)
+  /** Test that the uncertainty is always positive (and non-zero)
     *
-    * This happens randomly, so let's repeat a test many times to make sure we catch it.  On my machine, this fails
-    * in the first couple thousand times and takes runs for 13 seconds once it's resolved, so I don't think
-    * that's too much overhead.
+    * This happens randomly, so let's repeat a test many times to make sure we catch it. On my machine, this fails in
+    * the first couple thousand times and takes runs for 13 seconds once it's resolved, so I don't think that's too much
+    * overhead.
     */
   @Test
   def testUncertaintyFloor(): Unit = {
@@ -379,8 +367,7 @@ class BaggerTest {
     }
   }
 
-  /**
-    * Test that the uncertainty is always positive (and non-zero) when a bias model is used
+  /** Test that the uncertainty is always positive (and non-zero) when a bias model is used
     *
     * Most of the logic is covered by testUncertaintyFloor, and this test is heavier, so we'll run fewer iterations
     */
@@ -407,8 +394,7 @@ class BaggerTest {
     }
   }
 
-  /**
-    * Test Shapley values are correctly averaged over trees.
+  /** Test Shapley values are correctly averaged over trees.
     */
   @Test
   def testShapley(): Unit = {
@@ -426,47 +412,43 @@ class BaggerTest {
       .train(trainingData)
       .getModel()
     val trees = model.getModels()
-    trainingData.foreach {
-      case (x, _) =>
-        val shapley = model.shapley(x).get
+    trainingData.foreach { case (x, _) =>
+      val shapley = model.shapley(x).get
 
-        // Do a quick sanity check on the output format.
-        assert(shapley.cols == nCols)
-        assert(shapley.rows == 1)
+      // Do a quick sanity check on the output format.
+      assert(shapley.cols == nCols)
+      assert(shapley.rows == 1)
 
-        // Compute the mean shap value over trees and ensure the bagged model gives the same result.
-        val treeMean = (1.0 / trees.length) * trees
-          .map { t =>
-            t.shapley(x).get
-          }
-          .reduce[DenseMatrix[Double]] {
-            case (a: DenseMatrix[Double], b: DenseMatrix[Double]) =>
-              a +:+ b
-          }
-        val atol = 1e-8
-        assert(
-          (treeMean - shapley).toDenseVector.toScalaVector.forall { x => Math.abs(x) < atol }
-        )
+      // Compute the mean shap value over trees and ensure the bagged model gives the same result.
+      val treeMean = (1.0 / trees.length) * trees
+        .map { t =>
+          t.shapley(x).get
+        }
+        .reduce[DenseMatrix[Double]] { case (a: DenseMatrix[Double], b: DenseMatrix[Double]) =>
+          a +:+ b
+        }
+      val atol = 1e-8
+      assert(
+        (treeMean - shapley).toDenseVector.toScalaVector.forall { x => Math.abs(x) < atol }
+      )
     }
   }
 }
 
-/**
-  * Companion driver
+/** Companion driver
   */
 object BaggerTest {
 
-  /**
-    * Test driver
+  /** Test driver
     *
-    * @param argv args
+    * @param argv
+    *   args
     */
   def main(argv: Array[String]): Unit = {
     measureShapleyPerf()
   }
 
-  /**
-    * Simple driver for running a performance test of BaggedModel.shapley().
+  /** Simple driver for running a performance test of BaggedModel.shapley().
     */
   def measureShapleyPerf(): Unit = {
     val rng = new Random(278345L)
@@ -490,13 +472,12 @@ object BaggerTest {
             .getModel()
           println(s"Trained")
 
-          rng.shuffle(trainingData).take(16).zipWithIndex.foreach {
-            case (x, i) =>
-              val t0 = System.nanoTime()
-              val shapley = model.shapley(x._1).get
-              val t1 = System.nanoTime()
-              pw.write(s"$nCols\t$nRows\t$repNum\t$i\t${t1 - t0}\n")
-              pw.flush()
+          rng.shuffle(trainingData).take(16).zipWithIndex.foreach { case (x, i) =>
+            val t0 = System.nanoTime()
+            val shapley = model.shapley(x._1).get
+            val t1 = System.nanoTime()
+            pw.write(s"$nCols\t$nRows\t$repNum\t$i\t${t1 - t0}\n")
+            pw.flush()
           }
         }
       }
@@ -516,9 +497,8 @@ object BaggerTest {
             predictions.getUncertainty().get.asInstanceOf[Seq[Double]]
           )
       )
-    val standardError = pva.map {
-      case (a: Double, (p: Double, u: Double)) =>
-        Math.abs(a - p) / u
+    val standardError = pva.map { case (a: Double, (p: Double, u: Double)) =>
+      Math.abs(a - p) / u
     }
     Math.sqrt(standardError.map(Math.pow(_, 2.0)).sum / testSet.size)
   }

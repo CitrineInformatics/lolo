@@ -8,14 +8,18 @@ import io.citrine.lolo.{Model, MultiTaskLearner, MultiTaskTrainingResult, Parall
 
 import scala.util.Random
 
-/**
-  * A tree learner that operates on multiple labels.
+/** A tree learner that operates on multiple labels.
   *
-  * @param numFeatures to random select from at each split (numbers less than 0 indicate that all features are used)
-  * @param maxDepth to grow the tree to
-  * @param minLeafInstances minimum number of training instances per leaf
-  * @param randomizePivotLocation whether to generate splits randomly between the data points
-  * @param rng random number generator, for reproducibility
+  * @param numFeatures
+  *   to random select from at each split (numbers less than 0 indicate that all features are used)
+  * @param maxDepth
+  *   to grow the tree to
+  * @param minLeafInstances
+  *   minimum number of training instances per leaf
+  * @param randomizePivotLocation
+  *   whether to generate splits randomly between the data points
+  * @param rng
+  *   random number generator, for reproducibility
   */
 case class MultiTaskTreeLearner(
     numFeatures: Int = -1,
@@ -25,12 +29,14 @@ case class MultiTaskTreeLearner(
     rng: Random = Random
 ) extends MultiTaskLearner {
 
-  /**
-    * Construct one regression or classification tree for each label.
+  /** Construct one regression or classification tree for each label.
     *
-    * @param trainingData   to train on
-    * @param weights  for the training rows, if applicable
-    * @return         sequence of models, one for each label
+    * @param trainingData
+    *   to train on
+    * @param weights
+    *   for the training rows, if applicable
+    * @return
+    *   sequence of models, one for each label
     */
   override def train(
       trainingData: Seq[(Vector[Any], Vector[Any])],
@@ -42,24 +48,22 @@ case class MultiTaskTreeLearner(
     val labelIndices = repOutput.indices
 
     /* Create encoders for any categorical features */
-    val inputEncoders: Seq[Option[CategoricalEncoder[Any]]] = repInput.zipWithIndex.map {
-      case (v, i) =>
-        if (v.isInstanceOf[Double]) {
-          None
-        } else {
-          Some(CategoricalEncoder.buildEncoder(inputs.map(_(i))))
-        }
+    val inputEncoders: Seq[Option[CategoricalEncoder[Any]]] = repInput.zipWithIndex.map { case (v, i) =>
+      if (v.isInstanceOf[Double]) {
+        None
+      } else {
+        Some(CategoricalEncoder.buildEncoder(inputs.map(_(i))))
+      }
     }
     val encodedInputs = inputs.map(r => CategoricalEncoder.encodeInput(r, inputEncoders))
 
     /* Create encoders for any categorical labels */
-    val outputEncoders: Seq[Option[CategoricalEncoder[Any]]] = repOutput.zipWithIndex.map {
-      case (v, i) =>
-        if (v.isInstanceOf[Double]) {
-          None
-        } else {
-          Some(CategoricalEncoder.buildEncoder(labels.map(_(i)).filterNot(_ == null)))
-        }
+    val outputEncoders: Seq[Option[CategoricalEncoder[Any]]] = repOutput.zipWithIndex.map { case (v, i) =>
+      if (v.isInstanceOf[Double]) {
+        None
+      } else {
+        Some(CategoricalEncoder.buildEncoder(labels.map(_(i)).filterNot(_ == null)))
+      }
     }
     val encodedLabels = labels.map(CategoricalEncoder.encodeInput(_, outputEncoders))
 

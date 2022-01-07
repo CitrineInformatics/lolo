@@ -5,29 +5,27 @@ import io.citrine.lolo.trees.impurity.VarianceCalculator
 import scala.collection.immutable.BitSet
 import scala.util.Random
 
-/**
-  * Find the best split for regression problems.
+/** Find the best split for regression problems.
   *
-  * The best split is the one that reduces the total weighted variance:
-  * totalVariance = N_left * \sigma_left^2 + N_right * \sigma_right^2
-  * which, in scala-ish, would be:
-  * totalVariance = leftWeight  * (leftSquareSum /leftWeight  - (leftSum  / leftWeight )^2)
-  * + rightWeight * (rightSquareSum/rightWeight - (rightSum / rightWeight)^2)
-  * Because we are comparing them, we can subtract off leftSquareSum + rightSquareSum, which yields the following simple
-  * expression after some simplification:
-  * totalVariance = -leftSum * leftSum / leftWeight - Math.pow(totalSum - leftSum, 2) / (totalWeight - leftWeight)
-  * which depends only on updates to leftSum and leftWeight (since totalSum and totalWeight are constant).
+  * The best split is the one that reduces the total weighted variance: totalVariance = N_left * \sigma_left^2 + N_right
+  * * \sigma_right^2 which, in scala-ish, would be: totalVariance = leftWeight * (leftSquareSum /leftWeight - (leftSum /
+  * leftWeight )^2) + rightWeight * (rightSquareSum/rightWeight - (rightSum / rightWeight)^2) Because we are comparing
+  * them, we can subtract off leftSquareSum + rightSquareSum, which yields the following simple expression after some
+  * simplification: totalVariance = -leftSum * leftSum / leftWeight - Math.pow(totalSum - leftSum, 2) / (totalWeight -
+  * leftWeight) which depends only on updates to leftSum and leftWeight (since totalSum and totalWeight are constant).
   *
   * Created by maxhutch on 11/29/16.
   */
 case class RegressionSplitter(randomizePivotLocation: Boolean = false, rng: Random = Random) extends Splitter[Double] {
 
-  /**
-    * Get the best split, considering numFeature random features (w/o replacement)
+  /** Get the best split, considering numFeature random features (w/o replacement)
     *
-    * @param data        to split
-    * @param numFeatures to consider, randomly
-    * @return a split object that optimally divides data
+    * @param data
+    *   to split
+    * @param numFeatures
+    *   to consider, randomly
+    * @return
+    *   a split object that optimally divides data
     */
   def getBestSplit(
       data: Seq[(Vector[AnyVal], Double, Double)],
@@ -67,12 +65,14 @@ case class RegressionSplitter(randomizePivotLocation: Boolean = false, rng: Rand
     }
   }
 
-  /**
-    * Get find the best categorical splitter.
+  /** Get find the best categorical splitter.
     *
-    * @param data  to split
-    * @param index of the feature to split on
-    * @return the best split of this feature
+    * @param data
+    *   to split
+    * @param index
+    *   of the feature to split on
+    * @return
+    *   the best split of this feature
     */
   def getBestCategoricalSplit(
       data: Seq[(Vector[AnyVal], Double, Double)],

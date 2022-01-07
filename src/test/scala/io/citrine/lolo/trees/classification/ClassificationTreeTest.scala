@@ -9,14 +9,12 @@ import org.scalatest.Assertions._
 
 import scala.util.Random
 
-/**
-  * Created by maxhutch on 12/2/16.
+/** Created by maxhutch on 12/2/16.
   */
 @Test
 class ClassificationTreeTest {
 
-  /**
-    * Trivial models with no splits should have finite feature importance.
+  /** Trivial models with no splits should have finite feature importance.
     */
   @Test
   def testFeatureImportanceNaN(): Unit = {
@@ -45,9 +43,8 @@ class ClassificationTreeTest {
 
     /* We should be able to memorize the inputs */
     val output = DT.transform(trainingData.map(_._1))
-    trainingData.zip(output.getExpected()).foreach {
-      case ((x, a), p) =>
-        assert(a == p, s"${a} != ${p} for ${x}")
+    trainingData.zip(output.getExpected()).foreach { case ((x, a), p) =>
+      assert(a == p, s"${a} != ${p} for ${x}")
     }
     assert(output.getGradient().isEmpty)
     output.getDepth().foreach(d => assert(d > 0))
@@ -57,8 +54,7 @@ class ClassificationTreeTest {
     assert(importances.slice(0, 5).min > importances.slice(5, importances.size).max)
   }
 
-  /**
-    * Test a larger case and time it as a benchmark guideline
+  /** Test a larger case and time it as a benchmark guideline
     */
   @Test
   def longerTest(): Unit = {
@@ -80,9 +76,8 @@ class ClassificationTreeTest {
 
     /* We should be able to memorize the inputs */
     val output = DT.transform(trainingData.map(_._1))
-    trainingData.zip(output.getExpected()).foreach {
-      case ((x, a), p) =>
-        assert(a == p, s"${a} != ${p} for ${x}")
+    trainingData.zip(output.getExpected()).foreach { case ((x, a), p) =>
+      assert(a == p, s"${a} != ${p} for ${x}")
     }
     assert(output.getGradient().isEmpty)
     output.getDepth().foreach(d => assert(d > 4 && d < 17, s"Depth is ${d}"))
@@ -92,8 +87,7 @@ class ClassificationTreeTest {
     assert(importances.slice(0, 5).min > importances.slice(5, importances.size).max)
   }
 
-  /**
-    * Test a larger case and time it as a benchmark guideline
+  /** Test a larger case and time it as a benchmark guideline
     */
   @Test
   def testCategorical(): Unit = {
@@ -113,9 +107,8 @@ class ClassificationTreeTest {
 
     /* We should be able to memorize the inputs */
     val output = DT.transform(trainingData.map(_._1))
-    trainingData.zip(output.getExpected()).foreach {
-      case ((x, a), p) =>
-        assert(a == p)
+    trainingData.zip(output.getExpected()).foreach { case ((x, a), p) =>
+      assert(a == p)
     }
     assert(output.getGradient().isEmpty)
     output.getDepth().foreach(d => assert(d > 3 && d < 18, s"Depth is ${d}"))
@@ -125,10 +118,10 @@ class ClassificationTreeTest {
 /** Companion driver */
 object ClassificationTreeTest {
 
-  /**
-    * Test driver
+  /** Test driver
     *
-    * @param argv args
+    * @param argv
+    *   args
     */
   def main(argv: Array[String]): Unit = {
     new ClassificationTreeTest().testBinary()

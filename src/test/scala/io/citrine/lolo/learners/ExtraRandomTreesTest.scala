@@ -11,8 +11,7 @@ import scala.util.Random
 class ExtraRandomTreesTest {
   val rng = new Random(92345L)
 
-  /**
-    * Test that the regression does the same thing as the regression bagger
+  /** Test that the regression does the same thing as the regression bagger
     */
   @Test
   def testRegression(): Unit = {
@@ -50,8 +49,7 @@ class ExtraRandomTreesTest {
     }
   }
 
-  /**
-    * Test that the regression does the same thing as the classification bagger
+  /** Test that the regression does the same thing as the classification bagger
     */
   @Test
   def testClassification(): Unit = {
@@ -108,20 +106,18 @@ class ExtraRandomTreesTest {
           /* Check that class probabilities are reasonable */
           val uncertainty = results.getUncertainty()
           assert(uncertainty.isDefined)
-          assert(testData.map(_._2).zip(uncertainty.get).forall {
-            case (a, probs) =>
-              val classProbabilities = probs.asInstanceOf[Map[Any, Double]]
-              val maxProb = classProbabilities(a)
-              maxProb > 1.0 / (2 * nBins) && maxProb < 1.0 && Math.abs(classProbabilities.values.sum - 1.0) < 1.0e-6
+          assert(testData.map(_._2).zip(uncertainty.get).forall { case (a, probs) =>
+            val classProbabilities = probs.asInstanceOf[Map[Any, Double]]
+            val maxProb = classProbabilities(a)
+            maxProb > 1.0 / (2 * nBins) && maxProb < 1.0 && Math.abs(classProbabilities.values.sum - 1.0) < 1.0e-6
           })
         }
       }
     }
   }
 
-  /**
-    * Ensure classification isn't biased toward one or the other ordering of class labels
-    * when there are duplicate inputs.
+  /** Ensure classification isn't biased toward one or the other ordering of class labels when there are duplicate
+    * inputs.
     */
   @Test
   def testClassificationUnbiased(): Unit = {
@@ -187,8 +183,7 @@ class ExtraRandomTreesTest {
     )
   }
 
-  /**
-    * Make sure that we can draw training weights consistently even when the training size is small
+  /** Make sure that we can draw training weights consistently even when the training size is small
     */
   @Test
   def testWeightsWithSmallData(): Unit = {

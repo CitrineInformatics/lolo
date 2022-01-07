@@ -45,8 +45,7 @@ class BaggedResultTest {
     }
   }
 
-  /**
-    * Test that uncertainty estimates are within reasonable bounds.
+  /** Test that uncertainty estimates are within reasonable bounds.
     */
   @Test
   def testBaggedSingleResultGetUncertainty(): Unit = {
@@ -71,15 +70,13 @@ class BaggedResultTest {
               val results = RF.transform(trainingData.take(4).map(_._1))
 
               val sigmaMean: Seq[Double] = results.getUncertainty(observational = false).get.asInstanceOf[Seq[Double]]
-              sigmaMean.zip(results.asInstanceOf[RegressionResult].getStdDevMean().get).foreach {
-                case (a, b) =>
-                  assert(a == b, s"Expected getUncertainty(observational=false)=getStdDevMean() for $configDescription")
+              sigmaMean.zip(results.asInstanceOf[RegressionResult].getStdDevMean().get).foreach { case (a, b) =>
+                assert(a == b, s"Expected getUncertainty(observational=false)=getStdDevMean() for $configDescription")
               }
 
               val sigmaObs: Seq[Double] = results.getUncertainty().get.asInstanceOf[Seq[Double]]
-              sigmaObs.zip(results.asInstanceOf[RegressionResult].getStdDevObs().get).foreach {
-                case (a, b) =>
-                  assert(a == b, s"Expected getUncertainty()=getStdDevObs() for $configDescription")
+              sigmaObs.zip(results.asInstanceOf[RegressionResult].getStdDevObs().get).foreach { case (a, b) =>
+                assert(a == b, s"Expected getUncertainty()=getStdDevObs() for $configDescription")
               }
 
               // We have strong theoretical guarantees on the behavior of GuessTheMeanLearner, so let's exercise them.
@@ -149,23 +146,23 @@ class BaggedResultTest {
     }
   }
 
-  /**
-    * Confirm that a trained model provides the same uncertainty estimates when predicting a single candidate at a time
+  /** Confirm that a trained model provides the same uncertainty estimates when predicting a single candidate at a time
     * when compared with batch prediction.
     *
-    * @param trainingData The original training data for the model
-    * @param model        The trained model
+    * @param trainingData
+    *   The original training data for the model
+    * @param model
+    *   The trained model
     */
   private def testConsistency(trainingData: Seq[(Vector[Any], Any)], model: BaggedModel[Any]): Unit = {
     val testSubset = rng.shuffle(trainingData).take(16)
-    val (singleValues, singleObsUnc, singleMeanUnc) = testSubset.map {
-      case (x, _) =>
-        val res = model.transform(Seq(x))
-        (
-          res.getExpected().head.asInstanceOf[Double],
-          res.getUncertainty(true).get.head.asInstanceOf[Double],
-          res.getUncertainty(false).get.head.asInstanceOf[Double]
-        )
+    val (singleValues, singleObsUnc, singleMeanUnc) = testSubset.map { case (x, _) =>
+      val res = model.transform(Seq(x))
+      (
+        res.getExpected().head.asInstanceOf[Double],
+        res.getUncertainty(true).get.head.asInstanceOf[Double],
+        res.getUncertainty(false).get.head.asInstanceOf[Double]
+      )
     }.unzip3
 
     val (multiValues, multiObsUnc, multiMeanUnc) = {
@@ -177,17 +174,14 @@ class BaggedResultTest {
       )
     }
 
-    singleValues.zip(multiValues).zipWithIndex.foreach {
-      case ((x, y), idx) =>
-        assert(Math.abs(x - y) < 1.0e-9, s"Mean Uncertainty $x was not $y for $idx")
+    singleValues.zip(multiValues).zipWithIndex.foreach { case ((x, y), idx) =>
+      assert(Math.abs(x - y) < 1.0e-9, s"Mean Uncertainty $x was not $y for $idx")
     }
-    singleObsUnc.zip(multiObsUnc).zipWithIndex.foreach {
-      case ((x, y), idx) =>
-        assert(Math.abs(x - y) < 1.0e-9, s"Obs Uncertainty $x was not $y for $idx")
+    singleObsUnc.zip(multiObsUnc).zipWithIndex.foreach { case ((x, y), idx) =>
+      assert(Math.abs(x - y) < 1.0e-9, s"Obs Uncertainty $x was not $y for $idx")
     }
-    singleMeanUnc.zip(multiMeanUnc).zipWithIndex.foreach {
-      case ((x, y), idx) =>
-        assert(Math.abs(x - y) < 1.0e-9, s"Mean Uncertainty $x was not $y for $idx")
+    singleMeanUnc.zip(multiMeanUnc).zipWithIndex.foreach { case ((x, y), idx) =>
+      assert(Math.abs(x - y) < 1.0e-9, s"Mean Uncertainty $x was not $y for $idx")
     }
   }
 }

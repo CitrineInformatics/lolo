@@ -4,14 +4,12 @@ import org.junit.Test
 
 import scala.util.Random
 
-/**
-  * Created by maxhutch on 12/28/16.
+/** Created by maxhutch on 12/28/16.
   */
 class ClassificationMetricsTest {
   val rng = new Random(9230L)
 
-  /**
-    * Test that the metric works on a sparse confusion matrix
+  /** Test that the metric works on a sparse confusion matrix
     */
   @Test
   def testSparse(): Unit = {

@@ -4,17 +4,18 @@ import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
 
 import scala.util.Random
 
-/**
-  * Created by maxhutch on 11/15/16.
+/** Created by maxhutch on 11/15/16.
   */
 case class GuessTheMeanLearner(rng: Random = Random) extends Learner {
 
-  /**
-    * Train a model
+  /** Train a model
     *
-    * @param trainingData to train on
-    * @param weights      for the training rows, if applicable
-    * @return training result containing a model
+    * @param trainingData
+    *   to train on
+    * @param weights
+    *   for the training rows, if applicable
+    * @return
+    *   training result containing a model
     */
   override def train(trainingData: Seq[(Vector[Any], Any)], weights: Option[Seq[Double]]): TrainingResult = {
     val data = trainingData.map(_._2).zip(weights.getOrElse(Seq.fill(trainingData.size)(1.0)))
@@ -40,10 +41,10 @@ class GuessTheMeanModel[T](mean: T) extends Model[GuessTheMeanResult[T]] {
 
 class GuessTheMeanResult[T](result: Seq[T]) extends PredictionResult[T] {
 
-  /**
-    * Get the expected values for this prediction
+  /** Get the expected values for this prediction
     *
-    * @return expected value of each prediction
+    * @return
+    *   expected value of each prediction
     */
   override def getExpected(): Seq[T] = result
 }

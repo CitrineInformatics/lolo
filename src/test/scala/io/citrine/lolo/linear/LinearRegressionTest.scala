@@ -5,8 +5,7 @@ import org.junit.Test
 
 import scala.util.Random
 
-/**
-  * Created by maxhutch on 12/6/16.
+/** Created by maxhutch on 12/6/16.
   */
 @Test
 class LinearRegressionTest {
@@ -24,8 +23,7 @@ class LinearRegressionTest {
   /** And a random model */
   val beta0 = DenseVector.rand[Double](k)
 
-  /**
-    * Test regression without an intercept or weight; this is easiest
+  /** Test regression without an intercept or weight; this is easiest
     */
   @Test
   def testRegressionNoIntercept(): Unit = {
@@ -46,8 +44,7 @@ class LinearRegressionTest {
     assert(norm(new DenseVector(predicted.toArray) - result) < 1.0e-9, "Predictions are inaccurate")
   }
 
-  /**
-    * Add an intercept
+  /** Add an intercept
     */
   @Test
   def testRegression(): Unit = {
@@ -69,8 +66,7 @@ class LinearRegressionTest {
     assert(norm(new DenseVector(predicted.toArray) - result) < 1.0e-9, "Predictions are inaccurate")
   }
 
-  /**
-    * Add an intercept and random weights
+  /** Add an intercept and random weights
     */
   @Test
   def testWeightedRegression(): Unit = {
@@ -92,8 +88,7 @@ class LinearRegressionTest {
     assert(norm(new DenseVector(predicted.toArray) - result) < 1.0e-9, "Predictions are inaccurate")
   }
 
-  /**
-    * Test when there are more features than training rows
+  /** Test when there are more features than training rows
     */
   @Test
   def testUnderconstrained(): Unit = {
@@ -125,8 +120,7 @@ class LinearRegressionTest {
     assert(norm(new DenseVector(predicted.toArray) - result) < 1.0e-9, "Predictions are inaccurate")
   }
 
-  /**
-    * Add an intercept
+  /** Add an intercept
     */
   @Test
   def testCategoricalValue(): Unit = {
@@ -147,13 +141,12 @@ class LinearRegressionTest {
 
     /* Make sure that feature importance matches the gradient */
     val betaScale = beta.map(Math.abs).sum
-    beta.zip(importance).foreach {
-      case (b, i) =>
-        val diff = Math.abs(Math.abs(b / betaScale) - i)
-        assert(
-          diff < Double.MinPositiveValue || diff / i < 1.0e-9,
-          s"Beta and feature importance disagree: ${b / betaScale} vs ${i}"
-        )
+    beta.zip(importance).foreach { case (b, i) =>
+      val diff = Math.abs(Math.abs(b / betaScale) - i)
+      assert(
+        diff < Double.MinPositiveValue || diff / i < 1.0e-9,
+        s"Beta and feature importance disagree: ${b / betaScale} vs ${i}"
+      )
     }
 
     assert(norm(new DenseVector(beta.toArray)(1 to -2) - beta0) < 1.0e-9, "Coefficients are inaccurate")
@@ -167,10 +160,10 @@ class LinearRegressionTest {
 /** Companion driver */
 object LinearRegressionTest {
 
-  /**
-    * Test driver
+  /** Test driver
     *
-    * @param argv args
+    * @param argv
+    *   args
     */
   def main(argv: Array[String]): Unit = {
     new LinearRegressionTest().testRegressionNoIntercept()
