@@ -6,6 +6,7 @@ import scala.collection.BitSet
   * Splits are used by decision trees to partition the input space
   */
 abstract trait Split extends Serializable {
+
   /**
     * Take the left branch in the binary split?
     *
@@ -26,6 +27,7 @@ abstract trait Split extends Serializable {
   * If no split was found
   */
 class NoSplit extends Split {
+
   /**
     * Take the left branch in the binary split?
     *

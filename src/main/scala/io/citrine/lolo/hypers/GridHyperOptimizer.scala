@@ -16,7 +16,11 @@ case class GridHyperOptimizer() extends HyperOptimizer {
     * @param numIterations ignored, since this is a brute force search
     * @return the best hyper map found in the search space
     */
-  override def optimize(trainingData: Seq[(Vector[Any], Any)], numIterations: Int = 1, builder: Map[String, Any] => Learner): (Map[String, Any], Double) = {
+  override def optimize(
+      trainingData: Seq[(Vector[Any], Any)],
+      numIterations: Int = 1,
+      builder: Map[String, Any] => Learner
+  ): (Map[String, Any], Double) = {
     var best: Map[String, Any] = Map()
     var loss = Double.MaxValue
     /* Get the size of each dimension for index arithmetic */
@@ -27,10 +31,11 @@ case class GridHyperOptimizer() extends HyperOptimizer {
       var j = i
       var testHypers: Map[String, Any] = Map()
       /* For each hyper dimension, pull an index with mod and then shift */
-      sizes.foreach { case (name, size) =>
-        val index = j % size
-        testHypers = testHypers + ((name, hyperGrids(name)(index)))
-        j = j / size
+      sizes.foreach {
+        case (name, size) =>
+          val index = j % size
+          testHypers = testHypers + ((name, hyperGrids(name)(index)))
+          j = j / size
       }
 
       /* Set up a learner with these parameters and compute the loss */

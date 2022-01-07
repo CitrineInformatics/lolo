@@ -5,7 +5,6 @@ import org.junit.Test
 
 import scala.util.Random
 
-
 /**
   * Created by maxhutch on 12/1/16.
   */

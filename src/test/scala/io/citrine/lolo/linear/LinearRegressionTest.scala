@@ -1,6 +1,6 @@
 package io.citrine.lolo.linear
 
-import breeze.linalg.{DenseMatrix, DenseVector, norm}
+import breeze.linalg.{norm, DenseMatrix, DenseVector}
 import org.junit.Test
 
 import scala.util.Random
@@ -11,12 +11,16 @@ import scala.util.Random
 @Test
 class LinearRegressionTest {
   val rng = new Random(783578L)
+
   /** Number of training rows */
   val n = 6
+
   /** Number of features in each row */
   val k = 4
+
   /** Generate random training data */
   val data = DenseMatrix.rand[Double](n, k)
+
   /** And a random model */
   val beta0 = DenseVector.rand[Double](k)
 
@@ -93,12 +97,16 @@ class LinearRegressionTest {
     */
   @Test
   def testUnderconstrained(): Unit = {
+
     /** Number of training rows */
     val n = 4
+
     /** Number of features in each row */
     val k = 6
+
     /** Generate random training data */
     val data = DenseMatrix.rand[Double](n, k)
+
     /** And a random model */
     val beta0 = DenseVector.rand[Double](k)
     val result = data * beta0
@@ -139,10 +147,13 @@ class LinearRegressionTest {
 
     /* Make sure that feature importance matches the gradient */
     val betaScale = beta.map(Math.abs).sum
-    beta.zip(importance).foreach { case (b, i) =>
-      val diff = Math.abs(Math.abs(b / betaScale) - i)
-      assert(diff < Double.MinPositiveValue || diff / i < 1.0e-9,
-        s"Beta and feature importance disagree: ${b / betaScale} vs ${i}")
+    beta.zip(importance).foreach {
+      case (b, i) =>
+        val diff = Math.abs(Math.abs(b / betaScale) - i)
+        assert(
+          diff < Double.MinPositiveValue || diff / i < 1.0e-9,
+          s"Beta and feature importance disagree: ${b / betaScale} vs ${i}"
+        )
     }
 
     assert(norm(new DenseVector(beta.toArray)(1 to -2) - beta0) < 1.0e-9, "Coefficients are inaccurate")
@@ -155,6 +166,7 @@ class LinearRegressionTest {
 
 /** Companion driver */
 object LinearRegressionTest {
+
   /**
     * Test driver
     *

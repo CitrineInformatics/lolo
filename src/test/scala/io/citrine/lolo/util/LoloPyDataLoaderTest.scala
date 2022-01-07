@@ -54,13 +54,15 @@ class LoloPyDataLoaderTest {
     val sigma = results.getUncertainty().get.asInstanceOf[Seq[Double]]
 
     // Get the results as a byte array, and convert them back
-    val reproMeans = LoloPyDataLoader.get1DArray(
-      LoloPyDataLoader.getRegressionExpected(results), getDouble = true, bigEndian = false).asInstanceOf[Seq[Double]]
+    val reproMeans = LoloPyDataLoader
+      .get1DArray(LoloPyDataLoader.getRegressionExpected(results), getDouble = true, bigEndian = false)
+      .asInstanceOf[Seq[Double]]
     assert(reproMeans.zip(means).map(x => Math.abs(x._1 - x._2)).sum < 1e-6)
 
     // Get the uncertainty as a byte array, and convert them back
-    val reproSigma = LoloPyDataLoader.get1DArray(
-      LoloPyDataLoader.getRegressionUncertainty(results), getDouble = true, bigEndian = false).asInstanceOf[Seq[Double]]
+    val reproSigma = LoloPyDataLoader
+      .get1DArray(LoloPyDataLoader.getRegressionUncertainty(results), getDouble = true, bigEndian = false)
+      .asInstanceOf[Seq[Double]]
     assert(reproSigma.zip(sigma).map(x => Math.abs(x._1 - x._2)).sum < 1e-6)
   }
 
@@ -81,25 +83,36 @@ class LoloPyDataLoaderTest {
       }
     }
     val means = results.getExpected()
-    val probs : Seq[Double] = results.getUncertainty().get.asInstanceOf[Seq[Map[Int, Double]]].flatMap(
-      x => 0.until(3).map(i => x.getOrElse(i, 0.0)))
+    val probs: Seq[Double] = results
+      .getUncertainty()
+      .get
+      .asInstanceOf[Seq[Map[Int, Double]]]
+      .flatMap(x => 0.until(3).map(i => x.getOrElse(i, 0.0)))
     assert(Math.abs(probs.sum - 4) < 1e-6)
 
     // Get the expected class via the utility
-    val reproExp = LoloPyDataLoader.get1DArray(
-      LoloPyDataLoader.getClassifierExpected(results), getDouble = false, bigEndian = false).asInstanceOf[Seq[Int]]
+    val reproExp = LoloPyDataLoader
+      .get1DArray(LoloPyDataLoader.getClassifierExpected(results), getDouble = false, bigEndian = false)
+      .asInstanceOf[Seq[Int]]
     assert(reproExp.zip(means).map(x => Math.abs(x._1 - x._2)).sum < 1e-6)
 
     // Get the probs via the utility
-    val reproProbs = LoloPyDataLoader.get1DArray(
-      LoloPyDataLoader.getClassifierProbabilities(results, 3), getDouble = true, bigEndian = false).asInstanceOf[Seq[Double]]
+    val reproProbs = LoloPyDataLoader
+      .get1DArray(LoloPyDataLoader.getClassifierProbabilities(results, 3), getDouble = true, bigEndian = false)
+      .asInstanceOf[Seq[Double]]
     assert(reproProbs.length == 4 * 3)
     assert(probs.zip(reproProbs).map(x => Math.abs(x._1 - x._2)).sum < 1e-6)
 
     // Get the importances via the utility
-    val reproImportances = LoloPyDataLoader.get1DArray(
-      LoloPyDataLoader.getImportanceScores(results), getDouble = true, bigEndian = false
-    ).grouped(2).toVector.asInstanceOf[Seq[Seq[Double]]]
+    val reproImportances = LoloPyDataLoader
+      .get1DArray(
+        LoloPyDataLoader.getImportanceScores(results),
+        getDouble = true,
+        bigEndian = false
+      )
+      .grouped(2)
+      .toVector
+      .asInstanceOf[Seq[Seq[Double]]]
     assert(reproImportances.length == 4)
     assert(reproImportances.head.zip(0.1 :: 0.2 :: Nil).map(x => Math.abs(x._1 - x._2)).sum < 1e-6)
   }

@@ -16,9 +16,10 @@ import scala.collection.mutable
   * @tparam S type of the model output
   */
 abstract class TrainingNode[T <: AnyVal, S](
-                                             trainingData: Seq[(Vector[T], S, Double)],
-                                             remainingDepth: Int = Int.MaxValue
-                                           ) extends Serializable {
+    trainingData: Seq[(Vector[T], S, Double)],
+    remainingDepth: Int = Int.MaxValue
+) extends Serializable {
+
   /**
     * Get the lightweight prediction node for the output tree
     *
@@ -63,10 +64,10 @@ trait ModelNode[+T <: PredictionResult[Any]] extends Serializable {
     *         The output dimension is 1 for single-task regression, or equal to the number of classification categories.
     */
   private[lolo] def shapleyRecurse(
-                                    input: Vector[AnyVal],
-                                    omitFeatures: Set[Int] = Set(),
-                                    featureWeights: Map[Int, FeatureWeightFactor]
-                                  ): DenseMatrix[Double]
+      input: Vector[AnyVal],
+      omitFeatures: Set[Int] = Set(),
+      featureWeights: Map[Int, FeatureWeightFactor]
+  ): DenseMatrix[Double]
 
   /**
     * Weight of training data in subtree, specifically the number of data for unweighted training sets
@@ -88,12 +89,13 @@ trait ModelNode[+T <: PredictionResult[Any]] extends Serializable {
   * @tparam T type of the output
   */
 class InternalModelNode[T <: PredictionResult[Any]](
-                                                     split: Split,
-                                                     left: ModelNode[T],
-                                                     right: ModelNode[T],
-                                                     outputDimension: Int,
-                                                     trainingWeight: Double
-                                                   ) extends ModelNode[T] {
+    split: Split,
+    left: ModelNode[T],
+    right: ModelNode[T],
+    outputDimension: Int,
+    trainingWeight: Double
+) extends ModelNode[T] {
+
   /**
     * Just propagate the prediction call through the appropriate child
     *
@@ -122,10 +124,10 @@ class InternalModelNode[T <: PredictionResult[Any]](
     * went to each child in lieu of including the feature on the way down.
     */
   def shapleyRecurse(
-                      input: Vector[AnyVal],
-                      omitFeatures: Set[Int],
-                      featureWeights: Map[Int, FeatureWeightFactor]
-                    ): DenseMatrix[Double] = {
+      input: Vector[AnyVal],
+      omitFeatures: Set[Int],
+      featureWeights: Map[Int, FeatureWeightFactor]
+  ): DenseMatrix[Double] = {
     val featureIndex = split.getIndex()
 
     // The hot node is the one that is selected when the feature is present
@@ -185,26 +187,32 @@ class InternalModelNode[T <: PredictionResult[Any]](
   * @param trainingData to train on
   */
 class TrainingLeaf[T](
-                       trainingData: Seq[(Vector[AnyVal], T, Double)],
-                       leafLearner: Learner,
-                       depth: Int
-                     ) extends TrainingNode(
-  trainingData = trainingData,
-  remainingDepth = 0
-) {
+    trainingData: Seq[(Vector[AnyVal], T, Double)],
+    leafLearner: Learner,
+    depth: Int
+) extends TrainingNode(
+      trainingData = trainingData,
+      remainingDepth = 0
+    ) {
+
   /**
     * Average the training data
     *
     * @return lightweight prediction node
     */
   def getNode(): ModelNode[PredictionResult[T]] = {
-    new ModelLeaf(leafLearner.train(trainingData).getModel().asInstanceOf[Model[PredictionResult[T]]], depth, trainingData.size.toDouble)
+    new ModelLeaf(
+      leafLearner.train(trainingData).getModel().asInstanceOf[Model[PredictionResult[T]]],
+      depth,
+      trainingData.size.toDouble
+    )
   }
 
   override def getFeatureImportance(): mutable.ArraySeq[Double] = mutable.ArraySeq.fill(trainingData.head._1.size)(0.0)
 }
 
-class ModelLeaf[T](model: Model[PredictionResult[T]], depth: Int, trainingWeight: Double) extends ModelNode[PredictionResult[T]] {
+class ModelLeaf[T](model: Model[PredictionResult[T]], depth: Int, trainingWeight: Double)
+    extends ModelNode[PredictionResult[T]] {
   override def transform(input: Vector[AnyVal]): (PredictionResult[T], TreeMeta) = {
     (model.transform(Seq(input)), TreeMeta(depth))
   }
@@ -217,10 +225,10 @@ class ModelLeaf[T](model: Model[PredictionResult[T]], depth: Int, trainingWeight
     * For details of this procedure, see [[FeaturePowerSetTerms]].
     */
   def shapleyRecurse(
-                      input: Vector[AnyVal],
-                      omitFeatures: Set[Int],
-                      featureWeights: Map[Int, FeatureWeightFactor]
-                    ): DenseMatrix[Double] = {
+      input: Vector[AnyVal],
+      omitFeatures: Set[Int],
+      featureWeights: Map[Int, FeatureWeightFactor]
+  ): DenseMatrix[Double] = {
     // Start with an empty matrix, into which we'll set the non-zero contributions
     val shapValues = DenseMatrix.zeros[Double](1, input.length)
 
@@ -232,12 +240,13 @@ class ModelLeaf[T](model: Model[PredictionResult[T]], depth: Int, trainingWeight
     this.model.transform(Seq(input)).getExpected().head match {
       case v: Double =>
         // For each feature, compute the contribution and store it in shapValues
-        featureWeights.foreach { case (featureIndex, node) =>
-          // Compute the weight of the contribution by removing this feature from the set and then computing the weights
-          // These two steps are fused to avoid an extra memory allocation
-          // This is equivalent to `set.unwind(node.weightWhenExcluded, node.weightWhenIncluded).totalWeight`
-          val w = set.unwoundTotalWeight(node.weightWhenExcluded, node.weightWhenIncluded)
-          shapValues(0, featureIndex) = w * (node.weightWhenIncluded - node.weightWhenExcluded) * v
+        featureWeights.foreach {
+          case (featureIndex, node) =>
+            // Compute the weight of the contribution by removing this feature from the set and then computing the weights
+            // These two steps are fused to avoid an extra memory allocation
+            // This is equivalent to `set.unwind(node.weightWhenExcluded, node.weightWhenIncluded).totalWeight`
+            val w = set.unwoundTotalWeight(node.weightWhenExcluded, node.weightWhenIncluded)
+            shapValues(0, featureIndex) = w * (node.weightWhenIncluded - node.weightWhenExcluded) * v
         }
       case _ => throw new NotImplementedError()
     }

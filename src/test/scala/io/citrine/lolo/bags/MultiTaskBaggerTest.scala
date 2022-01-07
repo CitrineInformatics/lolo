@@ -29,18 +29,25 @@ class MultiTaskBaggerTest {
       TestUtils.generateTrainingData(512, 12, noise = 0.1, function = Friedman.friedmanSilverman),
       inputBins = Seq((0, 8))
     )
-    val reshapedTrainingData = trainingData.map { case (input, label) => (input, Vector(label))}
+    val reshapedTrainingData = trainingData.map { case (input, label) => (input, Vector(label)) }
     val DTLearner = MultiTaskTreeLearner()
-    val baggedLearner = MultiTaskBagger(DTLearner, numBags = trainingData.size, randBasis = TestUtils.getBreezeRandBasis(10478L), uncertaintyCalibration = true)
+    val baggedLearner = MultiTaskBagger(
+      DTLearner,
+      numBags = trainingData.size,
+      randBasis = TestUtils.getBreezeRandBasis(10478L),
+      uncertaintyCalibration = true
+    )
     val RFMeta = baggedLearner.train(reshapedTrainingData)
     val RF = RFMeta.getModels().head
-
 
     val results = RF.transform(trainingData.map(_._1))
     val means = results.getExpected()
     val sigma: Seq[Double] = results.getUncertainty().get.asInstanceOf[Seq[Double]]
     assert(sigma.forall(_ >= 0.0))
-    assert(results.asInstanceOf[MultiPredictionBaggedResult].rescale != 1.0, "uncertainty calibration ratio was not included in prediction result")
+    assert(
+      results.asInstanceOf[MultiPredictionBaggedResult].rescale != 1.0,
+      "uncertainty calibration ratio was not included in prediction result"
+    )
     assert(results.getGradient().isEmpty, "Returned a gradient when there shouldn't be one")
     assert(RFMeta.getLoss().get < 1.0, "Loss of bagger is larger than expected")
   }
@@ -58,54 +65,75 @@ class MultiTaskBaggerTest {
         Seq(16).foreach { nCols =>
           Seq(2).map { n => n * nRows }.foreach { nBags =>
             // Used for error output.
-            val configDescription =s"learner=${baseLearner.getClass().toString()}\tnRows=$nRows\tnCols=$nCols\tnumBags=$nBags"
+            val configDescription =
+              s"learner=${baseLearner.getClass().toString()}\tnRows=$nRows\tnCols=$nCols\tnumBags=$nBags"
 
             val sigmaObsAndSigmaMean: Seq[(Double, Double)] = (1 to 20).flatMap { _ =>
-              val trainingDataTmp = TestUtils.generateTrainingData(nRows, nCols, noise = 0.0, function = _ => 0.0, seed = rng.nextLong())
+              val trainingDataTmp =
+                TestUtils.generateTrainingData(nRows, nCols, noise = 0.0, function = _ => 0.0, seed = rng.nextLong())
               val trainingData = trainingDataTmp.map { x => (x._1, x._2 + noiseLevel * rng.nextDouble()) }
-              val reshapedTrainingData = trainingData.map { case (input, label) => (input, Vector(label))}
-              val baggedLearner = MultiTaskBagger(baseLearner, numBags = nBags, uncertaintyCalibration = true, randBasis = TestUtils.getBreezeRandBasis(7835178L))
+              val reshapedTrainingData = trainingData.map { case (input, label) => (input, Vector(label)) }
+              val baggedLearner = MultiTaskBagger(
+                baseLearner,
+                numBags = nBags,
+                uncertaintyCalibration = true,
+                randBasis = TestUtils.getBreezeRandBasis(7835178L)
+              )
               val RFMeta = baggedLearner.train(reshapedTrainingData)
               val RF = RFMeta.getModels().head
               val results = RF.transform(trainingData.take(4).map(_._1))
 
               val sigmaMean: Seq[Double] = results.getUncertainty(observational = false).get.asInstanceOf[Seq[Double]]
-              sigmaMean.zip(results.asInstanceOf[MultiPredictionBaggedResult].getStdDevMean().get).foreach { case (a, b) =>
-                assert(a == b, s"Expected getUncertainty(observational=false)=getStdDevMean() for $configDescription")
+              sigmaMean.zip(results.asInstanceOf[MultiPredictionBaggedResult].getStdDevMean().get).foreach {
+                case (a, b) =>
+                  assert(a == b, s"Expected getUncertainty(observational=false)=getStdDevMean() for $configDescription")
               }
 
               val sigmaObs: Seq[Double] = results.getUncertainty().get.asInstanceOf[Seq[Double]]
-              sigmaObs.zip(results.asInstanceOf[MultiPredictionBaggedResult].getStdDevObs().get).foreach { case (a, b) =>
-                assert(a == b, s"Expected getUncertainty()=getStdDevObs() for $configDescription")
+              sigmaObs.zip(results.asInstanceOf[MultiPredictionBaggedResult].getStdDevObs().get).foreach {
+                case (a, b) =>
+                  assert(a == b, s"Expected getUncertainty()=getStdDevObs() for $configDescription")
               }
 
               // NOTE: these bounds reflect a ~3x systematic variance under-estimation in this particular test setting.
               {
                 val rtolLower = baseLearner match {
                   case _: MultiTaskTreeLearner => 10.0
-                  case _: Any => fail("Not implemented.")
+                  case _: Any                  => fail("Not implemented.")
                 }
                 val rtolUpper = baseLearner match {
                   case _: MultiTaskTreeLearner => 1.0
-                  case _: Any => fail("Not implemented.")
+                  case _: Any                  => fail("Not implemented.")
                 }
                 sigmaObs.foreach { s =>
-                  assert(rtolLower * s > noiseLevel, s"Observational StdDev getUncertainty() is too small for $configDescription")
-                  assert(s < rtolUpper * noiseLevel, s"Observational StdDev getUncertainty() is too large for $configDescription")
+                  assert(
+                    rtolLower * s > noiseLevel,
+                    s"Observational StdDev getUncertainty() is too small for $configDescription"
+                  )
+                  assert(
+                    s < rtolUpper * noiseLevel,
+                    s"Observational StdDev getUncertainty() is too large for $configDescription"
+                  )
                 }
               }
               {
                 val rtolLower = baseLearner match {
                   case _: MultiTaskTreeLearner => 1e3
-                  case _: Any => fail("Not implemented.")
+                  case _: Any                  => fail("Not implemented.")
                 }
                 val rtolUpper = baseLearner match {
                   case _: MultiTaskTreeLearner => 10.0
-                  case _: Any => fail("Not implemented.")
+                  case _: Any                  => fail("Not implemented.")
                 }
                 sigmaMean.foreach { s =>
-                  assert(rtolLower * s > (noiseLevel / Math.sqrt(nRows)), s"Mean StdDev getUncertainty(observational=false) is too small for $configDescription.")
-                  assert(s < (rtolUpper * noiseLevel / Math.sqrt(nRows)), s"Mean StdDev getUncertainty(observational=false) is too large for $configDescription")
+                  assert(
+                    rtolLower * s > (noiseLevel / Math.sqrt(nRows)),
+                    s"Mean StdDev getUncertainty(observational=false) is too small for $configDescription."
+                  )
+                  assert(
+                    s < (rtolUpper * noiseLevel / Math.sqrt(nRows)),
+                    s"Mean StdDev getUncertainty(observational=false) is too large for $configDescription"
+                  )
                 }
 
                 // Uncomment for diagnostic output.
@@ -123,7 +151,10 @@ class MultiTaskBaggerTest {
             val minRateSigmaObsGreater = 0.9
             val level = 1e-4
             val probSigmaObsLess = d.cdf(minRateSigmaObsGreater)
-            assert(probSigmaObsLess < level, s"Uncertainty should be greater when observational = true for $configDescription")
+            assert(
+              probSigmaObsLess < level,
+              s"Uncertainty should be greater when observational = true for $configDescription"
+            )
           }
         }
       }
@@ -137,11 +168,13 @@ class MultiTaskBaggerTest {
   def testClassificationBagger(): Unit = {
     val trainingData = TestUtils.binTrainingData(
       TestUtils.generateTrainingData(128, 12, noise = 0.1, function = Friedman.friedmanSilverman),
-      inputBins = Seq((0, 8)), responseBins = Some(8)
+      inputBins = Seq((0, 8)),
+      responseBins = Some(8)
     )
-    val reshapedTrainingData = trainingData.map { case (input, label) => (input, Vector(label))}
+    val reshapedTrainingData = trainingData.map { case (input, label) => (input, Vector(label)) }
     val DTLearner = MultiTaskTreeLearner()
-    val baggedLearner = MultiTaskBagger(DTLearner, numBags = trainingData.size, randBasis = TestUtils.getBreezeRandBasis(478L))
+    val baggedLearner =
+      MultiTaskBagger(DTLearner, numBags = trainingData.size, randBasis = TestUtils.getBreezeRandBasis(478L))
     val RFMeta = baggedLearner.train(reshapedTrainingData)
     val RF = RFMeta.getModels().head
 
@@ -152,16 +185,16 @@ class MultiTaskBaggerTest {
 
     val uncertainty = results.getUncertainty()
     assert(uncertainty.isDefined)
-    trainingData.map(_._2).zip(uncertainty.get).foreach { case (a, probs) =>
-      val classProbabilities = probs.asInstanceOf[Map[Any, Double]]
-      val maxProb = classProbabilities(a)
-      assert(maxProb >= 0.5)
-      assert(maxProb < 1.0)
-      assert(Math.abs(classProbabilities.values.sum - 1.0) < 1.0e-6)
+    trainingData.map(_._2).zip(uncertainty.get).foreach {
+      case (a, probs) =>
+        val classProbabilities = probs.asInstanceOf[Map[Any, Double]]
+        val maxProb = classProbabilities(a)
+        assert(maxProb >= 0.5)
+        assert(maxProb < 1.0)
+        assert(Math.abs(classProbabilities.values.sum - 1.0) < 1.0e-6)
     }
     assert(results.getGradient().isEmpty, "Returned a gradient when there shouldn't be one")
   }
-
 
   /** Test that a multi-task bagged model properly stores and transposes individual trees, and remembers labels. */
   @Test
@@ -169,7 +202,8 @@ class MultiTaskBaggerTest {
     val numTrain = 256
     val numBags = 64
     val numTest = 32
-    val raw: Seq[(Vector[Double], Double)] = TestUtils.generateTrainingData(numTrain, 12, noise = 0.1, function = Friedman.friedmanSilverman)
+    val raw: Seq[(Vector[Double], Double)] =
+      TestUtils.generateTrainingData(numTrain, 12, noise = 0.1, function = Friedman.friedmanSilverman)
     val (inputs: Seq[Vector[Double]], realLabel: Seq[Double]) = raw.unzip
     val catLabel: Seq[Boolean] = raw.map(_._2 > realLabel.max / 2.0)
     val labels = Vector(realLabel, catLabel).transpose
@@ -208,7 +242,8 @@ class MultiTaskBaggerTest {
     val numBags = 64
     val numTest = 32
     val trainingRho = 0.45 // desired correlation between two real-valued training labels
-    val raw: Seq[(Vector[Double], Double)] = TestUtils.generateTrainingData(numTrain, 12, noise = 0.1, function = Friedman.friedmanSilverman)
+    val raw: Seq[(Vector[Double], Double)] =
+      TestUtils.generateTrainingData(numTrain, 12, noise = 0.1, function = Friedman.friedmanSilverman)
     val (inputs: Seq[Vector[Double]], realLabel: Seq[Double]) = raw.unzip
     val catLabel: Seq[Boolean] = raw.map(_._2 > realLabel.max / 2.0)
     val correlatedLabel: Seq[Double] = TestUtils.makeLinearCorrelatedData(realLabel, trainingRho)
@@ -246,7 +281,8 @@ class MultiTaskBaggerTest {
   @Test
   def testSparseMixedBagged(): Unit = {
     /* Setup some data */
-    val raw: Seq[(Vector[Double], Double)] = TestUtils.generateTrainingData(256, 12, noise = 0.1, function = Friedman.friedmanSilverman)
+    val raw: Seq[(Vector[Double], Double)] =
+      TestUtils.generateTrainingData(256, 12, noise = 0.1, function = Friedman.friedmanSilverman)
     val inputs: Seq[Vector[Double]] = raw.map(_._1)
     val realLabel: Seq[Double] = raw.map(_._2)
     val catLabel: Seq[Boolean] = raw.map(_._2 > realLabel.max / 2.0)
@@ -267,7 +303,12 @@ class MultiTaskBaggerTest {
     val labels = Vector(sparseReal, sparseCat).transpose
 
     val DTLearner = MultiTaskTreeLearner()
-    val baggedLearner = MultiTaskBagger(DTLearner, numBags = inputs.size, biasLearner = Some(GuessTheMeanLearner(rng = rng)), randBasis = TestUtils.getBreezeRandBasis(7839L))
+    val baggedLearner = MultiTaskBagger(
+      DTLearner,
+      numBags = inputs.size,
+      biasLearner = Some(GuessTheMeanLearner(rng = rng)),
+      randBasis = TestUtils.getBreezeRandBasis(7839L)
+    )
     val trainingResult = baggedLearner.train(inputs.zip(labels))
     val RF = trainingResult.getModels().last
 
@@ -293,4 +334,3 @@ class MultiTaskBaggerTest {
     assert(multiF1 <= 1.0, "Multitask classification F1 score was greater than 1.0")
   }
 }
-

@@ -15,14 +15,20 @@ object StatsUtils {
     val actualWeights = weights.getOrElse(Seq.fill(X.length)(1.0))
     val totalWeight = actualWeights.sum
     require(dof >= 0, s"degrees of freedom must be non-negative, instead got $dof")
-    require(totalWeight > dof, s"Cannot compute variance on a sequence of weight $totalWeight with $dof degrees of freedom.")
+    require(
+      totalWeight > dof,
+      s"Cannot compute variance on a sequence of weight $totalWeight with $dof degrees of freedom."
+    )
     val mu = mean(X, Some(actualWeights))
     X.zip(actualWeights).map { case (x, w) => math.pow(x - mu, 2.0) * w }.sum / (totalWeight - dof)
   }
 
   /** Compute the (weighted) covariance between two vectors, X and Y, of the same length. */
   def covariance(X: Seq[Double], Y: Seq[Double], weights: Option[Seq[Double]] = None): Double = {
-    require(X.length == Y.length, s"Cannot compute covariance between sequences of different lengths (lengths are ${X.length} and ${Y.length}).")
+    require(
+      X.length == Y.length,
+      s"Cannot compute covariance between sequences of different lengths (lengths are ${X.length} and ${Y.length})."
+    )
     val actualWeights = weights.getOrElse(Seq.fill(X.length)(1.0))
     val totalWeight = actualWeights.sum
     val muX = mean(X, Some(actualWeights))

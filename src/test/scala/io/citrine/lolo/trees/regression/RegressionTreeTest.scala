@@ -32,8 +32,7 @@ class RegressionTreeTest {
     val DTLearner = RegressionTreeLearner()
     val DTMeta = DTLearner.train(X)
     val DT = DTMeta.getModel()
-    assert(DTMeta.getFeatureImportance()
-      .get.forall(v => !v.isNaN))
+    assert(DTMeta.getFeatureImportance().get.forall(v => !v.isNaN))
   }
 
   /**
@@ -48,8 +47,9 @@ class RegressionTreeTest {
 
     /* We should be able to memorize the inputs */
     val output = DT.transform(trainingData.map(_._1))
-    trainingData.zip(output.getExpected()).foreach { case ((x, a), p) =>
-      assert(Math.abs(a - p) < 1.0e-9)
+    trainingData.zip(output.getExpected()).foreach {
+      case ((x, a), p) =>
+        assert(Math.abs(a - p) < 1.0e-9)
     }
     assert(output.getGradient().isEmpty)
     output.getDepth().foreach(d => assert(d > 3 && d < 9, s"Depth is ${d}"))
@@ -68,8 +68,9 @@ class RegressionTreeTest {
 
     /* We should be able to memorize the inputs */
     val output = DT.transform(trainingData.map(_._1))
-    trainingData.zip(output.getExpected()).foreach { case ((x, a), p) =>
-      assert(Math.abs(a - p) < 1.0e-9)
+    trainingData.zip(output.getExpected()).foreach {
+      case ((x, a), p) =>
+        assert(Math.abs(a - p) < 1.0e-9)
     }
     assert(output.getGradient().isEmpty)
     output.getDepth().foreach(d => assert(d > 3 && d < 9, s"Depth is ${d}"))
@@ -93,8 +94,9 @@ class RegressionTreeTest {
 
     /* We should be able to memorize the inputs */
     val output = DT.transform(trainingData.map(_._1))
-    trainingData.zip(output.getExpected()).foreach { case ((x, a), p) =>
-      assert(Math.abs(a - p) < 1.0e-9)
+    trainingData.zip(output.getExpected()).foreach {
+      case ((x, a), p) =>
+        assert(Math.abs(a - p) < 1.0e-9)
     }
     assert(output.getGradient().isEmpty)
     output.getDepth().foreach(d => assert(d > 4 && d < 20, s"Depth is ${d}"))
@@ -113,10 +115,12 @@ class RegressionTreeTest {
     */
   @Test
   def testCategorical(): Unit = {
-    val trainingData = TestUtils.binTrainingData(
-      TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman),
-      inputBins = Seq((0, 8))
-    ).asInstanceOf[Seq[(Vector[Any], Double)]]
+    val trainingData = TestUtils
+      .binTrainingData(
+        TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman),
+        inputBins = Seq((0, 8))
+      )
+      .asInstanceOf[Seq[(Vector[Any], Double)]]
 
     val DTLearner = RegressionTreeLearner()
     val N = 100
@@ -130,8 +134,9 @@ class RegressionTreeTest {
 
     /* We should be able to memorize the inputs */
     val output = DT.transform(trainingData.map(_._1))
-    trainingData.zip(output.getExpected()).foreach { case ((x, a), p) =>
-      assert(Math.abs(a - p) < 1.0e-9)
+    trainingData.zip(output.getExpected()).foreach {
+      case ((x, a), p) =>
+        assert(Math.abs(a - p) < 1.0e-9)
     }
     assert(output.getGradient().isEmpty)
     output.getDepth().foreach(d => assert(d > 4 && d < 21, s"Depth is ${d}"))
@@ -158,8 +163,9 @@ class RegressionTreeTest {
 
     /* We should be able to memorize the inputs */
     val output = DT.transform(trainingData.map(_._1))
-    trainingData.zip(output.getExpected()).foreach { case ((x, a), p) =>
-      assert(Math.abs(a - p) < 1.0e-9)
+    trainingData.zip(output.getExpected()).foreach {
+      case ((x, a), p) =>
+        assert(Math.abs(a - p) < 1.0e-9)
     }
     assert(output.getGradient().isDefined)
     output.getDepth().foreach(d => assert(d > 4 && d < 18, s"Depth is ${d}"))
@@ -180,10 +186,12 @@ class RegressionTreeTest {
     */
   @Test
   def testStumpWithLinearLeaf(): Unit = {
-    val trainingData = TestUtils.binTrainingData(
-      TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, seed = 3L),
-      inputBins = Seq((11, 8))
-    ).asInstanceOf[Seq[(Vector[Any], Double)]]
+    val trainingData = TestUtils
+      .binTrainingData(
+        TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, seed = 3L),
+        inputBins = Seq((11, 8))
+      )
+      .asInstanceOf[Seq[(Vector[Any], Double)]]
 
     val linearLearner = LinearRegressionLearner(regParam = Some(1.0))
     val DTLearner = RegressionTreeLearner(leafLearner = Some(linearLearner), maxDepth = 0)
@@ -199,7 +207,8 @@ class RegressionTreeTest {
     /* They should all be non-zero */
     assert(importances.last == 0.0)
 
-    assert(linearImportance.zip(importances).map { case (x, y) => x - y }.forall(d => Math.abs(d) < 1.0e-9),
+    assert(
+      linearImportance.zip(importances).map { case (x, y) => x - y }.forall(d => Math.abs(d) < 1.0e-9),
       s"Expected linear and maxDepth=0 importances to align"
     )
 
@@ -212,13 +221,17 @@ class RegressionTreeTest {
     */
   @Test
   def testWeights(): Unit = {
-    val trainingData = TestUtils.generateTrainingData(32, 12, noise = 100.0, function = Friedman.friedmanSilverman, seed = 3L)
+    val trainingData =
+      TestUtils.generateTrainingData(32, 12, noise = 100.0, function = Friedman.friedmanSilverman, seed = 3L)
 
     val linearLearner = LinearRegressionLearner(regParam = Some(1.0))
     val DTLearner = RegressionTreeLearner(leafLearner = Some(linearLearner), maxDepth = 1)
-    val DTMeta = DTLearner.train(trainingData, weights = Some(Seq.fill(trainingData.size) {
-      rng.nextInt(8)
-    }))
+    val DTMeta = DTLearner.train(
+      trainingData,
+      weights = Some(Seq.fill(trainingData.size) {
+        rng.nextInt(8)
+      })
+    )
     val DT = DTMeta.getModel()
 
     /* The first feature should be the most important */
@@ -238,12 +251,14 @@ class RegressionTreeTest {
 
     /* We should be able to memorize the inputs */
     val output = DT.transform(trainingData.map(_._1))
-    trainingData.zip(output.getExpected()).foreach { case ((x, a), p) =>
-      assert(Math.abs(a - p) < 1.0e-9)
+    trainingData.zip(output.getExpected()).foreach {
+      case ((x, a), p) =>
+        assert(Math.abs(a - p) < 1.0e-9)
     }
     assert(output.getGradient().isEmpty)
-    output.getDepth().zip(output.getExpected()).foreach{ case (d, y) =>
-      assert(d > 3 && d < 9, s"Depth is $d at y=$y")
+    output.getDepth().zip(output.getExpected()).foreach {
+      case (d, y) =>
+        assert(d > 3 && d < 9, s"Depth is $d at y=$y")
     }
   }
 
@@ -255,11 +270,11 @@ class RegressionTreeTest {
     * @param expected     known reference Shapley value to which to compare (fails upon mismatch)
     */
   def shapleyCompare(
-                     trainingData: Seq[(Vector[Double],Double)],
-                     evalLocation: Vector[Any],
-                     expected: Vector[Double],
-                     omitFeatures: Set[Int] = Set()
-                    ): Unit = {
+      trainingData: Seq[(Vector[Double], Double)],
+      evalLocation: Vector[Any],
+      expected: Vector[Double],
+      omitFeatures: Set[Int] = Set()
+  ): Unit = {
     val actual = RegressionTreeLearner().train(trainingData).getModel().shapley(evalLocation, omitFeatures) match {
       case None => fail("Unexpected None returned by shapley.")
       case x: Option[DenseMatrix[Double]] => {
@@ -270,9 +285,12 @@ class RegressionTreeTest {
       }
       case _ => fail("Unexpected return type.")
     }
-    assert(expected.zip(actual).forall{
-      case (e: Double, a: Double) => Math.abs(e - a) < 1e-12
-    }, s"Shapley value ${actual} does not match reference ${expected}.")
+    assert(
+      expected.zip(actual).forall {
+        case (e: Double, a: Double) => Math.abs(e - a) < 1e-12
+      },
+      s"Shapley value ${actual} does not match reference ${expected}."
+    )
   }
 
   /**
@@ -339,6 +357,7 @@ class RegressionTreeTest {
 
 /** Companion driver */
 object RegressionTreeTest {
+
   /**
     * Test driver
     *

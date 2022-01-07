@@ -22,13 +22,13 @@ case object CrossValidation {
     * @return a Map from the name of the metric to its mean value and the error in that mean
     */
   def kFoldCrossvalidation[T](
-                               trainingData: Seq[(Vector[Any], T)],
-                               learner: Learner,
-                               metrics: Map[String, Merit[T]],
-                               k: Int = 8,
-                               nTrial: Int = 1,
-                               rng: Random = Random
-                             ): Map[String, (Double, Double)] = {
+      trainingData: Seq[(Vector[Any], T)],
+      learner: Learner,
+      metrics: Map[String, Merit[T]],
+      k: Int = 8,
+      nTrial: Int = 1,
+      rng: Random = Random
+  ): Map[String, (Double, Double)] = {
     Merit.estimateMerits(
       kFoldPvA(trainingData, learner, k, nTrial, rng).iterator,
       metrics,
@@ -47,12 +47,12 @@ case object CrossValidation {
     * @return an iterable over predicted-vs-actual for each fold
     */
   def kFoldPvA[T](
-                   trainingData: Seq[(Vector[Any], T)],
-                   learner: Learner,
-                   k: Int = 8,
-                   nTrial: Int = 1,
-                   rng: Random = Random
-                 ): Iterable[(PredictionResult[T], Seq[T])] = {
+      trainingData: Seq[(Vector[Any], T)],
+      learner: Learner,
+      k: Int = 8,
+      nTrial: Int = 1,
+      rng: Random = Random
+  ): Iterable[(PredictionResult[T], Seq[T])] = {
     val nTest: Int = Math.ceil(trainingData.size.toDouble / k).toInt
     (0 until nTrial).flatMap { _ =>
       val folds: Seq[Seq[(Vector[Any], T)]] = rng.shuffle(trainingData).grouped(nTest).toSeq

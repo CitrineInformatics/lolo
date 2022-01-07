@@ -5,6 +5,7 @@ package io.citrine.lolo.util
   * Created by maxhutch on 4/20/17.
   */
 object Async {
+
   /**
     * Check the thread's interrupted status, because it could stop
     */

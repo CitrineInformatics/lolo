@@ -9,6 +9,7 @@ import org.scalatest.Assertions._
 import scala.util.{Random, Try}
 
 class MeritTest {
+
   /**
     * Generate test data by adding Gaussian noise to a uniformly distributed response
     *
@@ -22,16 +23,17 @@ class MeritTest {
     * @return predicted-vs-actual data in the format expected by Metric.estimate
     */
   private def getNormalPVA(
-                            noiseScale: Double = 1.0,
-                            uncertaintyCorrelation: Double = 0.0,
-                            batchSize: Int = 32,
-                            numBatch: Int = 1,
-                            rng: Random = Random
-                          ): Iterable[(PredictionResult[Double], Seq[Double])] = {
+      noiseScale: Double = 1.0,
+      uncertaintyCorrelation: Double = 0.0,
+      batchSize: Int = 32,
+      numBatch: Int = 1,
+      rng: Random = Random
+  ): Iterable[(PredictionResult[Double], Seq[Double])] = {
     val maximumCorrelation = 0.999
 
     val noiseVariance = noiseScale * noiseScale
-    val noiseUncertaintyCovariance = noiseVariance * Math.min(uncertaintyCorrelation, maximumCorrelation) // avoid singular matrices
+    val noiseUncertaintyCovariance =
+      noiseVariance * Math.min(uncertaintyCorrelation, maximumCorrelation) // avoid singular matrices
     val errorDistribution = new MultivariateNormalDistribution(
       new MersenneTwister(rng.nextLong()),
       Array(0.0, 0.0),
@@ -110,7 +112,6 @@ class MeritTest {
     assert(uncertainty < 0.05, s"Standard error estimate was not precise enough")
   }
 
-
   /**
     * Test that the UncertaintyCorrelation is correct when perfectly correlated
     */
@@ -139,16 +140,19 @@ class MeritTest {
 }
 
 object MeritTest {
+
   /**
     * Driver to test tolerance calibration so the false negative rate is low
     */
   def main(args: Array[String]): Unit = {
     val N = 1024
-    val failures = Seq.fill(N) {
-      Try(
-        new MeritTest().testZeroUncertaintyCorrelation() // place test here
-      ).isSuccess
-    }.count(!_)
+    val failures = Seq
+      .fill(N) {
+        Try(
+          new MeritTest().testZeroUncertaintyCorrelation() // place test here
+        ).isSuccess
+      }
+      .count(!_)
     println(s"Failure rate is ${failures.toDouble / N}")
   }
 }

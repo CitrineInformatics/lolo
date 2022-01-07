@@ -30,10 +30,10 @@ case class RegressionSplitter(randomizePivotLocation: Boolean = false, rng: Rand
     * @return a split object that optimally divides data
     */
   def getBestSplit(
-                    data: Seq[(Vector[AnyVal], Double, Double)],
-                    numFeatures: Int,
-                    minInstances: Int
-                  ): (Split, Double) = {
+      data: Seq[(Vector[AnyVal], Double, Double)],
+      numFeatures: Int,
+      minInstances: Int
+  ): (Split, Double) = {
 
     val calculator = VarianceCalculator.build(data.map(_._2), data.map(_._3))
     val initialVariance = calculator.getImpurity
@@ -45,12 +45,12 @@ case class RegressionSplitter(randomizePivotLocation: Boolean = false, rng: Rand
     /* Try every feature index */
     val featureIndices: Seq[Int] = rep._1.indices
     rng.shuffle(featureIndices).take(numFeatures).foreach { index =>
-
       /* Use different spliters for each type */
       val (possibleSplit, possibleVariance) = rep._1(index) match {
-        case _: Double => Splitter.getBestRealSplit[Double](data, calculator.copy(), index, minInstances, randomizePivotLocation, rng)
+        case _: Double =>
+          Splitter.getBestRealSplit[Double](data, calculator.copy(), index, minInstances, randomizePivotLocation, rng)
         case _: Char => getBestCategoricalSplit(data, calculator.copy(), index, minInstances)
-        case _: Any => throw new IllegalArgumentException("Trying to split unknown feature type")
+        case _: Any  => throw new IllegalArgumentException("Trying to split unknown feature type")
       }
 
       /* Keep track of the best split */
@@ -75,11 +75,11 @@ case class RegressionSplitter(randomizePivotLocation: Boolean = false, rng: Rand
     * @return the best split of this feature
     */
   def getBestCategoricalSplit(
-                               data: Seq[(Vector[AnyVal], Double, Double)],
-                               calculator: VarianceCalculator,
-                               index: Int,
-                               minCount: Int
-                             ): (CategoricalSplit, Double) = {
+      data: Seq[(Vector[AnyVal], Double, Double)],
+      calculator: VarianceCalculator,
+      index: Int,
+      minCount: Int
+  ): (CategoricalSplit, Double) = {
     /* Extract the features at the index */
     val thinData = data.map(dat => (dat._1(index).asInstanceOf[Char], dat._2, dat._3))
     val totalWeight = thinData.map(_._3).sum

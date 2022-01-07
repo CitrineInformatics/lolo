@@ -10,11 +10,12 @@ import scala.util.Random
   */
 case class Linear(gradient: Seq[Double]) {
   def apply(x: Seq[Double]): Double = {
-    x.zip(gradient).map{case (a, b) => a * b}.sum
+    x.zip(gradient).map { case (a, b) => a * b }.sum
   }
 }
 
 object Linear {
+
   /**
     * Generate a linear function in a random direction
     * @param nDim dimension of the function, which is the length of the gradient
@@ -24,7 +25,7 @@ object Linear {
   def randomDirection(nDim: Int, magnitude: Double = 1.0, rng: Random = Random): Linear = {
     val gradient = {
       // Draw guassian so the direction is random rather than preferring corners
-      val unnormalized = Seq.fill(nDim){rng.nextGaussian()}
+      val unnormalized = Seq.fill(nDim) { rng.nextGaussian() }
       val norm = Math.sqrt(unnormalized.map(Math.pow(_, 2)).sum)
       unnormalized.map(x => x * magnitude / norm)
     }

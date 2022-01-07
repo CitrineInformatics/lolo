@@ -18,12 +18,12 @@ import scala.util.Random
   * @param rng random number generator, for reproducibility
   */
 case class MultiTaskTreeLearner(
-                                 numFeatures: Int = -1,
-                                 maxDepth: Int = 30,
-                                 minLeafInstances: Int = 1,
-                                 randomizePivotLocation: Boolean = false,
-                                 rng: Random = Random
-                               ) extends MultiTaskLearner {
+    numFeatures: Int = -1,
+    maxDepth: Int = 30,
+    minLeafInstances: Int = 1,
+    randomizePivotLocation: Boolean = false,
+    rng: Random = Random
+) extends MultiTaskLearner {
 
   /**
     * Construct one regression or classification tree for each label.
@@ -32,36 +32,43 @@ case class MultiTaskTreeLearner(
     * @param weights  for the training rows, if applicable
     * @return         sequence of models, one for each label
     */
-  override def train(trainingData: Seq[(Vector[Any], Vector[Any])], weights: Option[Seq[Double]]): MultiTaskTreeTrainingResult = {
+  override def train(
+      trainingData: Seq[(Vector[Any], Vector[Any])],
+      weights: Option[Seq[Double]]
+  ): MultiTaskTreeTrainingResult = {
     val (inputs, labels) = trainingData.unzip
     val repInput = inputs.head
     val repOutput = labels.head
     val labelIndices = repOutput.indices
 
     /* Create encoders for any categorical features */
-    val inputEncoders: Seq[Option[CategoricalEncoder[Any]]] = repInput.zipWithIndex.map { case (v, i) =>
-      if (v.isInstanceOf[Double]) {
-        None
-      } else {
-        Some(CategoricalEncoder.buildEncoder(inputs.map(_ (i))))
-      }
+    val inputEncoders: Seq[Option[CategoricalEncoder[Any]]] = repInput.zipWithIndex.map {
+      case (v, i) =>
+        if (v.isInstanceOf[Double]) {
+          None
+        } else {
+          Some(CategoricalEncoder.buildEncoder(inputs.map(_(i))))
+        }
     }
     val encodedInputs = inputs.map(r => CategoricalEncoder.encodeInput(r, inputEncoders))
 
     /* Create encoders for any categorical labels */
-    val outputEncoders: Seq[Option[CategoricalEncoder[Any]]] = repOutput.zipWithIndex.map { case (v, i) =>
-      if (v.isInstanceOf[Double]) {
-        None
-      } else {
-        Some(CategoricalEncoder.buildEncoder(labels.map(_ (i)).filterNot(_ == null)))
-      }
+    val outputEncoders: Seq[Option[CategoricalEncoder[Any]]] = repOutput.zipWithIndex.map {
+      case (v, i) =>
+        if (v.isInstanceOf[Double]) {
+          None
+        } else {
+          Some(CategoricalEncoder.buildEncoder(labels.map(_(i)).filterNot(_ == null)))
+        }
     }
     val encodedLabels = labels.map(CategoricalEncoder.encodeInput(_, outputEncoders))
 
     // Encode the inputs, outputs, and filter out zero weight rows
-    val collectedData = inputs.indices.map { i =>
-      (encodedInputs(i), encodedLabels(i).toArray, weights.map(_ (i)).getOrElse(1.0))
-    }.filter(_._3 > 0.0)
+    val collectedData = inputs.indices
+      .map { i =>
+        (encodedInputs(i), encodedLabels(i).toArray, weights.map(_(i)).getOrElse(1.0))
+      }
+      .filter(_._3 > 0.0)
 
     /* If the number of features isn't specified, use all of them */
     val numFeaturesActual = if (numFeatures > 0) {
@@ -111,9 +118,9 @@ case class MultiTaskTreeLearner(
 }
 
 class MultiTaskTreeTrainingResult(
-                                   models: Seq[Model[PredictionResult[Any]]],
-                                   featureImportance: Vector[Double]
-                                 ) extends MultiTaskTrainingResult {
+    models: Seq[Model[PredictionResult[Any]]],
+    featureImportance: Vector[Double]
+) extends MultiTaskTrainingResult {
   val model = new ParallelModels(models, models.map(_.isInstanceOf[RegressionTree]))
   private lazy val importanceNormalized = {
     if (Math.abs(featureImportance.sum) > 0) {

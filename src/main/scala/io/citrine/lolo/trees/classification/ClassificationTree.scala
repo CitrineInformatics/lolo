@@ -8,7 +8,6 @@ import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
 
 import scala.util.Random
 
-
 /**
   * Created by maxhutch on 12/2/16.
   *
@@ -19,13 +18,13 @@ import scala.util.Random
   * @param splitter used to select splits
   */
 case class ClassificationTreeLearner(
-                                      numFeatures: Int = -1,
-                                      maxDepth: Int = 30,
-                                      minLeafInstances: Int = 1,
-                                      leafLearner: Option[Learner] = None,
-                                      splitter: Splitter[Char] = ClassificationSplitter(),
-                                      rng: Random = Random
-                                    ) extends Learner {
+    numFeatures: Int = -1,
+    maxDepth: Int = 30,
+    minLeafInstances: Int = 1,
+    leafLearner: Option[Learner] = None,
+    splitter: Splitter[Char] = ClassificationSplitter(),
+    rng: Random = Random
+) extends Learner {
 
   @transient private lazy val myLeafLearner: Learner = leafLearner.getOrElse(GuessTheMeanLearner(rng = rng))
 
@@ -36,30 +35,38 @@ case class ClassificationTreeLearner(
     * @param weights      for the training rows, if applicable
     * @return a classification tree
     */
-  override def train(trainingData: Seq[(Vector[Any], Any)], weights: Option[Seq[Double]]): ClassificationTrainingResult = {
+  override def train(
+      trainingData: Seq[(Vector[Any], Any)],
+      weights: Option[Seq[Double]]
+  ): ClassificationTrainingResult = {
     assert(trainingData.size > 4, s"We need to have at least 4 rows, only ${trainingData.size} given")
     val repInput = trainingData.head._1
 
     /* Create encoders for any categorical features */
-    val inputEncoders: Seq[Option[CategoricalEncoder[Any]]] = repInput.zipWithIndex.map { case (v, i) =>
-      if (v.isInstanceOf[Double]) {
-        None
-      } else {
-        Some(CategoricalEncoder.buildEncoder(trainingData.map(_._1(i))))
-      }
+    val inputEncoders: Seq[Option[CategoricalEncoder[Any]]] = repInput.zipWithIndex.map {
+      case (v, i) =>
+        if (v.isInstanceOf[Double]) {
+          None
+        } else {
+          Some(CategoricalEncoder.buildEncoder(trainingData.map(_._1(i))))
+        }
     }
 
     val outputEncoder = CategoricalEncoder.buildEncoder(trainingData.map(_._2))
 
     /* Encode the training data */
-    val encodedTraining = trainingData.map(p =>
-      (CategoricalEncoder.encodeInput(p._1, inputEncoders), outputEncoder.encode(p._2))
-    )
+    val encodedTraining =
+      trainingData.map(p => (CategoricalEncoder.encodeInput(p._1, inputEncoders), outputEncoder.encode(p._2)))
 
     /* Add the weights to the (features, label) tuples and remove any with zero weight */
-    val finalTraining = encodedTraining.zip(weights.getOrElse(Seq.fill(trainingData.size)(1.0))).map { case ((f, l), w) =>
-      (f, l, w)
-    }.filter(_._3 > 0).toVector
+    val finalTraining = encodedTraining
+      .zip(weights.getOrElse(Seq.fill(trainingData.size)(1.0)))
+      .map {
+        case ((f, l), w) =>
+          (f, l, w)
+      }
+      .filter(_._3 > 0)
+      .toVector
 
     /* If the number of features isn't specified, use all of them */
     val numFeaturesActual = if (numFeatures > 0) {
@@ -82,7 +89,7 @@ case class ClassificationTreeLearner(
         remainingDepth = maxDepth - 1,
         maxDepth = maxDepth,
         minLeafInstances = minLeafInstances,
-        numClasses = trainingData.map{_._2}.distinct.length,
+        numClasses = trainingData.map { _._2 }.distinct.length,
         splitter = splitter
       )
     }
@@ -93,10 +100,10 @@ case class ClassificationTreeLearner(
 }
 
 class ClassificationTrainingResult(
-                                    rootTrainingNode: TrainingNode[AnyVal, Char],
-                                    inputEncoders: Seq[Option[CategoricalEncoder[Any]]],
-                                    outputEncoder: CategoricalEncoder[Any]
-                                  ) extends TrainingResult {
+    rootTrainingNode: TrainingNode[AnyVal, Char],
+    inputEncoders: Seq[Option[CategoricalEncoder[Any]]],
+    outputEncoder: CategoricalEncoder[Any]
+) extends TrainingResult {
   /* Grab a prediction node.  The partitioning happens here */
   lazy val model = new ClassificationTree(rootTrainingNode.getNode(), inputEncoders, outputEncoder)
 
@@ -124,10 +131,10 @@ class ClassificationTrainingResult(
   * Classification tree
   */
 class ClassificationTree(
-                          rootModelNode: ModelNode[PredictionResult[Char]],
-                          inputEncoders: Seq[Option[CategoricalEncoder[Any]]],
-                          outputEncoder: CategoricalEncoder[Any]
-                        ) extends Model[ClassificationResult] {
+    rootModelNode: ModelNode[PredictionResult[Char]],
+    inputEncoders: Seq[Option[CategoricalEncoder[Any]]],
+    outputEncoder: CategoricalEncoder[Any]
+) extends Model[ClassificationResult] {
 
   /**
     * Apply the model to a seq of inputs
@@ -147,9 +154,9 @@ class ClassificationTree(
   * Classification result
   */
 class ClassificationResult(
-                            predictions: Seq[(PredictionResult[Char], TreeMeta)],
-                            outputEncoder: CategoricalEncoder[Any]
-                          ) extends PredictionResult[Any] {
+    predictions: Seq[(PredictionResult[Char], TreeMeta)],
+    outputEncoder: CategoricalEncoder[Any]
+) extends PredictionResult[Any] {
 
   /**
     * Get the expected values for this prediction

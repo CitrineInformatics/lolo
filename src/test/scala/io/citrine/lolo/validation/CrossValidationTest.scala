@@ -21,13 +21,18 @@ class CrossValidationTest {
     val data = TestUtils.generateTrainingData(128, 8, Friedman.friedmanSilverman, seed = rng.nextLong())
 
     val metric = RootMeanSquareError
-    val (rmseFromCV, uncertainty) = CrossValidation.kFoldCrossvalidation(data, learner, Map("rmse" -> metric), k = 3)("rmse")
+    val (rmseFromCV, uncertainty) =
+      CrossValidation.kFoldCrossvalidation(data, learner, Map("rmse" -> metric), k = 3)("rmse")
 
     val trainingResult = learner.train(data)
     val rmseFromPVA = Math.sqrt(
-      trainingResult.getPredictedVsActual().get.map {
-        case (_, p: Double, a: Double) => Math.pow(p - a, 2.0)
-      }.sum / trainingResult.getPredictedVsActual().get.size
+      trainingResult
+        .getPredictedVsActual()
+        .get
+        .map {
+          case (_, p: Double, a: Double) => Math.pow(p - a, 2.0)
+        }
+        .sum / trainingResult.getPredictedVsActual().get.size
     )
 
     // These have a false negative rate less than 1/100 at the time of original authorship
