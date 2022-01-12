@@ -303,8 +303,10 @@ class BaggedModel[+T: ClassTag](
     Some(scale * ensembleShapley.reduce(sumReducer).get)
   }
 
-  // Accessor useful for testing.
-  private[bags] def getModels(): ParSeq[Model[PredictionResult[T]]] = models
+  // Accessors useful for testing and benchmarking.
+   def getModels(): ParSeq[Model[PredictionResult[T]]] = models
+
+  def getNib(): Vector[Vector[Int]] = Nib
 }
 
 object Bagger {
