@@ -1,19 +1,18 @@
 package io.citrine.lolo.bags
 
-import java.io.{File, PrintWriter}
-import java.util.concurrent.{Callable, CancellationException, Executors, Future, TimeUnit}
-
 import breeze.linalg.DenseMatrix
 import io.citrine.lolo.TestUtils
 import io.citrine.lolo.linear.GuessTheMeanLearner
 import io.citrine.lolo.stats.functions.Friedman
-import io.citrine.lolo.transformers.Standardizer
+import io.citrine.lolo.transformers.{FeatureRotator, Standardizer}
 import io.citrine.lolo.trees.classification.ClassificationTreeLearner
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
 import io.citrine.lolo.trees.splits.RegressionSplitter
 import org.junit.Test
 import org.scalatest.Assertions._
 
+import java.io.{File, PrintWriter}
+import java.util.concurrent._
 import scala.util.Random
 
 /**
@@ -421,7 +420,7 @@ class BaggerTest {
       function = Friedman.friedmanSilverman,
       seed = rng.nextLong()
     )
-    val DTLearner = RegressionTreeLearner(numFeatures = nCols, rng = rng)
+    val DTLearner = FeatureRotator(RegressionTreeLearner(numFeatures = nCols, rng = rng))
     val model = Bagger(DTLearner, randBasis = TestUtils.getBreezeRandBasis(rng.nextLong()))
       .train(trainingData)
       .getModel()
@@ -448,6 +447,29 @@ class BaggerTest {
           (treeMean - shapley).toDenseVector.toScalaVector.forall { x => Math.abs(x) < atol }
         )
     }
+  }
+
+  /**
+    * Test Shapley is None if ensemble doesn't return values
+    */
+  @Test
+  def testShapleyIsEmpty(): Unit = {
+    rng.setSeed(24795L)
+    val nCols = 2
+    val trainingData = TestUtils.generateTrainingData(
+      8,
+      nCols,
+      noise = 0.0,
+      function = Friedman.friedmanSilverman,
+      seed = rng.nextLong()
+    )
+    val learner = FeatureRotator(RegressionTreeLearner(numFeatures = nCols, rng = rng))
+    val model = Bagger(learner, randBasis = TestUtils.getBreezeRandBasis(rng.nextLong()))
+      .train(trainingData)
+      .getModel()
+
+    val x = trainingData.head._1
+    assert(model.shapley(x).isEmpty)
   }
 }
 
