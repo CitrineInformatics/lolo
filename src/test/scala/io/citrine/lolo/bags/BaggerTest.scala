@@ -420,7 +420,7 @@ class BaggerTest {
       function = Friedman.friedmanSilverman,
       seed = rng.nextLong()
     )
-    val DTLearner = FeatureRotator(RegressionTreeLearner(numFeatures = nCols, rng = rng))
+    val DTLearner = RegressionTreeLearner(numFeatures = nCols, rng = rng)
     val model = Bagger(DTLearner, randBasis = TestUtils.getBreezeRandBasis(rng.nextLong()))
       .train(trainingData)
       .getModel()
