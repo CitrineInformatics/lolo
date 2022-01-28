@@ -278,17 +278,18 @@ class BaggedModel[+T: ClassTag](
     */
   override def shapley(input: Vector[Any], omitFeatures: Set[Int] = Set()): Option[DenseMatrix[Double]] = {
     val ensembleShapley = models.map(model => model.shapley(input, omitFeatures))
-    if (!ensembleShapley.head.isDefined) {
+    if (ensembleShapley.head.isEmpty) {
       None
-    }
-    assert(ensembleShapley.forall(x => x.isDefined))
+    } else {
+      assert(ensembleShapley.forall(x => x.isDefined))
 
-    def sumReducer(a: Option[DenseMatrix[Double]], b: Option[DenseMatrix[Double]]): Option[DenseMatrix[Double]] = {
-      Some(a.get + b.get)
-    }
-    val scale = 1.0 / ensembleShapley.length
+      def sumReducer(a: Option[DenseMatrix[Double]], b: Option[DenseMatrix[Double]]): Option[DenseMatrix[Double]] = {
+        Some(a.get + b.get)
+      }
+      val scale = 1.0 / ensembleShapley.length
 
-    Some(scale * ensembleShapley.reduce(sumReducer).get)
+      Some(scale * ensembleShapley.reduce(sumReducer).get)
+    }
   }
 
   // Accessor useful for testing.
