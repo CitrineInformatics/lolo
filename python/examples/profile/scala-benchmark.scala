@@ -20,7 +20,7 @@ def timedTest(trainingData: Seq[(Vector[Any], Double)], evalData: Seq[(Vector[An
   Stopwatch.time({baggedLearner.train(trainingData).getModel()}, benchmark = "None", minRun = 8, maxRun = 8)
   Stopwatch.time({model.transform(inputs).getExpected()}, benchmark = "None", minRun = 8, maxRun = 8)
   Stopwatch.time({model.transform(inputs).getUncertainty()}, benchmark = "None", minRun = 8, maxRun = 8)
-    
+
   // Time it for real
   val timeTraining = Stopwatch.time({baggedLearner.train(trainingData).getModel()}, benchmark = "None", minRun = 16, targetError = 0.1, maxRun = 32)
   val timePredicting = Stopwatch.time({model.transform(inputs).getExpected()}, benchmark = "None", minRun = 16, targetError = 0.1, maxRun = 32)

@@ -1,6 +1,6 @@
 package io.citrine.lolo.bags
 
-import breeze.stats.distributions.Beta
+import breeze.stats.distributions.{Beta, RandBasis}
 import io.citrine.lolo.{RegressionResult, TestUtils}
 import io.citrine.lolo.linear.GuessTheMeanLearner
 import io.citrine.lolo.stats.functions.Friedman
@@ -135,7 +135,9 @@ class BaggedResultTest {
 
             val countSigmaObsGreater = sigmaObsAndSigmaMean.count { case (sObs, sMean) => sObs > sMean }.toDouble
             // Posterior beta distribution, with Jeffreys prior, over rate at which sObs > sMean.
-            val d = new Beta(countSigmaObsGreater + 0.5, sigmaObsAndSigmaMean.length - countSigmaObsGreater + 0.5)
+            val d = Beta(countSigmaObsGreater + 0.5, sigmaObsAndSigmaMean.length - countSigmaObsGreater + 0.5)(
+              RandBasis.systemSeed
+            )
             val minRateSigmaObsGreater = 0.9
             val level = 1e-4
             val probSigmaObsLess = d.cdf(minRateSigmaObsGreater)

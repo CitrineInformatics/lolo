@@ -1,7 +1,7 @@
 package io.citrine.lolo.learners
 
 import breeze.linalg.DenseMatrix
-import breeze.stats.distributions.Beta
+import breeze.stats.distributions.{Beta, RandBasis}
 import io.citrine.lolo.TestUtils
 import io.citrine.lolo.bags.MultiTaskBaggedResult
 import io.citrine.lolo.stats.functions.Friedman
@@ -147,7 +147,7 @@ class RandomForestTest {
       .reduce { (a: (Int, Int), b: (Int, Int)) => (a._1 + b._1, a._2 + b._2) }
 
     // Posterior beta distribution with Jeffreys prior.
-    val d = new Beta(winsSuffixed + 0.5, winsPrefixed + 0.5)
+    val d = Beta(winsSuffixed + 0.5, winsPrefixed + 0.5)(RandBasis.systemSeed)
     val l = d.inverseCdf(2e-6)
     val r = d.inverseCdf(1 - 2e-6)
     val tol = 1e-2

@@ -362,7 +362,7 @@ case class MultiPredictionBaggedResult(
         /* The correction is prediction dependent, so we need to operate on vectors */
         0.5 * (arg(::, i) - Math.E * correction)
       }
-      .map(_.toScalaVector())
+      .map(_.toScalaVector)
   }
 
   /**
@@ -408,7 +408,7 @@ case class MultiPredictionBaggedResult(
         // 0.5 * (rezero + abs(rezero)) + floor
         influencePerRow
       }
-      .map(_.toScalaVector())
+      .map(_.toScalaVector)
   }
 }
 
