@@ -23,9 +23,6 @@ stages:
 jobs:
   include:
   - stage: test
-    before_install:
-      - sudo apt-get update
-      - sudo apt-get -y install libopenblas-base
     script:
       - sbt -Dsbt.log.noformat=true scalafmtCheckAll
       - sbt -Dsbt.log.noformat=true +test
