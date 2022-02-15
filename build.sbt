@@ -34,6 +34,8 @@ ThisBuild / libraryDependencies ++= {
   }
 }
 
+ThisBuild / Test / testOptions += Tests.Argument(TestFrameworks.JUnit, "-v")
+
 // Assembly settings
 ThisBuild / assembly / test := {}
 ThisBuild / assembly / assemblyJarName := s"lolo-jar-with-dependencies.jar"
