@@ -1,6 +1,6 @@
 package io.citrine.lolo.transformers
 
-import io.citrine.lolo.TestUtils
+import io.citrine.lolo.{SeedRandomMixIn, TestUtils}
 import io.citrine.lolo.linear.{GuessTheMeanLearner, LinearRegressionLearner}
 import io.citrine.lolo.stats.functions.Friedman
 import io.citrine.lolo.stats.metrics.ClassificationMetrics
@@ -8,14 +8,11 @@ import io.citrine.lolo.trees.classification.ClassificationTreeLearner
 import io.citrine.lolo.trees.multitask.MultiTaskTreeLearner
 import org.junit.Test
 
-import scala.util.Random
-
 /**
   * Created by maxhutch on 2/19/17.
   */
 @Test
-class StandardizerTest {
-  val rng = new Random(823478686L)
+class StandardizerTest extends SeedRandomMixIn {
 
   val data: Vector[(Vector[Double], Double)] =
     TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman)

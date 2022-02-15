@@ -1,6 +1,6 @@
 package io.citrine.lolo.validation
 
-import io.citrine.lolo.PredictionResult
+import io.citrine.lolo.{PredictionResult, SeedRandomMixIn}
 import org.apache.commons.math3.distribution.MultivariateNormalDistribution
 import org.apache.commons.math3.random.MersenneTwister
 import org.junit.Test
@@ -8,7 +8,7 @@ import org.scalatest.Assertions._
 
 import scala.util.{Random, Try}
 
-class MeritTest {
+class MeritTest extends SeedRandomMixIn {
 
   /**
     * Generate test data by adding Gaussian noise to a uniformly distributed response
@@ -27,7 +27,7 @@ class MeritTest {
       uncertaintyCorrelation: Double = 0.0,
       batchSize: Int = 32,
       numBatch: Int = 1,
-      rng: Random = Random
+      rng: Random = rng
   ): Iterable[(PredictionResult[Double], Seq[Double])] = {
     val maximumCorrelation = 0.999
 
@@ -44,9 +44,9 @@ class MeritTest {
       val pua = Seq.fill(batchSize) {
         val y = rng.nextDouble()
         val draw = errorDistribution.sample().toSeq
-        val error: Double = draw(0) * rng.nextGaussian()
+        val error: Double = draw.head * rng.nextGaussian()
         val uncertainty = if (uncertaintyCorrelation >= maximumCorrelation) {
-          Math.abs(draw(0))
+          Math.abs(draw.head)
         } else {
           Math.abs(draw(1))
         }
@@ -66,7 +66,6 @@ class MeritTest {
     */
   @Test
   def testRMSE(): Unit = {
-    val rng = new Random(34578L)
     val pva = getNormalPVA(batchSize = 256, numBatch = 32, rng = rng)
     val (rmse, uncertainty) = RootMeanSquareError.estimate(pva, rng = rng)
     assert(Math.abs(rmse - 1.0) < 3 * uncertainty, "RMSE estimate was not accurate enough")
@@ -78,7 +77,6 @@ class MeritTest {
     */
   @Test
   def testCoefficientOfDeterminization(): Unit = {
-    val rng = new Random(34578L)
     val pva = getNormalPVA(noiseScale = 0.1, batchSize = 256, numBatch = 32, rng = rng)
     val expected = 1 - 12 * 0.1 * 0.1
     val (r2, uncertainty) = CoefficientOfDetermination.estimate(pva, rng = rng)
@@ -91,7 +89,6 @@ class MeritTest {
     */
   @Test
   def testStandardConfidence(): Unit = {
-    val rng = new Random(34578L)
     val pva = getNormalPVA(uncertaintyCorrelation = 1.0, batchSize = 256, numBatch = 32, rng = rng)
     val expected = 0.68
     val (confidence, uncertainty) = StandardConfidence.estimate(pva, rng = rng)
@@ -104,7 +101,6 @@ class MeritTest {
     */
   @Test
   def testStandardError(): Unit = {
-    val rng = new Random(34578L)
     val pva = getNormalPVA(noiseScale = 0.01, uncertaintyCorrelation = 1.0, batchSize = 256, numBatch = 32, rng = rng)
     val expected = 1.0
     val (error, uncertainty) = StandardError().estimate(pva, rng = rng)
@@ -117,7 +113,6 @@ class MeritTest {
     */
   @Test
   def testPerfectUncertaintyCorrelation(): Unit = {
-    val rng = new Random(34578L)
     val pva = getNormalPVA(noiseScale = 0.01, uncertaintyCorrelation = 1.0, batchSize = 256, numBatch = 32, rng = rng)
     val expected = 1.0
     val (corr, uncertainty) = UncertaintyCorrelation.estimate(pva, rng = rng)
@@ -130,7 +125,6 @@ class MeritTest {
     */
   @Test
   def testZeroUncertaintyCorrelation(): Unit = {
-    val rng = new Random(34578L)
     val pva = getNormalPVA(noiseScale = 0.01, uncertaintyCorrelation = 0.0, batchSize = 256, numBatch = 32, rng = rng)
     val expected = 0.0
     val (corr, uncertainty) = UncertaintyCorrelation.estimate(pva, rng = rng)

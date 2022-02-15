@@ -15,7 +15,7 @@ import io.citrine.theta.Stopwatch
   *
   * Created by maxhutch on 12/29/16.
   */
-class PerformanceTest {
+class PerformanceTest extends SeedRandomMixIn {
 
   /**
     * Time training and application of models
@@ -134,7 +134,7 @@ class PerformanceTest {
     (trainMulti, trainSingle)
   }
 
-  val trainingData = TestUtils.generateTrainingData(2048, 37)
+  val trainingData = TestUtils.generateTrainingData(2048, 37, rng = rng)
   val classificationData = TestUtils.binTrainingData(trainingData, responseBins = Some(8))
 }
 

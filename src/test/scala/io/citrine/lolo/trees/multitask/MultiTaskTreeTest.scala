@@ -19,7 +19,7 @@ class MultiTaskTreeTest {
 
   /* Setup some data */
   val raw: Seq[(Vector[Double], Double)] =
-    TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, seed = rng.nextLong())
+    TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng)
   val (inputs: Seq[Vector[Double]], realLabel: Seq[Double]) = raw.unzip
   val catLabel: Seq[Boolean] = raw.map(_._2 > realLabel.max / 2.0)
   val labels = Vector(realLabel, catLabel).transpose
@@ -108,7 +108,7 @@ class MultiTaskTreeTest {
 
     // Generate new inputs to test equality on.
     val testInputs = TestUtils
-      .generateTrainingData(32, 12, noise = 0.1, function = Friedman.friedmanSilverman, seed = rng.nextLong())
+      .generateTrainingData(32, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng)
       .map(_._1)
     val realResults = models.head.transform(testInputs).getExpected().asInstanceOf[Seq[Double]]
     val catResults = models.last.transform(testInputs).getExpected().asInstanceOf[Seq[Boolean]]

@@ -1,11 +1,9 @@
 package io.citrine.lolo.trees.splits
 
+import io.citrine.lolo.SeedRandomMixIn
 import org.junit.Test
 
-import scala.util.Random
-
-class BoltzmannSplitterTest {
-  val rng = new Random(45321L)
+class BoltzmannSplitterTest extends SeedRandomMixIn {
 
   /**
     * Test that uniform labels result in "NoSplit" with zero reduced impurity

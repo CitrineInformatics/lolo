@@ -1,19 +1,16 @@
 package io.citrine.lolo.validation
 
-import io.citrine.lolo.TestUtils
+import io.citrine.lolo.{SeedRandomMixIn, TestUtils}
 import io.citrine.lolo.learners.RandomForest
 import io.citrine.lolo.stats.functions.Friedman
 import org.junit.Test
 
-import scala.util.Random
-
-class StatisticalValidationTest {
-  val rng = new Random(783443769L)
+class StatisticalValidationTest extends SeedRandomMixIn {
 
   @Test
   def testCompareToKFolds(): Unit = {
     val learner = RandomForest()
-    val dataSet = TestUtils.generateTrainingData(128, 8, Friedman.friedmanSilverman, seed = rng.nextLong())
+    val dataSet = TestUtils.generateTrainingData(128, 8, Friedman.friedmanSilverman, rng = rng)
     val dataGenerator = TestUtils.iterateTrainingData(8, Friedman.friedmanSilverman)
 
     val metrics = Map("rmse" -> RootMeanSquareError)

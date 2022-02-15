@@ -2,20 +2,17 @@ package io.citrine.lolo.learners
 
 import breeze.linalg.DenseMatrix
 import breeze.stats.distributions.{Beta, RandBasis}
-import io.citrine.lolo.TestUtils
+import io.citrine.lolo.{SeedRandomMixIn, TestUtils}
 import io.citrine.lolo.bags.MultiTaskBaggedResult
 import io.citrine.lolo.stats.functions.Friedman
 import org.junit.Test
 import org.scalatest.Assertions._
 
-import scala.util.Random
-
 /**
   * Created by maxhutch on 1/9/17.
   */
 @Test
-class RandomForestTest {
-  val rng = new Random(92345L)
+class RandomForestTest extends SeedRandomMixIn {
 
   /**
     * Test that the regression forest does the same thing as the regression bagger
@@ -23,8 +20,7 @@ class RandomForestTest {
   @Test
   def testRegressionForest(): Unit = {
     val trainingData = TestUtils.binTrainingData(
-      TestUtils
-        .generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, seed = rng.nextLong()),
+      TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng),
       inputBins = Seq((0, 8))
     )
 
@@ -56,7 +52,7 @@ class RandomForestTest {
     val (inputs: Seq[Vector[Double]], realLabel: Seq[Double]) = TestUtils
       .binTrainingData(
         TestUtils
-          .generateTrainingData(256, 12, noise = 0.1, function = Friedman.friedmanSilverman, seed = rng.nextLong()),
+          .generateTrainingData(256, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng),
         inputBins = Seq((0, 8))
       )
       .unzip
@@ -79,7 +75,7 @@ class RandomForestTest {
   def testClassificationForest(): Unit = {
     val trainingData = TestUtils.binTrainingData(
       TestUtils
-        .generateTrainingData(128, 12, noise = 0.1, function = Friedman.friedmanSilverman, seed = rng.nextLong()),
+        .generateTrainingData(128, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng),
       inputBins = Seq((0, 8)),
       responseBins = Some(8)
     )
@@ -117,7 +113,7 @@ class RandomForestTest {
       .map { _ =>
         val mainTrainingData = TestUtils.binTrainingData(
           TestUtils
-            .generateTrainingData(64, 5, noise = 0.1, function = Friedman.friedmanSilverman, seed = rng.nextLong()),
+            .generateTrainingData(64, 5, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng),
           responseBins = Some(2)
         )
         val dupeLabel = "DUPE"
@@ -171,10 +167,8 @@ class RandomForestTest {
     val trainingData: Seq[(Vector[Double], Double)] = TestUtils.generateTrainingData(
       32,
       1,
-      function = { x =>
-        x.head * 2.0
-      },
-      seed = rng.nextLong()
+      function = { x => x.head * 2.0 },
+      rng = rng
     )
 
     // Create a consistent set of parameters

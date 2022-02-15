@@ -1,16 +1,14 @@
 package io.citrine.lolo.trees.splits
 
+import io.citrine.lolo.SeedRandomMixIn
 import io.citrine.lolo.trees.impurity.MultiImpurityCalculator
 import org.junit.Test
-
-import scala.util.Random
 
 /**
   * Created by maxhutch on 12/1/16.
   */
 @Test
-class MultiTaskSplitterTest {
-  val rng = new Random(38945L)
+class MultiTaskSplitterTest extends SeedRandomMixIn {
 
   /**
     * Test that the real split goes in the right place

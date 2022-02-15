@@ -1,23 +1,19 @@
 package io.citrine.lolo.trees.regression
 
 import java.io.{File, FileOutputStream, ObjectOutputStream}
-
 import breeze.linalg.DenseMatrix
-import io.citrine.lolo.TestUtils
+import io.citrine.lolo.{SeedRandomMixIn, TestUtils}
 import io.citrine.lolo.linear.LinearRegressionLearner
 import io.citrine.lolo.stats.functions.Friedman
 import io.citrine.lolo.trees.splits.{BoltzmannSplitter, RegressionSplitter}
 import org.junit.Test
 import org.scalatest.Assertions._
 
-import scala.util.Random
-
 /**
   * Created by maxhutch on 11/29/16.
   */
 @Test
-class RegressionTreeTest {
-  val rng = new Random(90476L)
+class RegressionTreeTest extends SeedRandomMixIn {
 
   /**
     * Trivial models with no splits should have finite feature importance.
@@ -31,7 +27,6 @@ class RegressionTreeTest {
 
     val DTLearner = RegressionTreeLearner()
     val DTMeta = DTLearner.train(X)
-    val DT = DTMeta.getModel()
     assert(DTMeta.getFeatureImportance().get.forall(v => !v.isNaN))
   }
 
@@ -188,7 +183,7 @@ class RegressionTreeTest {
   def testStumpWithLinearLeaf(): Unit = {
     val trainingData = TestUtils
       .binTrainingData(
-        TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, seed = 3L),
+        TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng),
         inputBins = Seq((11, 8))
       )
       .asInstanceOf[Seq[(Vector[Any], Double)]]
@@ -222,7 +217,7 @@ class RegressionTreeTest {
   @Test
   def testWeights(): Unit = {
     val trainingData =
-      TestUtils.generateTrainingData(32, 12, noise = 100.0, function = Friedman.friedmanSilverman, seed = 3L)
+      TestUtils.generateTrainingData(32, 12, noise = 100.0, function = Friedman.friedmanSilverman, rng = rng)
 
     val linearLearner = LinearRegressionLearner(regParam = Some(1.0))
     val DTLearner = RegressionTreeLearner(leafLearner = Some(linearLearner), maxDepth = 1)

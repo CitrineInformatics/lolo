@@ -5,6 +5,7 @@ import io.citrine.lolo.linear.LinearRegressionLearner
 import io.citrine.lolo.stats.StatsUtils.variance
 import io.citrine.lolo.stats.functions.Friedman
 import org.apache.commons.math3.random.MersenneTwister
+import org.junit.Before
 
 import scala.util.{Random, Try}
 
@@ -46,12 +47,11 @@ object TestUtils {
       xscale: Double = 1.0,
       xoff: Double = 0.0,
       noise: Double = 0.0,
-      seed: Long = 0L
+      rng: Random = new Random()
   ): Vector[(Vector[Double], Double)] = {
-    val rnd = new Random(seed)
     Vector.fill(rows) {
-      val input = Vector.fill(cols)(xscale * rnd.nextDouble() + xoff)
-      (input, function(input) + noise * rnd.nextGaussian())
+      val input = Vector.fill(cols)(xscale * rng.nextDouble() + xoff)
+      (input, function(input) + noise * rng.nextGaussian())
     }
   }
 
@@ -83,12 +83,11 @@ object TestUtils {
       xscale: Double = 1.0,
       xoff: Double = 0.0,
       noise: Double = 0.0,
-      seed: Long = 0L
+      rng: Random = new Random()
   ): Iterator[(Vector[Double], Double)] = {
-    val rnd = new Random(seed)
     Iterator.continually {
-      val input = Vector.fill(cols)(xscale * rnd.nextDouble() + xoff)
-      (input, function(input) + noise * rnd.nextGaussian())
+      val input = Vector.fill(cols)(xscale * rng.nextDouble() + xoff)
+      (input, function(input) + noise * rng.nextGaussian())
     }
   }
 
@@ -127,13 +126,29 @@ object TestUtils {
       baseGrids.head.map { x => Vector(x) }
     } else {
       baseGrids.head.flatMap { x =>
-        enumerateGrid(baseGrids.takeRight(baseGrids.length - 1)).map { n =>
-          x +: n
-        }
+        enumerateGrid(baseGrids.takeRight(baseGrids.length - 1)).map { n => x +: n }
       }
     }
   }
+}
 
-  def getBreezeRandBasis(seed: Long): RandBasis =
+/**
+  * Mix-in class to facilitate predictable random number streams.
+  */
+trait SeedRandomMixIn {
+  // Reset random number generator.
+  var rng: Random = new Random(2348752L)
+
+  // Set global RNG also, as a hack to partially coerce internals to be more deterministic.
+  scala.util.Random.setSeed(rng.nextLong())
+
+  @Before
+  def initializeRandom(): Unit = {
+    // Seeds must also be reset for each test so that incremental tests are as predictable as running the full case.
+    rng = new Random(2348752L)
+    scala.util.Random.setSeed(rng.nextLong())
+  }
+
+  def getBreezeRandBasis(seed: Long = rng.nextLong()): RandBasis =
     new RandBasis(new ThreadLocalRandomGenerator(new MersenneTwister(seed)))
 }

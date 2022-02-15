@@ -1,7 +1,7 @@
 package io.citrine.lolo.transformers
 
 import breeze.linalg.{det, DenseMatrix}
-import io.citrine.lolo.TestUtils
+import io.citrine.lolo.{SeedRandomMixIn, TestUtils}
 import io.citrine.lolo.linear.{GuessTheMeanLearner, LinearRegressionLearner}
 import io.citrine.lolo.stats.functions.Friedman
 import io.citrine.lolo.stats.metrics.ClassificationMetrics
@@ -10,15 +10,11 @@ import io.citrine.lolo.trees.multitask.MultiTaskTreeLearner
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
 import org.junit.Test
 
-import scala.util.Random
-
 /**
   * Created by gregor-robinson on 2020-01-06.
   */
 @Test
-class FeatureRotatorTest {
-
-  val rng = new Random(1297843L)
+class FeatureRotatorTest extends SeedRandomMixIn {
 
   val data: Seq[(Vector[Any], Any)] = TestUtils.binTrainingData(
     TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman),
