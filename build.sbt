@@ -35,7 +35,6 @@ ThisBuild / libraryDependencies ++= {
 }
 
 ThisBuild / Test / testOptions += Tests.Argument(TestFrameworks.JUnit, "-v")
-ThisBuild / Test / logBuffered := false
 
 // Assembly settings
 ThisBuild / assembly / test := {}

@@ -241,21 +241,20 @@ class RegressionTreeTest extends SeedRandomMixIn {
     */
   @Test
   def testSimpleBoltzmannTree(): Unit = {
+    val rng = new Random(247895L)
     val csv = TestUtils.readCsv("double_example.csv")
     val trainingData = csv.map(vec => (vec.init, vec.last.asInstanceOf[Double]))
-    val DTLearner = RegressionTreeLearner(splitter = BoltzmannSplitter(0.002))
+    val DTLearner = RegressionTreeLearner(splitter = BoltzmannSplitter(1e-4), rng = rng)
     val DT = DTLearner.train(trainingData).getModel()
 
     /* We should be able to memorize the inputs */
     val output = DT.transform(trainingData.map(_._1))
     trainingData.zip(output.getExpected()).foreach {
-      case ((x, a), p) =>
-        assert(Math.abs(a - p) < 1.0e-9)
+      case ((_, a), p) => assert(Math.abs(a - p) < 1.0e-9)
     }
     assert(output.getGradient().isEmpty)
     output.getDepth().zip(output.getExpected()).foreach {
-      case (d, y) =>
-        assert(d > 3 && d < 9, s"Depth is $d at y=$y")
+      case (d, y) => assert(d > 3 && d < 9, s"Depth is $d at y=$y")
     }
   }
 
