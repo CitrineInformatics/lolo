@@ -131,7 +131,8 @@ object TestUtils {
     }
   }
 
-  def breezeRandBasis(seed: Long): RandBasis = new RandBasis(new ThreadLocalRandomGenerator(new MersenneTwister(seed)))
+  def getBreezeRandBasis(rng: Random = new Random()): RandBasis =
+    new RandBasis(new ThreadLocalRandomGenerator(new MersenneTwister(rng.nextLong())))
 }
 
 /**

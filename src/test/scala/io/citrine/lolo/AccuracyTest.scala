@@ -44,7 +44,7 @@ class AccuracyTest extends SeedRandomMixIn {
     *          splitter = RegressionSplitter(randomizePivotLocation = true, rng = rng),
     *          rng = rng
     *        )
-    *        val learner = new Bagger(baseLearner, numBags = nRow * 8, randBasis = TestUtils.getBreezeRandBasis(rng.nextLong()))
+    *        val learner = new Bagger(baseLearner, numBags = nRow * 8, randBasis = TestUtils.getBreezeRandBasis(rng))
     *        computeMetrics(learner)
     *      }
     *      rng.setSeed(seed)
@@ -54,11 +54,11 @@ class AccuracyTest extends SeedRandomMixIn {
     *          splitter = BoltzmannSplitter(temperature = Float.MinPositiveValue, rng = rng),
     *          rng = rng
     *        )
-    *        val learner = new Bagger(baseLearner, numBags = nRow * 8, randBasis = TestUtils.getBreezeRandBasis(rng.nextLong()))
+    *        val learner = new Bagger(baseLearner, numBags = nRow * 8, randBasis = TestUtils.getBreezeRandBasis(rng))
     *        computeMetrics(learner)
     *      }
     *      rng.setSeed(seed)
-    *      val randBasis = TestUtils.getBreezeRandBasis(rng.nextLong())
+    *      val randBasis = TestUtils.getBreezeRandBasis(rng)
     *      val errorUnrandomizedTree = {
     *        val baseLearner = RegressionTreeLearner(
     *          numFeatures = nFeat,
@@ -101,7 +101,8 @@ class AccuracyTest extends SeedRandomMixIn {
         splitter = RegressionSplitter(randomizePivotLocation = true, rng = rng),
         rng = rng
       )
-      val learner = new Bagger(baseLearner, numBags = nRow * 16, randBasis = TestUtils.breezeRandBasis(rng.nextLong()))
+      val learner =
+        new Bagger(baseLearner, numBags = nRow * 16, randBasis = TestUtils.getBreezeRandBasis(rng))
       // println(s"Normal train time: ${Stopwatch.time(computeMetrics(learner))}")
       computeMetrics(learner)
     }
@@ -111,7 +112,8 @@ class AccuracyTest extends SeedRandomMixIn {
         splitter = BoltzmannSplitter(temperature = Float.MinPositiveValue, rng = rng),
         rng = rng
       )
-      val learner = new Bagger(baseLearner, numBags = nRow * 16, randBasis = TestUtils.breezeRandBasis(rng.nextLong()))
+      val learner =
+        new Bagger(baseLearner, numBags = nRow * 16, randBasis = TestUtils.getBreezeRandBasis(rng))
       // println(s"Annealing train time: ${Stopwatch.time(computeMetrics(learner))}")
       computeMetrics(learner)
     }
