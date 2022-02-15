@@ -17,7 +17,7 @@ import org.junit.Test
 class FeatureRotatorTest extends SeedRandomMixIn {
 
   val data: Seq[(Vector[Any], Any)] = TestUtils.binTrainingData(
-    TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman),
+    TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng),
     inputBins = Seq((0, 8))
   )
   val weights: Vector[Double] = Vector.fill(data.size)(if (rng.nextBoolean()) rng.nextDouble() else 0.0)
@@ -220,7 +220,7 @@ class FeatureRotatorTest extends SeedRandomMixIn {
   @Test
   def testRotatedClassificationTree(): Unit = {
     val classificationData = TestUtils.binTrainingData(
-      TestUtils.generateTrainingData(2048, 12, noise = 0.1, function = Friedman.friedmanSilverman),
+      TestUtils.generateTrainingData(2048, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng),
       responseBins = Some(2)
     )
 
@@ -259,7 +259,7 @@ class FeatureRotatorTest extends SeedRandomMixIn {
   @Test
   def testMultiTaskRotator(): Unit = {
     val data: Vector[(Vector[Double], Double)] =
-      TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman)
+      TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng)
 
     // Generate multi-task training data
     val (inputs, doubleLabel) = data.unzip

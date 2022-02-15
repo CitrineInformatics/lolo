@@ -32,7 +32,7 @@ class ClassificationTreeTest extends SeedRandomMixIn {
     rng.setSeed(0L)
     assert(rng.nextLong() == -4962768465676381896L)
     val trainingData = TestUtils.binTrainingData(
-      TestUtils.generateTrainingData(2048, 12, noise = 0.1, function = Friedman.friedmanSilverman),
+      TestUtils.generateTrainingData(2048, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng),
       responseBins = Some(2)
     )
     val DTLearner = ClassificationTreeLearner()
@@ -60,7 +60,7 @@ class ClassificationTreeTest extends SeedRandomMixIn {
   def longerTest(): Unit = {
     val trainingData = TestUtils.binTrainingData(
       TestUtils
-        .generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng),
+        .generateTrainingData(1024, 12, noise = 0.05, function = Friedman.friedmanSilverman, rng = rng),
       responseBins = Some(16)
     )
     val DTLearner = ClassificationTreeLearner()
@@ -76,8 +76,7 @@ class ClassificationTreeTest extends SeedRandomMixIn {
     /* We should be able to memorize the inputs */
     val output = DT.transform(trainingData.map(_._1))
     trainingData.zip(output.getExpected()).foreach {
-      case ((x, a), p) =>
-        assert(a == p, s"${a} != ${p} for ${x}")
+      case ((x, a), p) => assert(a == p, s"${a} != ${p} for ${x}")
     }
     assert(output.getGradient().isEmpty)
     output.getDepth().foreach(d => assert(d > 4 && d < 17, s"Depth is ${d}"))

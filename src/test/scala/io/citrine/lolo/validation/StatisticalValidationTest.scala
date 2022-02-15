@@ -11,7 +11,7 @@ class StatisticalValidationTest extends SeedRandomMixIn {
   def testCompareToKFolds(): Unit = {
     val learner = RandomForest()
     val dataSet = TestUtils.generateTrainingData(128, 8, Friedman.friedmanSilverman, rng = rng)
-    val dataGenerator = TestUtils.iterateTrainingData(8, Friedman.friedmanSilverman)
+    val dataGenerator = TestUtils.iterateTrainingData(8, Friedman.friedmanSilverman, rng = rng)
 
     val metrics = Map("rmse" -> RootMeanSquareError)
     val (rmseFromCV, uncertaintyFromCV) =

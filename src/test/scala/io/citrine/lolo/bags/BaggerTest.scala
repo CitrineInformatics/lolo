@@ -205,7 +205,7 @@ class BaggerTest extends SeedRandomMixIn {
   @Test
   def calibrationTimeTest(): Unit = {
     val trainingData = TestUtils.binTrainingData(
-      TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman),
+      TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng),
       inputBins = Seq((0, 8))
     )
     val DTLearner = RegressionTreeLearner(numFeatures = 3, rng = rng)
@@ -239,7 +239,8 @@ class BaggerTest extends SeedRandomMixIn {
     */
   @Test
   def testInterrupt(): Unit = {
-    val trainingData = TestUtils.generateTrainingData(2048, 12, noise = 0.1, function = Friedman.friedmanSilverman)
+    val trainingData =
+      TestUtils.generateTrainingData(2048, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng)
     val DTLearner = RegressionTreeLearner(numFeatures = 3, rng = rng)
     val baggedLearner = Bagger(DTLearner, numBags = trainingData.size, randBasis = getBreezeRandBasis())
 
@@ -292,7 +293,7 @@ class BaggerTest extends SeedRandomMixIn {
     // Define a simple, binary function and create training data
     def stepFunction(x: Seq[Double]): Double = Math.floor(2 * x(0))
 
-    val trainingData = TestUtils.generateTrainingData(rows = 16, cols = 2, function = stepFunction)
+    val trainingData = TestUtils.generateTrainingData(rows = 16, cols = 2, function = stepFunction, rng = rng)
 
     /* Create a bagger out of GuessTheMean learners, and train the model.
      * This model has a rescale field, which should be a real number. If it is not,

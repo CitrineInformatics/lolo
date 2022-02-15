@@ -13,7 +13,7 @@ class BaggedResultTest extends SeedRandomMixIn {
   @Test
   def testSingleMultiConsistency(): Unit = {
     val trainingData = TestUtils.binTrainingData(
-      TestUtils.generateTrainingData(512, 12, noise = 0.1, function = Friedman.friedmanSilverman),
+      TestUtils.generateTrainingData(512, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng),
       inputBins = Seq((0, 8))
     )
 

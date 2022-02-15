@@ -196,7 +196,7 @@ class RandomForestTest extends SeedRandomMixIn {
     */
   @Test
   def testWeightsWithSmallData(): Unit = {
-    val trainingData = TestUtils.generateTrainingData(8, 1)
+    val trainingData = TestUtils.generateTrainingData(8, 1, rng = rng)
     // the number of trees is the number of times we generate weights
     // so this has the effect of creating lots of different sets of weights
     val learner = RandomForest(numTrees = 16384, rng = rng)

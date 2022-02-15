@@ -15,7 +15,7 @@ import org.junit.Test
 class StandardizerTest extends SeedRandomMixIn {
 
   val data: Vector[(Vector[Double], Double)] =
-    TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman)
+    TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng)
   val weights: Vector[Double] = Vector.fill(data.size)(if (rng.nextBoolean()) rng.nextDouble() else 0.0)
 
   // Creating another dataset which has 1 feature that has 0 variance.
@@ -161,7 +161,7 @@ class StandardizerTest extends SeedRandomMixIn {
   @Test
   def testStandardClassification(): Unit = {
     val trainingData = TestUtils.binTrainingData(
-      TestUtils.generateTrainingData(2048, 12, noise = 0.1, function = Friedman.friedmanSilverman),
+      TestUtils.generateTrainingData(2048, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng),
       responseBins = Some(2)
     )
 

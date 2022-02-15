@@ -76,7 +76,8 @@ class RegressionTreeTest extends SeedRandomMixIn {
     */
   @Test
   def longerTest(): Unit = {
-    val trainingData = TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman)
+    val trainingData =
+      TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng)
     val DTLearner = RegressionTreeLearner()
     val N = 100
     val start = System.nanoTime()
@@ -112,7 +113,7 @@ class RegressionTreeTest extends SeedRandomMixIn {
   def testCategorical(): Unit = {
     val trainingData = TestUtils
       .binTrainingData(
-        TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman),
+        TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng),
         inputBins = Seq((0, 8))
       )
       .asInstanceOf[Seq[(Vector[Any], Double)]]
@@ -149,7 +150,8 @@ class RegressionTreeTest extends SeedRandomMixIn {
     */
   @Test
   def testLinearLeaves(): Unit = {
-    val trainingData = TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman)
+    val trainingData =
+      TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng)
 
     val linearLearner = LinearRegressionLearner(regParam = Some(0.0))
     val DTLearner = RegressionTreeLearner(leafLearner = Some(linearLearner), minLeafInstances = 2)
