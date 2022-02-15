@@ -28,7 +28,7 @@ jobs:
       - sudo apt-get -y install libopenblas-base
     script:
       - sbt scalafmtCheckAll
-      - sbt +test
+      - travis_wait 30 sbt +test
   - stage: test
     before_install:
       - wget http://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
