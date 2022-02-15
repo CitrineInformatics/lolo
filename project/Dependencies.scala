@@ -14,7 +14,7 @@ object Dependencies {
     "org.scalanlp"    %% "breeze"          % breezeVersion,
     "junit"            % "junit"           % junitVersion     % "test",
     "org.scalatest"   %% "scalatest"       % scalaTestVersion % "test",
-    "com.novocode"     % "junit-interface" % "0.11"           % "test",
+    "com.github.sbt"   % "junit-interface" % "0.13.3"         % "test",
     "org.knowm.xchart" % "xchart"          % "3.5.2"
   )
 }
