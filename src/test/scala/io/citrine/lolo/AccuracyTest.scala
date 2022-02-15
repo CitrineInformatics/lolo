@@ -101,7 +101,7 @@ class AccuracyTest extends SeedRandomMixIn {
         splitter = RegressionSplitter(randomizePivotLocation = true, rng = rng),
         rng = rng
       )
-      val learner = new Bagger(baseLearner, numBags = nRow * 16, randBasis = getBreezeRandBasis())
+      val learner = new Bagger(baseLearner, numBags = nRow * 16, randBasis = TestUtils.breezeRandBasis(rng.nextLong()))
       // println(s"Normal train time: ${Stopwatch.time(computeMetrics(learner))}")
       computeMetrics(learner)
     }
@@ -111,7 +111,7 @@ class AccuracyTest extends SeedRandomMixIn {
         splitter = BoltzmannSplitter(temperature = Float.MinPositiveValue, rng = rng),
         rng = rng
       )
-      val learner = new Bagger(baseLearner, numBags = nRow * 16, randBasis = getBreezeRandBasis())
+      val learner = new Bagger(baseLearner, numBags = nRow * 16, randBasis = TestUtils.breezeRandBasis(rng.nextLong()))
       // println(s"Annealing train time: ${Stopwatch.time(computeMetrics(learner))}")
       computeMetrics(learner)
     }

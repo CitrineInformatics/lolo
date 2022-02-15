@@ -130,6 +130,8 @@ object TestUtils {
       }
     }
   }
+
+  def breezeRandBasis(seed: Long): RandBasis = new RandBasis(new ThreadLocalRandomGenerator(new MersenneTwister(seed)))
 }
 
 /**
@@ -148,7 +150,4 @@ trait SeedRandomMixIn {
     rng = new Random(2348752L)
     scala.util.Random.setSeed(rng.nextLong())
   }
-
-  def getBreezeRandBasis(seed: Long = rng.nextLong()): RandBasis =
-    new RandBasis(new ThreadLocalRandomGenerator(new MersenneTwister(seed)))
 }

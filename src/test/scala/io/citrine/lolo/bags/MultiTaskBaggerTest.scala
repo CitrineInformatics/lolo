@@ -31,7 +31,7 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
     val baggedLearner = MultiTaskBagger(
       DTLearner,
       numBags = trainingData.size,
-      randBasis = getBreezeRandBasis(),
+      randBasis = TestUtils.breezeRandBasis(rng.nextLong()),
       uncertaintyCalibration = true
     )
     val RFMeta = baggedLearner.train(reshapedTrainingData)
@@ -75,7 +75,7 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
                 baseLearner,
                 numBags = nBags,
                 uncertaintyCalibration = true,
-                randBasis = getBreezeRandBasis()
+                randBasis = TestUtils.breezeRandBasis(rng.nextLong())
               )
               val RFMeta = baggedLearner.train(reshapedTrainingData)
               val RF = RFMeta.getModels().head
@@ -173,7 +173,8 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
     )
     val reshapedTrainingData = trainingData.map { case (input, label) => (input, Vector(label)) }
     val DTLearner = MultiTaskTreeLearner()
-    val baggedLearner = MultiTaskBagger(DTLearner, numBags = trainingData.size, randBasis = getBreezeRandBasis())
+    val baggedLearner =
+      MultiTaskBagger(DTLearner, numBags = trainingData.size, randBasis = TestUtils.breezeRandBasis(rng.nextLong()))
     val RFMeta = baggedLearner.train(reshapedTrainingData)
     val RF = RFMeta.getModels().head
 
@@ -212,7 +213,7 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
       learner,
       numBags = numBags,
       biasLearner = Some(RegressionTreeLearner(maxDepth = 2)),
-      randBasis = getBreezeRandBasis(),
+      randBasis = TestUtils.breezeRandBasis(rng.nextLong()),
       uncertaintyCalibration = true
     )
     val RF = baggedLearner.train(inputs.zip(labels))
@@ -253,7 +254,7 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
       learner,
       numBags = numBags,
       biasLearner = Some(RegressionTreeLearner(maxDepth = 2)),
-      randBasis = getBreezeRandBasis()
+      randBasis = TestUtils.breezeRandBasis(rng.nextLong())
     )
     val RF = baggedLearner.train(inputs.zip(labels)).getModel()
 
@@ -307,7 +308,7 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
       DTLearner,
       numBags = inputs.size,
       biasLearner = Some(GuessTheMeanLearner(rng = rng)),
-      randBasis = getBreezeRandBasis()
+      randBasis = TestUtils.breezeRandBasis(rng.nextLong())
     )
     val trainingResult = baggedLearner.train(inputs.zip(labels))
     val RF = trainingResult.getModels().last
