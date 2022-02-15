@@ -29,8 +29,6 @@ class ClassificationTreeTest extends SeedRandomMixIn {
 
   @Test
   def testBinary(): Unit = {
-    rng.setSeed(0L)
-    assert(rng.nextLong() == -4962768465676381896L)
     val trainingData = TestUtils.binTrainingData(
       TestUtils.generateTrainingData(2048, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng),
       responseBins = Some(2)

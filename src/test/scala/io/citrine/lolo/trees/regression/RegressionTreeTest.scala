@@ -241,7 +241,6 @@ class RegressionTreeTest extends SeedRandomMixIn {
     */
   @Test
   def testSimpleBoltzmannTree(): Unit = {
-    val rng = new Random(247895L)
     val csv = TestUtils.readCsv("double_example.csv")
     val trainingData = csv.map(vec => (vec.init, vec.last.asInstanceOf[Double]))
     val DTLearner = RegressionTreeLearner(splitter = BoltzmannSplitter(1e-4), rng = rng)
