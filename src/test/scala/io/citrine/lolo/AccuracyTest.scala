@@ -5,8 +5,6 @@ import io.citrine.lolo.trees.regression.RegressionTreeLearner
 import io.citrine.lolo.trees.splits.{BoltzmannSplitter, RegressionSplitter}
 import org.junit.Test
 
-import scala.util.Random
-
 /**
   * Created by maxhutch on 7/10/17.
   */
@@ -168,7 +166,7 @@ object AccuracyTest extends SeedRandomMixIn {
       numFeatures = nFeatSub,
       splitter = splitter,
       minLeafInstances = minInstances,
-      rng = new Random(rng.nextLong())
+      rng = rng
     )
     val learner = new Bagger(baseLearner, numBags = nRow * nScal, biasLearner = None)
     val model = learner.train(trainingData).getModel()
