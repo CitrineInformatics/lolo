@@ -14,7 +14,7 @@ import scala.util.Random
 trait Merit[T] {
 
   /**
-    * Apply the figure of merti to a prediction result and set of ground-truth values
+    * Apply the figure of merit to a prediction result and set of ground-truth values
     *
     * @return the value of the figure of merit
     */
