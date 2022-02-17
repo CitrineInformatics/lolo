@@ -64,11 +64,8 @@ case object CoefficientOfDetermination extends Merit[Double] {
   * The fraction of predictions that fall within the predicted uncertainty
   */
 case class StandardConfidence(method: UncertaintyMethod = Bootstrap) extends Merit[Double] {
-  override def evaluate(predictionResult: PredictionResult[Double], actual: Seq[Double], rng: Random = Random): Double = {
-    val uncertaintyOption = predictionResult match {
-      case p: BaggedRealResult => p.getUncertaintyBuffet(method)
-      case p: PredictionResult[Double] => p.getUncertainty()
-    }
+  override def evaluate(predictionResult: BaggedRealResult, actual: Seq[Double], rng: Random = Random): Double = {
+    val uncertaintyOption = predictionResult.getUncertaintyBuffet(method)
     if (uncertaintyOption.isEmpty) return 0.0
 
     (predictionResult.getExpected(), uncertaintyOption.get, actual).zipped.count {
@@ -81,11 +78,8 @@ case class StandardConfidence(method: UncertaintyMethod = Bootstrap) extends Mer
   * Root mean square of (the error divided by the predicted uncertainty)
   */
 case class StandardError(rescale: Double = 1.0, method: UncertaintyMethod = Bootstrap) extends Merit[Double] {
-  override def evaluate(predictionResult: PredictionResult[Double], actual: Seq[Double], rng: Random = Random): Double = {
-    val uncertaintyOption = predictionResult match {
-      case p: BaggedRealResult => p.getUncertaintyBuffet(method)
-      case p: PredictionResult[Double] => p.getUncertainty()
-    }
+  override def evaluate(predictionResult: BaggedRealResult, actual: Seq[Double], rng: Random = Random): Double = {
+    val uncertaintyOption = predictionResult.getUncertaintyBuffet(method)
     if (uncertaintyOption.isEmpty) return Double.PositiveInfinity
     val standardized = (predictionResult.getExpected(), uncertaintyOption.get, actual).zipped.map {
       case (x, sigma: Double, y) => (x - y) / sigma
