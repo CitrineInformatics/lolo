@@ -1,8 +1,9 @@
 package io.citrine.lolo.validation
 
 import java.util
-
 import io.citrine.lolo.PredictionResult
+import io.citrine.lolo.bags.BaggedRealResult
+import io.citrine.lolo.bags.UncertaintyMethods.{Bootstrap, UncertaintyMethod}
 import org.knowm.xchart.XYChart
 
 import scala.collection.JavaConverters._
@@ -62,11 +63,12 @@ case object CoefficientOfDetermination extends Merit[Double] {
 /**
   * The fraction of predictions that fall within the predicted uncertainty
   */
-case class StandardConfidence(observational: Boolean = true) extends Merit[Double] {
-  override def evaluate(predictionResult: PredictionResult[Double], actual: Seq[Double], rng: Random = Random): Double = {
-    if (predictionResult.getUncertainty(observational).isEmpty) return 0.0
+case class StandardConfidence(method: UncertaintyMethod = Bootstrap) extends Merit[Double] {
+  override def evaluate(predictionResult: BaggedRealResult, actual: Seq[Double], rng: Random = Random): Double = {
+    val uncertaintyOption = predictionResult.getUncertaintyBuffet(method)
+    if (uncertaintyOption.isEmpty) return 0.0
 
-    (predictionResult.getExpected(), predictionResult.getUncertainty(observational).get, actual).zipped.count {
+    (predictionResult.getExpected(), uncertaintyOption.get, actual).zipped.count {
       case (x, sigma: Double, y) => Math.abs(x - y) < sigma
     } / predictionResult.getExpected().size.toDouble
   }
@@ -75,10 +77,11 @@ case class StandardConfidence(observational: Boolean = true) extends Merit[Doubl
 /**
   * Root mean square of (the error divided by the predicted uncertainty)
   */
-case class StandardError(rescale: Double = 1.0, observational: Boolean = true) extends Merit[Double] {
-  override def evaluate(predictionResult: PredictionResult[Double], actual: Seq[Double], rng: Random = Random): Double = {
-    if (predictionResult.getUncertainty(observational).isEmpty) return Double.PositiveInfinity
-    val standardized = (predictionResult.getExpected(), predictionResult.getUncertainty(observational).get, actual).zipped.map {
+case class StandardError(rescale: Double = 1.0, method: UncertaintyMethod = Bootstrap) extends Merit[Double] {
+  override def evaluate(predictionResult: BaggedRealResult, actual: Seq[Double], rng: Random = Random): Double = {
+    val uncertaintyOption = predictionResult.getUncertaintyBuffet(method)
+    if (uncertaintyOption.isEmpty) return Double.PositiveInfinity
+    val standardized = (predictionResult.getExpected(), uncertaintyOption.get, actual).zipped.map {
       case (x, sigma: Double, y) => (x - y) / sigma
     }
     rescale * Math.sqrt(standardized.map(Math.pow(_, 2.0)).sum / standardized.size)

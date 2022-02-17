@@ -1,7 +1,8 @@
 package io.citrine.lolo.bags
 
 import breeze.linalg.{DenseMatrix, DenseVector, norm}
-import io.citrine.lolo.bags.CorrelationMethods.{Bootstrap, CorrelationMethod, FromTraining, Jackknife, Trivial, JackknifeExplicit}
+import io.citrine.lolo.bags.CorrelationMethods.{Bootstrap, CorrelationMethod, FromTraining, Jackknife, JackknifeExplicit, Trivial}
+import io.citrine.lolo.bags.UncertaintyMethods.UncertaintyMethod
 import io.citrine.lolo.stats.StatsUtils
 import io.citrine.lolo.{MultiTaskModelPredictionResult, ParallelModelsPredictionResult, PredictionResult, RegressionResult}
 import io.citrine.lolo.util.Async
@@ -40,6 +41,15 @@ trait BaggedResult[+T] extends PredictionResult[T] {
   }
 }
 
+trait BaggedRealResult extends BaggedResult[Double] with RegressionResult {
+  def getUncertaintyBuffet(method: UncertaintyMethod): Option[Seq[Double]] = {
+    method match {
+      case UncertaintyMethods.Jackknife => getStdDevMean()
+      case UncertaintyMethods.Bootstrap => getStdDevObs()
+    }
+  }
+}
+
 
 /**
   * Container with model-wise predictions at a single input point.
@@ -56,7 +66,7 @@ case class SinglePredictionBaggedResult(
                                          bias: Option[Double] = None,
                                          rescale: Double = 1.0,
                                          disableBootstrap: Boolean = false
-                                       ) extends BaggedResult[Double] with RegressionResult {
+                                       ) extends BaggedRealResult {
   private lazy val treePredictions: Array[Double] = predictions.map(_.getExpected().head).toArray
 
   override def numPredictions: Int = 1
@@ -202,7 +212,7 @@ case class MultiPredictionBaggedResult(
                                         bias: Option[Seq[Double]] = None,
                                         rescale: Double = 1.0,
                                         disableBootstrap: Boolean = false
-                                      ) extends BaggedResult[Double] with RegressionResult {
+                                      ) extends BaggedRealResult {
 
   /**
     * Return the ensemble average
