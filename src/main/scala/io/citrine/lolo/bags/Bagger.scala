@@ -121,6 +121,8 @@ case class Bagger(
     } else None
 
     if (helper.isRegression) {
+      val absoluteResiduals = helper.oobErrors.map(x => math.abs(x._2))
+      val typicalResidual = absoluteResiduals.sorted.drop(absoluteResiduals.size * 0.68.toInt).head
       new BaggedTrainingResult[Double](
         models = models.asInstanceOf[ParSeq[Model[PredictionResult[Double]]]],
         featureImportance = averageImportance,
@@ -129,6 +131,7 @@ case class Bagger(
         useJackknife = useJackknife,
         biasModel = biasModel,
         rescale = helper.ratio,
+        typicalOutOfBagResidual = typicalResidual,
         disableBootstrap = disableBootstrap
       )
     } else {
@@ -154,11 +157,12 @@ class BaggedTrainingResult[+T : ClassTag](
                             useJackknife: Boolean,
                             biasModel: Option[Model[PredictionResult[T]]] = None,
                             rescale: Double = 1.0,
+                            typicalOutOfBagResidual: Double = 0.0,
                             disableBootstrap: Boolean = false
                           ) extends TrainingResult {
 
   lazy val NibT = Nib.transpose
-  lazy val model = new BaggedModel[T](models, Nib, useJackknife, biasModel, rescale, disableBootstrap)
+  lazy val model = new BaggedModel[T](models, Nib, useJackknife, biasModel, rescale, typicalOutOfBagResidual, disableBootstrap)
   lazy val rep = trainingData.find(_._2 != null).get._2
   lazy val predictedVsActual = trainingData.zip(NibT).flatMap { case ((f, l), nb) =>
     val oob = if (disableBootstrap) {
