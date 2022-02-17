@@ -46,8 +46,11 @@ trait BaggedRealResult extends BaggedResult[Double] with RegressionResult {
     method match {
       case UncertaintyMethods.Jackknife => getStdDevMean()
       case UncertaintyMethods.Bootstrap => getStdDevObs()
+      case UncertaintyMethods.OutOfBagConstant => Some(Seq.fill(numPredictions)(typicalOutOfBagResidual))
     }
   }
+
+  def typicalOutOfBagResidual: Double
 }
 
 
@@ -65,6 +68,7 @@ case class SinglePredictionBaggedResult(
                                          NibIn: Vector[Vector[Int]],
                                          bias: Option[Double] = None,
                                          rescale: Double = 1.0,
+                                         typicalOutOfBagResidual: Double = 0.0,
                                          disableBootstrap: Boolean = false
                                        ) extends BaggedRealResult {
   private lazy val treePredictions: Array[Double] = predictions.map(_.getExpected().head).toArray
@@ -211,6 +215,7 @@ case class MultiPredictionBaggedResult(
                                         NibIn: Vector[Vector[Int]],
                                         bias: Option[Seq[Double]] = None,
                                         rescale: Double = 1.0,
+                                        typicalOutOfBagResidual: Double = 0.0,
                                         disableBootstrap: Boolean = false
                                       ) extends BaggedRealResult {
 
