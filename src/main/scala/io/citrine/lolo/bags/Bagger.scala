@@ -122,7 +122,7 @@ case class Bagger(
 
     if (helper.isRegression) {
       val absoluteResiduals = helper.oobErrors.map(x => math.abs(x._2))
-      val typicalResidual = absoluteResiduals.sorted.drop(absoluteResiduals.size * 0.68.toInt).headOption.getOrElse(0.0)
+      val typicalResidual = absoluteResiduals.sorted.drop((absoluteResiduals.size * 0.68).toInt).headOption.getOrElse(0.0)
       new BaggedTrainingResult[Double](
         models = models.asInstanceOf[ParSeq[Model[PredictionResult[Double]]]],
         featureImportance = averageImportance,
