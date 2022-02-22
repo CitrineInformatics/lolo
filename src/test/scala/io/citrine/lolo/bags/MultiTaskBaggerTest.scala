@@ -54,12 +54,11 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
     */
   @Test
   def testBaggedMultiTaskGetUncertainty(): Unit = {
-    rng.setSeed(37895L) // This seed is required for test to pass consistently *shrugs*
     val noiseLevel = 100.0
 
     Seq(MultiTaskTreeLearner()).foreach { baseLearner =>
       // These are in Seqs as a convenience for repurposing this test as a diagnostic tool.
-      Seq(64).foreach { nRows =>
+      Seq(128).foreach { nRows =>
         Seq(16).foreach { nCols =>
           Seq(2).map { n => n * nRows }.foreach { nBags =>
             // Used for error output.
