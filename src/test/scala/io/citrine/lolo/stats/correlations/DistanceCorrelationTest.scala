@@ -1,15 +1,13 @@
 package io.citrine.lolo.stats.correlations
 
+import io.citrine.lolo.SeedRandomMixIn
 import org.junit.Test
-
-import scala.util.Random
 
 /**
   * Created by maxhutch on 12/23/16.
   */
 @Test
-class DistanceCorrelationTest {
-  val rng = new Random(36783677836L)
+class DistanceCorrelationTest extends SeedRandomMixIn {
 
   val N: Int = 512
 

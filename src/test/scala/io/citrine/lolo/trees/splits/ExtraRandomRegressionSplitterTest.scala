@@ -1,18 +1,15 @@
 package io.citrine.lolo.trees.splits
 
-import io.citrine.lolo.TestUtils
+import io.citrine.lolo.{SeedRandomMixIn, TestUtils}
 import org.junit.Test
 
-import scala.util.Random
-
-class ExtraRandomRegressionSplitterTest {
+class ExtraRandomRegressionSplitterTest extends SeedRandomMixIn {
 
   /**
     * Test that uniform labels result in "NoSplit" with zero reduced impurity
     */
   @Test
   def testZeroVariance(): Unit = {
-    val rng = new Random(278345L)
     val splitter = ExtraRandomRegressionSplitter(rng)
     val testData = Seq.fill(64) {
       val x = rng.nextDouble()
@@ -34,7 +31,6 @@ class ExtraRandomRegressionSplitterTest {
     */
   @Test
   def testLowVariance(): Unit = {
-    val rng = new Random(278345L)
     val splitter = ExtraRandomRegressionSplitter(rng)
     val testData = Seq.fill(256) {
       val x = rng.nextDouble()
@@ -53,7 +49,6 @@ class ExtraRandomRegressionSplitterTest {
     */
   @Test
   def testCorrectSplit(): Unit = {
-    val rng = new Random(34682L)
     val baseGrid = Seq(0.0, 1.2)
     Seq(1, 5, 9).foreach { numFeatures =>
       // Arrange training input data as a regular grid, and then as a Gaussian-distributed sample.
@@ -155,5 +150,4 @@ class ExtraRandomRegressionSplitterTest {
       }
     }
   }
-
 }

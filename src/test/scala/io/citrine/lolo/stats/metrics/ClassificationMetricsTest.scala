@@ -1,14 +1,12 @@
 package io.citrine.lolo.stats.metrics
 
+import io.citrine.lolo.SeedRandomMixIn
 import org.junit.Test
-
-import scala.util.Random
 
 /**
   * Created by maxhutch on 12/28/16.
   */
-class ClassificationMetricsTest {
-  val rng = new Random(9230L)
+class ClassificationMetricsTest extends SeedRandomMixIn {
 
   /**
     * Test that the metric works on a sparse confusion matrix

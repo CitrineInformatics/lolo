@@ -1,19 +1,15 @@
 package io.citrine.lolo.trees.classification
 
-import java.io.{File, FileOutputStream, ObjectOutputStream}
-
-import io.citrine.lolo.TestUtils
+import io.citrine.lolo.{SeedRandomMixIn, TestUtils}
 import io.citrine.lolo.stats.functions.Friedman
 import org.junit.Test
 import org.scalatest.Assertions._
-
-import scala.util.Random
 
 /**
   * Created by maxhutch on 12/2/16.
   */
 @Test
-class ClassificationTreeTest {
+class ClassificationTreeTest extends SeedRandomMixIn {
 
   /**
     * Trivial models with no splits should have finite feature importance.
@@ -33,10 +29,8 @@ class ClassificationTreeTest {
 
   @Test
   def testBinary(): Unit = {
-    val rnd = new Random(seed = 0L)
-    assert(rnd.nextLong() == -4962768465676381896L)
     val trainingData = TestUtils.binTrainingData(
-      TestUtils.generateTrainingData(2048, 12, noise = 0.1, function = Friedman.friedmanSilverman),
+      TestUtils.generateTrainingData(2048, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng),
       responseBins = Some(2)
     )
     val DTLearner = ClassificationTreeLearner()
@@ -62,10 +56,9 @@ class ClassificationTreeTest {
     */
   @Test
   def longerTest(): Unit = {
-    val rnd = new Random(seed = 0L)
-    assert(rnd.nextLong() == -4962768465676381896L)
     val trainingData = TestUtils.binTrainingData(
-      TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman),
+      TestUtils
+        .generateTrainingData(1024, 12, noise = 0.05, function = Friedman.friedmanSilverman, rng = rng),
       responseBins = Some(16)
     )
     val DTLearner = ClassificationTreeLearner()
@@ -81,8 +74,7 @@ class ClassificationTreeTest {
     /* We should be able to memorize the inputs */
     val output = DT.transform(trainingData.map(_._1))
     trainingData.zip(output.getExpected()).foreach {
-      case ((x, a), p) =>
-        assert(a == p, s"${a} != ${p} for ${x}")
+      case ((x, a), p) => assert(a == p, s"${a} != ${p} for ${x}")
     }
     assert(output.getGradient().isEmpty)
     output.getDepth().foreach(d => assert(d > 4 && d < 17, s"Depth is ${d}"))
@@ -98,7 +90,8 @@ class ClassificationTreeTest {
   @Test
   def testCategorical(): Unit = {
     val trainingData = TestUtils.binTrainingData(
-      TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman),
+      TestUtils
+        .generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng),
       inputBins = Seq((0, 8)),
       responseBins = Some(16)
     )

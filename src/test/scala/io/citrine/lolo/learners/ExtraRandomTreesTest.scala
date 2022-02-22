@@ -1,24 +1,20 @@
 package io.citrine.lolo.learners
 
 import breeze.stats.distributions.{Beta, RandBasis}
-import io.citrine.lolo.TestUtils
+import io.citrine.lolo.{SeedRandomMixIn, TestUtils}
 import io.citrine.lolo.stats.functions.Friedman
 import org.junit.Test
 
-import scala.util.Random
-
 @Test
-class ExtraRandomTreesTest {
-  val rng = new Random(92345L)
+class ExtraRandomTreesTest extends SeedRandomMixIn {
 
   /**
     * Test that the regression does the same thing as the regression bagger
     */
   @Test
   def testRegression(): Unit = {
-    rng.setSeed(982534L)
     val trainingData = TestUtils.binTrainingData(
-      TestUtils.generateTrainingData(256, 5, noise = 0.1, function = Friedman.friedmanSilverman, seed = rng.nextLong()),
+      TestUtils.generateTrainingData(256, 5, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng),
       inputBins = Seq((0, 8))
     )
 
@@ -55,14 +51,11 @@ class ExtraRandomTreesTest {
     */
   @Test
   def testClassification(): Unit = {
-    rng.setSeed(25723478834L)
-
     val nTrain = 64
     val nTest = nTrain
     val nBins = 8
     val trainingData = TestUtils.binTrainingData(
-      TestUtils
-        .generateTrainingData(nTrain, 5, noise = 0.0, function = Friedman.friedmanSilverman, seed = rng.nextLong()),
+      TestUtils.generateTrainingData(nTrain, 5, noise = 0.0, function = Friedman.friedmanSilverman, rng = rng),
       responseBins = Some(nBins)
     )
 
@@ -125,7 +118,6 @@ class ExtraRandomTreesTest {
     */
   @Test
   def testClassificationUnbiased(): Unit = {
-    rng.setSeed(257834L)
     val numTrials = 20
     val (winsSuffixed, winsPrefixed): (Int, Int) = (0 until numTrials)
       .map { _ =>
@@ -138,7 +130,7 @@ class ExtraRandomTreesTest {
               5,
               noise = 0.1,
               function = Friedman.friedmanSilverman,
-              seed = rng.nextLong()
+              rng = rng
             ),
             responseBins = Some(2)
           )
@@ -192,8 +184,7 @@ class ExtraRandomTreesTest {
     */
   @Test
   def testWeightsWithSmallData(): Unit = {
-    rng.setSeed(7834L)
-    val trainingData = TestUtils.generateTrainingData(8, 1, seed = rng.nextLong())
+    val trainingData = TestUtils.generateTrainingData(8, 1, rng = rng)
     // the number of trees is the number of times we generate weights
     // so this has the effect of creating lots of different sets of weights
     val learner = ExtraRandomTrees(numTrees = 16384, rng = rng)

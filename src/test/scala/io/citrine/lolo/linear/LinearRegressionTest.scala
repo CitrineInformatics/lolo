@@ -1,16 +1,14 @@
 package io.citrine.lolo.linear
 
 import breeze.linalg.{norm, DenseMatrix, DenseVector}
+import io.citrine.lolo.SeedRandomMixIn
 import org.junit.Test
-
-import scala.util.Random
 
 /**
   * Created by maxhutch on 12/6/16.
   */
 @Test
-class LinearRegressionTest {
-  val rng = new Random(783578L)
+class LinearRegressionTest extends SeedRandomMixIn {
 
   /** Number of training rows */
   val n = 6
@@ -81,7 +79,7 @@ class LinearRegressionTest {
       (data.t(::, i).toDenseVector.toArray.toVector, result(i))
     }
 
-    val lr = new LinearRegressionLearner()
+    val lr = LinearRegressionLearner()
     val lrm = lr.train(trainingData, weights = Some(Seq.tabulate(n)(i => Math.abs(rng.nextDouble()))))
     val model = lrm.getModel()
     val output = model.transform(trainingData.map(_._1))

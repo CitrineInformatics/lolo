@@ -1,19 +1,18 @@
 package io.citrine.lolo.trees
 
 import breeze.linalg.{norm, DenseVector}
+import io.citrine.lolo.SeedRandomMixIn
 import org.junit.Test
 import org.scalatest.Assertions._
 
-import scala.util.Random
-
 @Test
-class FeaturePowerSetTermsTest {
+class FeaturePowerSetTermsTest extends SeedRandomMixIn {
 
   /**
     * Test a few simple extend cases explicitly
     */
   @Test
-  def testExtend() {
+  def testExtend(): Unit = {
     val path = new FeaturePowerSetTerms(2)
     assert(path.size == 0)
 
@@ -35,7 +34,6 @@ class FeaturePowerSetTermsTest {
   @Test
   def testExtendOrderInvariant(): Unit = {
     val N = 8
-    val rng = new Random(378654L)
     val factors = Seq.fill(N)((rng.nextDouble(), if (rng.nextBoolean()) 1.0 else 0.0))
 
     val results = Seq.fill(N) {
@@ -76,7 +74,6 @@ class FeaturePowerSetTermsTest {
   @Test
   def testUnwind(): Unit = {
     val N = 8
-    val rng = new Random(83647L)
     val firstFactors = Seq.fill(N)((rng.nextDouble(), if (rng.nextBoolean()) 1.0 else 0.0))
     val secondFactors = Seq.fill(N)((rng.nextDouble(), if (rng.nextBoolean()) 1.0 else 0.0))
 

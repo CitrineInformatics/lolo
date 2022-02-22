@@ -1,16 +1,14 @@
 package io.citrine.lolo.trees.splits
 
+import io.citrine.lolo.SeedRandomMixIn
 import io.citrine.lolo.trees.impurity.VarianceCalculator
 import org.junit.Test
-
-import scala.util.Random
 
 /**
   * Created by maxhutch on 12/1/16.
   */
 @Test
-class SplitterTest {
-  val rng = new Random(39578L)
+class SplitterTest extends SeedRandomMixIn {
 
   /**
     * Test different variance formulations

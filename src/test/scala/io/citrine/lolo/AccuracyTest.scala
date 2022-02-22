@@ -3,16 +3,12 @@ package io.citrine.lolo
 import io.citrine.lolo.bags.Bagger
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
 import io.citrine.lolo.trees.splits.{BoltzmannSplitter, RegressionSplitter}
-import io.citrine.theta.Stopwatch
 import org.junit.Test
-
-import scala.util.Random
 
 /**
   * Created by maxhutch on 7/10/17.
   */
-class AccuracyTest {
-  val rng = new Random(234785L)
+class AccuracyTest extends SeedRandomMixIn {
 
   val noiseLevel: Double = 0.000
   val nFeat: Int = 10
@@ -22,7 +18,7 @@ class AccuracyTest {
 
   val trainingData: Seq[(Vector[Any], Double)] = TestUtils
     .binTrainingData(
-      TestUtils.generateTrainingData(nRow, nFeat, noise = noiseLevel, seed = 3L),
+      TestUtils.generateTrainingData(nRow, nFeat, noise = noiseLevel, rng = rng),
       inputBins = Seq((4, 32))
     )
     .asInstanceOf[Seq[(Vector[Any], Double)]] // binTrainingData isn't binning the labels
@@ -48,7 +44,7 @@ class AccuracyTest {
     *          splitter = RegressionSplitter(randomizePivotLocation = true, rng = rng),
     *          rng = rng
     *        )
-    *        val learner = new Bagger(baseLearner, numBags = nRow * 8, randBasis = TestUtils.getBreezeRandBasis(rng.nextLong()))
+    *        val learner = new Bagger(baseLearner, numBags = nRow * 8, randBasis = TestUtils.getBreezeRandBasis(rng))
     *        computeMetrics(learner)
     *      }
     *      rng.setSeed(seed)
@@ -58,11 +54,11 @@ class AccuracyTest {
     *          splitter = BoltzmannSplitter(temperature = Float.MinPositiveValue, rng = rng),
     *          rng = rng
     *        )
-    *        val learner = new Bagger(baseLearner, numBags = nRow * 8, randBasis = TestUtils.getBreezeRandBasis(rng.nextLong()))
+    *        val learner = new Bagger(baseLearner, numBags = nRow * 8, randBasis = TestUtils.getBreezeRandBasis(rng))
     *        computeMetrics(learner)
     *      }
     *      rng.setSeed(seed)
-    *      val randBasis = TestUtils.getBreezeRandBasis(rng.nextLong())
+    *      val randBasis = TestUtils.getBreezeRandBasis(rng)
     *      val errorUnrandomizedTree = {
     *        val baseLearner = RegressionTreeLearner(
     *          numFeatures = nFeat,
@@ -106,7 +102,7 @@ class AccuracyTest {
         rng = rng
       )
       val learner =
-        new Bagger(baseLearner, numBags = nRow * 16, randBasis = TestUtils.getBreezeRandBasis(rng.nextLong()))
+        new Bagger(baseLearner, numBags = nRow * 16, randBasis = TestUtils.getBreezeRandBasis(rng))
       // println(s"Normal train time: ${Stopwatch.time(computeMetrics(learner))}")
       computeMetrics(learner)
     }
@@ -117,7 +113,7 @@ class AccuracyTest {
         rng = rng
       )
       val learner =
-        new Bagger(baseLearner, numBags = nRow * 16, randBasis = TestUtils.getBreezeRandBasis(rng.nextLong()))
+        new Bagger(baseLearner, numBags = nRow * 16, randBasis = TestUtils.getBreezeRandBasis(rng))
       // println(s"Annealing train time: ${Stopwatch.time(computeMetrics(learner))}")
       computeMetrics(learner)
     }
@@ -135,11 +131,11 @@ class AccuracyTest {
   * This isn't cast as a test, but can be used to try to understand the behavior of Boltzmann trees on some simple problems.
   * TODO: turn this into a demo or otherwise relocate it before the Boltzmann tree release
   */
-object AccuracyTest {
+object AccuracyTest extends SeedRandomMixIn {
 
   val trainingDataFull: Seq[(Vector[Any], Double)] = TestUtils
     .binTrainingData(
-      TestUtils.generateTrainingData(2048, 48, seed = 283467L),
+      TestUtils.generateTrainingData(2048, 48, rng = rng),
       inputBins = Seq((2, 32)) // bin the 3rd feature into a categorical
     )
     .asInstanceOf[Seq[(Vector[Any], Double)]]
@@ -172,7 +168,7 @@ object AccuracyTest {
       numFeatures = nFeatSub,
       splitter = splitter,
       minLeafInstances = minInstances,
-      rng = new Random(247895L)
+      rng = rng
     )
     val learner = new Bagger(baseLearner, numBags = nRow * nScal, biasLearner = None)
     val model = learner.train(trainingData).getModel()
