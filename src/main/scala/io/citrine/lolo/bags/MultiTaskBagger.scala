@@ -44,8 +44,8 @@ case class MultiTaskBagger(
     (0 until numOutputs).foreach { i =>
       val numOutputValues = labels.count(row => validOutput(row(i)))
       assert(
-        numOutputValues >= 2,
-        s"There must be at least 2 data points for each output, but output $i only had $numOutputValues values."
+        numOutputValues >= Bagger.minimumOutputCount,
+        s"There must be at least ${Bagger.minimumOutputCount} data points for each output, but output $i only had $numOutputValues values."
       )
     }
 

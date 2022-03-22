@@ -303,6 +303,9 @@ object Bagger {
     */
   val minimumTrainingSize: Int = 8
 
+  /** The minimum number of training examples with a value for any given output */
+  val minimumOutputCount: Int = 2
+
   /**
     * The minimum number of non-zero weighted training points that is based into the learner
     *
