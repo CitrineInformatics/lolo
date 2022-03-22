@@ -73,7 +73,8 @@ protected case class BaggerHelper(
       }
       .sorted
       .drop((oobErrors.size * 0.68).toInt)
-      .head
+      .headOption
+      .getOrElse(1.0)
     if (oneSigmaRatio.isPosInfinity) 1.0 else oneSigmaRatio
   } else {
     1.0
