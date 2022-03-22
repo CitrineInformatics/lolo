@@ -53,12 +53,11 @@ case class MultiTaskBagger(
     val dist = new Poisson(1.0)(randBasis)
     val Nib: Vector[Vector[Int]] = Iterator.continually[Option[Vector[Int]]] {
       val suggestedCounts = Vector.fill(trainingData.size)(dist.draw)
-//      val allOutputsRepresented = (0 until numOutputs).forall { i =>
-//        labels.zip(suggestedCounts).exists { case (row, count) => validOutput(row(i)) && count > 0}
-//      }
-//      val minNonzeroWeights = suggestedCounts.count(_ > 0) >= Bagger.minimumNonzeroWeightSize
-//      if (allOutputsRepresented && minNonzeroWeights) Some(suggestedCounts) else None
-      Some(suggestedCounts)
+      val allOutputsRepresented = (0 until numOutputs).forall { i =>
+        labels.zip(suggestedCounts).exists { case (row, count) => validOutput(row(i)) && count > 0}
+      }
+      val minNonzeroWeights = suggestedCounts.count(_ > 0) >= Bagger.minimumNonzeroWeightSize
+      if (allOutputsRepresented && minNonzeroWeights) Some(suggestedCounts) else None
     }.flatten.take(actualBags).toVector
     val weightsActual = weights.getOrElse(Seq.fill(trainingData.size)(1.0))
 
