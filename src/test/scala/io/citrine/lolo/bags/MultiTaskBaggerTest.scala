@@ -348,11 +348,13 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
 
     // Test 2 real outputs, 2 categorical outputs, and an even split
     Seq(2, 128, 254).foreach { cutoffIndex =>
-      val sparseCat = catLabel.zipWithIndex.map { case (x, idx) =>
-        if (idx < cutoffIndex) null else x
+      val sparseCat = catLabel.zipWithIndex.map {
+        case (x, idx) =>
+          if (idx < cutoffIndex) null else x
       }
-      val sparseReal = realLabel.zipWithIndex.map { case (x, idx) =>
-        if (idx >= cutoffIndex) Double.NaN else x
+      val sparseReal = realLabel.zipWithIndex.map {
+        case (x, idx) =>
+          if (idx >= cutoffIndex) Double.NaN else x
       }
       val labels = Vector(sparseReal, sparseCat).transpose
 

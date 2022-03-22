@@ -43,7 +43,10 @@ case class MultiTaskBagger(
     )
     (0 until numOutputs).foreach { i =>
       val numOutputValues = labels.count(row => validOutput(row(i)))
-      assert(numOutputValues >= 2, s"There must be at least 2 data points for each output, but output $i only had $numOutputValues values.")
+      assert(
+        numOutputValues >= 2,
+        s"There must be at least 2 data points for each output, but output $i only had $numOutputValues values."
+      )
     }
 
     // if numBags is non-positive, set # bags = # inputs
@@ -51,14 +54,18 @@ case class MultiTaskBagger(
 
     // Compute the number of instances of each training row in each training sample
     val dist = new Poisson(1.0)(randBasis)
-    val Nib: Vector[Vector[Int]] = Iterator.continually[Option[Vector[Int]]] {
-      val suggestedCounts = Vector.fill(trainingData.size)(dist.draw)
-      val allOutputsRepresented = (0 until numOutputs).forall { i =>
-        labels.zip(suggestedCounts).exists { case (row, count) => validOutput(row(i)) && count > 0}
+    val Nib: Vector[Vector[Int]] = Iterator
+      .continually[Option[Vector[Int]]] {
+        val suggestedCounts = Vector.fill(trainingData.size)(dist.draw)
+        val allOutputsRepresented = (0 until numOutputs).forall { i =>
+          labels.zip(suggestedCounts).exists { case (row, count) => validOutput(row(i)) && count > 0 }
+        }
+        val minNonzeroWeights = suggestedCounts.count(_ > 0) >= Bagger.minimumNonzeroWeightSize
+        if (allOutputsRepresented && minNonzeroWeights) Some(suggestedCounts) else None
       }
-      val minNonzeroWeights = suggestedCounts.count(_ > 0) >= Bagger.minimumNonzeroWeightSize
-      if (allOutputsRepresented && minNonzeroWeights) Some(suggestedCounts) else None
-    }.flatten.take(actualBags).toVector
+      .flatten
+      .take(actualBags)
+      .toVector
     val weightsActual = weights.getOrElse(Seq.fill(trainingData.size)(1.0))
 
     val parIterator = new ParRange(Nib.indices)
@@ -106,11 +113,12 @@ case class MultiTaskBagger(
     }
   }
 
+  /** Flag NaNs and nulls. */
   private def validOutput(x: Any): Boolean = {
     Option(x) match {
       case Some(x: Double) => !x.isNaN
-      case Some(_: Any) => true
-      case None => false
+      case Some(_: Any)    => true
+      case None            => false
     }
   }
 }
