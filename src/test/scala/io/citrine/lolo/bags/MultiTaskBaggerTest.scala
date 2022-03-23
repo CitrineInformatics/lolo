@@ -333,4 +333,38 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
     assert(multiF1 > singleF1, s"Multi-task is under-performing single-task")
     assert(multiF1 <= 1.0, "Multitask classification F1 score was greater than 1.0")
   }
+
+  /**
+    * Test that a multitask model can train when there is no overlap between the outputs.
+    */
+  @Test
+  def testFullSparsity(): Unit = {
+    /* Setup some data */
+    val raw: Seq[(Vector[Double], Double)] =
+      TestUtils.generateTrainingData(256, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng)
+    val inputs: Seq[Vector[Double]] = raw.map(_._1)
+    val realLabel: Seq[Double] = raw.map(_._2)
+    val catLabel: Seq[Boolean] = raw.map(_._2 > realLabel.max / 2.0)
+
+    // Test 2 real outputs, 2 categorical outputs, and an even split
+    Seq(2, 128, 254).foreach { cutoffIndex =>
+      val sparseCat = catLabel.zipWithIndex.map {
+        case (x, idx) =>
+          if (idx < cutoffIndex) null else x
+      }
+      val sparseReal = realLabel.zipWithIndex.map {
+        case (x, idx) =>
+          if (idx >= cutoffIndex) Double.NaN else x
+      }
+      val labels = Vector(sparseReal, sparseCat).transpose
+
+      val baggedLearner = MultiTaskBagger(
+        MultiTaskTreeLearner(),
+        numBags = inputs.size,
+        biasLearner = Some(GuessTheMeanLearner(rng = rng)),
+        randBasis = TestUtils.getBreezeRandBasis(rng)
+      )
+      assert(baggedLearner.train(inputs.zip(labels)).getModels().size == 2)
+    }
+  }
 }

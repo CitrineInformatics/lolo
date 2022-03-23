@@ -32,26 +32,39 @@ case class MultiTaskBagger(
       weights: Option[Seq[Double]] = None
   ): MultiTaskBaggedTrainingResult = {
     val (inputs, labels) = trainingData.unzip
-    val repInput = inputs.head
-    val repOutput = labels.head
+    val numInputs = inputs.head.length
+    val numOutputs = labels.head.length
     /* Make sure the training data are the same size */
-    assert(inputs.forall(repInput.size == _.size))
-    assert(labels.forall(repOutput.size == _.size))
+    assert(inputs.forall(numInputs == _.size))
+    assert(labels.forall(numOutputs == _.size))
     assert(
       trainingData.size >= Bagger.minimumTrainingSize,
       s"We need to have at least ${Bagger.minimumTrainingSize} rows, only ${trainingData.size} given"
     )
+    (0 until numOutputs).foreach { i =>
+      val numOutputValues = labels.count(row => validOutput(row(i)))
+      assert(
+        numOutputValues >= Bagger.minimumOutputCount,
+        s"There must be at least ${Bagger.minimumOutputCount} data points for each output, but output $i only had $numOutputValues values."
+      )
+    }
 
     // if numBags is non-positive, set # bags = # inputs
     val actualBags = if (numBags > 0) numBags else trainingData.size
 
     // Compute the number of instances of each training row in each training sample
     val dist = new Poisson(1.0)(randBasis)
-    val Nib: Vector[Vector[Int]] = Vector.tabulate(actualBags) { _ =>
-      Vector.tabulate(trainingData.size) { _ =>
-        dist.draw()
+    val Nib: Vector[Vector[Int]] = Iterator
+      .continually(Vector.fill(trainingData.size)(dist.draw))
+      .filter { suggestedCounts =>
+        val allOutputsRepresented = (0 until numOutputs).forall(i =>
+          labels.zip(suggestedCounts).exists { case (row, count) => validOutput(row(i)) && count > 0 }
+        )
+        val minNonzeroWeights = suggestedCounts.count(_ > 0) >= Bagger.minimumNonzeroWeightSize
+        allOutputsRepresented && minNonzeroWeights
       }
-    }
+      .take(actualBags)
+      .toVector
     val weightsActual = weights.getOrElse(Seq.fill(trainingData.size)(1.0))
 
     val parIterator = new ParRange(Nib.indices)
@@ -67,7 +80,7 @@ case class MultiTaskBagger(
 
     // Get bias model and rescale ratio for each label
     val (biasModels, ratios) = Seq
-      .tabulate(repOutput.length) { i =>
+      .tabulate(numOutputs) { i =>
         val thisLabelModels: ParSeq[Model[PredictionResult[Any]]] = models.map(_.getModels(i))
         val isRegression = models.head.getRealLabels(i)
         val thisTrainingData = trainingData.map { case (inputs, outputs) => (inputs, outputs(i)) }
@@ -96,6 +109,15 @@ case class MultiTaskBagger(
     (v1, v2) match {
       case (Some(v1: Vector[Double]), Some(v2: Vector[Double])) => Some(v1.zip(v2).map(p => p._1 + p._2))
       case _                                                    => None
+    }
+  }
+
+  /** Flag NaNs and nulls. */
+  private def validOutput(x: Any): Boolean = {
+    Option(x) match {
+      case Some(x: Double) => !x.isNaN
+      case Some(_: Any)    => true
+      case None            => false
     }
   }
 }
