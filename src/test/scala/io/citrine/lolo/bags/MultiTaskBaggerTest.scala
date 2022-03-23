@@ -364,7 +364,7 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
         biasLearner = Some(GuessTheMeanLearner(rng = rng)),
         randBasis = TestUtils.getBreezeRandBasis(rng)
       )
-      baggedLearner.train(inputs.zip(labels)).getModels()
+      assert(baggedLearner.train(inputs.zip(labels)).getModels().size == 2)
     }
   }
 }
