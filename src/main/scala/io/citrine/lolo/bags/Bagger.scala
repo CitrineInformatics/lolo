@@ -135,7 +135,7 @@ case class Bagger(
         trainingData = trainingData,
         useJackknife = useJackknife,
         biasModel = biasModel,
-        rescale = helper.ratio,
+        rescale = helper.rescaleRatio,
         disableBootstrap = disableBootstrap
       )
     } else {
@@ -146,7 +146,7 @@ case class Bagger(
         trainingData = trainingData,
         useJackknife = useJackknife,
         biasModel = biasModel,
-        rescale = helper.ratio,
+        rescale = helper.rescaleRatio,
         disableBootstrap = disableBootstrap
       )
     }

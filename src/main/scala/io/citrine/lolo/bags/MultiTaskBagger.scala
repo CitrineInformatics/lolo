@@ -89,7 +89,7 @@ case class MultiTaskBagger(
           Async.canStop()
           Some(biasLearner.get.train(helper.biasTraining).getModel().asInstanceOf[Model[PredictionResult[Double]]])
         } else None
-        (biasModel, helper.ratio)
+        (biasModel, helper.rescaleRatio)
       }
       .unzip
 
