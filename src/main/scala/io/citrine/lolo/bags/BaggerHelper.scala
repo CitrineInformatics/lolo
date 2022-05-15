@@ -1,6 +1,6 @@
 package io.citrine.lolo.bags
 
-import io.citrine.lolo.stats.MathUtils
+import io.citrine.lolo.stats.{MathUtils, StatsUtils}
 import io.citrine.lolo.util.Async
 import io.citrine.lolo.{Model, PredictionResult, RegressionResult}
 
@@ -61,7 +61,9 @@ protected case class BaggerHelper(
   /** Uncertainty calibration ratio based on the OOB errors. */
   val rescaleRatio: Double = if (uncertaintyCalibration && isRegression && useJackknife) {
     Async.canStop()
-    BaggerUtil.calculateRescaleRatio(oobErrors.map { case (_, e, u) => (e, u) })
+    val trainingLabels = trainingData.collect { case (_, x: Double) if !(x.isInfinite || x.isNaN) => x }
+    val zeroTolerance = StatsUtils.range(trainingLabels) / 1e12
+    BaggerHelper.calculateRescaleRatio(oobErrors.map { case (_, e, u) => (e, u) }, zeroTolerance = zeroTolerance)
   } else {
     1.0
   }
@@ -79,7 +81,7 @@ protected case class BaggerHelper(
   }
 }
 
-object BaggerUtil {
+object BaggerHelper {
 
   /**
     * Calculate the uncertainty calibration ratio, which is the 68th percentile of error/uncertainty for the training points.
@@ -90,18 +92,17 @@ object BaggerUtil {
     * meaning there may only be 2 out-of-bag models.
     *
     * @param oobErrors sequence of tuples of (error, uncertainty) from OOB predictions for each training row
+    * @param zeroTolerance tolerance for determining if the error/uncertainty are zero
     * @return uncertainty rescale ratio
     */
-  def calculateRescaleRatio(oobErrors: Seq[(Double, Double)]): Double = {
+  def calculateRescaleRatio(oobErrors: Seq[(Double, Double)], zeroTolerance: Double = 1e-12): Double = {
     val oneSigmaRatio = oobErrors
       .map {
         case (error, uncertainty) =>
-          val errorIsZero = MathUtils.tolerantEquals(error, 0.0)
-          val uncertaintyIsZero = MathUtils.tolerantEquals(uncertainty, 0.0)
+          val errorIsZero = MathUtils.tolerantEquals(error, 0.0, zeroTolerance)
+          val uncertaintyIsZero = MathUtils.tolerantEquals(uncertainty, 0.0, zeroTolerance)
           if (errorIsZero && uncertaintyIsZero) {
             1.0
-          } else if (uncertaintyIsZero) {
-            Double.PositiveInfinity
           } else {
             math.abs(error / uncertainty)
           }

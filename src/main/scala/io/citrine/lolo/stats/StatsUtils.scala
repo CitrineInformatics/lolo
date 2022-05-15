@@ -2,6 +2,20 @@ package io.citrine.lolo.stats
 
 object StatsUtils {
 
+  /**
+    * Compute the range of the data.
+    *
+    * @param X to compute the range of
+    * @return the range, which is zero if there are no values
+    */
+  def range(X: Seq[Double]): Double = {
+    if (X.nonEmpty) {
+      X.max - X.min
+    } else {
+      0.0
+    }
+  }
+
   /** Compute the mean of a (weighted) vector, X */
   def mean(X: Seq[Double], weights: Option[Seq[Double]] = None): Double = {
     val actualWeights = weights.getOrElse(Seq.fill(X.length)(1.0))
