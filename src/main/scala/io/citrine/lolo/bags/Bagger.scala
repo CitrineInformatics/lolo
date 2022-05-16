@@ -4,7 +4,7 @@ import breeze.linalg.DenseMatrix
 import breeze.stats.distributions.{Poisson, Rand, RandBasis}
 import io.citrine.lolo.stats.metrics.{ClassificationMetrics, RegressionMetrics}
 import io.citrine.lolo.util.{Async, InterruptibleExecutionContext}
-import io.citrine.lolo.{Learner, Model, PredictionResult, RegressionResult, TrainingResult}
+import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
 
 import scala.collection.parallel.ExecutionContextTaskSupport
 import scala.collection.parallel.immutable.{ParRange, ParSeq}
@@ -135,7 +135,7 @@ case class Bagger(
         trainingData = trainingData,
         useJackknife = useJackknife,
         biasModel = biasModel,
-        rescale = helper.ratio,
+        rescale = helper.rescaleRatio,
         disableBootstrap = disableBootstrap
       )
     } else {
@@ -146,7 +146,7 @@ case class Bagger(
         trainingData = trainingData,
         useJackknife = useJackknife,
         biasModel = biasModel,
-        rescale = helper.ratio,
+        rescale = helper.rescaleRatio,
         disableBootstrap = disableBootstrap
       )
     }

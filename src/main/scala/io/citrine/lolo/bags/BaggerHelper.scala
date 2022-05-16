@@ -1,5 +1,6 @@
 package io.citrine.lolo.bags
 
+import io.citrine.lolo.stats.{MathUtils, StatsUtils}
 import io.citrine.lolo.util.Async
 import io.citrine.lolo.{Model, PredictionResult, RegressionResult}
 
@@ -57,38 +58,63 @@ protected case class BaggerHelper(
     }
   }
 
-  /**
-    * Calculate the uncertainty calibration ratio, which is the 68th percentile of error/uncertainty.
-    * for the training points. If a point has 0 uncertainty, the ratio is 1 iff error is also 0, or infinity otherwise.
-    * If the 68th percentile ratio is infinity, default to 1.0. This is not unreasonable when the number of training data
-    * and bags are small, meaning there may only be 2 out-of-bag models.
-    */
-  val ratio = if (uncertaintyCalibration && isRegression && useJackknife) {
+  /** Uncertainty calibration ratio based on the OOB errors. */
+  val rescaleRatio: Double = if (uncertaintyCalibration && isRegression && useJackknife) {
     Async.canStop()
+    val trainingLabels = trainingData.collect { case (_, x: Double) if !(x.isInfinite || x.isNaN) => x }
+    val zeroTolerance = StatsUtils.range(trainingLabels) / 1e12
+    BaggerHelper.calculateRescaleRatio(oobErrors.map { case (_, e, u) => (e, u) }, zeroTolerance = zeroTolerance)
+  } else {
+    1.0
+  }
+  assert(!rescaleRatio.isNaN && !rescaleRatio.isInfinity, s"Uncertainty calibration ratio is not real: $rescaleRatio")
+
+  /**
+    * Data on which to train a bias learner.
+    */
+  lazy val biasTraining: Seq[(Vector[Any], Double)] = oobErrors.map {
+    case (f, e, u) =>
+      // Math.E is only statistically correct.  It should be actualBags / Nib.transpose(i).count(_ == 0)
+      // Or, better yet, filter the bags that don't include the training example
+      val bias = Math.E * Math.max(Math.abs(e) - u * rescaleRatio, 0)
+      (f, bias)
+  }
+}
+
+object BaggerHelper {
+
+  /**
+    * Calculate the uncertainty calibration ratio, which is the 68th percentile of error/uncertainty for the training points.
+    *
+    * If a point has 0 uncertainty, the ratio is 1 iff error is also 0, or infinity otherwise.
+    * If the 68th percentile ratio is infinity, default to 1.0.
+    * This is not unreasonable when the number of training data and bags are small,
+    * meaning there may only be 2 out-of-bag models.
+    *
+    * @param oobErrors sequence of tuples of (error, uncertainty) from OOB predictions for each training row
+    * @param zeroTolerance tolerance for determining if the error/uncertainty are zero
+    * @return uncertainty rescale ratio
+    */
+  def calculateRescaleRatio(oobErrors: Seq[(Double, Double)], zeroTolerance: Double = 1e-12): Double = {
     val oneSigmaRatio = oobErrors
       .map {
-        case (_, 0.0, 0.0)           => 1.0
-        case (_, _, 0.0)             => Double.PositiveInfinity
-        case (_, error, uncertainty) => Math.abs(error / uncertainty)
+        case (error, uncertainty) =>
+          val errorIsZero = MathUtils.tolerantEquals(error, 0.0, zeroTolerance)
+          val uncertaintyIsZero = MathUtils.tolerantEquals(uncertainty, 0.0, zeroTolerance)
+          if (errorIsZero && uncertaintyIsZero) {
+            1.0
+          } else {
+            math.abs(error / uncertainty)
+          }
       }
       .sorted
       .drop((oobErrors.size * 0.68).toInt)
       .headOption
       .getOrElse(1.0)
-    if (oneSigmaRatio.isPosInfinity) 1.0 else oneSigmaRatio
-  } else {
-    1.0
-  }
-  assert(!ratio.isNaN && !ratio.isInfinity, s"Uncertainty calibration ratio is not real: $ratio")
-
-  /**
-    * Data on which to train a bias learner.
-    */
-  lazy val biasTraining = oobErrors.map {
-    case (f, e, u) =>
-      // Math.E is only statistically correct.  It should be actualBags / Nib.transpose(i).count(_ == 0)
-      // Or, better yet, filter the bags that don't include the training example
-      val bias = Math.E * Math.max(Math.abs(e) - u * ratio, 0)
-      (f, bias)
+    if (oneSigmaRatio.isPosInfinity) {
+      1.0
+    } else {
+      oneSigmaRatio
+    }
   }
 }
