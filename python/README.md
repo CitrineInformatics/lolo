@@ -64,7 +64,7 @@ Our performance for model training is comparable to scikit-learn, as shown in th
 The blue-shaded region in the figure represents the time required to pass training data to the JVM.
 We note that training times are equivalent between using the Scala interface to Lolo and `lolopy` for training set sizes above 100.
 
-![training performance](./examples/profile/training-performance.png)
+![training performance](https://raw.githubusercontent.com/CitrineInformatics/lolo/main/python/examples/profile/training-performance.png)
  
 Lolopy and lolo are currently slower than scikit-learn for model evaluation, as shown in the figure below.
 The model timings are evaluated on a dataset size of 1000 with 145 features.
@@ -72,6 +72,6 @@ The decrease in model performance with training set size is an effect of the num
 Lolopy and lolo have similar performance for models with training set sizes of above 100.
 Below a training set size of 100, the cost of sending data limits the performance of `lolopy`. 
 
-![evaluation performance](./examples/profile/evaluation-performance.png)
+![evaluation performance](https://raw.githubusercontent.com/CitrineInformatics/lolo/main/python/examples/profile/evaluation-performance.png)
 
 For more details, see the [benchmarking notebook](./examples/profile/scaling-test.ipynb).
