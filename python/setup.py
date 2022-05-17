@@ -1,7 +1,6 @@
 from setuptools import setup
 from glob import glob
 import shutil
-import sys
 import os
 
 # single source of truth for package version
@@ -24,18 +23,8 @@ if os.path.isdir(jar_path):
 os.mkdir(jar_path)
 shutil.copy(JAR_FILE[0], os.path.join(jar_path, 'lolo-jar-with-dependencies.jar'))
 
-# Convert the README.md file to rst (rst is rendered by PyPi not MD)
-#  Taken from: https://github.com/apache/spark/blob/master/python/setup.py
-# Parse the README markdown file into rst for PyPI
-long_description = "!!!!! missing pandoc do not upload to PyPI !!!!"
-try:
-    import pypandoc
-    long_description = pypandoc.convert('README.md', 'rst')
-except ImportError:
-    print("Could not import pypandoc - required to package PySpark", file=sys.stderr)
-except OSError:
-    print("Could not convert - pandoc is not installed", file=sys.stderr)
-
+with open('README.md') as f:
+    long_description = f.read()
 
 # Make the installation
 setup(
@@ -53,4 +42,5 @@ setup(
     install_requires=['scikit-learn', 'py4j'],
     description='Python wrapper for the Lolo machine learning library',
     long_description=long_description,
+    long_description_content_type="text/markdown",
 )
