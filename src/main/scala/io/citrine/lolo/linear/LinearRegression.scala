@@ -1,6 +1,6 @@
 package io.citrine.lolo.linear
 
-import breeze.linalg.{diag, pinv, sum, DenseMatrix, DenseVector}
+import breeze.linalg.{det, diag, pinv, sum, DenseMatrix, DenseVector}
 import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
 
 import scala.util.Try
@@ -31,8 +31,13 @@ case class LinearRegressionLearner(
     val thisRegParam = regParam.getOrElse(0.0)
     val regularized = thisRegParam > 0.0
 
-    val n = trainingData.size
-    val (features, labels) = trainingData.unzip
+    val theseWeights = weights.getOrElse(Seq.fill(trainingData.length)(1.0))
+    val (nonZeroData, nonZeroWeights) = trainingData.zip(theseWeights).filter(_._2 > 0.0).unzip
+
+    println(nonZeroWeights)
+
+    val n = nonZeroData.size
+    val (features, labels) = nonZeroData.unzip
     val rep = features.head
 
     /* Get the indices of the continuous features */
@@ -57,8 +62,8 @@ case class LinearRegressionLearner(
     val X = Xt.t
     val k = Xt.rows
 
-    /* If the weights are specified, multiply At by them */
-    val Xtw = weights.map { w => Xt * diag(new DenseVector(w.toArray)) }.getOrElse(Xt)
+    /* Multiply Xt by weight matrix */
+    val Xtw = Xt * diag(new DenseVector(nonZeroWeights.toArray))
 
     val y = new DenseVector(labels.map(_.asInstanceOf[Double]).toArray)
 
@@ -71,9 +76,9 @@ case class LinearRegressionLearner(
       val lhs = Xtw * X + diag(regVector)
       val rhs = Xtw * y
       Try {
-        pinv(lhs) * rhs
+        lhs \ rhs
       } getOrElse {
-        val totalWeight = weights.map(_.sum).getOrElse(y.length.toDouble)
+        val totalWeight = nonZeroWeights.sum
         val mean = sum(y) / totalWeight
         val res = DenseVector.zeros[Double](k)
         res(-1) = mean
@@ -168,8 +173,7 @@ class LinearRegressionModel(
           empty
       }
       .getOrElse(beta)
-      .toArray
-      .toVector
+      .toScalaVector
   }
 }
 
