@@ -1,8 +1,9 @@
 package io.citrine.lolo.bags
 
+import breeze.io.CSVReader
 import breeze.linalg.DenseMatrix
 import io.citrine.lolo.{SeedRandomMixIn, TestUtils}
-import io.citrine.lolo.linear.GuessTheMeanLearner
+import io.citrine.lolo.linear.{GuessTheMeanLearner, LinearRegressionLearner}
 import io.citrine.lolo.stats.functions.Friedman
 import io.citrine.lolo.transformers.{FeatureRotator, Standardizer}
 import io.citrine.lolo.trees.classification.ClassificationTreeLearner
@@ -11,7 +12,7 @@ import io.citrine.lolo.trees.splits.RegressionSplitter
 import org.junit.Test
 import org.scalatest.Assertions._
 
-import java.io.{File, PrintWriter}
+import java.io.{File, FileReader, PrintWriter}
 import java.util.concurrent._
 
 /**
@@ -47,6 +48,28 @@ class BaggerTest extends SeedRandomMixIn {
     /* The first feature should be the most important */
     val importances = RFMeta.getFeatureImportance().get
     assert(importances(1) == importances.max)
+  }
+
+  /** Test that normal equations in a linear ensemble are numerically stable. */
+  @Test
+  def testLinearEnsemble(): Unit = {
+    val rawData = CSVReader.read(new FileReader(new File("bad_linear_ensemble.csv")))
+    val labels = rawData.map(_.head.toDouble).toVector
+    val features = rawData.map(_.tail.take(30).map(_.toDouble).toVector)
+
+    val baseLearner = LinearRegressionLearner(fitIntercept = true, regParam = Some(0.0))
+    val bagger = new Bagger(
+      method = new Standardizer(baseLearner),
+      numBags = 64,
+      useJackknife = true,
+      uncertaintyCalibration = true,
+      randBasis = TestUtils.getBreezeRandBasis()
+    )
+
+    val result = bagger.train(features.zip(labels))
+    println(result.getLoss())
+
+    result.getPredictedVsActual().get.take(5).map(pva => (pva._2, pva._3)) foreach println
   }
 
   /**

@@ -1,9 +1,21 @@
 package io.citrine.lolo.linear
 
-import breeze.linalg.{det, diag, pinv, sum, DenseMatrix, DenseVector}
+import breeze.linalg.{det, diag, inv, pinv, sum, DenseMatrix, DenseVector}
 import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
 
 import scala.util.Try
+
+protected case class CoefficientsAndIntercept(coefficients: DenseVector[Double], intercept: Double)
+
+protected object CoefficientsAndIntercept {
+  def build(vec: DenseVector[Double], fitIntercept: Boolean): CoefficientsAndIntercept = {
+    if (fitIntercept) {
+      CoefficientsAndIntercept(vec(0 to -2), vec(-1))
+    } else {
+      CoefficientsAndIntercept(vec, 0.0)
+    }
+  }
+}
 
 /**
   * Linear and ridge regression learner
@@ -34,9 +46,6 @@ case class LinearRegressionLearner(
     val theseWeights = weights.getOrElse(Seq.fill(trainingData.length)(1.0))
     val (nonZeroData, nonZeroWeights) = trainingData.zip(theseWeights).filter(_._2 > 0.0).unzip
 
-    println(nonZeroWeights)
-
-    val n = nonZeroData.size
     val (features, labels) = nonZeroData.unzip
     val rep = features.head
 
@@ -51,41 +60,43 @@ case class LinearRegressionLearner(
         hasNans || (!regularized && constant)
       }
 
-    /* If we are fitting the intercept, add a row of 1s */
+    val numSamples = features.length
+    val numFeatures = indices.length + (if (fitIntercept) 1 else 0)
+
+    /* Assemble breeze vectors for solving normal equations  */
     val Xt = if (fitIntercept) {
       val featureArray = features.flatMap { row => indices.map(idx => row(idx).asInstanceOf[Double]) :+ 1.0 }.toArray
-      new DenseMatrix(indices.size + 1, n, featureArray)
+      new DenseMatrix(numFeatures, numSamples, featureArray)
     } else {
       val featureArray = features.flatMap { row => indices.map(idx => row(idx).asInstanceOf[Double]) }.toArray
-      new DenseMatrix(indices.size, n, featureArray)
+      new DenseMatrix(numFeatures, numSamples, featureArray)
     }
-    val X = Xt.t
-    val k = Xt.rows
-
-    /* Multiply Xt by weight matrix */
-    val Xtw = Xt * diag(new DenseVector(nonZeroWeights.toArray))
-
     val y = new DenseVector(labels.map(_.asInstanceOf[Double]).toArray)
+    val X = Xt.t
 
-    val beta = if (regularized || n >= k) {
+    /* Rescale data by weight matrix */
+    val weightMatrixOption = Option(nonZeroWeights).map(w => diag(new DenseVector(w.toArray)))
+    val Xtw = weightMatrixOption.map(W => Xt * W).getOrElse(Xt)
+
+    val beta = if (regularized || numSamples >= numFeatures) {
       /* Construct the regularized problem and solve it */
-      val regVector = math.pow(thisRegParam, 2) * DenseVector.ones[Double](k)
+      val regVector = math.pow(thisRegParam, 2) * DenseVector.ones[Double](numFeatures)
       if (fitIntercept) {
         regVector(-1) = 0.0
       }
-      val lhs = Xtw * X + diag(regVector)
-      val rhs = Xtw * y
+      val A = Xtw * X + diag(regVector)
+      val b = Xtw * y
       Try {
-        lhs \ rhs
+        A \ b
       } getOrElse {
-        val totalWeight = nonZeroWeights.sum
+        val totalWeight = weights.map(_.sum).getOrElse(trainingData.length.toDouble)
         val mean = sum(y) / totalWeight
-        val res = DenseVector.zeros[Double](k)
+        val res = DenseVector.zeros[Double](numFeatures)
         res(-1) = mean
         res
       }
     } else {
-      /* The problem is under-determined, so use pinv as approximate solution */
+      /* The problem is under-determined, so use pseudo-inverse as an approximate solution */
       val Xw = Xtw.t
       pinv(Xw) * y
     }
