@@ -90,41 +90,6 @@ class LinearRegressionTest extends SeedRandomMixIn {
     assert(norm(new DenseVector(predicted.toArray) - result) < 1.0e-9, "Predictions are inaccurate")
   }
 
-  /** Test that zero weights are filtered to ensure a non-singular solution to the Normal equations. */
-  @Test
-  def testZeroWeights(): Unit = {
-    val n = 8
-    val beta0 = DenseVector(1.0, 2.0, 3.0, 4.0, 5.0)
-    val trainingFeatures = (0 until n).map { _ =>
-      Vector.fill(beta0.length)(rng.nextDouble())
-    }
-    val trainingLabels = trainingFeatures.map { vec =>
-      DenseVector(vec.toArray) dot beta0
-    }
-    val trainingData = trainingFeatures.zip(trainingLabels)
-
-    // Create some weights with sparse zeros
-    val weights = DenseVector.ones[Double](trainingFeatures.length)
-    weights(0) = 0.0
-    weights(1) = 0.0
-    weights(2) = 0.0
-
-    val lr = LinearRegressionLearner()
-    val lrm = lr.train(trainingData, Some(weights.toScalaVector))
-    val model = lrm.getModel()
-    val output = model.transform(trainingData.map(_._1))
-    val predicted = output.getExpected()
-    val beta = output.getGradient().get.head
-
-    println((new DenseVector(beta.toArray), beta0))
-
-    assert(norm(new DenseVector(beta.toArray) - beta0) < 1.0e-9, "Coefficients are inaccurate")
-    assert(
-      norm(new DenseVector(predicted.toArray) - new DenseVector(trainingLabels.toArray)) < 1.0e-9,
-      "Predictions are inaccurate"
-    )
-  }
-
   /**
     * Test when there are more features than training rows
     */

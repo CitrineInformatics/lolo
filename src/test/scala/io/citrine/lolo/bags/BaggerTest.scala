@@ -50,19 +50,32 @@ class BaggerTest extends SeedRandomMixIn {
     assert(importances(1) == importances.max)
   }
 
+  @Test
+  def testLinear(): Unit = {
+    val rawData = CSVReader.read(new FileReader(new File("bad_linear_ensemble.csv"))).take(60)
+    val labels = rawData.map(_.head.toDouble).toVector
+    val features = rawData.map(_.tail.map(_.toDouble).toVector)
+
+    val lr = LinearRegressionLearner(fitIntercept = true, regParam = Some(0.1))
+    val result = lr.train(features.zip(labels))
+    println(result.getModel().getBeta())
+    println(result.getModel().transform(features.take(1)).getExpected())
+  }
+
   /** Test that normal equations in a linear ensemble are numerically stable. */
   @Test
   def testLinearEnsemble(): Unit = {
-    val rawData = CSVReader.read(new FileReader(new File("bad_linear_ensemble.csv")))
+    val rawData = CSVReader.read(new FileReader(new File("bad_linear_ensemble.csv"))).take(20)
     val labels = rawData.map(_.head.toDouble).toVector
-    val features = rawData.map(_.tail.take(30).map(_.toDouble).toVector)
+    val features = rawData.map(_.tail.map(_.toDouble).toVector)
 
     val baseLearner = LinearRegressionLearner(fitIntercept = true, regParam = Some(0.0))
     val bagger = new Bagger(
       method = new Standardizer(baseLearner),
       numBags = 64,
-      useJackknife = true,
-      uncertaintyCalibration = true,
+      useJackknife = false,
+      uncertaintyCalibration = false,
+      disableBootstrap = false,
       randBasis = TestUtils.getBreezeRandBasis()
     )
 
@@ -70,6 +83,9 @@ class BaggerTest extends SeedRandomMixIn {
     println(result.getLoss())
 
     result.getPredictedVsActual().get.take(5).map(pva => (pva._2, pva._3)) foreach println
+
+    val model = result.getModel()
+    println(model.transform(features.take(1)).getUncertainty())
   }
 
   /**
