@@ -52,14 +52,25 @@ class BaggerTest extends SeedRandomMixIn {
 
   @Test
   def testLinear(): Unit = {
-    val rawData = CSVReader.read(new FileReader(new File("bad_linear_ensemble.csv"))).take(60)
+    val rawData = CSVReader.read(new FileReader(new File("bad_linear_ensemble.csv"))).take(1000)
     val labels = rawData.map(_.head.toDouble).toVector
     val features = rawData.map(_.tail.map(_.toDouble).toVector)
+    val trainingData = features.zip(labels)
 
     val lr = LinearRegressionLearner(fitIntercept = true, regParam = Some(0.1))
-    val result = lr.train(features.zip(labels))
-    println(result.getModel().getBeta())
-    println(result.getModel().transform(features.take(1)).getExpected())
+
+    (0 until 100).foreach { _ =>
+      lr.train(trainingData)
+    }
+
+    val times = (0 until 100).map { _ =>
+      val tic = System.nanoTime()
+      lr.train(trainingData)
+      val toc = System.nanoTime()
+      (toc - tic) / 1e9
+    }
+
+    println(times.sum / times.length)
   }
 
   /** Test that normal equations in a linear ensemble are numerically stable. */

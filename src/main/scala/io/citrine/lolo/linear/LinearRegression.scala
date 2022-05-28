@@ -1,8 +1,6 @@
 package io.citrine.lolo.linear
 
-import breeze.linalg.svd.SVD
-import breeze.linalg.{diag, sum, svd, DenseMatrix, DenseVector}
-import breeze.numerics.sqrt
+import breeze.linalg.{diag, sum, DenseMatrix, DenseVector}
 import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
 
 import scala.util.Try
@@ -31,8 +29,8 @@ case class LinearRegressionLearner(
       trainingData: Seq[(Vector[Any], Any)],
       weights: Option[Seq[Double]]
   ): LinearRegressionTrainingResult = {
-    val alpha = regParam.getOrElse(0.0)
-    val regularized = alpha > 0.0
+    val lambda = regParam.getOrElse(0.0)
+    val regularized = lambda > 0.0
 
     val (features, labels) = trainingData.unzip
     val rep = features.head
@@ -59,42 +57,26 @@ case class LinearRegressionLearner(
       val featureArray = features.flatMap { row => indices.map(idx => row(idx).asInstanceOf[Double]) }.toArray
       new DenseMatrix(numFeatures, numSamples, featureArray)
     }
+    val X = Xt.t
     val y = new DenseVector(labels.map(_.asInstanceOf[Double]).toArray)
 
     /* Rescale data by weight matrix */
-    val sqrtWeightsMatrix = weights.map(w => diag(sqrt(new DenseVector(w.toArray))))
-    val yw = sqrtWeightsMatrix.map(W => W * y).getOrElse(y)
-    val Xtw = sqrtWeightsMatrix.map(W => Xt * W).getOrElse(Xt)
-    val Xw = Xtw.t
+    val weightsMatrix = weights.map(w => diag(new DenseVector(w.toArray)))
+    val yw = weightsMatrix.map(W => W * y).getOrElse(y)
+    val Xw = weightsMatrix.map(W => W * X).getOrElse(X)
 
     val (coefficients, intercept) = Try {
-      val (a, b) = if (regularized || numSamples >= numFeatures) {
-//        val L = math.pow(alpha, 2) * DenseVector.ones[Double](numFeatures)
-//        if (fitIntercept) {
-//          L(-1) = 0.0
-//        }
-        (Xtw * Xw, Xtw * yw)
+      // If regularized or overdetermined, design matrix is (possibly) invertible
+      // If underdetermined, fall back to a least-squares solution that uses SVD/pseudo-inverse internally
+      val beta = if (regularized || numSamples >= numFeatures) {
+        val l = math.pow(lambda, 2) * DenseVector.ones[Double](numFeatures)
+        if (fitIntercept) l(-1) = 0.0
+        val A = Xt * Xw + diag(l)
+        val b = Xt * yw
+        A \ b
       } else {
-        (Xw, yw)
+        Xw \ yw
       }
-
-      val beta = solveSVD(a, b, alpha, svdTolerance)
-      //val beta = a \ b
-
-//      val beta = if (regularized || numSamples >= numFeatures) {
-//        /* Construct the regularized problem and solve it */
-//        val alpha = math.pow(thisRegParam, 2) * DenseVector.ones[Double](numFeatures)
-//        if (fitIntercept) {
-//          alpha(-1) = 0.0
-//        }
-//        val A = Xtw * Xw + diag(alpha)
-//        val b = Xtw * yw
-//        println(solveSVD(A, b, thisRegParam))
-//        A \ b
-//      } else {
-//        /* The problem is under-determined, so use pseudo-inverse as an approximate solution */
-//        pinv(Xw) * yw
-//      }
       if (fitIntercept) {
         (beta(0 to -2), beta(-1))
       } else {
@@ -119,34 +101,6 @@ case class LinearRegressionLearner(
 
     val model = new LinearRegressionModel(coefficients, intercept, indices = indicesToModel)
     new LinearRegressionTrainingResult(model)
-  }
-
-  /**
-    * Determine beta via SVD with singular value cutoff tolerance.
-    *
-    * Equations from _solve_svd @ https://github.com/scikit-learn/scikit-learn/blob/main/sklearn/linear_model/_ridge.py
-    */
-  private def solveSVD(
-      X: DenseMatrix[Double],
-      y: DenseVector[Double],
-      alpha: Double,
-      tol: Double
-  ): DenseVector[Double] = {
-    val SVD(u, s, vt) = svd(X)
-
-    val Uty = u.t * y
-    val D = s.map { si =>
-      if (math.abs(si) > tol) {
-        si / (si * si + alpha)
-      } else {
-        0.0
-      }
-    }
-    val D_Uty = D *:* Uty
-
-    // Breeze SVD returns full matrices, we only need min version up to numSamples columns
-    val Vm = vt.t(::, 0 until D_Uty.length)
-    Vm * D_Uty
   }
 }
 
