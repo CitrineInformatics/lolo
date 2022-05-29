@@ -1,6 +1,5 @@
 package io.citrine.lolo.bags
 
-import breeze.io.CSVReader
 import breeze.linalg.DenseMatrix
 import io.citrine.lolo.{SeedRandomMixIn, TestUtils}
 import io.citrine.lolo.linear.{GuessTheMeanLearner, LinearRegressionLearner}
@@ -12,7 +11,7 @@ import io.citrine.lolo.trees.splits.RegressionSplitter
 import org.junit.Test
 import org.scalatest.Assertions._
 
-import java.io.{File, FileReader, PrintWriter}
+import java.io.{File, PrintWriter}
 import java.util.concurrent._
 
 /**
@@ -20,6 +19,38 @@ import java.util.concurrent._
   */
 @Test
 class BaggerTest extends SeedRandomMixIn {
+
+  /**
+    * Test the fit performance of an ensemble of ridge regression learners
+    */
+  @Test
+  def testLinearEnsemble(): Unit = {
+    val beta0 = Vector(0.1, 5.0, 3.0, -2.0, 4.0)
+    def linearFunction(x: Seq[Double], beta: Seq[Double]): Double = {
+      x.zip(beta).map { case (xi, w) => xi * w }.sum
+    }
+
+    val trainingData = TestUtils.generateTrainingData(
+      rows = 256,
+      beta0.length,
+      noise = 0.5,
+      function = x => linearFunction(x, beta0),
+      rng = rng
+    )
+
+    val baseLearner = new Standardizer(LinearRegressionLearner(regParam = Some(0.5)))
+    val baggedLearner = Bagger(baseLearner, numBags = trainingData.size, randBasis = TestUtils.getBreezeRandBasis(rng))
+
+    val learnerMeta = baggedLearner.train(trainingData)
+    val model = learnerMeta.getModel()
+
+    assert(learnerMeta.getLoss().get < 1.0, "Loss of bagger is larger than expected")
+
+    val prediction = model.transform(trainingData.take(1).map(_._1))
+    val sigma = prediction.getUncertainty().get.map(_.asInstanceOf[Double])
+    assert(sigma.forall(_ > 0.0))
+    assert(prediction.getGradient().isDefined, "No gradient returned for linear ensemble.")
+  }
 
   /**
     * Test the fit performance of the regression bagger
@@ -48,55 +79,6 @@ class BaggerTest extends SeedRandomMixIn {
     /* The first feature should be the most important */
     val importances = RFMeta.getFeatureImportance().get
     assert(importances(1) == importances.max)
-  }
-
-  @Test
-  def testLinear(): Unit = {
-    val rawData = CSVReader.read(new FileReader(new File("bad_linear_ensemble.csv"))).take(1000)
-    val labels = rawData.map(_.head.toDouble).toVector
-    val features = rawData.map(_.tail.map(_.toDouble).toVector)
-    val trainingData = features.zip(labels)
-
-    val lr = LinearRegressionLearner(fitIntercept = true, regParam = Some(0.1))
-
-    (0 until 100).foreach { _ =>
-      lr.train(trainingData)
-    }
-
-    val times = (0 until 100).map { _ =>
-      val tic = System.nanoTime()
-      lr.train(trainingData)
-      val toc = System.nanoTime()
-      (toc - tic) / 1e9
-    }
-
-    println(times.sum / times.length)
-  }
-
-  /** Test that normal equations in a linear ensemble are numerically stable. */
-  @Test
-  def testLinearEnsemble(): Unit = {
-    val rawData = CSVReader.read(new FileReader(new File("bad_linear_ensemble.csv"))).take(20)
-    val labels = rawData.map(_.head.toDouble).toVector
-    val features = rawData.map(_.tail.map(_.toDouble).toVector)
-
-    val baseLearner = LinearRegressionLearner(fitIntercept = true, regParam = Some(0.0))
-    val bagger = new Bagger(
-      method = new Standardizer(baseLearner),
-      numBags = 64,
-      useJackknife = false,
-      uncertaintyCalibration = false,
-      disableBootstrap = false,
-      randBasis = TestUtils.getBreezeRandBasis()
-    )
-
-    val result = bagger.train(features.zip(labels))
-    println(result.getLoss())
-
-    result.getPredictedVsActual().get.take(5).map(pva => (pva._2, pva._3)) foreach println
-
-    val model = result.getModel()
-    println(model.transform(features.take(1)).getUncertainty())
   }
 
   /**

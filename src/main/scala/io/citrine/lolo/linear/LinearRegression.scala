@@ -62,8 +62,8 @@ case class LinearRegressionLearner(
 
     /* Rescale data by weight matrix */
     val weightsMatrix = weights.map(w => diag(new DenseVector(w.toArray)))
-    val yw = weightsMatrix.map(W => W * y).getOrElse(y)
     val Xw = weightsMatrix.map(W => W * X).getOrElse(X)
+    val yw = weightsMatrix.map(W => W * y).getOrElse(y)
 
     val (coefficients, intercept) = Try {
       // If regularized or overdetermined, design matrix is (possibly) invertible
