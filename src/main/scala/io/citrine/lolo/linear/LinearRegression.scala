@@ -14,8 +14,7 @@ import scala.util.Try
   */
 case class LinearRegressionLearner(
     regParam: Option[Double] = None,
-    fitIntercept: Boolean = true,
-    svdTolerance: Double = 0.0
+    fitIntercept: Boolean = true
 ) extends Learner {
 
   /**
