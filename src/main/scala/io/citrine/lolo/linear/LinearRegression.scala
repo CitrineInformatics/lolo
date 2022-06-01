@@ -45,7 +45,7 @@ case class LinearRegressionLearner(
         hasNans || (!regularized && constant)
       }
 
-    val numSamples = features.length
+    val numSamples = trainingData.length
     val numFeatures = indices.length + (if (fitIntercept) 1 else 0)
 
     /* Assemble breeze vectors for solving normal equations  */
@@ -65,7 +65,7 @@ case class LinearRegressionLearner(
     val yw = weightsMatrix.map(W => W * y).getOrElse(y)
 
     val (coefficients, intercept) = Try {
-      // If regularized or overdetermined, design matrix is (possibly) invertible
+      // If regularized/overdetermined, attempt to solve the full normal equations
       // If underdetermined, fall back to a least-squares solution that uses SVD/pseudo-inverse internally
       val beta = if (regularized || numSamples >= numFeatures) {
         val l = math.pow(lambda, 2) * DenseVector.ones[Double](numFeatures)
