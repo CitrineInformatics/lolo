@@ -24,7 +24,7 @@ ThisBuild / sonatypeCredentialHost := "s01.oss.sonatype.org"
 ThisBuild / sonatypeRepository := "https://s01.oss.sonatype.org/service/local"
 ThisBuild / pomIncludeRepository := { _ => false }
 
-ThisBuild / libraryDependencies ++= loloDeps
+ThisBuild / libraryDependencies ++= logging ++ loloDeps
 ThisBuild / libraryDependencies ++= {
   CrossVersion.partialVersion(scalaVersion.value) match {
     case Some((2, major)) if major <= 12 =>
