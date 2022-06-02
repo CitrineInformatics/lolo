@@ -2,8 +2,9 @@ package io.citrine.lolo.linear
 
 import breeze.linalg.{diag, sum, DenseMatrix, DenseVector}
 import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
+import org.slf4j.LoggerFactory
 
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 /**
   * Linear and ridge regression learner
@@ -65,9 +66,11 @@ case class LinearRegressionLearner(
     val yw = weightsMatrix.map(W => W * y).getOrElse(y)
 
     val (coefficients, intercept) = Try {
-      // If regularized/overdetermined, attempt to solve the full normal equations
-      // If underdetermined, fall back to a least-squares solution that uses SVD/pseudo-inverse internally
-      val beta = if (regularized || numSamples >= numFeatures) {
+      // For a regularized/overdetermined problem, the LHS operator `A` is (potentially) invertible
+      // and can be applied directly to solve the normal equations (using an LU/QR internally)
+      // When numFeatures > numSamples, the operator `A` is singular and cannot be inverted directly
+      // In this case, we fall back to a least-squares solution calling `\` directly on `Xw` and `yw`
+      if (regularized || numSamples >= numFeatures) {
         val l = math.pow(lambda, 2) * DenseVector.ones[Double](numFeatures)
         if (fitIntercept) l(-1) = 0.0
         val A = Xt * Xw + diag(l)
@@ -76,19 +79,22 @@ case class LinearRegressionLearner(
       } else {
         Xw \ yw
       }
-      if (fitIntercept) {
-        (beta(0 to -2), beta(-1))
-      } else {
-        (beta, 0.0)
-      }
-    } getOrElse {
-      val totalWeight = weights.map(_.sum).getOrElse(numSamples.toDouble)
-      val mean = sum(yw) / totalWeight // weighted mean of training labels
-      if (fitIntercept) {
-        (DenseVector.zeros[Double](numFeatures - 1), mean)
-      } else {
-        (DenseVector.zeros[Double](numFeatures), mean)
-      }
+    } match {
+      case Success(beta) =>
+        if (fitIntercept) {
+          (beta(0 to -2), beta(-1))
+        } else {
+          (beta, 0.0)
+        }
+      case Failure(e) =>
+        logger.error(s"Encountered an exception solving normal equations: ${e.getLocalizedMessage}")
+        val totalWeight = weights.map(_.sum).getOrElse(numSamples.toDouble)
+        val mean = sum(yw) / totalWeight // weighted mean of training labels
+        if (fitIntercept) {
+          (DenseVector.zeros[Double](numFeatures - 1), mean)
+        } else {
+          (DenseVector.zeros[Double](numFeatures), mean)
+        }
     }
 
     /* Extract active indices for trained model */
@@ -101,6 +107,8 @@ case class LinearRegressionLearner(
     val model = new LinearRegressionModel(coefficients, intercept, indices = indicesToModel)
     new LinearRegressionTrainingResult(model)
   }
+
+  private val logger = LoggerFactory.getLogger(getClass)
 }
 
 /**
