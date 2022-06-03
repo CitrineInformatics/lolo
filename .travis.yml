@@ -25,7 +25,7 @@ jobs:
   - stage: test
     script:
       - sbt -Dsbt.log.noformat=true scalafmtCheckAll
-      - SBT_OPTS="Xmx3G" sbt -Dsbt.log.noformat=true +test
+      - sbt -Dsbt.log.noformat=true +test
   - stage: test
     before_install:
       - wget http://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh

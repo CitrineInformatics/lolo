@@ -34,6 +34,7 @@ ThisBuild / libraryDependencies ++= {
   }
 }
 
+ThisBuild / Test / parallelExecution := false
 ThisBuild / Test / testOptions += Tests.Argument(TestFrameworks.JUnit, "-v")
 
 // Assembly settings
