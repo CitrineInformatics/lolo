@@ -87,7 +87,7 @@ case class LinearRegressionLearner(
           (beta, 0.0)
         }
       case Failure(e) =>
-        logger.error(s"Encountered an exception solving normal equations: ${e.getLocalizedMessage}")
+        logger.warn(s"Encountered an exception solving normal equations: ${e.getLocalizedMessage}")
         val totalWeight = weights.map(_.sum).getOrElse(numSamples.toDouble)
         val mean = sum(yw) / totalWeight // weighted mean of training labels
         if (fitIntercept) {
