@@ -1,7 +1,10 @@
 package io.citrine.lolo.linear
 
-import breeze.linalg.{diag, pinv, sum, DenseMatrix, DenseVector}
+import breeze.linalg.{diag, sum, DenseMatrix, DenseVector}
 import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
+import org.slf4j.LoggerFactory
+
+import scala.util.{Failure, Success, Try}
 
 /**
   * Linear and ridge regression learner
@@ -26,82 +29,86 @@ case class LinearRegressionLearner(
       trainingData: Seq[(Vector[Any], Any)],
       weights: Option[Seq[Double]]
   ): LinearRegressionTrainingResult = {
-    val n = trainingData.size
+    val lambda = regParam.getOrElse(0.0)
+    val regularized = lambda > 0.0
+
+    val (features, labels) = trainingData.unzip
+    val rep = features.head
 
     /* Get the indices of the continuous features */
-    val indices: Vector[Int] = trainingData.head._1.zipWithIndex
-      .filter(_._1.isInstanceOf[Double])
-      .filterNot(_._1.asInstanceOf[Double].isNaN)
-      .map(_._2)
-      .filterNot(i => trainingData.exists(_._1(i).asInstanceOf[Double].isNaN))
-      .filterNot { i =>
-        val unregularized = !regParam.exists(_.asInstanceOf[Double] > 0.0)
-        lazy val constant = trainingData.forall(_._1(i) == trainingData.head._1(i))
-        unregularized && constant // remove constant features if there's no regularization
+    val indices = rep.zipWithIndex
+      .collect { case (x: Double, idx) if !x.isNaN => idx }
+      .filterNot { idx =>
+        // Remove features with NaN values in training set
+        val hasNans = features.exists(row => row(idx).asInstanceOf[Double].isNaN)
+        // Remove constant features if there's no regularization
+        lazy val constant = features.forall(row => row(idx) == rep(idx))
+        hasNans || (!regularized && constant)
       }
 
-    /* If we are fitting the intercept, add a row of 1s */
-    val At = if (fitIntercept) {
-      new DenseMatrix(
-        indices.size + 1,
-        n,
-        trainingData.map(r => indices.map(r._1(_).asInstanceOf[Double]) :+ 1.0).flatten.toArray
-      )
-    } else {
-      new DenseMatrix(indices.size, n, trainingData.map(r => indices.map(r._1(_).asInstanceOf[Double])).flatten.toArray)
-    }
-    val k = At.rows
+    val numSamples = trainingData.length
+    val numFeatures = indices.length + (if (fitIntercept) 1 else 0)
 
-    /* If the weights are specified, multiply At by them */
+    /* Assemble breeze vectors for solving normal equations  */
+    val Xt = if (fitIntercept) {
+      val featureArray = features.flatMap { row => indices.map(idx => row(idx).asInstanceOf[Double]) :+ 1.0 }.toArray
+      new DenseMatrix(numFeatures, numSamples, featureArray)
+    } else {
+      val featureArray = features.flatMap { row => indices.map(idx => row(idx).asInstanceOf[Double]) }.toArray
+      new DenseMatrix(numFeatures, numSamples, featureArray)
+    }
+    val X = Xt.t
+    val y = new DenseVector(labels.map(_.asInstanceOf[Double]).toArray)
+
+    /* Rescale data by weight matrix */
     val weightsMatrix = weights.map(w => diag(new DenseVector(w.toArray)))
-    val Atw = if (weightsMatrix.isDefined) {
-      At * weightsMatrix.get
-    } else {
-      At
-    }
-    val A = Atw.t
+    val Xw = weightsMatrix.map(W => W * X).getOrElse(X)
+    val yw = weightsMatrix.map(W => W * y).getOrElse(y)
 
-    val b = if (weightsMatrix.isDefined) {
-      new DenseVector(trainingData.map(_._2.asInstanceOf[Double]).zip(weights.get).map(p => p._1 * p._2).toArray)
-    } else {
-      new DenseVector(trainingData.map(_._2.asInstanceOf[Double]).toArray)
-    }
-
-    val beta = if (regParam.exists(_ > 0) || n >= k) {
-      /* Construct the regularized problem and solve it */
-      val regVector = Math.pow(regParam.getOrElse(0.0), 2) * DenseVector.ones[Double](k)
-      if (fitIntercept) regVector(-1) = 0.0
-      val M = At * A + diag(regVector)
-      try {
-        val Mi = pinv(M)
-        /* Backsub to get the coefficients */
-        Mi * At * b
-      } catch {
-        case x: Throwable =>
-          val mean = if (weightsMatrix.isDefined) sum(b) / weights.get.sum else sum(b) / b.length
-          val res = DenseVector.zeros[Double](k)
-          res(-1) = mean
-          res
+    val (coefficients, intercept) = Try {
+      // For a regularized/overdetermined problem, the LHS operator `A` is (potentially) invertible
+      // and can be applied directly to solve the normal equations (using an LU/QR internally)
+      // When numFeatures > numSamples, the operator `A` is singular and cannot be inverted directly
+      // In this case, we fall back to a least-squares solution calling `\` directly on `Xw` and `yw`
+      if (regularized || numSamples >= numFeatures) {
+        val l = math.pow(lambda, 2) * DenseVector.ones[Double](numFeatures)
+        if (fitIntercept) l(-1) = 0.0
+        val A = Xt * Xw + diag(l)
+        val b = Xt * yw
+        A \ b
+      } else {
+        Xw \ yw
       }
-    } else {
-      pinv(A) * b
+    } match {
+      case Success(beta) =>
+        if (fitIntercept) {
+          (beta(0 to -2), beta(-1))
+        } else {
+          (beta, 0.0)
+        }
+      case Failure(e) =>
+        logger.warn(s"Encountered an exception solving normal equations: ${e.getLocalizedMessage}")
+        val totalWeight = weights.map(_.sum).getOrElse(numSamples.toDouble)
+        val mean = sum(yw) / totalWeight // weighted mean of training labels
+        if (fitIntercept) {
+          (DenseVector.zeros[Double](numFeatures - 1), mean)
+        } else {
+          (DenseVector.zeros[Double](numFeatures), mean)
+        }
     }
 
-    val indicesToModel = if (indices.size < trainingData.head._1.size) {
-      Some(indices, trainingData.head._1.size)
+    /* Extract active indices for trained model */
+    val indicesToModel = if (indices.length < rep.length) {
+      Some(indices, rep.length)
     } else {
       None
     }
 
-    /* If we fit the intercept, take it off the end of the coefficients */
-    val model = if (fitIntercept) {
-      new LinearRegressionModel(beta(0 to -2), beta(-1), indices = indicesToModel)
-    } else {
-      new LinearRegressionModel(beta, 0.0, indices = indicesToModel)
-    }
-
+    val model = new LinearRegressionModel(coefficients, intercept, indices = indicesToModel)
     new LinearRegressionTrainingResult(model)
   }
+
+  private val logger = LoggerFactory.getLogger(getClass)
 }
 
 /**
@@ -170,8 +177,7 @@ class LinearRegressionModel(
           empty
       }
       .getOrElse(beta)
-      .toArray
-      .toVector
+      .toScalaVector
   }
 }
 

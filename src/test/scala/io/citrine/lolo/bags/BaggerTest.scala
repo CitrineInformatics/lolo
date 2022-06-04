@@ -2,7 +2,7 @@ package io.citrine.lolo.bags
 
 import breeze.linalg.DenseMatrix
 import io.citrine.lolo.{SeedRandomMixIn, TestUtils}
-import io.citrine.lolo.linear.GuessTheMeanLearner
+import io.citrine.lolo.linear.{GuessTheMeanLearner, LinearRegressionLearner}
 import io.citrine.lolo.stats.functions.Friedman
 import io.citrine.lolo.transformers.{FeatureRotator, Standardizer}
 import io.citrine.lolo.trees.classification.ClassificationTreeLearner
@@ -19,6 +19,38 @@ import java.util.concurrent._
   */
 @Test
 class BaggerTest extends SeedRandomMixIn {
+
+  /**
+    * Test the fit performance of an ensemble of ridge regression learners
+    */
+  @Test
+  def testLinearEnsemble(): Unit = {
+    val beta0 = Vector(0.1, 5.0, 3.0, -2.0, 4.0)
+    def linearFunction(x: Seq[Double], beta: Seq[Double]): Double = {
+      x.zip(beta).map { case (xi, w) => xi * w }.sum
+    }
+
+    val trainingData = TestUtils.generateTrainingData(
+      rows = 256,
+      beta0.length,
+      noise = 0.5,
+      function = x => linearFunction(x, beta0),
+      rng = rng
+    )
+
+    val baseLearner = new Standardizer(LinearRegressionLearner(regParam = Some(0.5)))
+    val baggedLearner = Bagger(baseLearner, numBags = trainingData.size, randBasis = TestUtils.getBreezeRandBasis(rng))
+
+    val learnerMeta = baggedLearner.train(trainingData)
+    val model = learnerMeta.getModel()
+
+    assert(learnerMeta.getLoss().get < 1.0, "Loss of bagger is larger than expected")
+
+    val prediction = model.transform(trainingData.take(1).map(_._1))
+    val sigma = prediction.getUncertainty().get.map(_.asInstanceOf[Double])
+    assert(sigma.forall(_ > 0.0))
+    assert(prediction.getGradient().isDefined, "No gradient returned for linear ensemble.")
+  }
 
   /**
     * Test the fit performance of the regression bagger
