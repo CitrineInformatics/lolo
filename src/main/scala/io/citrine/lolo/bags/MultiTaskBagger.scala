@@ -27,6 +27,13 @@ case class MultiTaskBagger(
                             randBasis: RandBasis = Rand
                           ) extends MultiTaskLearner {
 
+    if (uncertaintyCalibrationLevel.isDefined) {
+      val p = uncertaintyCalibrationLevel.get
+      if (p <= 0.0 || p >= 1.0) {
+        throw new IllegalArgumentException(s"Uncertainty calibration level must be between 0 and 1, exclusive. Got $p.")
+      }
+    }
+
   override def train(inputs: Seq[Vector[Any]], labels: Seq[Seq[Any]], weights: Option[Seq[Double]] = None): MultiTaskBaggedTrainingResult = {
     /* Make sure the training data are the same size */
     assert(inputs.forall(inputs.head.size == _.size))
