@@ -11,19 +11,19 @@ import scala.collection.parallel.immutable.{ParRange, ParSeq}
 /**
   * Create an ensemble of multi-task models
   *
-  * @param method                 learner to train each model in the ensemble
-  * @param numBags                number of models in the ensemble
-  * @param useJackknife           whether to enable jackknife uncertainty estimate
-  * @param biasLearner            learner to use for estimating bias
-  * @param uncertaintyCalibration whether to empirically recalibrate the predicted uncertainties
-  * @param randBasis              breeze RandBasis to use for generating breeze random numbers
+  * @param method                       learner to train each model in the ensemble
+  * @param numBags                      number of models in the ensemble
+  * @param useJackknife                 whether to enable jackknife uncertainty estimate
+  * @param biasLearner                  learner to use for estimating bias
+  * @param uncertaintyCalibrationLevel  If defined, p-value at which to recalibrate uncertainty (0.683 corresponds to 1 standard deviation, 0.95 to 2 standard deviations, etc.)
+  * @param randBasis                    breeze RandBasis to use for generating breeze random numbers
   */
 case class MultiTaskBagger(
                             method: MultiTaskLearner,
                             numBags: Int = -1,
                             useJackknife: Boolean = true,
                             biasLearner: Option[Learner] = None,
-                            uncertaintyCalibration: Boolean = false,
+                            uncertaintyCalibrationLevel: Option[Double] = None,
                             randBasis: RandBasis = Rand
                           ) extends MultiTaskLearner {
 
@@ -60,7 +60,7 @@ case class MultiTaskBagger(
     val (biasModels, ratios) = Seq.tabulate(labels.length) { i =>
       val thisLabelModels: ParSeq[Model[PredictionResult[Any]]] = models.map(_.getModels(i))
       val isRegression = models.head.getRealLabels(i)
-      val helper = BaggerHelper(thisLabelModels, inputs.zip(labels(i)), Nib, useJackknife, uncertaintyCalibration)
+      val helper = BaggerHelper(thisLabelModels, inputs.zip(labels(i)), Nib, useJackknife, uncertaintyCalibrationLevel)
       val biasModel = if (biasLearner.isDefined && isRegression) {
         Async.canStop()
         Some(biasLearner.get.train(helper.biasTraining).getModel().asInstanceOf[Model[PredictionResult[Double]]])
