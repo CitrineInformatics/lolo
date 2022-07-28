@@ -33,7 +33,7 @@ class MultiTaskBaggerTest {
     val inputs = trainingData.map(_._1)
     val labels = trainingData.map(_._2)
     val DTLearner = MultiTaskTreeLearner()
-    val baggedLearner = MultiTaskBagger(DTLearner, numBags = trainingData.size, randBasis = TestUtils.getBreezeRandBasis(10478L), uncertaintyCalibration = true)
+    val baggedLearner = MultiTaskBagger(DTLearner, numBags = trainingData.size, randBasis = TestUtils.getBreezeRandBasis(10478L), uncertaintyCalibrationLevel = Some(0.683))
     val RFMeta = baggedLearner.train(inputs, Seq(labels))
     val RF = RFMeta.getModels().head
 
@@ -68,7 +68,7 @@ class MultiTaskBaggerTest {
               val trainingData = trainingDataTmp.map { x => (x._1, x._2 + noiseLevel * rng.nextDouble()) }
               val inputs = trainingData.map(_._1)
               val labels = trainingData.map(_._2)
-              val baggedLearner = MultiTaskBagger(baseLearner, numBags = nBags, uncertaintyCalibration = true, randBasis = TestUtils.getBreezeRandBasis(7835178L))
+              val baggedLearner = MultiTaskBagger(baseLearner, numBags = nBags, uncertaintyCalibrationLevel = Some(0.683), randBasis = TestUtils.getBreezeRandBasis(7835178L))
               val RFMeta = baggedLearner.train(inputs, Seq(labels))
               val RF = RFMeta.getModels().head
               val results = RF.transform(trainingData.take(4).map(_._1))
@@ -185,7 +185,7 @@ class MultiTaskBaggerTest {
       numBags = numBags,
       biasLearner = Some(RegressionTreeLearner(maxDepth = 2)),
       randBasis = TestUtils.getBreezeRandBasis(78495L),
-      uncertaintyCalibration = true
+      uncertaintyCalibrationLevel = Some(0.683)
     )
     val RF = baggedLearner.train(inputs, Seq(realLabel, catLabel))
 

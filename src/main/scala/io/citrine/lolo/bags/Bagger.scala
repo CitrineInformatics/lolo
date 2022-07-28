@@ -114,7 +114,8 @@ case class Bagger(
       .reduce(Bagger.combineImportance)
       .map(_.map(_ / importances.size))
 
-    val helper = BaggerHelper(models, trainingData, Nib, useJackknife, uncertaintyCalibration)
+    val uncertaintyCalibrationLevel = if (uncertaintyCalibration) Some(0.683) else None
+    val helper = BaggerHelper(models, trainingData, Nib, useJackknife, uncertaintyCalibrationLevel)
     val biasModel = if (biasLearner.isDefined && helper.oobErrors.nonEmpty && helper.isRegression) {
       Async.canStop()
       Some(biasLearner.get.train(helper.biasTraining).getModel().asInstanceOf[Model[PredictionResult[Double]]])

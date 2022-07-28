@@ -2,6 +2,7 @@ package io.citrine.lolo.bags
 
 import io.citrine.lolo.util.Async
 import io.citrine.lolo.{Model, PredictionResult, RegressionResult}
+import breeze.numerics.erfinv
 
 import scala.collection.parallel.immutable.ParSeq
 
@@ -12,14 +13,14 @@ import scala.collection.parallel.immutable.ParSeq
   * @param trainingData on which models were trained
   * @param Nib vector (over models) of vectors (over training data) of the number of repeats in each model's bag
   * @param useJackknife whether to use jackknife for uncertainty quantification
-  * @param uncertaintyCalibration whether to apply empirical uncertainty calibration
+  * @param uncertaintyCalibrationLevel If defined, p-value at which to recalibrate uncertainty
   */
 protected case class BaggerHelper(
                                    models: ParSeq[Model[PredictionResult[Any]]],
                                    trainingData: Seq[(Vector[Any],Any)],
                                    Nib: Vector[Vector[Int]],
                                    useJackknife: Boolean,
-                                   uncertaintyCalibration: Boolean
+                                   uncertaintyCalibrationLevel: Option[Double]
                                  ) {
   val isRegression: Boolean = trainingData.map{_._2}.find{ _ != null } match {
     case Some(_: Double) => true
@@ -54,13 +55,16 @@ protected case class BaggerHelper(
     * Calculate the uncertainty calibration ratio, which is the 68th percentile of error/uncertainty.
     * for the training points. If a point has 0 uncertainty, the ratio is 1 iff error is also 0, or infinity otherwise.
     */
-  val ratio = if (uncertaintyCalibration && isRegression && useJackknife) {
+  val ratio = if (uncertaintyCalibrationLevel.isDefined && isRegression && useJackknife) {
     Async.canStop()
-    oobErrors.map {
+    val normalizedResiduals = oobErrors.map {
       case (_, 0.0, 0.0) => 1.0
       case (_, _, 0.0) => Double.PositiveInfinity
       case (_, error, uncertainty) => Math.abs(error / uncertainty)
-    }.sorted.drop((oobErrors.size * 0.68).toInt).head
+    }.sorted
+    val cutoffNormResidual = normalizedResiduals.drop((oobErrors.size * uncertaintyCalibrationLevel.get).toInt).head
+    val numSigma = math.sqrt(2) * erfinv(uncertaintyCalibrationLevel.get)
+    cutoffNormResidual / numSigma
   } else {
     1.0
   }
