@@ -2,6 +2,7 @@ import sbt._
 
 object Dependencies {
   lazy val thetaVersion = "1.1.5"
+  lazy val sprandomVersion = "0.1.0"
   lazy val breezeVersion = "2.0"
   lazy val junitVersion = "4.13.1"
   lazy val scalaTestVersion = "3.2.2"
@@ -17,11 +18,13 @@ object Dependencies {
   )
 
   lazy val loloDeps = Seq(
-    "io.citrine"      %% "theta"           % thetaVersion,
-    "org.scalanlp"    %% "breeze"          % breezeVersion,
-    "junit"            % "junit"           % junitVersion     % "test",
-    "org.scalatest"   %% "scalatest"       % scalaTestVersion % "test",
-    "com.github.sbt"   % "junit-interface" % "0.13.3"         % "test",
-    "org.knowm.xchart" % "xchart"          % "3.5.2"
+      "io.citrine"            %% "theta"                      % thetaVersion,
+    "io.citrine"              %% "sprandom"                   % sprandomVersion,
+    "org.scalanlp"            %% "breeze"                     % breezeVersion,
+    "org.scala-lang.modules"  %% "scala-parallel-collections" % scalaParallelCollectionsVersion,
+    "junit"                    % "junit"                      % junitVersion     % "test",
+    "org.scalatest"           %% "scalatest"                  % scalaTestVersion % "test",
+    "com.github.sbt"           % "junit-interface"            % "0.13.3"         % "test",
+    "org.knowm.xchart"         % "xchart"                     % "3.5.2"
   )
 }

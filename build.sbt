@@ -1,8 +1,8 @@
 import Dependencies._
 
 ThisBuild / name := "lolo"
-ThisBuild / scalaVersion := "2.13.4"
-ThisBuild / crossScalaVersions := List("2.13.4", "2.12.4")
+ThisBuild / scalaVersion := "2.13.8"
+ThisBuild / crossScalaVersions := List("2.13.8")
 ThisBuild / organization := "io.citrine"
 ThisBuild / organizationName := "Citrine Informatics"
 ThisBuild / homepage := Some(url("https://github.com/CitrineInformatics/lolo"))
@@ -25,15 +25,6 @@ ThisBuild / sonatypeRepository := "https://s01.oss.sonatype.org/service/local"
 ThisBuild / pomIncludeRepository := { _ => false }
 
 ThisBuild / libraryDependencies ++= logging ++ loloDeps
-ThisBuild / libraryDependencies ++= {
-  CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, major)) if major <= 12 =>
-      Seq()
-    case _ =>
-      Seq("org.scala-lang.modules" %% "scala-parallel-collections" % scalaParallelCollectionsVersion)
-  }
-}
-
 ThisBuild / Test / testOptions += Tests.Argument(TestFrameworks.JUnit, "-v")
 
 // Assembly settings
