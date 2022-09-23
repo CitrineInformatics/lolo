@@ -1,6 +1,6 @@
 package io.citrine.lolo.learners
 
-import breeze.stats.distributions.{RandBasis, ThreadLocalRandomGenerator}
+import io.citrine.random.Random
 import io.citrine.lolo.bags.{Bagger, MultiTaskBagger}
 import io.citrine.lolo.linear.GuessTheMeanLearner
 import io.citrine.lolo.transformers.{FeatureRotator, MultiTaskFeatureRotator, MultiTaskStandardizer}
@@ -9,13 +9,9 @@ import io.citrine.lolo.trees.multitask.MultiTaskTreeLearner
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
 import io.citrine.lolo.trees.splits.{ClassificationSplitter, RegressionSplitter}
 import io.citrine.lolo.{Learner, TrainingResult}
-import org.apache.commons.math3.random.MersenneTwister
-
-import scala.util.Random
 
 /**
   * Standard random forest as a wrapper around bagged decision trees
-  * Created by maxhutch on 1/9/17.
   *
   * @param numTrees       number of trees to use (-1 => number of training instances)
   * @param useJackknife   whether to use jackknife based variance estimates
@@ -28,7 +24,6 @@ import scala.util.Random
   * @param uncertaintyCalibration whether to empirically recalibrate the predicted uncertainties (default: false)
   * @param randomizePivotLocation whether to generate splits randomly between the data points (default: false)
   * @param randomlyRotateFeatures whether to randomly rotate real features for each tree in the forest (default: false)
-  * @param rng            random number generator to use for stochastic functionality
   */
 case class RandomForest(
     numTrees: Int = -1,
@@ -40,8 +35,7 @@ case class RandomForest(
     maxDepth: Int = Integer.MAX_VALUE,
     uncertaintyCalibration: Boolean = true,
     randomizePivotLocation: Boolean = false,
-    randomlyRotateFeatures: Boolean = false,
-    rng: Random = Random
+    randomlyRotateFeatures: Boolean = false
 ) extends Learner {
 
   /**
@@ -52,10 +46,10 @@ case class RandomForest(
     *
     * @param trainingData to train on
     * @param weights      for the training rows, if applicable
+    * @param rng          random number generator for reproducibility
     * @return training result containing a model
     */
-  override def train(trainingData: Seq[(Vector[Any], Any)], weights: Option[Seq[Double]]): TrainingResult = {
-    val breezeRandBasis: RandBasis = new RandBasis(new ThreadLocalRandomGenerator(new MersenneTwister(rng.nextLong())))
+  override def train(trainingData: Seq[(Vector[Any], Any)], weights: Option[Seq[Double]], rng: Random): TrainingResult = {
     val repOutput = trainingData.head._2
     val isRegression = repOutput.isInstanceOf[Double] ||
       (repOutput.isInstanceOf[Seq[Any]] && repOutput.asInstanceOf[Seq[Any]].exists(_.isInstanceOf[Double]))
@@ -68,8 +62,7 @@ case class RandomForest(
           numFeatures = numFeatures,
           minLeafInstances = minLeafInstances,
           maxDepth = maxDepth,
-          splitter = RegressionSplitter(randomizePivotLocation, rng = rng),
-          rng = rng
+          splitter = RegressionSplitter(randomizePivotLocation)
         )
 
         val bagger = Bagger(
@@ -77,10 +70,9 @@ case class RandomForest(
           numBags = numTrees,
           useJackknife = useJackknife,
           biasLearner = biasLearner,
-          uncertaintyCalibration = uncertaintyCalibration,
-          randBasis = breezeRandBasis
+          uncertaintyCalibration = uncertaintyCalibration
         )
-        bagger.train(trainingData, weights)
+        bagger.train(trainingData, weights, rng)
       case _: Seq[Any] =>
         if (leafLearner.isDefined && !leafLearner.get.isInstanceOf[GuessTheMeanLearner]) {
           throw new IllegalArgumentException(
@@ -92,8 +84,7 @@ case class RandomForest(
             numFeatures = numFeatures,
             maxDepth = maxDepth,
             minLeafInstances = minLeafInstances,
-            randomizePivotLocation = randomizePivotLocation,
-            rng = rng
+            randomizePivotLocation = randomizePivotLocation
           )
         )
         val bagger = MultiTaskBagger(
@@ -101,25 +92,22 @@ case class RandomForest(
           numBags = numTrees,
           useJackknife = useJackknife,
           biasLearner = biasLearner,
-          uncertaintyCalibration = uncertaintyCalibration,
-          randBasis = breezeRandBasis
+          uncertaintyCalibration = uncertaintyCalibration
         )
-        bagger.train(trainingData.asInstanceOf[Seq[(Vector[Any], Vector[Any])]], weights)
+        bagger.train(trainingData.asInstanceOf[Seq[(Vector[Any], Vector[Any])]], weights, rng)
       case _: Any =>
         val DTLearner = ClassificationTreeLearner(
           leafLearner = leafLearner,
           numFeatures = numFeatures,
           minLeafInstances = minLeafInstances,
           maxDepth = maxDepth,
-          splitter = ClassificationSplitter(randomizePivotLocation, rng = rng),
-          rng = rng
+          splitter = ClassificationSplitter(randomizePivotLocation)
         )
         val bagger = Bagger(
           if (randomlyRotateFeatures) FeatureRotator(DTLearner) else DTLearner,
-          numBags = numTrees,
-          randBasis = breezeRandBasis
+          numBags = numTrees
         )
-        bagger.train(trainingData, weights)
+        bagger.train(trainingData, weights, rng)
     }
   }
 }

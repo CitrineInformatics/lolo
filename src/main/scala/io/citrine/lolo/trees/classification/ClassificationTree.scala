@@ -1,16 +1,13 @@
 package io.citrine.lolo.trees.classification
 
+import io.citrine.random.Random
 import io.citrine.lolo.encoders.CategoricalEncoder
 import io.citrine.lolo.linear.GuessTheMeanLearner
 import io.citrine.lolo.trees.splits.{ClassificationSplitter, NoSplit, Splitter}
 import io.citrine.lolo.trees.{ModelNode, TrainingLeaf, TrainingNode, TreeMeta}
 import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
 
-import scala.util.Random
-
 /**
-  * Created by maxhutch on 12/2/16.
-  *
   * @param numFeatures subset of features to select splits from
   * @param maxDepth maximum depth of tree
   * @param minLeafInstances minimum training instances per node
@@ -22,22 +19,23 @@ case class ClassificationTreeLearner(
     maxDepth: Int = 30,
     minLeafInstances: Int = 1,
     leafLearner: Option[Learner] = None,
-    splitter: Splitter[Char] = ClassificationSplitter(),
-    rng: Random = Random
+    splitter: Splitter[Char] = ClassificationSplitter()
 ) extends Learner {
 
-  @transient private lazy val myLeafLearner: Learner = leafLearner.getOrElse(GuessTheMeanLearner(rng = rng))
+  @transient private lazy val myLeafLearner: Learner = leafLearner.getOrElse(GuessTheMeanLearner())
 
   /**
     * Train classification tree
     *
     * @param trainingData to train on
     * @param weights      for the training rows, if applicable
+    * @param rng          random number generator for reproducibility
     * @return a classification tree
     */
   override def train(
       trainingData: Seq[(Vector[Any], Any)],
-      weights: Option[Seq[Double]]
+      weights: Option[Seq[Double]],
+      rng: Random
   ): ClassificationTrainingResult = {
     assert(trainingData.size > 4, s"We need to have at least 4 rows, only ${trainingData.size} given")
     val repInput = trainingData.head._1
@@ -76,9 +74,9 @@ case class ClassificationTreeLearner(
     }
 
     /* The tree is built of training nodes */
-    val (split, delta) = splitter.getBestSplit(finalTraining, numFeaturesActual, minLeafInstances)
+    val (split, delta) = splitter.getBestSplit(finalTraining, numFeaturesActual, minLeafInstances, rng)
     val rootTrainingNode = if (split.isInstanceOf[NoSplit] || maxDepth == 0) {
-      new TrainingLeaf(finalTraining, myLeafLearner, 0)
+      new TrainingLeaf(finalTraining, myLeafLearner, 0, rng)
     } else {
       new ClassificationTrainingNode(
         finalTraining,
@@ -90,7 +88,8 @@ case class ClassificationTreeLearner(
         maxDepth = maxDepth,
         minLeafInstances = minLeafInstances,
         numClasses = trainingData.map { _._2 }.distinct.length,
-        splitter = splitter
+        splitter = splitter,
+        rng = rng
       )
     }
 

@@ -1,6 +1,7 @@
 package io.citrine.lolo.hypers
 
 import io.citrine.lolo.Learner
+import io.citrine.random.Random
 
 /**
   * Base class for hyperparameter optimizers
@@ -35,6 +36,7 @@ abstract class HyperOptimizer() {
   def optimize(
       trainingData: Seq[(Vector[Any], Any)],
       numIterations: Int = 8,
-      builder: Map[String, Any] => Learner
+      builder: Map[String, Any] => Learner,
+      rng: Random = Random()
   ): (Map[String, Any], Double)
 }

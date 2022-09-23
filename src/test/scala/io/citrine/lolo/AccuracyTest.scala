@@ -3,6 +3,7 @@ package io.citrine.lolo
 import io.citrine.lolo.bags.Bagger
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
 import io.citrine.lolo.trees.splits.{BoltzmannSplitter, RegressionSplitter}
+import io.citrine.random.Random
 import org.junit.Test
 
 /**
@@ -24,10 +25,12 @@ class AccuracyTest extends SeedRandomMixIn {
     .asInstanceOf[Seq[(Vector[Any], Double)]] // binTrainingData isn't binning the labels
 
   // Get the out-of-bag RMSE
-  private def computeMetrics(learner: Learner): Double = {
-    learner.train(trainingData).getLoss().get
+  private def computeMetrics(learner: Learner, rng: Random): Double = {
+    learner.train(trainingData, rng = rng).getLoss().get
   }
 
+  // TODO (PLA-10388): enable this test
+  // TODO (PLA-10388): make reproducibility tests for classification and multitask forests
   /**
     * Test that setting rng yields repeatable results.
     */
@@ -83,9 +86,9 @@ class AccuracyTest extends SeedRandomMixIn {
     */
   @Test
   def testRandomForest(): Unit = {
-    val baseLearner = RegressionTreeLearner(numFeatures = nFeat / 3, minLeafInstances = minInstances, rng = rng)
+    val baseLearner = RegressionTreeLearner(numFeatures = nFeat / 3, minLeafInstances = minInstances)
     val learner = new Bagger(baseLearner, numBags = nRow * nScal)
-    val error = computeMetrics(learner)
+    val error = computeMetrics(learner, rng)
     assert(error > noiseLevel, s"Can't do better than noise")
     assert(error < 4.0, "Error increased, probably due to a change in configuration")
   }
@@ -98,24 +101,22 @@ class AccuracyTest extends SeedRandomMixIn {
     val errorStandardTree = {
       val baseLearner = RegressionTreeLearner(
         numFeatures = nFeat,
-        splitter = RegressionSplitter(randomizePivotLocation = true, rng = rng),
-        rng = rng
+        splitter = RegressionSplitter(randomizePivotLocation = true)
       )
       val learner =
-        new Bagger(baseLearner, numBags = nRow * 16, randBasis = TestUtils.getBreezeRandBasis(rng))
+        new Bagger(baseLearner, numBags = nRow * 16)
       // println(s"Normal train time: ${Stopwatch.time(computeMetrics(learner))}")
-      computeMetrics(learner)
+      computeMetrics(learner, rng)
     }
     val errorAnnealingTree = {
       val baseLearner = RegressionTreeLearner(
         numFeatures = nFeat,
-        splitter = BoltzmannSplitter(temperature = Float.MinPositiveValue, rng = rng),
-        rng = rng
+        splitter = BoltzmannSplitter(temperature = Float.MinPositiveValue)
       )
       val learner =
-        new Bagger(baseLearner, numBags = nRow * 16, randBasis = TestUtils.getBreezeRandBasis(rng))
+        new Bagger(baseLearner, numBags = nRow * 16)
       // println(s"Annealing train time: ${Stopwatch.time(computeMetrics(learner))}")
-      computeMetrics(learner)
+      computeMetrics(learner, rng)
     }
 
     val relativeDifference =
@@ -167,11 +168,10 @@ object AccuracyTest extends SeedRandomMixIn {
     val baseLearner = RegressionTreeLearner(
       numFeatures = nFeatSub,
       splitter = splitter,
-      minLeafInstances = minInstances,
-      rng = rng
+      minLeafInstances = minInstances
     )
     val learner = new Bagger(baseLearner, numBags = nRow * nScal, biasLearner = None)
-    val model = learner.train(trainingData).getModel()
+    val model = learner.train(trainingData, rng = rng).getModel()
     val (features, labels) = trainingData.unzip
     val predictions = model.transform(features)
     val expected = predictions.getExpected().asInstanceOf[Seq[Double]]

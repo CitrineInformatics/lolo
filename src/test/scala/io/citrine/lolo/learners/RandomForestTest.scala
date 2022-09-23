@@ -5,12 +5,10 @@ import breeze.stats.distributions.{Beta, RandBasis}
 import io.citrine.lolo.{SeedRandomMixIn, TestUtils}
 import io.citrine.lolo.bags.MultiTaskBaggedResult
 import io.citrine.lolo.stats.functions.Friedman
+import io.citrine.random.Random
 import org.junit.Test
 import org.scalatest.Assertions._
 
-/**
-  * Created by maxhutch on 1/9/17.
-  */
 @Test
 class RandomForestTest extends SeedRandomMixIn {
 
@@ -25,7 +23,7 @@ class RandomForestTest extends SeedRandomMixIn {
     )
 
     Seq(true, false).foreach { randomlyRotateFeatures =>
-      val RFMeta = RandomForest(randomlyRotateFeatures = randomlyRotateFeatures, rng = rng)
+      val RFMeta = RandomForest(randomlyRotateFeatures = randomlyRotateFeatures)
         .train(trainingData)
       val RF = RFMeta.getModel()
 
@@ -60,7 +58,7 @@ class RandomForestTest extends SeedRandomMixIn {
     val quadLabel: Seq[Double] = realLabel.map(x => x * x)
     val labels = Vector(realLabel, catLabel, quadLabel).transpose
 
-    val RFMeta = RandomForest(rng = rng).train(inputs.zip(labels))
+    val RFMeta = RandomForest().train(inputs.zip(labels), rng = rng)
     val model = RFMeta.getModel()
 
     val results = model.transform(inputs).asInstanceOf[MultiTaskBaggedResult]
@@ -82,8 +80,8 @@ class RandomForestTest extends SeedRandomMixIn {
 
     Seq(true, false).foreach { randomlyRotateFeatures =>
       val RFMeta =
-        RandomForest(numTrees = trainingData.size * 2, randomlyRotateFeatures = randomlyRotateFeatures, rng = rng)
-          .train(trainingData)
+        RandomForest(numTrees = trainingData.size * 2, randomlyRotateFeatures = randomlyRotateFeatures)
+          .train(trainingData, rng = rng)
       val RF = RFMeta.getModel()
 
       /* Inspect the results */
@@ -124,8 +122,8 @@ class RandomForestTest extends SeedRandomMixIn {
           (mainTrainingData.head._1, dupeLabel)
         ) ++ mainTrainingData
 
-        val RFSuffixed = RandomForest(numTrees = trainingDataSuffixed.size * 2, rng = rng).train(trainingDataSuffixed)
-        val RFPrefixed = RandomForest(numTrees = trainingDataPrefixed.size * 2, rng = rng).train(trainingDataPrefixed)
+        val RFSuffixed = RandomForest(numTrees = trainingDataSuffixed.size * 2).train(trainingDataSuffixed, rng = rng)
+        val RFPrefixed = RandomForest(numTrees = trainingDataPrefixed.size * 2).train(trainingDataPrefixed, rng = rng)
         val predictedSuffixed = RFSuffixed.getModel().transform(mainTrainingData.map(_._1))
         val predictedPrefixed = RFPrefixed.getModel().transform(mainTrainingData.map(_._1))
         val extraLabelCountSuffixed = predictedSuffixed.getExpected().count { case p: String => p == dupeLabel }
@@ -172,19 +170,19 @@ class RandomForestTest extends SeedRandomMixIn {
     )
 
     // Create a consistent set of parameters
-    val baseForest = RandomForest(numTrees = 16384, useJackknife = false, rng = rng)
+    val baseForest = RandomForest(numTrees = 16384, useJackknife = false)
 
     // Turn off split randomization and compute the loss (out-of-bag error)
     val lossWithoutRandomization: Double = baseForest
       .copy(randomizePivotLocation = false)
-      .train(trainingData)
+      .train(trainingData, rng = rng)
       .getLoss()
       .get
 
     // Turn on split randomization and compute the loss (out-of-bag error)
     val lossWithRandomization: Double = baseForest
       .copy(randomizePivotLocation = true)
-      .train(trainingData)
+      .train(trainingData, rng = rng)
       .getLoss()
       .get
 
@@ -199,9 +197,9 @@ class RandomForestTest extends SeedRandomMixIn {
     val trainingData = TestUtils.generateTrainingData(8, 1, rng = rng)
     // the number of trees is the number of times we generate weights
     // so this has the effect of creating lots of different sets of weights
-    val learner = RandomForest(numTrees = 16384, rng = rng)
+    val learner = RandomForest(numTrees = 16384)
     // the test is that this training doesn't throw an exception
-    learner.train(trainingData).getModel()
+    learner.train(trainingData, rng = rng).getModel()
   }
 
   def shapleyCompare(
@@ -210,7 +208,7 @@ class RandomForestTest extends SeedRandomMixIn {
       expected: Vector[Double],
       rtol: Double = 5e-2
   ): Unit = {
-    val actual = RandomForest(rng = rng).train(trainingData).getModel().shapley(evalLocation) match {
+    val actual = RandomForest().train(trainingData, rng = rng).getModel().shapley(evalLocation) match {
       case None => fail("Unexpected None returned by shapley.")
       case x: Option[DenseMatrix[Double]] => {
         val a = x.get
@@ -230,7 +228,7 @@ class RandomForestTest extends SeedRandomMixIn {
     */
   @Test
   def testShapley(): Unit = {
-    rng.setSeed(3753L)
+    rng = Random(3753L)
 
     // Example from Lundberg paper (https://arxiv.org/pdf/1802.03888.pdf)
     val trainingData1 = Seq(

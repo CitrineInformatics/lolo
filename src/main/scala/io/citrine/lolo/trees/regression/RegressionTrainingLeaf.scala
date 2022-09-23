@@ -2,17 +2,18 @@ package io.citrine.lolo.trees.regression
 
 import io.citrine.lolo.trees.{ModelLeaf, ModelNode, TrainingNode}
 import io.citrine.lolo.{Learner, Model, PredictionResult}
+import io.citrine.random.Random
 
 import scala.collection.mutable
 
 /**
   * Training leaf node for regression trees
-  * Created by maxhutch on 3/8/17.
   */
 class RegressionTrainingLeaf(
     trainingData: Seq[(Vector[AnyVal], Double, Double)],
     leafLearner: Learner,
-    depth: Int
+    depth: Int,
+    rng: Random
 ) extends TrainingNode(trainingData, depth) {
 
   /**
@@ -48,7 +49,7 @@ class RegressionTrainingLeaf(
   }
 
   /** Train the leaf learner on the training data */
-  val leafTrainingResult = leafLearner.train(trainingData)
+  val leafTrainingResult = leafLearner.train(trainingData, rng = rng)
 
   /** Pull out the model for future use */
   val model = leafTrainingResult.getModel().asInstanceOf[Model[PredictionResult[Double]]]

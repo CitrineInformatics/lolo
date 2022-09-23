@@ -1,9 +1,11 @@
 package io.citrine.lolo.bags
 
-import breeze.stats.distributions.{Poisson, Rand, RandBasis}
+import breeze.stats.distributions.{Poisson, RandBasis, ThreadLocalRandomGenerator}
+import io.citrine.random.Random
 import io.citrine.lolo._
 import io.citrine.lolo.stats.metrics.{ClassificationMetrics, RegressionMetrics}
 import io.citrine.lolo.util.{Async, InterruptibleExecutionContext}
+import org.apache.commons.math3.random.MersenneTwister
 
 import scala.collection.parallel.ExecutionContextTaskSupport
 import scala.collection.parallel.immutable.{ParRange, ParSeq}
@@ -16,20 +18,19 @@ import scala.collection.parallel.immutable.{ParRange, ParSeq}
   * @param useJackknife           whether to enable jackknife uncertainty estimate
   * @param biasLearner            learner to use for estimating bias
   * @param uncertaintyCalibration whether to empirically recalibrate the predicted uncertainties
-  * @param randBasis              breeze RandBasis to use for generating breeze random numbers
   */
 case class MultiTaskBagger(
     method: MultiTaskLearner,
     numBags: Int = -1,
     useJackknife: Boolean = true,
     biasLearner: Option[Learner] = None,
-    uncertaintyCalibration: Boolean = true,
-    randBasis: RandBasis = Rand
+    uncertaintyCalibration: Boolean = true
 ) extends MultiTaskLearner {
 
   override def train(
       trainingData: Seq[(Vector[Any], Vector[Any])],
-      weights: Option[Seq[Double]] = None
+      weights: Option[Seq[Double]],
+      rng: Random
   ): MultiTaskBaggedTrainingResult = {
     val (inputs, labels) = trainingData.unzip
     val numInputs = inputs.head.length
@@ -53,6 +54,7 @@ case class MultiTaskBagger(
     val actualBags = if (numBags > 0) numBags else trainingData.size
 
     // Compute the number of instances of each training row in each training sample
+    val randBasis = new RandBasis(new ThreadLocalRandomGenerator(new MersenneTwister(rng.nextLong())))
     val dist = new Poisson(1.0)(randBasis)
     val Nib: Vector[Vector[Int]] = Iterator
       .continually(Vector.fill(trainingData.size)(dist.draw))
@@ -69,8 +71,9 @@ case class MultiTaskBagger(
 
     val parIterator = new ParRange(Nib.indices)
     parIterator.tasksupport = new ExecutionContextTaskSupport(InterruptibleExecutionContext())
+    // TODO (PLA-10388): use rng.zip
     val (models: ParSeq[MultiTaskModel], importances: ParSeq[Option[Vector[Double]]]) = parIterator.map { i =>
-      val meta = method.train(trainingData, Some(Nib(i).zip(weightsActual).map(p => p._1.toDouble * p._2)))
+      val meta = method.train(trainingData, Some(Nib(i).zip(weightsActual).map(p => p._1.toDouble * p._2)), rng)
       (meta.getModel(), meta.getFeatureImportance())
     }.unzip
 
@@ -87,7 +90,7 @@ case class MultiTaskBagger(
         val helper = BaggerHelper(thisLabelModels, thisTrainingData, Nib, useJackknife, uncertaintyCalibration)
         val biasModel = if (biasLearner.isDefined && isRegression) {
           Async.canStop()
-          Some(biasLearner.get.train(helper.biasTraining).getModel().asInstanceOf[Model[PredictionResult[Double]]])
+          Some(biasLearner.get.train(helper.biasTraining, rng = rng).getModel().asInstanceOf[Model[PredictionResult[Double]]])
         } else None
         (biasModel, helper.rescaleRatio)
       }

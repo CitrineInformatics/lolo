@@ -1,13 +1,9 @@
 package io.citrine.lolo.trees.splits
 
+import io.citrine.random.Random
 import io.citrine.lolo.trees.impurity.MultiImpurityCalculator
 
-import scala.util.Random
-
-/**
-  * Created by maxhutch on 11/29/16.
-  */
-case class MultiTaskSplitter(randomizePivotLocation: Boolean = false, rng: Random = Random)
+case class MultiTaskSplitter(randomizePivotLocation: Boolean = false)
     extends Splitter[Array[AnyVal]] {
 
   /**
@@ -15,13 +11,15 @@ case class MultiTaskSplitter(randomizePivotLocation: Boolean = false, rng: Rando
     *
     * @param data        to split
     * @param numFeatures to consider, randomly
-    * @param minInstances the minimum number of data points on a split node
+    * @param minInstances minimum instances permitted in a post-split partition
+    * @param rng          random number generator for reproducibility
     * @return a split object that optimally divides data
     */
   def getBestSplit(
       data: Seq[(Vector[AnyVal], Array[AnyVal], Double)],
       numFeatures: Int,
-      minInstances: Int
+      minInstances: Int,
+      rng: Random
   ): (Split, Double) = {
     var bestSplit: Split = new NoSplit()
     var bestImpurity = Double.MaxValue

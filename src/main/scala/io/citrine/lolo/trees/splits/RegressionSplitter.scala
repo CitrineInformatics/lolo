@@ -1,9 +1,9 @@
 package io.citrine.lolo.trees.splits
 
 import io.citrine.lolo.trees.impurity.VarianceCalculator
+import io.citrine.random.Random
 
 import scala.collection.immutable.BitSet
-import scala.util.Random
 
 /**
   * Find the best split for regression problems.
@@ -20,19 +20,22 @@ import scala.util.Random
   *
   * Created by maxhutch on 11/29/16.
   */
-case class RegressionSplitter(randomizePivotLocation: Boolean = false, rng: Random = Random) extends Splitter[Double] {
+case class RegressionSplitter(randomizePivotLocation: Boolean = false) extends Splitter[Double] {
 
   /**
     * Get the best split, considering numFeature random features (w/o replacement)
     *
     * @param data        to split
     * @param numFeatures to consider, randomly
+    * @param minInstances minimum instances permitted in a post-split partition
+    * @param rng          random number generator for reproducibility
     * @return a split object that optimally divides data
     */
   def getBestSplit(
       data: Seq[(Vector[AnyVal], Double, Double)],
       numFeatures: Int,
-      minInstances: Int
+      minInstances: Int,
+      rng: Random
   ): (Split, Double) = {
 
     val calculator = VarianceCalculator.build(data.map(_._2), data.map(_._3))

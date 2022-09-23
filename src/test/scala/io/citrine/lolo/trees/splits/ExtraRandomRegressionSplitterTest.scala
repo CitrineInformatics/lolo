@@ -1,6 +1,7 @@
 package io.citrine.lolo.trees.splits
 
 import io.citrine.lolo.{SeedRandomMixIn, TestUtils}
+import io.citrine.random.Random
 import org.junit.Test
 
 class ExtraRandomRegressionSplitterTest extends SeedRandomMixIn {
@@ -10,7 +11,7 @@ class ExtraRandomRegressionSplitterTest extends SeedRandomMixIn {
     */
   @Test
   def testZeroVariance(): Unit = {
-    val splitter = ExtraRandomRegressionSplitter(rng)
+    val splitter = ExtraRandomRegressionSplitter()
     val testData = Seq.fill(64) {
       val x = rng.nextDouble()
       val y = 1.0
@@ -31,7 +32,7 @@ class ExtraRandomRegressionSplitterTest extends SeedRandomMixIn {
     */
   @Test
   def testLowVariance(): Unit = {
-    val splitter = ExtraRandomRegressionSplitter(rng)
+    val splitter = ExtraRandomRegressionSplitter()
     val testData = Seq.fill(256) {
       val x = rng.nextDouble()
       val y = rng.nextGaussian() * 1.0e-9 + 1.0
@@ -39,7 +40,7 @@ class ExtraRandomRegressionSplitterTest extends SeedRandomMixIn {
       (Vector(x), y, weight)
     }
 
-    splitter.getBestSplit(testData, 1, 1)
+    splitter.getBestSplit(testData, 1, 1, rng = rng)
   }
 
   /**
@@ -74,7 +75,7 @@ class ExtraRandomRegressionSplitterTest extends SeedRandomMixIn {
 
             // Determine exactly what shuffle() and nextDouble() will return within getBestSplit by resetting rng to a common rng seed.
             val sharedSeed = 238745L + repetitionNumber
-            rng.setSeed(sharedSeed)
+            rng = Random(sharedSeed)
             // This is the set of shuffled indices to return when getBestSplit calls the RNG's shuffle method.
             val shuffledFeatureIndices = rng.shuffle(featureIndices)
             // Precompute the sequence of numbers returned when getBestSplit calls the RNG's nextDouble method to select cut points.
@@ -119,10 +120,10 @@ class ExtraRandomRegressionSplitterTest extends SeedRandomMixIn {
               ._1
 
             // Instantiate the splitter to test, passing in the random number generator that is reset to its former state used above.
-            rng.setSeed(sharedSeed)
-            val splitter = ExtraRandomRegressionSplitter(rng)
+            rng = Random(sharedSeed)
+            val splitter = ExtraRandomRegressionSplitter()
             // Ask the splitter what it chose as a split.
-            val bestSplit = splitter.getBestSplit(trainingData, numFeaturesToConsider, 1)
+            val bestSplit = splitter.getBestSplit(trainingData, numFeaturesToConsider, 1, rng = rng)
 
             // Finally, we can ensure that the index on which we split is correct...
             val testCaveatMessage = "NOTE: this test may inaccurately fail due to changes in the sequence of rng calls."

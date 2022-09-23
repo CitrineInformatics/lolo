@@ -1,7 +1,7 @@
 package io.citrine.lolo.bags
 
 import breeze.linalg.DenseMatrix
-import breeze.stats.distributions.{Poisson, Rand, RandBasis}
+import breeze.stats.distributions.{Poisson, RandBasis, ThreadLocalRandomGenerator}
 import io.citrine.lolo.stats.metrics.{ClassificationMetrics, RegressionMetrics}
 import io.citrine.lolo.util.{Async, InterruptibleExecutionContext}
 import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
@@ -9,11 +9,11 @@ import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
 import scala.collection.parallel.ExecutionContextTaskSupport
 import scala.collection.parallel.immutable.{ParRange, ParSeq}
 import scala.reflect._
+import _root_.io.citrine.random.Random
+import org.apache.commons.math3.random.MersenneTwister
 
 /**
   * A bagger creates an ensemble of models by training the learner on random samples of the training data
-  *
-  * Created by maxhutch on 11/14/16.
   *
   * @param method  learner to train each model in the ensemble
   * @param numBags number of base models to aggregate (default of -1 sets the number of models to the number of training rows)
@@ -21,7 +21,6 @@ import scala.reflect._
   * @param biasLearner learner to use for estimating bias
   * @param uncertaintyCalibration whether to enable empirical uncertainty calibration
   * @param disableBootstrap whether to disable bootstrap (useful when `method` implements its own randomization)
-  * @param randBasis breeze RandBasis to use for generating breeze random numbers
   */
 case class Bagger(
     method: Learner,
@@ -29,8 +28,7 @@ case class Bagger(
     useJackknife: Boolean = true,
     biasLearner: Option[Learner] = None,
     uncertaintyCalibration: Boolean = true,
-    disableBootstrap: Boolean = false,
-    randBasis: RandBasis = Rand
+    disableBootstrap: Boolean = false
 ) extends Learner {
   require(
     !(uncertaintyCalibration && disableBootstrap),
@@ -42,11 +40,13 @@ case class Bagger(
     *
     * @param trainingData to train on
     * @param weights      for the training rows, if applicable
+    * @param rng          random number generator for reproducibility
     * @return a model
     */
   override def train(
       trainingData: Seq[(Vector[Any], Any)],
-      weights: Option[Seq[Double]] = None
+      weights: Option[Seq[Double]],
+      rng: Random
   ): BaggedTrainingResult[Any] = {
     /* Make sure the training data is the same size */
     assert(trainingData.forall(trainingData.head._1.size == _._1.size))
@@ -76,6 +76,7 @@ case class Bagger(
     )
 
     /* Compute the number of instances of each training row in each training sample */
+    val randBasis = new RandBasis(new ThreadLocalRandomGenerator(new MersenneTwister(rng.nextLong())))
     val dist = new Poisson(1.0)(randBasis)
     val Nib: Vector[Vector[Int]] = if (disableBootstrap) {
       Vector.fill[Vector[Int]](actualBags)(Vector.fill[Int](trainingData.size)(1))
@@ -102,6 +103,7 @@ case class Bagger(
     }
 
     /* Learn the actual models in parallel */
+    // TODO (PLA-10388): use rng.zip
     val parIterator = new ParRange(0 until actualBags)
     parIterator.tasksupport = new ExecutionContextTaskSupport(InterruptibleExecutionContext())
     val (models, importances: ParSeq[Option[Vector[Double]]]) = parIterator.map { i =>
@@ -109,7 +111,7 @@ case class Bagger(
       val sampleWeights = Nib(i).zip(weightsActual).map(p => p._1.toDouble * p._2)
 
       // Train the model
-      val meta = method.train(trainingData.toVector, Some(sampleWeights))
+      val meta = method.train(trainingData.toVector, Some(sampleWeights), rng)
 
       // Extract the model and feature importance from the TrainingResult
       (meta.getModel(), meta.getFeatureImportance())

@@ -5,14 +5,10 @@ import io.citrine.lolo.stats.functions.Friedman
 import io.citrine.lolo.stats.metrics.ClassificationMetrics
 import io.citrine.lolo.trees.classification.{ClassificationTree, ClassificationTreeLearner}
 import io.citrine.lolo.trees.regression.RegressionTree
+import io.citrine.random.Random
 import org.junit.Test
 import org.scalatest.Assertions._
 
-import scala.util.Random
-
-/**
-  * Created by maxhutch on 11/29/16.
-  */
 @Test
 class MultiTaskTreeTest extends SeedRandomMixIn {
 
@@ -98,12 +94,12 @@ class MultiTaskTreeTest extends SeedRandomMixIn {
   def testSingleModelEquality(): Unit = {
     // Train twice with the same seed, first outputting two models and then outputting a combined model.
     val seed = 817235L
-    val trainRng = new Random(seed)
-    val combinedModelRng = new Random(seed)
-    val learner = MultiTaskTreeLearner(rng = trainRng)
-    val combinedModelLearner = MultiTaskTreeLearner(rng = combinedModelRng)
-    val models = learner.train(inputs.zip(labels)).getModels()
-    val combinedModel = combinedModelLearner.train(inputs.zip(labels)).getModel()
+    val trainRng = Random(seed)
+    val combinedModelRng = Random(seed)
+    val learner = MultiTaskTreeLearner()
+    val combinedModelLearner = MultiTaskTreeLearner()
+    val models = learner.train(inputs.zip(labels), rng = trainRng).getModels()
+    val combinedModel = combinedModelLearner.train(inputs.zip(labels), rng = combinedModelRng).getModel()
 
     // Generate new inputs to test equality on.
     val testInputs = TestUtils
@@ -118,8 +114,8 @@ class MultiTaskTreeTest extends SeedRandomMixIn {
   /** Test that feature importance correctly identifies the 1st feature as the most important for Friedman-Silverman. */
   @Test
   def testFeatureImportance(): Unit = {
-    val multiTaskLearner = MultiTaskTreeLearner(rng = rng)
-    val multiTaskTrainingResult = multiTaskLearner.train(inputs.zip(labels))
+    val multiTaskLearner = MultiTaskTreeLearner()
+    val multiTaskTrainingResult = multiTaskLearner.train(inputs.zip(labels), rng = rng)
     val importances = multiTaskTrainingResult.getFeatureImportance().get
     assert(importances(1) == importances.max)
   }

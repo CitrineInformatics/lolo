@@ -39,9 +39,9 @@ class BaggerTest extends SeedRandomMixIn {
     )
 
     val baseLearner = new Standardizer(LinearRegressionLearner(regParam = Some(0.5)))
-    val baggedLearner = Bagger(baseLearner, numBags = trainingData.size, randBasis = TestUtils.getBreezeRandBasis(rng))
+    val baggedLearner = Bagger(baseLearner, numBags = trainingData.size)
 
-    val learnerMeta = baggedLearner.train(trainingData)
+    val learnerMeta = baggedLearner.train(trainingData, rng = rng)
     val model = learnerMeta.getModel()
 
     assert(learnerMeta.getLoss().get < 1.0, "Loss of bagger is larger than expected")
@@ -61,10 +61,10 @@ class BaggerTest extends SeedRandomMixIn {
       TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng),
       inputBins = Seq((0, 8))
     )
-    val DTLearner = RegressionTreeLearner(numFeatures = 3, rng = rng)
+    val DTLearner = RegressionTreeLearner(numFeatures = 3)
     val baggedLearner =
-      Bagger(DTLearner, numBags = trainingData.size, randBasis = TestUtils.getBreezeRandBasis(rng))
-    val RFMeta = baggedLearner.train(trainingData)
+      Bagger(DTLearner, numBags = trainingData.size)
+    val RFMeta = baggedLearner.train(trainingData, rng = rng)
     val RF = RFMeta.getModel()
 
     assert(RFMeta.getLoss().get < 1.0, "Loss of bagger is larger than expected")
@@ -93,8 +93,8 @@ class BaggerTest extends SeedRandomMixIn {
     )
     val DTLearner = ClassificationTreeLearner()
     val baggedLearner =
-      Bagger(DTLearner, numBags = trainingData.size / 2, randBasis = TestUtils.getBreezeRandBasis(rng))
-    val RFMeta = baggedLearner.train(trainingData)
+      Bagger(DTLearner, numBags = trainingData.size / 2)
+    val RFMeta = baggedLearner.train(trainingData, rng = rng)
     val RF = RFMeta.getModel()
 
     /* Inspect the results */
@@ -130,15 +130,14 @@ class BaggerTest extends SeedRandomMixIn {
     val nFeatures = 5
     val bagsPerRow = 4 // picked to be large enough that bias correction is small but model isn't too expensive
     val trainingData = TestUtils.generateTrainingData(128, nFeatures, xscale = width, rng = rng)
-    val DTLearner = RegressionTreeLearner(numFeatures = nFeatures, rng = rng)
-    val bias = RegressionTreeLearner(maxDepth = 4, rng = rng)
+    val DTLearner = RegressionTreeLearner(numFeatures = nFeatures)
+    val bias = RegressionTreeLearner(maxDepth = 4)
     val baggedLearner = Bagger(
       DTLearner,
       numBags = bagsPerRow * trainingData.size,
-      biasLearner = Some(bias),
-      randBasis = TestUtils.getBreezeRandBasis(rng)
+      biasLearner = Some(bias)
     )
-    val RFMeta = baggedLearner.train(trainingData)
+    val RFMeta = baggedLearner.train(trainingData, rng = rng)
     val RF = RFMeta.getModel()
 
     val interiorTestSet =
@@ -168,10 +167,9 @@ class BaggerTest extends SeedRandomMixIn {
     // setup a relatively complicated random forest (turn a bunch of stuff on)
     val DTLearner = RegressionTreeLearner(
       numFeatures = nFeatures,
-      leafLearner = Some(GuessTheMeanLearner(rng = rng)),
+      leafLearner = Some(GuessTheMeanLearner()),
       maxDepth = 30,
-      splitter = RegressionSplitter(randomizePivotLocation = true, rng = rng),
-      rng = rng
+      splitter = RegressionSplitter(randomizePivotLocation = true)
     )
 
     val bagger = new Bagger(
@@ -181,17 +179,15 @@ class BaggerTest extends SeedRandomMixIn {
       biasLearner = Some(
         RegressionTreeLearner(
           maxDepth = 3,
-          leafLearner = Some(GuessTheMeanLearner(rng = rng)),
-          splitter = RegressionSplitter(randomizePivotLocation = true),
-          rng = rng
+          leafLearner = Some(GuessTheMeanLearner()),
+          splitter = RegressionSplitter(randomizePivotLocation = true)
         )
       ),
-      uncertaintyCalibration = true,
-      randBasis = TestUtils.getBreezeRandBasis(rng)
+      uncertaintyCalibration = true
     )
 
     // Make sure the model trains
-    val model = bagger.train(X.zip(y)).getModel()
+    val model = bagger.train(X.zip(y), rng = rng).getModel()
 
     // Generate a new test set and make sure the predictions are 0 +/- 0
     val testX: Vector[Vector[Any]] =
@@ -213,13 +209,12 @@ class BaggerTest extends SeedRandomMixIn {
   def testScores(): Unit = {
     val csv = TestUtils.readCsv("double_example.csv")
     val trainingData = csv.map(vec => (vec.init, vec.last.asInstanceOf[Double]))
-    val DTLearner = RegressionTreeLearner(rng = rng)
+    val DTLearner = RegressionTreeLearner()
     val baggedLearner = Bagger(
       DTLearner,
-      numBags = trainingData.size * 16,
-      randBasis = TestUtils.getBreezeRandBasis(rng)
+      numBags = trainingData.size * 16
     ) // use lots of trees to reduce noise
-    val RF = baggedLearner.train(trainingData).getModel()
+    val RF = baggedLearner.train(trainingData, rng = rng).getModel()
 
     /* Call transform on the training data */
     val results = RF.transform(trainingData.map(_._1))
@@ -242,15 +237,14 @@ class BaggerTest extends SeedRandomMixIn {
       TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng),
       inputBins = Seq((0, 8))
     )
-    val DTLearner = RegressionTreeLearner(numFeatures = 3, rng = rng)
+    val DTLearner = RegressionTreeLearner(numFeatures = 3)
     val start = System.nanoTime()
     Bagger(
       DTLearner,
       numBags = trainingData.size,
-      uncertaintyCalibration = false,
-      randBasis = TestUtils.getBreezeRandBasis(rng)
+      uncertaintyCalibration = false
     )
-      .train(trainingData)
+      .train(trainingData, rng = rng)
       .getModel()
     val unCalibratedTime = 1.0e-9 * (System.nanoTime() - start)
 
@@ -258,10 +252,9 @@ class BaggerTest extends SeedRandomMixIn {
     Bagger(
       DTLearner,
       numBags = 64,
-      uncertaintyCalibration = true,
-      randBasis = TestUtils.getBreezeRandBasis(rng)
+      uncertaintyCalibration = true
     )
-      .train(trainingData)
+      .train(trainingData, rng = rng)
       .getModel()
     val calibratedTime = 1.0e-9 * (System.nanoTime() - startAgain)
 
@@ -275,16 +268,16 @@ class BaggerTest extends SeedRandomMixIn {
   def testInterrupt(): Unit = {
     val trainingData =
       TestUtils.generateTrainingData(2048, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng)
-    val DTLearner = RegressionTreeLearner(numFeatures = 3, rng = rng)
+    val DTLearner = RegressionTreeLearner(numFeatures = 3)
     val baggedLearner =
-      Bagger(DTLearner, numBags = trainingData.size, randBasis = TestUtils.getBreezeRandBasis(rng))
+      Bagger(DTLearner, numBags = trainingData.size)
 
     // Create a future to run train
     val tmpPool = Executors.newFixedThreadPool(1)
     val fut: Future[BaggedTrainingResult[Any]] = tmpPool.submit(
       new Callable[BaggedTrainingResult[Any]] {
         override def call(): BaggedTrainingResult[Any] = {
-          val res: BaggedTrainingResult[Any] = baggedLearner.train(trainingData)
+          val res: BaggedTrainingResult[Any] = baggedLearner.train(trainingData, rng = rng)
           assert(false, "Training was not terminated")
           res
         }
@@ -335,19 +328,17 @@ class BaggerTest extends SeedRandomMixIn {
      * then the model will fail to train
      */
     val DTLearner = RegressionTreeLearner(
-      leafLearner = Some(GuessTheMeanLearner(rng = rng)),
+      leafLearner = Some(GuessTheMeanLearner()),
       numFeatures = 2,
-      splitter = RegressionSplitter(randomizePivotLocation = true, rng = rng),
-      rng = rng
+      splitter = RegressionSplitter(randomizePivotLocation = true)
     )
     val trainedModel: BaggedModel[Any] = Bagger(
       DTLearner,
       numBags = 16,
       useJackknife = true,
-      uncertaintyCalibration = true,
-      randBasis = TestUtils.getBreezeRandBasis(rng)
+      uncertaintyCalibration = true
     )
-      .train(trainingData)
+      .train(trainingData, rng = rng)
       .getModel()
 
     try {
@@ -356,10 +347,9 @@ class BaggerTest extends SeedRandomMixIn {
         numBags = 16,
         useJackknife = true,
         uncertaintyCalibration = true,
-        disableBootstrap = true,
-        randBasis = TestUtils.getBreezeRandBasis(rng)
+        disableBootstrap = true
       )
-        .train(trainingData)
+        .train(trainingData, rng = rng)
         .getModel()
       fail("Setting both uncertaintyCalibration and disableBootstrap should throw an exception.")
     } catch {
@@ -379,9 +369,9 @@ class BaggerTest extends SeedRandomMixIn {
     (0 until 16384).foreach { idx =>
       val trainingData =
         TestUtils.generateTrainingData(16, 5, noise = 0.0, function = Friedman.friedmanSilverman, rng = rng)
-      val DTLearner = RegressionTreeLearner(numFeatures = 2, rng = rng)
-      val sigma = Bagger(DTLearner, numBags = 7, randBasis = TestUtils.getBreezeRandBasis(rng))
-        .train(trainingData)
+      val DTLearner = RegressionTreeLearner(numFeatures = 2)
+      val sigma = Bagger(DTLearner, numBags = 7)
+        .train(trainingData, rng = rng)
         .getModel()
         .transform(trainingData.map(_._1))
         .getUncertainty()
@@ -401,14 +391,13 @@ class BaggerTest extends SeedRandomMixIn {
     (0 until 1024).foreach { idx =>
       val trainingData =
         TestUtils.generateTrainingData(16, 5, noise = 0.0, function = Friedman.friedmanSilverman, rng = rng)
-      val DTLearner = RegressionTreeLearner(numFeatures = 2, rng = rng)
+      val DTLearner = RegressionTreeLearner(numFeatures = 2)
       val sigma = Bagger(
         DTLearner,
         numBags = 7,
-        biasLearner = Some(GuessTheMeanLearner(rng = rng)),
-        randBasis = TestUtils.getBreezeRandBasis(rng)
+        biasLearner = Some(GuessTheMeanLearner())
       )
-        .train(trainingData)
+        .train(trainingData, rng = rng)
         .getModel()
         .transform(trainingData.map(_._1))
         .getUncertainty()
@@ -431,9 +420,9 @@ class BaggerTest extends SeedRandomMixIn {
       function = Friedman.friedmanSilverman,
       rng = rng
     )
-    val DTLearner = RegressionTreeLearner(numFeatures = nCols, rng = rng)
-    val model = Bagger(DTLearner, randBasis = TestUtils.getBreezeRandBasis(rng))
-      .train(trainingData)
+    val DTLearner = RegressionTreeLearner(numFeatures = nCols)
+    val model = Bagger(DTLearner)
+      .train(trainingData, rng = rng)
       .getModel()
     val trees = model.getModels()
     trainingData.foreach {
@@ -473,9 +462,9 @@ class BaggerTest extends SeedRandomMixIn {
       function = Friedman.friedmanSilverman,
       rng = rng
     )
-    val learner = FeatureRotator(RegressionTreeLearner(numFeatures = nCols, rng = rng))
-    val model = Bagger(learner, randBasis = TestUtils.getBreezeRandBasis(rng))
-      .train(trainingData)
+    val learner = FeatureRotator(RegressionTreeLearner(numFeatures = nCols))
+    val model = Bagger(learner)
+      .train(trainingData, rng = rng)
       .getModel()
 
     val x = trainingData.head._1
@@ -514,10 +503,10 @@ object BaggerTest extends SeedRandomMixIn {
             function = Friedman.friedmanSilverman,
             rng = rng
           )
-          val DTLearner = RegressionTreeLearner(numFeatures = nCols, rng = rng)
+          val DTLearner = RegressionTreeLearner(numFeatures = nCols)
           println(s"Training model nCols=$nCols\tnRows=$nRows\trepNum=$repNum")
-          val model = Bagger(DTLearner, randBasis = TestUtils.getBreezeRandBasis(rng))
-            .train(trainingData)
+          val model = Bagger(DTLearner)
+            .train(trainingData, rng = rng)
             .getModel()
           println(s"Trained")
 

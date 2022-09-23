@@ -1,6 +1,7 @@
 package io.citrine.lolo.learners
 
 import breeze.stats.distributions.RandBasis
+import io.citrine.random.Random
 import io.citrine.lolo.bags.Bagger
 import io.citrine.lolo.transformers.FeatureRotator
 import io.citrine.lolo.trees.classification.ClassificationTreeLearner
@@ -8,8 +9,6 @@ import io.citrine.lolo.trees.regression.RegressionTreeLearner
 import io.citrine.lolo.trees.splits.{ExtraRandomClassificationSplitter, ExtraRandomRegressionSplitter}
 import io.citrine.lolo.{Learner, TrainingResult}
 import org.apache.commons.math3.random.MersenneTwister
-
-import scala.util.Random
 
 /**
   * Extremely randomized tree ensemble
@@ -28,7 +27,6 @@ import scala.util.Random
   * @param uncertaintyCalibration whether to empirically recalibrate the predicted uncertainties (default: false)
   * @param disableBootstrap whether to disable bootstrap (default: true)
   * @param randomlyRotateFeatures whether to randomly rotate real features for each tree in the forest (default: false)
-  * @param rng            random number generator to use
   */
 case class ExtraRandomTrees(
     numTrees: Int = -1,
@@ -40,8 +38,7 @@ case class ExtraRandomTrees(
     maxDepth: Int = Integer.MAX_VALUE,
     uncertaintyCalibration: Boolean = false,
     disableBootstrap: Boolean = true,
-    randomlyRotateFeatures: Boolean = false,
-    rng: Random = Random
+    randomlyRotateFeatures: Boolean = false
 ) extends Learner {
 
   /**
@@ -49,10 +46,10 @@ case class ExtraRandomTrees(
     *
     * @param trainingData to train on
     * @param weights      for the training rows, if applicable
+    * @param rng          random number generator for reproducibility
     * @return training result containing a model
     */
-  override def train(trainingData: Seq[(Vector[Any], Any)], weights: Option[Seq[Double]]): TrainingResult = {
-    val breezeRandBasis: RandBasis = new RandBasis(new MersenneTwister(rng.nextLong()))
+  override def train(trainingData: Seq[(Vector[Any], Any)], weights: Option[Seq[Double]], rng: Random): TrainingResult = {
     val repOutput = trainingData.head._2
     val isRegression = repOutput.isInstanceOf[Double]
     val numFeatures: Int = RandomForest.getNumFeatures(subsetStrategy, trainingData.head._1.size, isRegression)
@@ -64,7 +61,7 @@ case class ExtraRandomTrees(
           numFeatures = numFeatures,
           minLeafInstances = minLeafInstances,
           maxDepth = maxDepth,
-          splitter = ExtraRandomRegressionSplitter(rng)
+          splitter = ExtraRandomRegressionSplitter()
         )
         val bagger = Bagger(
           if (randomlyRotateFeatures) FeatureRotator(DTLearner) else DTLearner,
@@ -72,10 +69,9 @@ case class ExtraRandomTrees(
           useJackknife = useJackknife,
           biasLearner = biasLearner,
           uncertaintyCalibration = uncertaintyCalibration,
-          disableBootstrap = disableBootstrap,
-          randBasis = breezeRandBasis
+          disableBootstrap = disableBootstrap
         )
-        bagger.train(trainingData, weights)
+        bagger.train(trainingData, weights, rng)
       }
       case _: Any => {
         val DTLearner = ClassificationTreeLearner(
@@ -83,7 +79,7 @@ case class ExtraRandomTrees(
           numFeatures = numFeatures,
           minLeafInstances = minLeafInstances,
           maxDepth = maxDepth,
-          splitter = ExtraRandomClassificationSplitter(rng)
+          splitter = ExtraRandomClassificationSplitter()
         )
         val bagger = Bagger(
           if (randomlyRotateFeatures) FeatureRotator(DTLearner) else DTLearner,
@@ -91,10 +87,9 @@ case class ExtraRandomTrees(
           useJackknife = useJackknife,
           biasLearner = biasLearner,
           uncertaintyCalibration = uncertaintyCalibration,
-          disableBootstrap = disableBootstrap,
-          randBasis = breezeRandBasis
+          disableBootstrap = disableBootstrap
         )
-        bagger.train(trainingData, weights)
+        bagger.train(trainingData, weights, rng)
       }
     }
   }

@@ -1,13 +1,12 @@
 package io.citrine.lolo.validation
 
 import io.citrine.lolo.{Learner, PredictionResult}
-
-import scala.util.Random
+import io.citrine.random.Random
 
 /**
   * Methods that draw data from a distribution and compute predicted-vs-actual data
   */
-case class StatisticalValidation(rng: Random = Random) {
+case class StatisticalValidation(rng: Random = Random()) {
 
   /**
     * Generate predicted-vs-actual data given a source of ground truth data and a learner

@@ -1,28 +1,30 @@
 package io.citrine.lolo.trees.splits
 
+import io.citrine.random.Random
 import io.citrine.lolo.trees.impurity.GiniCalculator
-
-import scala.util.Random
 
 /**
   * Find the best split for classification problems.
   *
   * Created by maxhutch on 12/2/16.
   */
-case class ClassificationSplitter(randomizedPivotLocation: Boolean = false, rng: Random = Random)
+case class ClassificationSplitter(randomizedPivotLocation: Boolean = false)
     extends Splitter[Char] {
 
   /**
     * Get the best split, considering numFeature random features (w/o replacement)
     *
-    * @param data        to split
-    * @param numFeatures to consider, randomly
+    * @param data         to split
+    * @param numFeatures  to consider, randomly
+    * @param minInstances minimum instances permitted in a post-split partition
+    * @param rng          random number generator for reproducibility
     * @return a split object that optimally divides data
     */
   def getBestSplit(
       data: Seq[(Vector[AnyVal], Char, Double)],
       numFeatures: Int,
-      minInstances: Int
+      minInstances: Int,
+      rng: Random
   ): (Split, Double) = {
     var bestSplit: Split = new NoSplit()
     var bestImpurity = Double.MaxValue

@@ -27,7 +27,7 @@ def _call_lolo_merit(metric_name, y_true, y_pred, rng, y_std=None, *args):
 
     gateway = get_java_gateway()
     # Get default rng
-    rng = rng if rng else gateway.jvm.scala.util.Random()
+    rng = rng if rng else gateway.jvm.io.citrine.random.Random()
     # Get the metric object
     metric = getattr(gateway.jvm.io.citrine.lolo.validation, metric_name)
     if len(args) > 0:

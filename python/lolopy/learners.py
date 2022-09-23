@@ -351,7 +351,7 @@ class RandomForestMixin(BaseLoloLearner):
         self.random_seed = random_seed
 
     def _make_learner(self):
-        rng = self.gateway.jvm.scala.util.Random(self.random_seed) if self.random_seed else self.gateway.jvm.scala.util.Random()
+        rng = self.gateway.jvm.io.citrine.random.Random(self.random_seed) if self.random_seed else self.gateway.jvm.io.citrine.random.Random()
 
         #  TODO: Figure our a more succinct way of dealing with optional arguments/Option values
         #  TODO: that ^^, please
@@ -430,9 +430,8 @@ class ExtraRandomTreesMixIn(BaseLoloLearner):
 
     def _make_learner(self):
         #  TODO: Figure our a more succinct way of dealing with optional arguments/Option values
-        #  TODO: that ^^, please
 
-        rng = self.gateway.jvm.scala.util.Random(self.random_seed) if self.random_seed else self.gateway.jvm.scala.util.Random()
+        rng = self.gateway.jvm.io.citrine.random.Random(self.random_seed) if self.random_seed else self.gateway.jvm.io.citrine.random.Random()
 
         learner = self.gateway.jvm.io.citrine.lolo.learners.ExtraRandomTrees(
             self.num_trees, self.use_jackknife,
@@ -496,7 +495,7 @@ class RegressionTreeLearner(BaseLoloRegressor):
             "$lessinit$greater$default$5"
         )()
 
-        rng = self.gateway.jvm.scala.util.Random() if self.random_seed is None else self.gateway.jvm.scala.util.Random(self.random_seed)
+        rng = self.gateway.jvm.io.citrine.random.Random() if self.random_seed is None else self.gateway.jvm.io.citrine.random.Random(self.random_seed)
 
         return self.gateway.jvm.io.citrine.lolo.trees.regression.RegressionTreeLearner(
             self.num_features, self.max_depth, self.min_leaf_instances,

@@ -2,9 +2,6 @@ package io.citrine.lolo
 
 import breeze.linalg.DenseMatrix
 
-/**
-  * Created by maxhutch on 11/14/16.
-  */
 trait Model[+T <: PredictionResult[Any]] extends Serializable {
 
   /**

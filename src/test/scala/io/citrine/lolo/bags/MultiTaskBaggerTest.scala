@@ -31,10 +31,9 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
     val baggedLearner = MultiTaskBagger(
       DTLearner,
       numBags = trainingData.size,
-      randBasis = TestUtils.getBreezeRandBasis(rng),
       uncertaintyCalibration = true
     )
-    val RFMeta = baggedLearner.train(reshapedTrainingData)
+    val RFMeta = baggedLearner.train(reshapedTrainingData, rng = rng)
     val RF = RFMeta.getModels().head
 
     val results = RF.transform(trainingData.map(_._1))
@@ -73,10 +72,9 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
               val baggedLearner = MultiTaskBagger(
                 baseLearner,
                 numBags = nBags,
-                uncertaintyCalibration = true,
-                randBasis = TestUtils.getBreezeRandBasis(rng)
+                uncertaintyCalibration = true
               )
-              val RFMeta = baggedLearner.train(reshapedTrainingData)
+              val RFMeta = baggedLearner.train(reshapedTrainingData, rng = rng)
               val RF = RFMeta.getModels().head
               val results = RF.transform(trainingData.take(4).map(_._1))
 
@@ -173,8 +171,8 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
     val reshapedTrainingData = trainingData.map { case (input, label) => (input, Vector(label)) }
     val DTLearner = MultiTaskTreeLearner()
     val baggedLearner =
-      MultiTaskBagger(DTLearner, numBags = trainingData.size, randBasis = TestUtils.getBreezeRandBasis(rng))
-    val RFMeta = baggedLearner.train(reshapedTrainingData)
+      MultiTaskBagger(DTLearner, numBags = trainingData.size)
+    val RFMeta = baggedLearner.train(reshapedTrainingData, rng = rng)
     val RF = RFMeta.getModels().head
 
     /* Inspect the results */
@@ -212,10 +210,9 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
       learner,
       numBags = numBags,
       biasLearner = Some(RegressionTreeLearner(maxDepth = 2)),
-      randBasis = TestUtils.getBreezeRandBasis(rng),
       uncertaintyCalibration = true
     )
-    val RF = baggedLearner.train(inputs.zip(labels))
+    val RF = baggedLearner.train(inputs.zip(labels), rng = rng)
 
     val testInputs = inputs.take(numTest)
     val predictionResult = RF.getModel().transform(testInputs)
@@ -252,10 +249,9 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
     val baggedLearner = MultiTaskBagger(
       learner,
       numBags = numBags,
-      biasLearner = Some(RegressionTreeLearner(maxDepth = 2)),
-      randBasis = TestUtils.getBreezeRandBasis(rng)
+      biasLearner = Some(RegressionTreeLearner(maxDepth = 2))
     )
-    val RF = baggedLearner.train(inputs.zip(labels)).getModel()
+    val RF = baggedLearner.train(inputs.zip(labels), rng = rng).getModel()
 
     val testInputs =
       TestUtils.generateTrainingData(numTest, 12, function = Friedman.friedmanSilverman, rng = rng).map(_._1)
@@ -306,10 +302,9 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
     val baggedLearner = MultiTaskBagger(
       DTLearner,
       numBags = inputs.size,
-      biasLearner = Some(GuessTheMeanLearner(rng = rng)),
-      randBasis = TestUtils.getBreezeRandBasis(rng)
+      biasLearner = Some(GuessTheMeanLearner())
     )
-    val trainingResult = baggedLearner.train(inputs.zip(labels))
+    val trainingResult = baggedLearner.train(inputs.zip(labels), rng = rng)
     val RF = trainingResult.getModels().last
 
     val catResults = RF.transform(inputs).getExpected()
@@ -317,7 +312,7 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
     assert(realUncertainty.forall(!_.asInstanceOf[Double].isNaN), s"Some uncertainty values were NaN")
 
     val referenceModel = Bagger(ClassificationTreeLearner(), numBags = inputs.size)
-      .train(inputs.zip(sparseCat).filterNot(_._2 == null))
+      .train(inputs.zip(sparseCat).filterNot(_._2 == null), rng = rng)
     val reference = referenceModel
       .getModel()
       .transform(inputs)
@@ -361,10 +356,9 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
       val baggedLearner = MultiTaskBagger(
         MultiTaskTreeLearner(),
         numBags = inputs.size,
-        biasLearner = Some(GuessTheMeanLearner(rng = rng)),
-        randBasis = TestUtils.getBreezeRandBasis(rng)
+        biasLearner = Some(GuessTheMeanLearner())
       )
-      assert(baggedLearner.train(inputs.zip(labels)).getModels().size == 2)
+      assert(baggedLearner.train(inputs.zip(labels), rng = rng).getModels().size == 2)
     }
   }
 }

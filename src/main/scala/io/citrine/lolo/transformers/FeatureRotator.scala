@@ -1,6 +1,7 @@
 package io.citrine.lolo.transformers
 
 import io.citrine.lolo._
+import io.citrine.random.Random
 import breeze.linalg.{diag, qr, DenseMatrix, DenseVector}
 import breeze.linalg.qr.QR
 import breeze.numerics.signum
@@ -22,11 +23,13 @@ case class FeatureRotator(baseLearner: Learner) extends Learner {
     *
     * @param trainingData to train on
     * @param weights      for the training rows, if applicable
+    * @param rng          random number generator for reproducibility
     * @return training result containing a model
     */
   override def train(
       trainingData: Seq[(Vector[Any], Any)],
-      weights: Option[Seq[Double]]
+      weights: Option[Seq[Double]],
+      rng: Random
   ): RotatedFeatureTrainingResult = {
     val featuresToRotate = FeatureRotator.getDoubleFeatures(trainingData.head._1)
     val trans = FeatureRotator.getRandomRotation(featuresToRotate.length)
@@ -46,11 +49,13 @@ case class MultiTaskFeatureRotator(baseLearner: MultiTaskLearner) extends MultiT
     *
     * @param trainingData  to train on
     * @param weights for the training rows, if applicable
+    * @param rng          random number generator for reproducibility
     * @return a sequence of training results, one for each label
     */
   override def train(
       trainingData: Seq[(Vector[Any], Vector[Any])],
-      weights: Option[Seq[Double]]
+      weights: Option[Seq[Double]],
+      rng: Random
   ): MultiTaskRotatedFeatureTrainingResult = {
     val inputs = trainingData.map(_._1)
     val labels = trainingData.map(_._2)
