@@ -281,11 +281,11 @@ class BaseLoloClassifier(BaseLoloLearner, ClassifierMixin):
     Implements a modification to the fit operation that stores the number of classes
     and the predict/predict_proba methods"""
 
-    def fit(self, X, y, weights=None):
+    def fit(self, X, y, weights=None, random_seed=None):
         # Get the number of classes
         self.n_classes_ = len(set(y))
 
-        return super(BaseLoloClassifier, self).fit(X, y, weights)
+        return super(BaseLoloClassifier, self).fit(X, y, weights, random_seed)
 
     def predict(self, X):
         pred_result = self._get_prediction_result(X)
