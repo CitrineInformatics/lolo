@@ -12,7 +12,11 @@ trait Learner extends Serializable {
     * @param rng          random number generator for reproducibility
     * @return training result containing a model
     */
-  def train(trainingData: Seq[(Vector[Any], Any)], weights: Option[Seq[Double]] = None, rng: Random = Random()): TrainingResult
+  def train(
+      trainingData: Seq[(Vector[Any], Any)],
+      weights: Option[Seq[Double]] = None,
+      rng: Random = Random()
+  ): TrainingResult
 
   /**
     * Train a model with weights
@@ -40,5 +44,9 @@ trait MultiTaskLearner extends Serializable {
     * @param rng          random number generator for reproducibility
     * @return A training result that encompasses model(s) for all labels.
     */
-  def train(trainingData: Seq[(Vector[Any], Vector[Any])], weights: Option[Seq[Double]] = None, rng: Random = Random()): MultiTaskTrainingResult
+  def train(
+      trainingData: Seq[(Vector[Any], Vector[Any])],
+      weights: Option[Seq[Double]] = None,
+      rng: Random = Random()
+  ): MultiTaskTrainingResult
 }

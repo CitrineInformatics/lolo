@@ -49,7 +49,11 @@ case class ExtraRandomTrees(
     * @param rng          random number generator for reproducibility
     * @return training result containing a model
     */
-  override def train(trainingData: Seq[(Vector[Any], Any)], weights: Option[Seq[Double]], rng: Random): TrainingResult = {
+  override def train(
+      trainingData: Seq[(Vector[Any], Any)],
+      weights: Option[Seq[Double]],
+      rng: Random
+  ): TrainingResult = {
     val repOutput = trainingData.head._2
     val isRegression = repOutput.isInstanceOf[Double]
     val numFeatures: Int = RandomForest.getNumFeatures(subsetStrategy, trainingData.head._1.size, isRegression)

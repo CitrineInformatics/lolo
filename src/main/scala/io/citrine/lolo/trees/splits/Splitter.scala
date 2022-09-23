@@ -3,9 +3,13 @@ package io.citrine.lolo.trees.splits
 import io.citrine.lolo.trees.impurity.ImpurityCalculator
 import io.citrine.random.Random
 
-
 trait Splitter[T] {
-  def getBestSplit(data: Seq[(Vector[AnyVal], T, Double)], numFeatures: Int, minInstances: Int, rng: Random = Random()): (Split, Double)
+  def getBestSplit(
+      data: Seq[(Vector[AnyVal], T, Double)],
+      numFeatures: Int,
+      minInstances: Int,
+      rng: Random = Random()
+  ): (Split, Double)
 }
 
 object Splitter {

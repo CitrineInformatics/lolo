@@ -49,7 +49,11 @@ case class RandomForest(
     * @param rng          random number generator for reproducibility
     * @return training result containing a model
     */
-  override def train(trainingData: Seq[(Vector[Any], Any)], weights: Option[Seq[Double]], rng: Random): TrainingResult = {
+  override def train(
+      trainingData: Seq[(Vector[Any], Any)],
+      weights: Option[Seq[Double]],
+      rng: Random
+  ): TrainingResult = {
     val repOutput = trainingData.head._2
     val isRegression = repOutput.isInstanceOf[Double] ||
       (repOutput.isInstanceOf[Seq[Any]] && repOutput.asInstanceOf[Seq[Any]].exists(_.isInstanceOf[Double]))

@@ -8,8 +8,7 @@ import io.citrine.lolo.trees.impurity.GiniCalculator
   *
   * Created by maxhutch on 12/2/16.
   */
-case class ClassificationSplitter(randomizedPivotLocation: Boolean = false)
-    extends Splitter[Char] {
+case class ClassificationSplitter(randomizedPivotLocation: Boolean = false) extends Splitter[Char] {
 
   /**
     * Get the best split, considering numFeature random features (w/o replacement)

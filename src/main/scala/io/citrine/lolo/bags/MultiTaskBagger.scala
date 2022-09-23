@@ -90,7 +90,12 @@ case class MultiTaskBagger(
         val helper = BaggerHelper(thisLabelModels, thisTrainingData, Nib, useJackknife, uncertaintyCalibration)
         val biasModel = if (biasLearner.isDefined && isRegression) {
           Async.canStop()
-          Some(biasLearner.get.train(helper.biasTraining, rng = rng).getModel().asInstanceOf[Model[PredictionResult[Double]]])
+          Some(
+            biasLearner.get
+              .train(helper.biasTraining, rng = rng)
+              .getModel()
+              .asInstanceOf[Model[PredictionResult[Double]]]
+          )
         } else None
         (biasModel, helper.rescaleRatio)
       }

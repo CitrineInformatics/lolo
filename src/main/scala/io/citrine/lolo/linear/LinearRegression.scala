@@ -1,6 +1,6 @@
 package io.citrine.lolo.linear
 
-import breeze.linalg.{DenseMatrix, DenseVector, diag, sum}
+import breeze.linalg.{diag, sum, DenseMatrix, DenseVector}
 import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
 import io.citrine.random.Random
 import org.slf4j.LoggerFactory

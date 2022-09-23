@@ -3,8 +3,7 @@ package io.citrine.lolo.trees.splits
 import io.citrine.random.Random
 import io.citrine.lolo.trees.impurity.MultiImpurityCalculator
 
-case class MultiTaskSplitter(randomizePivotLocation: Boolean = false)
-    extends Splitter[Array[AnyVal]] {
+case class MultiTaskSplitter(randomizePivotLocation: Boolean = false) extends Splitter[Array[AnyVal]] {
 
   /**
     * Get the best split, considering numFeature random features (w/o replacement)

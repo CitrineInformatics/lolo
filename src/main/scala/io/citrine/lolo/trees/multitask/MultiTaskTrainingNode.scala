@@ -152,7 +152,7 @@ class MultiTaskTrainingNode(
         theRightChild.getNode(index)
       case (_, _) =>
         // TODO (PLA-10388): get the rng in here somehow (right now it's instantiating a random rng)
-      if (label.isInstanceOf[Double]) {
+        if (label.isInstanceOf[Double]) {
           new RegressionTrainingLeaf(
             reducedData.asInstanceOf[Seq[(Vector[AnyVal], Double, Double)]],
             GuessTheMeanLearner(),

@@ -16,7 +16,11 @@ case class GuessTheMeanLearner() extends Learner {
     * @param rng          random number generator for reproducibility
     * @return training result containing a model
     */
-  override def train(trainingData: Seq[(Vector[Any], Any)], weights: Option[Seq[Double]], rng: Random): TrainingResult = {
+  override def train(
+      trainingData: Seq[(Vector[Any], Any)],
+      weights: Option[Seq[Double]],
+      rng: Random
+  ): TrainingResult = {
     val data = trainingData.map(_._2).zip(weights.getOrElse(Seq.fill(trainingData.size)(1.0)))
     val mean = data.head._1 match {
       case _: Double => data.asInstanceOf[Seq[(Double, Double)]].map(p => p._1 * p._2).sum / data.map(_._2).sum
