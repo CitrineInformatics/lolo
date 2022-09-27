@@ -33,7 +33,7 @@ def _call_lolo_merit(metric_name, y_true, y_pred, random_seed=None, y_std=None, 
     # Get the metric object
     metric = getattr(gateway.jvm.io.citrine.lolo.validation, metric_name)
     if len(kwargs) > 0:
-        metric = metric(**kwargs)
+        metric = metric(*kwargs)
 
     # Convert the data arrays to Java
     y_true_java = send_1D_array(gateway, y_true, True)
