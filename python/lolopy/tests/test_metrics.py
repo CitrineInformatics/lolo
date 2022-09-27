@@ -12,7 +12,7 @@ class TestMetrics(TestCase):
 
     def test_standard_confidene(self):
         gateway = get_java_gateway()
-        rng = gateway.jvm.io.citrine.random.Random(367894)
+        rng = gateway.jvm.io.citrine.lolo.util.LoloPyRandom.getRng(367894)
         self.assertAlmostEqual(standard_confidence([1, 2], [2, 3], [1.5, 0.9]), 0.5, rng)
         self.assertAlmostEqual(standard_confidence([1, 2], [2, 3], [1.5, 1.1]), 1, rng)
 
@@ -24,7 +24,7 @@ class TestMetrics(TestCase):
         seed(3893789455)
         sample_size = 2 ** 15
         gateway = get_java_gateway()
-        rng = gateway.jvm.io.citrine.random.Random(783245)
+        rng = gateway.jvm.io.citrine.lolo.util.LoloPyRandom.getRng(783245)
         for expected in [0, 0.75]:
             # Make the error distribution
             y_true = uniform(0, 1, sample_size)
