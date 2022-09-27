@@ -8,7 +8,7 @@ from lolopy.utils import send_1D_array
 import numpy as np
 
 
-def _call_lolo_merit(metric_name, y_true, y_pred, random_seed=None, y_std=None, **kwargs):
+def _call_lolo_merit(metric_name, y_true, y_pred, random_seed=None, y_std=None, *args):
     """Call a metric from lolopy
     
     Args:
@@ -17,7 +17,7 @@ def _call_lolo_merit(metric_name, y_true, y_pred, random_seed=None, y_std=None, 
         y_pred ([double]): Predicted values
         random_seed (int): for reproducibility (only used by some metrics)
         y_std ([double]): Prediction uncertainties (only used by some metrics)
-        *args (list): Any parameters to the constructor of the Metric
+        *args: Any parameters to the constructor of the Metric
     Returns:
         (double): Metric score
     """
@@ -32,8 +32,8 @@ def _call_lolo_merit(metric_name, y_true, y_pred, random_seed=None, y_std=None, 
         else gateway.jvm.io.citrine.lolo.util.LoloPyRandom.getRng()
     # Get the metric object
     metric = getattr(gateway.jvm.io.citrine.lolo.validation, metric_name)
-    if len(kwargs) > 0:
-        metric = metric(*kwargs)
+    if len(args) > 0:
+        metric = metric(*args)
 
     # Convert the data arrays to Java
     y_true_java = send_1D_array(gateway, y_true, True)
@@ -86,7 +86,7 @@ def standard_error(y_true, y_pred, y_std, rescale=1.0):
         (double): standard error
     """
 
-    return _call_lolo_merit('StandardError', y_true, y_pred, y_std=y_std, rescale=float(rescale))
+    return _call_lolo_merit('StandardError', y_true, y_pred, None, y_std, float(rescale))
 
 
 def uncertainty_correlation(y_true, y_pred, y_std, random_seed=None):
