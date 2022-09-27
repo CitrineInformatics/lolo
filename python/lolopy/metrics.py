@@ -8,7 +8,7 @@ from lolopy.utils import send_1D_array
 import numpy as np
 
 
-def _call_lolo_merit(metric_name, y_true, y_pred, random_seed=None, y_std=None, *args):
+def _call_lolo_merit(metric_name, y_true, y_pred, random_seed=None, y_std=None, **kwargs):
     """Call a metric from lolopy
     
     Args:
@@ -32,8 +32,8 @@ def _call_lolo_merit(metric_name, y_true, y_pred, random_seed=None, y_std=None, 
         else gateway.jvm.io.citrine.lolo.util.LoloPyRandom.getRng()
     # Get the metric object
     metric = getattr(gateway.jvm.io.citrine.lolo.validation, metric_name)
-    if len(args) > 0:
-        metric = metric(*args)
+    if len(kwargs) > 0:
+        metric = metric(**kwargs)
 
     # Convert the data arrays to Java
     y_true_java = send_1D_array(gateway, y_true, True)
