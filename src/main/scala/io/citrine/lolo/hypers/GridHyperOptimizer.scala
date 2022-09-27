@@ -40,9 +40,9 @@ case class GridHyperOptimizer() extends HyperOptimizer {
           j = j / size
       }
 
-      /* Set up a learner with these parameters and compute the loss */
+      // Set up a learner with these parameters and compute the loss
       val testLearner = builder(testHypers)
-      val res = testLearner.train(trainingData)
+      val res = testLearner.train(trainingData, rng = rng)
       if (res.getLoss().isEmpty) {
         throw new IllegalArgumentException("Trying to optimize hyper-paramters for a learner without getLoss")
       }

@@ -80,8 +80,8 @@ object CalibrationStudy extends SeedRandomMixIn {
           useJackknife = true,
           uncertaintyCalibration = false
         )
-        StatisticalValidation(rng = rng)
-          .generativeValidation[Double](data, learner, nTrain = nTrain.toInt, nTest = 256, nRound = 32)
+        StatisticalValidation()
+          .generativeValidation[Double](data, learner, nTrain = nTrain.toInt, nTest = 256, nRound = 32, rng = rng)
       }
       BitmapEncoder.saveBitmap(chart, s"./scan-ratio.${ratio}", BitmapFormat.PNG)
     }
@@ -116,8 +116,8 @@ object CalibrationStudy extends SeedRandomMixIn {
           useJackknife = true,
           uncertaintyCalibration = calibrated
         )
-        StatisticalValidation(rng = rng)
-          .generativeValidation[Double](data, learner, nTrain = nTrain.toInt, nTest = 256, nRound = 32)
+        StatisticalValidation()
+          .generativeValidation[Double](data, learner, nTrain = nTrain.toInt, nTest = 256, nRound = 32, rng = rng)
       }
       val fname = if (calibrated) {
         s"./scan-nTrain.${nTrain}-nTree-cal"
@@ -159,8 +159,8 @@ object CalibrationStudy extends SeedRandomMixIn {
           useJackknife = true,
           uncertaintyCalibration = calibrated
         )
-        StatisticalValidation(rng = rng)
-          .generativeValidation[Double](data, learner, nTrain = nTrain.toInt, nTest = 256, nRound = 32)
+        StatisticalValidation()
+          .generativeValidation[Double](data, learner, nTrain = nTrain.toInt, nTest = 256, nRound = 32, rng = rng)
       }
       val fname = if (calibrated) {
         s"./scan-${funcName}-nTrain-nTree.${nTree}-cal"
@@ -194,13 +194,14 @@ object CalibrationStudy extends SeedRandomMixIn {
       biasLearner = None // Some(RegressionTreeLearner(maxDepth = (Math.log(nTrain) / Math.log(2) / 2).toInt))
     )
 
-    val fullStream = StatisticalValidation(rng = rng)
+    val fullStream = StatisticalValidation()
       .generativeValidation[Double](
         data,
         learner,
         nTrain,
         32,
-        512
+        512,
+        rng = rng
       )
       .toIterable
 
@@ -208,13 +209,14 @@ object CalibrationStudy extends SeedRandomMixIn {
       generativeHistogram(fullStream, learner, plotNormal = true, plotCauchy = true, calibrate = true, range = range)
     BitmapEncoder.saveBitmap(chart, s"./stdres_${funcName}-nTrain.${nTrain}-nTree.${nTree}", BitmapFormat.PNG)
 
-    val dataStream = StatisticalValidation(rng = rng)
+    val dataStream = StatisticalValidation()
       .generativeValidation[Double](
         data,
         learner,
         nTrain,
         32,
-        2
+        2,
+        rng = rng
       )
       .toIterable
     val pva = PredictedVsActual().visualize(dataStream)
@@ -320,8 +322,15 @@ object CalibrationStudy extends SeedRandomMixIn {
           useJackknife = true,
           uncertaintyCalibration = calibrated
         )
-        StatisticalValidation(rng = rng)
-          .generativeValidation[Double](trainingData, learner, nTrain = nTrain.toInt, nTest = 256, nRound = 32)
+        StatisticalValidation()
+          .generativeValidation[Double](
+            trainingData,
+            learner,
+            nTrain = nTrain.toInt,
+            nTest = 256,
+            nRound = 32,
+            rng = rng
+          )
       }
       val fname = if (calibrated) {
         s"./scan-hcep-nTrain-nTree.${nTree}-cal"
@@ -351,13 +360,14 @@ object CalibrationStudy extends SeedRandomMixIn {
       uncertaintyCalibration = false
     )
 
-    val fullStream = StatisticalValidation(rng = rng)
+    val fullStream = StatisticalValidation()
       .generativeValidation[Double](
         trainingData,
         learner,
         nTrain,
         32,
-        512
+        512,
+        rng = rng
       )
       .toIterable
 
@@ -365,13 +375,14 @@ object CalibrationStudy extends SeedRandomMixIn {
       generativeHistogram(fullStream, learner, plotNormal = true, plotCauchy = true, calibrate = true, range = range)
     BitmapEncoder.saveBitmap(chart, s"./stdres_hcep-nTrain.${nTrain}-nTree.${nTree}", BitmapFormat.PNG)
 
-    val dataStream = StatisticalValidation(rng = rng)
+    val dataStream = StatisticalValidation()
       .generativeValidation[Double](
         trainingData,
         learner,
         nTrain,
         32,
-        2
+        2,
+        rng = rng
       )
       .toIterable
     val pva = PredictedVsActual().visualize(dataStream)

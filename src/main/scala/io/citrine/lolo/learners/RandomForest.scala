@@ -41,8 +41,10 @@ case class RandomForest(
   /**
     * Train a random forest model
     *
-    * If the training labels are Doubles, this is a regression forest; otherwise, a classification forest.
-    * Options like the number of trees are set via setHyper
+    * If the training label is a Double then this is a regression forest.
+    * If the training label is another primtiive then this is a classification forest.
+    * If the training label is a sequence then this is a multitask forest.
+    * Options like the number of trees are set via the constructor.
     *
     * @param trainingData to train on
     * @param weights      for the training rows, if applicable

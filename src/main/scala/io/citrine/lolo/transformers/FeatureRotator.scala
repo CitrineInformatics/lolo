@@ -36,7 +36,7 @@ case class FeatureRotator(baseLearner: Learner) extends Learner {
 
     val (inputs, labels) = trainingData.unzip
     val rotatedTrainingData = FeatureRotator.applyRotation(inputs, featuresToRotate, trans).zip(labels)
-    val baseTrainingResult = baseLearner.train(rotatedTrainingData, weights)
+    val baseTrainingResult = baseLearner.train(rotatedTrainingData, weights, rng)
 
     RotatedFeatureTrainingResult(baseTrainingResult, featuresToRotate, trans)
   }
@@ -62,7 +62,7 @@ case class MultiTaskFeatureRotator(baseLearner: MultiTaskLearner) extends MultiT
     val featuresToRotate = FeatureRotator.getDoubleFeatures(inputs.head)
     val trans = FeatureRotator.getRandomRotation(inputs.head.length)
     val rotatedFeatures = FeatureRotator.applyRotation(inputs, featuresToRotate, trans)
-    val baseTrainingResult = baseLearner.train(rotatedFeatures.zip(labels), weights)
+    val baseTrainingResult = baseLearner.train(rotatedFeatures.zip(labels), weights, rng)
     MultiTaskRotatedFeatureTrainingResult(baseTrainingResult, featuresToRotate, trans)
   }
 }

@@ -18,7 +18,7 @@ class StatisticalValidationTest extends SeedRandomMixIn {
       CrossValidation.kFoldCrossvalidation(dataSet, learner, metrics, k = 4, nTrial = 4)("rmse")
 
     val (rmseFromStats, uncertaintyFromStats) = Merit.estimateMerits(
-      StatisticalValidation(rng = rng).generativeValidation(dataGenerator, learner, 96, 32, 16),
+      StatisticalValidation().generativeValidation(dataGenerator, learner, 96, 32, 16, rng = rng),
       metrics
     )("rmse")
 

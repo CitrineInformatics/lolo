@@ -44,7 +44,7 @@ case class Standardizer(baseLearner: Learner) extends Learner {
     val (inputs, labels) = trainingData.unzip
     val standardTrainingData =
       Standardizer.applyStandardization(inputs, inputTrans).zip(Standardizer.applyStandardization(labels, outputTrans))
-    val baseTrainingResult = baseLearner.train(standardTrainingData, weights)
+    val baseTrainingResult = baseLearner.train(standardTrainingData, weights, rng)
 
     new StandardizerTrainingResult(baseTrainingResult, outputTrans, inputTrans)
   }
@@ -86,7 +86,7 @@ class MultiTaskStandardizer(baseLearner: MultiTaskLearner) extends MultiTaskLear
       }
       .transpose
 
-    val baseTrainingResult = baseLearner.train(standardInputs.zip(standardLabels), weights)
+    val baseTrainingResult = baseLearner.train(standardInputs.zip(standardLabels), weights, rng)
     new MultiTaskStandardizerTrainingResult(baseTrainingResult, outputTrans, inputTrans)
   }
 }

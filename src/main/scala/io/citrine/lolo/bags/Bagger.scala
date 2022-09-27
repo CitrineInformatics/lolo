@@ -126,7 +126,9 @@ case class Bagger(
     val helper = BaggerHelper(models, trainingData, Nib, useJackknife, uncertaintyCalibration)
     val biasModel = if (biasLearner.isDefined && helper.oobErrors.nonEmpty && helper.isRegression) {
       Async.canStop()
-      Some(biasLearner.get.train(helper.biasTraining).getModel().asInstanceOf[Model[PredictionResult[Double]]])
+      Some(
+        biasLearner.get.train(helper.biasTraining, rng = rng).getModel().asInstanceOf[Model[PredictionResult[Double]]]
+      )
     } else None
 
     if (helper.isRegression) {

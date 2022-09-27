@@ -38,7 +38,7 @@ class RandomHyperOptimizer() extends HyperOptimizer {
           n -> rng.shuffle(v).head
       }
       val testLearner = builder(testHypers)
-      val res = testLearner.train(trainingData)
+      val res = testLearner.train(trainingData, rng = rng)
       if (res.getLoss().isEmpty) {
         throw new IllegalArgumentException("Trying to optimize hyper-paramters for a learner without getLoss")
       }
