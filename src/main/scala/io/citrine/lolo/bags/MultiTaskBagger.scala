@@ -71,10 +71,16 @@ case class MultiTaskBagger(
 
     val iterator = Nib.indices.toVector
     val (models: ParSeq[MultiTaskModel], importances: ParSeq[Option[Vector[Double]]]) =
-      rng.zip(iterator).par.map { case (thisRng, i) =>
-        val meta = method.train(trainingData, Some(Nib(i).zip(weightsActual).map(p => p._1.toDouble * p._2)), thisRng)
-        (meta.getModel(), meta.getFeatureImportance())
-      }.unzip
+      rng
+        .zip(iterator)
+        .par
+        .map {
+          case (thisRng, i) =>
+            val sampleWeights = Nib(i).zip(weightsActual).map(p => p._1.toDouble * p._2)
+            val meta = method.train(trainingData, Some(sampleWeights), thisRng)
+            (meta.getModel(), meta.getFeatureImportance())
+        }
+        .unzip
 
     val averageImportance: Option[Vector[Double]] = importances
       .reduce(combineImportance)

@@ -105,16 +105,16 @@ case class Bagger(
     // Learn the actual models in parallel
     val iterator = Nib.indices.toVector
     val (models: ParSeq[Model[PredictionResult[Any]]], importances: ParSeq[Option[Vector[Double]]]) =
-      rng.zip(iterator).par.map { case (thisRng, i) =>
-        // get weights
-        val sampleWeights = Nib(i).zip(weightsActual).map(p => p._1.toDouble * p._2)
-
-        // Train the model
-        val meta = method.train(trainingData.toVector, Some(sampleWeights), thisRng)
-
-        // Extract the model and feature importance from the TrainingResult
-        (meta.getModel(), meta.getFeatureImportance())
-      }.unzip
+      rng
+        .zip(iterator)
+        .par
+        .map {
+          case (thisRng, i) =>
+            val sampleWeights = Nib(i).zip(weightsActual).map(p => p._1.toDouble * p._2)
+            val meta = method.train(trainingData.toVector, Some(sampleWeights), thisRng)
+            (meta.getModel(), meta.getFeatureImportance())
+        }
+        .unzip
 
     // Average the feature importances
     val averageImportance: Option[Vector[Double]] = importances
