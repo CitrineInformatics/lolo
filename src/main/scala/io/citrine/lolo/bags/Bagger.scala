@@ -2,14 +2,14 @@ package io.citrine.lolo.bags
 
 import breeze.linalg.DenseMatrix
 import breeze.stats.distributions.{Poisson, RandBasis, ThreadLocalRandomGenerator}
+import io.citrine.random.Random
 import io.citrine.lolo.stats.metrics.{ClassificationMetrics, RegressionMetrics}
-import io.citrine.lolo.util.{Async, InterruptibleExecutionContext}
+import io.citrine.lolo.util.Async
 import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
 
-import scala.collection.parallel.ExecutionContextTaskSupport
-import scala.collection.parallel.immutable.{ParRange, ParSeq}
+import scala.collection.parallel.immutable.ParSeq
+import scala.collection.parallel.CollectionConverters.IterableIsParallelizable
 import scala.reflect._
-import _root_.io.citrine.random.Random
 import org.apache.commons.math3.random.MersenneTwister
 
 /**
@@ -102,20 +102,19 @@ case class Bagger(
         .next()
     }
 
-    /* Learn the actual models in parallel */
-    // TODO (PLA-10388): use rng.zip
-    val parIterator = new ParRange(0 until actualBags)
-    parIterator.tasksupport = new ExecutionContextTaskSupport(InterruptibleExecutionContext())
-    val (models, importances: ParSeq[Option[Vector[Double]]]) = parIterator.map { i =>
-      // get weights
-      val sampleWeights = Nib(i).zip(weightsActual).map(p => p._1.toDouble * p._2)
+    // Learn the actual models in parallel
+    val iterator = Nib.indices.toVector
+    val (models: ParSeq[Model[PredictionResult[Any]]], importances: ParSeq[Option[Vector[Double]]]) =
+      rng.zip(iterator).par.map { case (thisRng, i) =>
+        // get weights
+        val sampleWeights = Nib(i).zip(weightsActual).map(p => p._1.toDouble * p._2)
 
-      // Train the model
-      val meta = method.train(trainingData.toVector, Some(sampleWeights), rng)
+        // Train the model
+        val meta = method.train(trainingData.toVector, Some(sampleWeights), thisRng)
 
-      // Extract the model and feature importance from the TrainingResult
-      (meta.getModel(), meta.getFeatureImportance())
-    }.unzip
+        // Extract the model and feature importance from the TrainingResult
+        (meta.getModel(), meta.getFeatureImportance())
+      }.unzip
 
     // Average the feature importances
     val averageImportance: Option[Vector[Double]] = importances

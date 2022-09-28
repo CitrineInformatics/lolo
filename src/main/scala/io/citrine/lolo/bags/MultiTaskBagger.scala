@@ -1,14 +1,14 @@
 package io.citrine.lolo.bags
 
 import breeze.stats.distributions.{Poisson, RandBasis, ThreadLocalRandomGenerator}
+import io.citrine.lolo.{Learner, Model, MultiTaskLearner, MultiTaskModel, MultiTaskTrainingResult, PredictionResult}
 import io.citrine.random.Random
-import io.citrine.lolo._
 import io.citrine.lolo.stats.metrics.{ClassificationMetrics, RegressionMetrics}
-import io.citrine.lolo.util.{Async, InterruptibleExecutionContext}
-import org.apache.commons.math3.random.MersenneTwister
+import io.citrine.lolo.util.Async
 
-import scala.collection.parallel.ExecutionContextTaskSupport
-import scala.collection.parallel.immutable.{ParRange, ParSeq}
+import scala.collection.parallel.immutable.ParSeq
+import scala.collection.parallel.CollectionConverters.IterableIsParallelizable
+import org.apache.commons.math3.random.MersenneTwister
 
 /**
   * Create an ensemble of multi-task models
@@ -69,13 +69,12 @@ case class MultiTaskBagger(
       .toVector
     val weightsActual = weights.getOrElse(Seq.fill(trainingData.size)(1.0))
 
-    val parIterator = new ParRange(Nib.indices)
-    parIterator.tasksupport = new ExecutionContextTaskSupport(InterruptibleExecutionContext())
-    // TODO (PLA-10388): use rng.zip
-    val (models: ParSeq[MultiTaskModel], importances: ParSeq[Option[Vector[Double]]]) = parIterator.map { i =>
-      val meta = method.train(trainingData, Some(Nib(i).zip(weightsActual).map(p => p._1.toDouble * p._2)), rng)
-      (meta.getModel(), meta.getFeatureImportance())
-    }.unzip
+    val iterator = Nib.indices.toVector
+    val (models: ParSeq[MultiTaskModel], importances: ParSeq[Option[Vector[Double]]]) =
+      rng.zip(iterator).par.map { case (thisRng, i) =>
+        val meta = method.train(trainingData, Some(Nib(i).zip(weightsActual).map(p => p._1.toDouble * p._2)), thisRng)
+        (meta.getModel(), meta.getFeatureImportance())
+      }.unzip
 
     val averageImportance: Option[Vector[Double]] = importances
       .reduce(combineImportance)

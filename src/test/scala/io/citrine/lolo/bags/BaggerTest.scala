@@ -262,54 +262,6 @@ class BaggerTest extends SeedRandomMixIn {
   }
 
   /**
-    * Test that the bagged learner can be interrupted
-    */
-  @Test
-  def testInterrupt(): Unit = {
-    val trainingData =
-      TestUtils.generateTrainingData(2048, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng)
-    val DTLearner = RegressionTreeLearner(numFeatures = 3)
-    val baggedLearner =
-      Bagger(DTLearner, numBags = trainingData.size)
-
-    // Create a future to run train
-    val tmpPool = Executors.newFixedThreadPool(1)
-    val fut: Future[BaggedTrainingResult[Any]] = tmpPool.submit(
-      new Callable[BaggedTrainingResult[Any]] {
-        override def call(): BaggedTrainingResult[Any] = {
-          val res: BaggedTrainingResult[Any] = baggedLearner.train(trainingData, rng = rng)
-          assert(false, "Training was not terminated")
-          res
-        }
-      }
-    )
-    // Let the thread start
-    Thread.sleep(1000)
-
-    // Cancel it
-    val start = System.currentTimeMillis()
-    assert(fut.cancel(true), "Failed to cancel future")
-
-    // Make sure we get either a cancellation of interrupted exception
-    try {
-      fut.get()
-      assert(false, "Future completed")
-    } catch {
-      case _: CancellationException =>
-      case _: InterruptedException  =>
-      case _: Throwable             => assert(false, "Future threw an exception")
-    }
-
-    // Shutdown the pool
-    tmpPool.shutdown()
-    assert(tmpPool.awaitTermination(1, TimeUnit.MINUTES), "Thread pool didn't terminate after a minute!")
-
-    // Did it halt fast enough?
-    val totalTime = (System.currentTimeMillis() - start) * 1.0e-3
-    assert(totalTime < 2.0, "Thread took too long to terminate")
-  }
-
-  /**
     * Test that uncertainty recalibration functions correctly with small amounts of data. In some cases,
     * especially with a simple, binary function, it is possible to have every tree make the correct prediction, leading
     * to uncertainty = 0, and if not handled correctly, an uncertainty rescaling ratio that is NaN.
