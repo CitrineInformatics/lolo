@@ -29,58 +29,6 @@ class AccuracyTest extends SeedRandomMixIn {
     learner.train(trainingData, rng = rng).getLoss().get
   }
 
-  // TODO (PLA-10388): enable this test
-  // TODO (PLA-10388): make reproducibility tests for classification and multitask forests
-  /**
-    * Test that setting rng yields repeatable results.
-    */
-  /**
-    * DISABLED until implementing perfect reproducibility.
-    *  @Test
-    *  def testRepeatable(): Unit = {
-    *    val (errorsStandardTree, errorsAnnealingTree, errorsUnrandomizedTree) = (1 to 4).map { _ =>
-    *      val seed = 354128L
-    *      val rng = new Random(seed)
-    *      val errorStandardTree = {
-    *        val baseLearner = RegressionTreeLearner(
-    *          numFeatures = nFeat,
-    *          splitter = RegressionSplitter(randomizePivotLocation = true, rng = rng),
-    *          rng = rng
-    *        )
-    *        val learner = new Bagger(baseLearner, numBags = nRow * 8, randBasis = TestUtils.getBreezeRandBasis(rng))
-    *        computeMetrics(learner)
-    *      }
-    *      rng.setSeed(seed)
-    *      val errorAnnealingTree = {
-    *        val baseLearner = RegressionTreeLearner(
-    *          numFeatures = nFeat,
-    *          splitter = BoltzmannSplitter(temperature = Float.MinPositiveValue, rng = rng),
-    *          rng = rng
-    *        )
-    *        val learner = new Bagger(baseLearner, numBags = nRow * 8, randBasis = TestUtils.getBreezeRandBasis(rng))
-    *        computeMetrics(learner)
-    *      }
-    *      rng.setSeed(seed)
-    *      val randBasis = TestUtils.getBreezeRandBasis(rng)
-    *      val errorUnrandomizedTree = {
-    *        val baseLearner = RegressionTreeLearner(
-    *          numFeatures = nFeat,
-    *          splitter = RegressionSplitter(randomizePivotLocation = false, rng = rng),
-    *          rng = rng
-    *        )
-    *        val learner = new Bagger(baseLearner, numBags = nRow * 8, randBasis = randBasis)
-    *        computeMetrics(learner)
-    *      }
-    *      (errorStandardTree, errorAnnealingTree, errorUnrandomizedTree)
-    *    }.unzip3
-    *
-    *    val atol = 1e-12
-    *    assert(errorsStandardTree.forall{ e => Math.abs(e - errorsStandardTree.head) < atol })
-    *    assert(errorsAnnealingTree.forall{ e => Math.abs(e - errorsStandardTree.head) < atol })
-    *    assert(errorsUnrandomizedTree.forall{ e => Math.abs(e - errorsUnrandomizedTree.head) < atol })
-    *  }
-    */
-
   /**
     * Quick sanity check of the test setup
     */

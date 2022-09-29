@@ -127,7 +127,7 @@ object RegressionTrainingNode {
         _._2 != trainingData.head._2
       )
     ) {
-      val (leftSplit, leftDelta) = splitter.getBestSplit(trainingData, numFeatures, minLeafInstances)
+      val (leftSplit, leftDelta) = splitter.getBestSplit(trainingData, numFeatures, minLeafInstances, rng = rng)
       if (!leftSplit.isInstanceOf[NoSplit]) {
         new RegressionTrainingNode(
           trainingData,

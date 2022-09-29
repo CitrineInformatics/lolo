@@ -48,7 +48,7 @@ case class RegressionSplitter(randomizePivotLocation: Boolean = false) extends S
     /* Try every feature index */
     val featureIndices: Seq[Int] = rep._1.indices
     rng.shuffle(featureIndices).take(numFeatures).foreach { index =>
-      /* Use different spliters for each type */
+      /* Use different splitters for each type */
       val (possibleSplit, possibleVariance) = rep._1(index) match {
         case _: Double =>
           Splitter.getBestRealSplit[Double](data, calculator.copy(), index, minInstances, randomizePivotLocation, rng)

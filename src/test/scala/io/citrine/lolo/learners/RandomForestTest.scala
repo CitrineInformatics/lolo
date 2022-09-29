@@ -4,7 +4,10 @@ import breeze.linalg.DenseMatrix
 import breeze.stats.distributions.{Beta, RandBasis}
 import io.citrine.lolo.{SeedRandomMixIn, TestUtils}
 import io.citrine.lolo.bags.MultiTaskBaggedResult
+import io.citrine.lolo.linear.GuessTheMeanLearner
 import io.citrine.lolo.stats.functions.Friedman
+import io.citrine.lolo.trees.regression.RegressionTreeLearner
+import io.citrine.lolo.trees.splits.RegressionSplitter
 import io.citrine.random.Random
 import org.junit.Test
 import org.scalatest.Assertions._
@@ -97,6 +100,41 @@ class RandomForestTest extends SeedRandomMixIn {
           val maxProb = classProbabilities(a)
           maxProb > 0.5 && maxProb < 1.0 && Math.abs(classProbabilities.values.sum - 1.0) < 1.0e-6
       })
+    }
+  }
+
+  /** Test that the same random seed leads to identical models */
+  @Test
+  def testRepeatibility(): Unit = {
+    val numTrain = 50
+    // Generate completely random training data
+    val (inputs: Seq[Vector[Double]], realLabel: Seq[Double]) = TestUtils
+      .generateTrainingData(rows = numTrain, cols = 12, noise = 5.0, function = _ => 0.0, rng = rng)
+      .unzip
+    val catLabel: Seq[Boolean] = Seq.fill(numTrain)(rng.nextBoolean())
+    val allLabels = Vector(realLabel, catLabel).transpose
+
+    val numTest = 25
+    val testInputs = TestUtils.generateTrainingData(rows = numTest, cols = 12, function = _ => 0.0, rng = rng).map(_._1)
+
+    val seed = 67852103L
+    val meta = RegressionTreeLearner(splitter = RegressionSplitter(randomizePivotLocation = true))
+    val model1 = meta.train(inputs.zip(realLabel), rng = Random(seed)).getModel()
+    val model2 = meta.train(inputs.zip(realLabel), rng = Random(seed)).getModel()
+    val pred1 = model1.transform(testInputs)
+    val pred2 = model2.transform(testInputs)
+    assert(pred1.getExpected() == pred2.getExpected())
+    val RFMeta = RandomForest(
+      biasLearner = Some(RegressionTreeLearner(maxDepth = 5)),
+      randomizePivotLocation = true
+//      randomlyRotateFeatures = true
+    )
+    Vector(realLabel, catLabel, allLabels).foreach { labels =>
+      val model1 = RFMeta.train(inputs.zip(labels), rng = Random(seed)).getModel()
+      val model2 = RFMeta.train(inputs.zip(labels), rng = Random(seed)).getModel()
+      val predictions1 = model1.transform(testInputs)
+      val predictions2 = model2.transform(testInputs)
+      assert(predictions1.getExpected() == predictions2.getExpected())
     }
   }
 
