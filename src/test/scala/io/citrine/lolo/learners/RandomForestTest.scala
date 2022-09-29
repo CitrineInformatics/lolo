@@ -105,7 +105,7 @@ class RandomForestTest extends SeedRandomMixIn {
 
   /** Test that the same random seed leads to identical models */
   @Test
-  def testRepeatibility(): Unit = {
+  def testReproducibility(): Unit = {
     val numTrain = 50
     // Generate completely random training data
     val (inputs: Seq[Vector[Double]], realLabel: Seq[Double]) = TestUtils
@@ -114,20 +114,15 @@ class RandomForestTest extends SeedRandomMixIn {
     val catLabel: Seq[Boolean] = Seq.fill(numTrain)(rng.nextBoolean())
     val allLabels = Vector(realLabel, catLabel).transpose
 
+    // Generate test points
     val numTest = 25
     val testInputs = TestUtils.generateTrainingData(rows = numTest, cols = 12, function = _ => 0.0, rng = rng).map(_._1)
 
     val seed = 67852103L
-    val meta = RegressionTreeLearner(splitter = RegressionSplitter(randomizePivotLocation = true))
-    val model1 = meta.train(inputs.zip(realLabel), rng = Random(seed)).getModel()
-    val model2 = meta.train(inputs.zip(realLabel), rng = Random(seed)).getModel()
-    val pred1 = model1.transform(testInputs)
-    val pred2 = model2.transform(testInputs)
-    assert(pred1.getExpected() == pred2.getExpected())
     val RFMeta = RandomForest(
       biasLearner = Some(RegressionTreeLearner(maxDepth = 5)),
-      randomizePivotLocation = true
-//      randomlyRotateFeatures = true
+      randomizePivotLocation = true,
+      randomlyRotateFeatures = true
     )
     Vector(realLabel, catLabel, allLabels).foreach { labels =>
       val model1 = RFMeta.train(inputs.zip(labels), rng = Random(seed)).getModel()
