@@ -3,6 +3,7 @@ package io.citrine.lolo.learners
 import breeze.stats.distributions.{Beta, RandBasis}
 import io.citrine.lolo.{SeedRandomMixIn, TestUtils}
 import io.citrine.lolo.stats.functions.Friedman
+import io.citrine.lolo.trees.regression.RegressionTreeLearner
 import io.citrine.random.Random
 import org.junit.Test
 
@@ -192,13 +193,32 @@ class ExtraRandomTreesTest extends SeedRandomMixIn {
     learner.train(trainingData, rng = rng).getModel()
   }
 
-}
+  /** Test that the same random seed leads to identical models */
+  @Test
+  def testReproducibility(): Unit = {
+    val numTrain = 50
+    // Generate completely random training data
+    val (inputs: Seq[Vector[Double]], realLabel: Seq[Double]) = TestUtils
+      .generateTrainingData(rows = numTrain, cols = 12, noise = 5.0, function = _ => 0.0, rng = rng)
+      .unzip
+    val catLabel: Seq[Boolean] = Seq.fill(numTrain)(rng.nextBoolean())
 
-object ExtraRandomTreesTest {
-  def main(argv: Array[String]): Unit = {
-    new ExtraRandomTreesTest()
-      .testClassification()
-    new ExtraRandomTreesTest()
-      .testClassificationUnbiased()
+    // Generate test points
+    val numTest = 25
+    val testInputs = TestUtils.generateTrainingData(rows = numTest, cols = 12, function = _ => 0.0, rng = rng).map(_._1)
+
+    val seed = 67852103L
+    val RFMeta = ExtraRandomTrees(
+      biasLearner = Some(RegressionTreeLearner(maxDepth = 5)),
+      randomlyRotateFeatures = true
+    )
+    Vector(realLabel, catLabel).foreach { labels =>
+      val model1 = RFMeta.train(inputs.zip(labels), rng = Random(seed)).getModel()
+      val model2 = RFMeta.train(inputs.zip(labels), rng = Random(seed)).getModel()
+      val predictions1 = model1.transform(testInputs)
+      val predictions2 = model2.transform(testInputs)
+      assert(predictions1.getExpected() == predictions2.getExpected())
+    }
   }
+
 }

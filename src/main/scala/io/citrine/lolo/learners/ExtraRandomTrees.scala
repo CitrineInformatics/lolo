@@ -1,6 +1,5 @@
 package io.citrine.lolo.learners
 
-import breeze.stats.distributions.RandBasis
 import io.citrine.random.Random
 import io.citrine.lolo.bags.Bagger
 import io.citrine.lolo.transformers.FeatureRotator
@@ -8,7 +7,6 @@ import io.citrine.lolo.trees.classification.ClassificationTreeLearner
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
 import io.citrine.lolo.trees.splits.{ExtraRandomClassificationSplitter, ExtraRandomRegressionSplitter}
 import io.citrine.lolo.{Learner, TrainingResult}
-import org.apache.commons.math3.random.MersenneTwister
 
 /**
   * Extremely randomized tree ensemble
@@ -59,7 +57,7 @@ case class ExtraRandomTrees(
     val numFeatures: Int = RandomForest.getNumFeatures(subsetStrategy, trainingData.head._1.size, isRegression)
 
     repOutput match {
-      case _: Double => {
+      case _: Double =>
         val DTLearner = RegressionTreeLearner(
           leafLearner = leafLearner,
           numFeatures = numFeatures,
@@ -76,8 +74,7 @@ case class ExtraRandomTrees(
           disableBootstrap = disableBootstrap
         )
         bagger.train(trainingData, weights, rng)
-      }
-      case _: Any => {
+      case _: Any =>
         val DTLearner = ClassificationTreeLearner(
           leafLearner = leafLearner,
           numFeatures = numFeatures,
@@ -94,7 +91,6 @@ case class ExtraRandomTrees(
           disableBootstrap = disableBootstrap
         )
         bagger.train(trainingData, weights, rng)
-      }
     }
   }
 }
