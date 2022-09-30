@@ -1,6 +1,7 @@
 package io.citrine.lolo.trees.splits
 
 import io.citrine.lolo.SeedRandomMixIn
+import io.citrine.random.Random
 import org.junit.Test
 
 class BoltzmannSplitterTest extends SeedRandomMixIn {
@@ -10,7 +11,7 @@ class BoltzmannSplitterTest extends SeedRandomMixIn {
     */
   @Test
   def testZeroVariance(): Unit = {
-    val splitter = BoltzmannSplitter(1.0e-9, rng = rng)
+    val splitter = BoltzmannSplitter(1.0e-9)
     val testData = Seq.fill(64) {
       val x = rng.nextDouble()
       val y = 1.0
@@ -31,7 +32,7 @@ class BoltzmannSplitterTest extends SeedRandomMixIn {
     */
   @Test
   def testLowVariance(): Unit = {
-    val splitter = BoltzmannSplitter(1.0e-18, rng = rng)
+    val splitter = BoltzmannSplitter(1.0e-18)
     val testData = Seq.fill(256) {
       val x = rng.nextDouble()
       val y = rng.nextGaussian() * 1.0e-9 + 1.0
@@ -39,7 +40,7 @@ class BoltzmannSplitterTest extends SeedRandomMixIn {
       (Vector(x), y, weight)
     }
 
-    splitter.getBestSplit(testData, 1, 1)
+    splitter.getBestSplit(testData, 1, 1, rng = rng)
   }
 
 }

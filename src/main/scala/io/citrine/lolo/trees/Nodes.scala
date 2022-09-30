@@ -3,12 +3,12 @@ package io.citrine.lolo.trees
 import breeze.linalg.DenseMatrix
 import io.citrine.lolo.trees.splits.Split
 import io.citrine.lolo.{Learner, Model, PredictionResult}
+import io.citrine.random.Random
 
 import scala.collection.mutable
 
 /**
   * Class to provide getNode interface for internal and leaf training nodes
-  * Created by maxhutch on 11/29/16.
   *
   * @param trainingData   that this node sees
   * @param remainingDepth to stop growing the node
@@ -189,7 +189,8 @@ class InternalModelNode[T <: PredictionResult[Any]](
 class TrainingLeaf[T](
     trainingData: Seq[(Vector[AnyVal], T, Double)],
     leafLearner: Learner,
-    depth: Int
+    depth: Int,
+    rng: Random
 ) extends TrainingNode(
       trainingData = trainingData,
       remainingDepth = 0
@@ -202,7 +203,7 @@ class TrainingLeaf[T](
     */
   def getNode(): ModelNode[PredictionResult[T]] = {
     new ModelLeaf(
-      leafLearner.train(trainingData).getModel().asInstanceOf[Model[PredictionResult[T]]],
+      leafLearner.train(trainingData, rng = rng).getModel().asInstanceOf[Model[PredictionResult[T]]],
       depth,
       trainingData.size.toDouble
     )

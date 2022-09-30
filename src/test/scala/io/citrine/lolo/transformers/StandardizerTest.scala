@@ -52,12 +52,12 @@ class StandardizerTest extends SeedRandomMixIn {
     */
   @Test
   def testStandardGTM(): Unit = {
-    val learner = GuessTheMeanLearner(rng = rng)
-    val model = learner.train(data).getModel()
+    val learner = GuessTheMeanLearner()
+    val model = learner.train(data, rng = rng).getModel()
     val result = model.transform(data.map(_._1)).getExpected()
 
-    val standardLearner = Standardizer(GuessTheMeanLearner(rng = rng))
-    val standardModel = standardLearner.train(data).getModel()
+    val standardLearner = Standardizer(GuessTheMeanLearner())
+    val standardModel = standardLearner.train(data, rng = rng).getModel()
     val standardResult = standardModel.transform(data.map(_._1)).getExpected()
 
     result.zip(standardResult).foreach {

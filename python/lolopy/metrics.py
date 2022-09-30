@@ -8,15 +8,16 @@ from lolopy.utils import send_1D_array
 import numpy as np
 
 
-def _call_lolo_merit(metric_name, y_true, y_pred, rng, y_std=None, *args):
+def _call_lolo_merit(metric_name, y_true, y_pred, random_seed=None, y_std=None, *args):
     """Call a metric from lolopy
     
     Args:
         metric_name (str): Name of a Merit class (e.g., UncertaintyCorrelation)
         y_true ([double]): True value
         y_pred ([double]): Predicted values
-        y_uncert ([double]): Prediction uncertainties
-        *args (list): Any parameters to the constructor of the Metric
+        random_seed (int): for reproducibility (only used by some metrics)
+        y_std ([double]): Prediction uncertainties (only used by some metrics)
+        *args: Any parameters to the constructor of the Metric
     Returns:
         (double): Metric score
     """
@@ -27,7 +28,8 @@ def _call_lolo_merit(metric_name, y_true, y_pred, rng, y_std=None, *args):
 
     gateway = get_java_gateway()
     # Get default rng
-    rng = rng if rng else gateway.jvm.scala.util.Random()
+    rng = gateway.jvm.io.citrine.lolo.util.LoloPyRandom.getRng(random_seed) if random_seed \
+        else gateway.jvm.io.citrine.lolo.util.LoloPyRandom.getRng()
     # Get the metric object
     metric = getattr(gateway.jvm.io.citrine.lolo.validation, metric_name)
     if len(args) > 0:
@@ -45,7 +47,7 @@ def _call_lolo_merit(metric_name, y_true, y_pred, rng, y_std=None, *args):
     return metric.evaluate(pred_result, y_true_java, rng)
 
 
-def root_mean_squared_error(y_true, y_pred, rng=None):
+def root_mean_squared_error(y_true, y_pred):
     """Compute the root mean squared error
     
     Args:
@@ -55,10 +57,10 @@ def root_mean_squared_error(y_true, y_pred, rng=None):
         (double): RMSE
     """
 
-    return _call_lolo_merit('RootMeanSquareError', y_true, y_pred, rng)
+    return _call_lolo_merit('RootMeanSquareError', y_true, y_pred)
 
 
-def standard_confidence(y_true, y_pred, y_std, rng=None):
+def standard_confidence(y_true, y_pred, y_std):
     """Fraction of entries that have errors within the predicted confidence interval. 
     
     Args:
@@ -69,10 +71,10 @@ def standard_confidence(y_true, y_pred, y_std, rng=None):
         (double): standard confidence
     """
 
-    return _call_lolo_merit('StandardConfidence', y_true, y_pred, rng, y_std)
+    return _call_lolo_merit('StandardConfidence', y_true, y_pred, y_std=y_std)
 
 
-def standard_error(y_true, y_pred, y_std, rng=None, rescale=1.0):
+def standard_error(y_true, y_pred, y_std, rescale=1.0):
     """Root mean square of the error divided by the predicted uncertainty 
     
     Args:
@@ -84,17 +86,18 @@ def standard_error(y_true, y_pred, y_std, rng=None, rescale=1.0):
         (double): standard error
     """
 
-    return _call_lolo_merit('StandardError', y_true, y_pred, rng, y_std, float(rescale))
+    return _call_lolo_merit('StandardError', y_true, y_pred, None, y_std, float(rescale))
 
 
-def uncertainty_correlation(y_true, y_pred, y_std, rng=None):
+def uncertainty_correlation(y_true, y_pred, y_std, random_seed=None):
     """Measure of the correlation between the predicted uncertainty and error magnitude
     
     Args:
         y_true ([double]): True value
         y_pred ([double]): Predicted values
         y_std ([double]): Predicted uncertainty
+        random_seed (int): for reproducibility
     Returns:
         (double):
     """
-    return _call_lolo_merit('UncertaintyCorrelation', y_true, y_pred, rng, y_std)
+    return _call_lolo_merit('UncertaintyCorrelation', y_true, y_pred, random_seed=random_seed, y_std=y_std)

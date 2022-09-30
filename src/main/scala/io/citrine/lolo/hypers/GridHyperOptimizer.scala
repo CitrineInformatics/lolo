@@ -1,6 +1,7 @@
 package io.citrine.lolo.hypers
 
 import io.citrine.lolo.Learner
+import io.citrine.random.Random
 
 /**
   * Brute force search over the grid of hypers
@@ -19,7 +20,8 @@ case class GridHyperOptimizer() extends HyperOptimizer {
   override def optimize(
       trainingData: Seq[(Vector[Any], Any)],
       numIterations: Int = 1,
-      builder: Map[String, Any] => Learner
+      builder: Map[String, Any] => Learner,
+      rng: Random
   ): (Map[String, Any], Double) = {
     var best: Map[String, Any] = Map()
     var loss = Double.MaxValue
@@ -38,9 +40,9 @@ case class GridHyperOptimizer() extends HyperOptimizer {
           j = j / size
       }
 
-      /* Set up a learner with these parameters and compute the loss */
+      // Set up a learner with these parameters and compute the loss
       val testLearner = builder(testHypers)
-      val res = testLearner.train(trainingData)
+      val res = testLearner.train(trainingData, rng = rng)
       if (res.getLoss().isEmpty) {
         throw new IllegalArgumentException("Trying to optimize hyper-paramters for a learner without getLoss")
       }

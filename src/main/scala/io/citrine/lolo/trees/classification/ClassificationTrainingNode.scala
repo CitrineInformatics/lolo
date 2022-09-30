@@ -3,10 +3,9 @@ package io.citrine.lolo.trees.classification
 import io.citrine.lolo.trees.splits.{NoSplit, Split, Splitter}
 import io.citrine.lolo.trees.{InternalModelNode, ModelNode, TrainingLeaf, TrainingNode}
 import io.citrine.lolo.{Learner, PredictionResult}
+import io.citrine.random.Random
 
 /**
-  * Created by maxhutch on 1/12/17.
-  *
   * @param trainingData     that this node sees
   * @param leafLearner      to train on leaves
   * @param split            used to split this node's direct descendants
@@ -17,6 +16,7 @@ import io.citrine.lolo.{Learner, PredictionResult}
   * @param maxDepth         maximum depth of tree
   * @param numClasses       total number of classes, used as an output dimensionality
   * @param splitter         used to select splits
+  * @param rng              random number generator for reproducibility
   */
 class ClassificationTrainingNode(
     trainingData: Seq[(Vector[AnyVal], Char, Double)],
@@ -28,7 +28,8 @@ class ClassificationTrainingNode(
     remainingDepth: Int,
     maxDepth: Int,
     numClasses: Int,
-    splitter: Splitter[Char]
+    splitter: Splitter[Char],
+    rng: Random
 ) extends TrainingNode(trainingData, remainingDepth) {
 
   assert(trainingData.size > 1, "If we are going to split, we need at least 2 training rows")
@@ -36,10 +37,12 @@ class ClassificationTrainingNode(
     !split.isInstanceOf[NoSplit],
     s"Empty split split for training data: \n${trainingData.map(_.toString() + "\n")}"
   )
+  private val leftRng = rng.split()
+  private val rightRng = rng.split()
 
   lazy val (leftTrain, rightTrain) = trainingData.partition(r => split.turnLeft(r._1))
   assert(
-    leftTrain.size > 0 && rightTrain.size > 0,
+    leftTrain.nonEmpty && rightTrain.nonEmpty,
     s"Split ${split} resulted in zero size: ${trainingData.map(_._1(split.getIndex()))}"
   )
 
@@ -51,7 +54,8 @@ class ClassificationTrainingNode(
     maxDepth,
     numFeatures,
     numClasses,
-    splitter
+    splitter,
+    leftRng
   )
 
   lazy val rightChild = ClassificationTrainingNode.buildChild(
@@ -62,7 +66,8 @@ class ClassificationTrainingNode(
     maxDepth,
     numFeatures,
     numClasses,
-    splitter
+    splitter,
+    rightRng
   )
 
   /**
@@ -103,6 +108,7 @@ object ClassificationTrainingNode {
     * @param numFeatures      to consider in the split
     * @param numClasses       total number of classes, used as an output dimensionality
     * @param splitter         used to select splits
+    * @param rng              random number generator for reproducibility
     * @return the child node, either a RegressionTrainingNode or TrainingLeaf
     */
   def buildChild(
@@ -113,14 +119,15 @@ object ClassificationTrainingNode {
       maxDepth: Int,
       numFeatures: Int,
       numClasses: Int,
-      splitter: Splitter[Char]
+      splitter: Splitter[Char],
+      rng: Random
   ): TrainingNode[AnyVal, Char] = {
     if (
       trainingData.size >= 2 * minLeafInstances && remainingDepth > 0 && trainingData.exists(
         _._2 != trainingData.head._2
       )
     ) {
-      val (leftSplit, leftDelta) = splitter.getBestSplit(trainingData, numFeatures, minLeafInstances)
+      val (leftSplit, leftDelta) = splitter.getBestSplit(trainingData, numFeatures, minLeafInstances, rng)
       if (!leftSplit.isInstanceOf[NoSplit]) {
         new ClassificationTrainingNode(
           trainingData,
@@ -132,13 +139,14 @@ object ClassificationTrainingNode {
           remainingDepth - 1,
           maxDepth,
           numClasses,
-          splitter
+          splitter,
+          rng
         )
       } else {
-        new TrainingLeaf(trainingData, leafLearner, maxDepth - remainingDepth)
+        new TrainingLeaf(trainingData, leafLearner, maxDepth - remainingDepth, rng)
       }
     } else {
-      new TrainingLeaf(trainingData, leafLearner, maxDepth - remainingDepth)
+      new TrainingLeaf(trainingData, leafLearner, maxDepth - remainingDepth, rng)
     }
   }
 }

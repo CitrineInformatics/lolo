@@ -2,6 +2,7 @@ package io.citrine.lolo.linear
 
 import breeze.linalg.{diag, sum, DenseMatrix, DenseVector}
 import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
+import io.citrine.random.Random
 import org.slf4j.LoggerFactory
 
 import scala.util.{Failure, Success, Try}
@@ -23,11 +24,13 @@ case class LinearRegressionLearner(
     *
     * @param trainingData to train on
     * @param weights      for the training rows, if applicable
+    * @param rng          random number generator for reproducibility
     * @return a model
     */
   override def train(
       trainingData: Seq[(Vector[Any], Any)],
-      weights: Option[Seq[Double]]
+      weights: Option[Seq[Double]],
+      rng: Random
   ): LinearRegressionTrainingResult = {
     val lambda = regParam.getOrElse(0.0)
     val regularized = lambda > 0.0

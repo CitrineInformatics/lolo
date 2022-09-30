@@ -4,10 +4,11 @@ import breeze.stats.distributions.{RandBasis, ThreadLocalRandomGenerator}
 import io.citrine.lolo.linear.LinearRegressionLearner
 import io.citrine.lolo.stats.StatsUtils.variance
 import io.citrine.lolo.stats.functions.Friedman
+import io.citrine.random.Random
 import org.apache.commons.math3.random.MersenneTwister
 import org.junit.Before
 
-import scala.util.{Random, Try}
+import scala.util.Try
 
 /**
   * Created by maxhutch on 11/28/16.
@@ -47,7 +48,7 @@ object TestUtils {
       xscale: Double = 1.0,
       xoff: Double = 0.0,
       noise: Double = 0.0,
-      rng: Random = new Random()
+      rng: Random = Random()
   ): Vector[(Vector[Double], Double)] = {
     Vector.fill(rows) {
       val input = Vector.fill(cols)(xscale * rng.nextDouble() + xoff)
@@ -65,7 +66,7 @@ object TestUtils {
     * @param rng  random number generator
     * @return     sequence of values that have desired correlation with X
     */
-  def makeLinearCorrelatedData(X: Seq[Double], rho: Double, rng: Random = new Random()): Seq[Double] = {
+  def makeLinearCorrelatedData(X: Seq[Double], rho: Double, rng: Random = Random()): Seq[Double] = {
     require(rho >= -1.0 && rho <= 1.0, "correlation coefficient must be between -1.0 and 1.0")
     val Y = Seq.fill(X.length)(rng.nextGaussian())
     val linearLearner = LinearRegressionLearner()
@@ -83,7 +84,7 @@ object TestUtils {
       xscale: Double = 1.0,
       xoff: Double = 0.0,
       noise: Double = 0.0,
-      rng: Random = new Random()
+      rng: Random = Random()
   ): Iterator[(Vector[Double], Double)] = {
     Iterator.continually {
       val input = Vector.fill(cols)(xscale * rng.nextDouble() + xoff)
@@ -131,8 +132,6 @@ object TestUtils {
     }
   }
 
-  def getBreezeRandBasis(rng: Random = new Random()): RandBasis =
-    new RandBasis(new ThreadLocalRandomGenerator(new MersenneTwister(rng.nextLong())))
 }
 
 /**
@@ -140,15 +139,11 @@ object TestUtils {
   */
 trait SeedRandomMixIn {
   // Reset random number generator.
-  var rng: Random = new Random(2348752L)
-
-  // Set global RNG also, as a hack to partially coerce internals to be more deterministic.
-  scala.util.Random.setSeed(rng.nextLong())
+  var rng: Random = Random(2348752L)
 
   @Before
   def initializeRandom(): Unit = {
     // Seeds must also be reset for each test so that incremental tests are as predictable as running the full case.
-    rng = new Random(2348752L)
-    scala.util.Random.setSeed(rng.nextLong())
+    rng = Random(2348752L)
   }
 }

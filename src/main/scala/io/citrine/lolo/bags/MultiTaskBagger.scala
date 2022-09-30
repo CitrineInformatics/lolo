@@ -1,12 +1,14 @@
 package io.citrine.lolo.bags
 
-import breeze.stats.distributions.{Poisson, Rand, RandBasis}
-import io.citrine.lolo._
+import breeze.stats.distributions.Poisson
+import io.citrine.lolo.stats.StatsUtils.breezeRandBasis
+import io.citrine.lolo.{Learner, Model, MultiTaskLearner, MultiTaskModel, MultiTaskTrainingResult, PredictionResult}
+import io.citrine.random.Random
 import io.citrine.lolo.stats.metrics.{ClassificationMetrics, RegressionMetrics}
-import io.citrine.lolo.util.{Async, InterruptibleExecutionContext}
+import io.citrine.lolo.util.Async
 
-import scala.collection.parallel.ExecutionContextTaskSupport
-import scala.collection.parallel.immutable.{ParRange, ParSeq}
+import scala.collection.parallel.immutable.ParSeq
+import scala.collection.parallel.CollectionConverters.IterableIsParallelizable
 
 /**
   * Create an ensemble of multi-task models
@@ -16,20 +18,19 @@ import scala.collection.parallel.immutable.{ParRange, ParSeq}
   * @param useJackknife           whether to enable jackknife uncertainty estimate
   * @param biasLearner            learner to use for estimating bias
   * @param uncertaintyCalibration whether to empirically recalibrate the predicted uncertainties
-  * @param randBasis              breeze RandBasis to use for generating breeze random numbers
   */
 case class MultiTaskBagger(
     method: MultiTaskLearner,
     numBags: Int = -1,
     useJackknife: Boolean = true,
     biasLearner: Option[Learner] = None,
-    uncertaintyCalibration: Boolean = true,
-    randBasis: RandBasis = Rand
+    uncertaintyCalibration: Boolean = true
 ) extends MultiTaskLearner {
 
   override def train(
       trainingData: Seq[(Vector[Any], Vector[Any])],
-      weights: Option[Seq[Double]] = None
+      weights: Option[Seq[Double]],
+      rng: Random
   ): MultiTaskBaggedTrainingResult = {
     val (inputs, labels) = trainingData.unzip
     val numInputs = inputs.head.length
@@ -53,6 +54,7 @@ case class MultiTaskBagger(
     val actualBags = if (numBags > 0) numBags else trainingData.size
 
     // Compute the number of instances of each training row in each training sample
+    val randBasis = breezeRandBasis(rng)
     val dist = new Poisson(1.0)(randBasis)
     val Nib: Vector[Vector[Int]] = Iterator
       .continually(Vector.fill(trainingData.size)(dist.draw))
@@ -67,12 +69,18 @@ case class MultiTaskBagger(
       .toVector
     val weightsActual = weights.getOrElse(Seq.fill(trainingData.size)(1.0))
 
-    val parIterator = new ParRange(Nib.indices)
-    parIterator.tasksupport = new ExecutionContextTaskSupport(InterruptibleExecutionContext())
-    val (models: ParSeq[MultiTaskModel], importances: ParSeq[Option[Vector[Double]]]) = parIterator.map { i =>
-      val meta = method.train(trainingData, Some(Nib(i).zip(weightsActual).map(p => p._1.toDouble * p._2)))
-      (meta.getModel(), meta.getFeatureImportance())
-    }.unzip
+    val indices = Nib.indices.toVector
+    val (models: ParSeq[MultiTaskModel], importances: ParSeq[Option[Vector[Double]]]) =
+      rng
+        .zip(indices)
+        .par
+        .map {
+          case (thisRng, i) =>
+            val sampleWeights = Nib(i).zip(weightsActual).map(p => p._1.toDouble * p._2)
+            val meta = method.train(trainingData, Some(sampleWeights), thisRng)
+            (meta.getModel(), meta.getFeatureImportance())
+        }
+        .unzip
 
     val averageImportance: Option[Vector[Double]] = importances
       .reduce(combineImportance)
@@ -87,7 +95,12 @@ case class MultiTaskBagger(
         val helper = BaggerHelper(thisLabelModels, thisTrainingData, Nib, useJackknife, uncertaintyCalibration)
         val biasModel = if (biasLearner.isDefined && isRegression) {
           Async.canStop()
-          Some(biasLearner.get.train(helper.biasTraining).getModel().asInstanceOf[Model[PredictionResult[Double]]])
+          Some(
+            biasLearner.get
+              .train(helper.biasTraining, rng = rng)
+              .getModel()
+              .asInstanceOf[Model[PredictionResult[Double]]]
+          )
         } else None
         (biasModel, helper.rescaleRatio)
       }

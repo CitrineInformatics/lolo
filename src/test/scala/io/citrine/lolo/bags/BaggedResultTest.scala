@@ -17,8 +17,8 @@ class BaggedResultTest extends SeedRandomMixIn {
       inputBins = Seq((0, 8))
     )
 
-    val DTLearner = RegressionTreeLearner(numFeatures = 12, rng = rng)
-    val biasLearner = RegressionTreeLearner(maxDepth = 5, leafLearner = Some(GuessTheMeanLearner(rng = rng)))
+    val DTLearner = RegressionTreeLearner(numFeatures = 12)
+    val biasLearner = RegressionTreeLearner(maxDepth = 5, leafLearner = Some(GuessTheMeanLearner()))
 
     Array(
       Bagger(DTLearner, numBags = 64, biasLearner = None, uncertaintyCalibration = false, useJackknife = true),
@@ -38,7 +38,7 @@ class BaggedResultTest extends SeedRandomMixIn {
       ),
       Bagger(DTLearner, numBags = 64, biasLearner = None, uncertaintyCalibration = false, useJackknife = false)
     ).foreach { bagger =>
-      testConsistency(trainingData, bagger.train(trainingData).getModel())
+      testConsistency(trainingData, bagger.train(trainingData, rng = rng).getModel())
     }
   }
 
@@ -49,7 +49,7 @@ class BaggedResultTest extends SeedRandomMixIn {
   def testBaggedSingleResultGetUncertainty(): Unit = {
     val noiseLevel = 100.0
 
-    Seq(RegressionTreeLearner(), GuessTheMeanLearner(rng = rng)).foreach { baseLearner =>
+    Seq(RegressionTreeLearner(), GuessTheMeanLearner()).foreach { baseLearner =>
       // These are in Seqs as a convenience for repurposing this test as a diagnostic tool.
       Seq(128).foreach { nRows =>
         Seq(16).foreach { nCols =>
@@ -63,7 +63,7 @@ class BaggedResultTest extends SeedRandomMixIn {
                 TestUtils.generateTrainingData(nRows, nCols, noise = 0.0, function = _ => 0.0, rng = rng)
               val trainingData = trainingDataTmp.map { x => (x._1, x._2 + noiseLevel * rng.nextDouble()) }
               val baggedLearner = Bagger(baseLearner, numBags = nBags, uncertaintyCalibration = true)
-              val RFMeta = baggedLearner.train(trainingData)
+              val RFMeta = baggedLearner.train(trainingData, rng = rng)
               val RF = RFMeta.getModel()
               val results = RF.transform(trainingData.take(4).map(_._1))
 

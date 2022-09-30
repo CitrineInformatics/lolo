@@ -98,7 +98,7 @@ class FeatureRotatorTest extends SeedRandomMixIn {
     */
   @Test
   def testPassthroughFunctions(): Unit = {
-    val rotatedTrainingResult = FeatureRotator(RegressionTreeLearner()).train(data)
+    val rotatedTrainingResult = FeatureRotator(RegressionTreeLearner()).train(data, rng = rng)
 
     assert(
       rotatedTrainingResult.getLoss() == rotatedTrainingResult.baseTrainingResult.getLoss(),
@@ -120,12 +120,12 @@ class FeatureRotatorTest extends SeedRandomMixIn {
     */
   @Test
   def testRotatedGTM(): Unit = {
-    val learner = GuessTheMeanLearner(rng = rng)
-    val model = learner.train(data).getModel()
+    val learner = GuessTheMeanLearner()
+    val model = learner.train(data, rng = rng).getModel()
     val result = model.transform(data.map(_._1)).getExpected()
 
-    val rotatedLearner = FeatureRotator(GuessTheMeanLearner(rng = rng))
-    val rotatedModel = rotatedLearner.train(data).getModel()
+    val rotatedLearner = FeatureRotator(GuessTheMeanLearner())
+    val rotatedModel = rotatedLearner.train(data, rng = rng).getModel()
     val rotatedResult = rotatedModel.transform(data.map(_._1)).getExpected()
 
     result.zip(rotatedResult).foreach {
@@ -140,13 +140,13 @@ class FeatureRotatorTest extends SeedRandomMixIn {
   @Test
   def testRotatedLinear(): Unit = {
     val learner = LinearRegressionLearner()
-    val model = learner.train(data, Some(weights)).getModel()
+    val model = learner.train(data, Some(weights), rng).getModel()
     val result = model.transform(data.map(_._1))
     val expected = result.getExpected()
     val gradient = result.getGradient()
 
     val rotatedLearner = FeatureRotator(learner)
-    val rotatedModel = rotatedLearner.train(data, Some(weights)).getModel()
+    val rotatedModel = rotatedLearner.train(data, Some(weights), rng).getModel()
     val rotatedResult = rotatedModel.transform(data.map(_._1))
     val rotatedExpected = rotatedResult.getExpected()
     val rotatedGradient = rotatedResult.getGradient()
@@ -169,11 +169,11 @@ class FeatureRotatorTest extends SeedRandomMixIn {
   @Test
   def testRotatedRidge(): Unit = {
     val learner = LinearRegressionLearner(regParam = Some(1.0))
-    val model = learner.train(data).getModel()
+    val model = learner.train(data, rng = rng).getModel()
     val result = model.transform(data.map(_._1)).getExpected()
 
     val rotatedLearner = new FeatureRotator(learner)
-    val rotatedModel = rotatedLearner.train(data).getModel()
+    val rotatedModel = rotatedLearner.train(data, rng = rng).getModel()
     val rotatedResult = rotatedModel.transform(data.map(_._1)).getExpected()
 
     result.zip(rotatedResult).foreach {
@@ -188,11 +188,11 @@ class FeatureRotatorTest extends SeedRandomMixIn {
   @Test
   def testRotatedRegressionTree(): Unit = {
     val learner = RegressionTreeLearner()
-    val model = learner.train(data).getModel()
+    val model = learner.train(data, rng = rng).getModel()
     val result = model.transform(data.map(_._1)).getExpected()
 
     val rotatedLearner = new FeatureRotator(learner)
-    val rotatedModel = rotatedLearner.train(data).getModel().asInstanceOf[RotatedFeatureModel[Double]]
+    val rotatedModel = rotatedLearner.train(data, rng = rng).getModel().asInstanceOf[RotatedFeatureModel[Double]]
     var rotatedResult = rotatedModel.transform(data.map(_._1)).getExpected()
     result.zip(rotatedResult).foreach {
       case (free: Double, rotated: Double) =>
@@ -225,11 +225,12 @@ class FeatureRotatorTest extends SeedRandomMixIn {
     )
 
     val learner = ClassificationTreeLearner()
-    val model = learner.train(classificationData).getModel()
+    val model = learner.train(classificationData, rng = rng).getModel()
     val result = model.transform(classificationData.map(_._1)).getExpected()
 
     val rotatedLearner = new FeatureRotator(learner)
-    val rotatedModel = rotatedLearner.train(classificationData).getModel().asInstanceOf[RotatedFeatureModel[String]]
+    val rotatedModel =
+      rotatedLearner.train(classificationData, rng = rng).getModel().asInstanceOf[RotatedFeatureModel[String]]
     var rotatedResult = rotatedModel.transform(classificationData.map(_._1)).getExpected()
 
     result.zip(rotatedResult).foreach {
@@ -273,7 +274,7 @@ class FeatureRotatorTest extends SeedRandomMixIn {
     val baseLearner = MultiTaskTreeLearner()
     val rotatedLearner = MultiTaskFeatureRotator(MultiTaskTreeLearner())
 
-    val baseTrainingResult = baseLearner.train(inputs.zip(labels))
+    val baseTrainingResult = baseLearner.train(inputs.zip(labels), rng = rng)
     val baseDoubleModel = baseTrainingResult.getModels().head
     val baseCatModel = baseTrainingResult.getModels().last
     val rotatedTrainingResult = rotatedLearner.train(inputs.zip(labels))

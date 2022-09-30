@@ -1,5 +1,9 @@
 package io.citrine.lolo.stats
 
+import breeze.stats.distributions.{RandBasis, ThreadLocalRandomGenerator}
+import io.citrine.random.Random
+import org.apache.commons.math3.random.MersenneTwister
+
 object StatsUtils {
 
   /**
@@ -58,4 +62,7 @@ object StatsUtils {
     if (sigma2X == 0 || sigma2Y == 0) return 0.0
     covariance(X, Y, Some(actualWeights)) / math.sqrt(sigma2X * sigma2Y)
   }
+
+  def breezeRandBasis(rng: Random): RandBasis =
+    new RandBasis(new ThreadLocalRandomGenerator(new MersenneTwister(rng.nextLong())))
 }

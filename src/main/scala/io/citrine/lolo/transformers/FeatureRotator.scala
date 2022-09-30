@@ -1,19 +1,18 @@
 package io.citrine.lolo.transformers
 
 import io.citrine.lolo._
+import io.citrine.random.Random
 import breeze.linalg.{diag, qr, DenseMatrix, DenseVector}
 import breeze.linalg.qr.QR
 import breeze.numerics.signum
-import breeze.stats.distributions.{Gaussian, RandBasis, ThreadLocalRandomGenerator}
-import org.apache.commons.math3.random.MersenneTwister
+import breeze.stats.distributions.Gaussian
+import io.citrine.lolo.stats.StatsUtils.breezeRandBasis
 
 /**
   * Rotate the training data before passing along to a base learner
   *
   * This may be useful for improving randomization in random forests,
   * especially when using random feature selection without bagging.
-  *
-  * Created by gregor-robinson on 2020-01-02.
   */
 case class FeatureRotator(baseLearner: Learner) extends Learner {
 
@@ -22,18 +21,20 @@ case class FeatureRotator(baseLearner: Learner) extends Learner {
     *
     * @param trainingData to train on
     * @param weights      for the training rows, if applicable
+    * @param rng          random number generator for reproducibility
     * @return training result containing a model
     */
   override def train(
       trainingData: Seq[(Vector[Any], Any)],
-      weights: Option[Seq[Double]]
+      weights: Option[Seq[Double]],
+      rng: Random
   ): RotatedFeatureTrainingResult = {
     val featuresToRotate = FeatureRotator.getDoubleFeatures(trainingData.head._1)
-    val trans = FeatureRotator.getRandomRotation(featuresToRotate.length)
+    val trans = FeatureRotator.getRandomRotation(featuresToRotate.length, rng)
 
     val (inputs, labels) = trainingData.unzip
     val rotatedTrainingData = FeatureRotator.applyRotation(inputs, featuresToRotate, trans).zip(labels)
-    val baseTrainingResult = baseLearner.train(rotatedTrainingData, weights)
+    val baseTrainingResult = baseLearner.train(rotatedTrainingData, weights, rng)
 
     RotatedFeatureTrainingResult(baseTrainingResult, featuresToRotate, trans)
   }
@@ -46,18 +47,20 @@ case class MultiTaskFeatureRotator(baseLearner: MultiTaskLearner) extends MultiT
     *
     * @param trainingData  to train on
     * @param weights for the training rows, if applicable
+    * @param rng          random number generator for reproducibility
     * @return a sequence of training results, one for each label
     */
   override def train(
       trainingData: Seq[(Vector[Any], Vector[Any])],
-      weights: Option[Seq[Double]]
+      weights: Option[Seq[Double]],
+      rng: Random
   ): MultiTaskRotatedFeatureTrainingResult = {
     val inputs = trainingData.map(_._1)
     val labels = trainingData.map(_._2)
     val featuresToRotate = FeatureRotator.getDoubleFeatures(inputs.head)
-    val trans = FeatureRotator.getRandomRotation(inputs.head.length)
+    val trans = FeatureRotator.getRandomRotation(inputs.head.length, rng)
     val rotatedFeatures = FeatureRotator.applyRotation(inputs, featuresToRotate, trans)
-    val baseTrainingResult = baseLearner.train(rotatedFeatures.zip(labels), weights)
+    val baseTrainingResult = baseLearner.train(rotatedFeatures.zip(labels), weights, rng)
     MultiTaskRotatedFeatureTrainingResult(baseTrainingResult, featuresToRotate, trans)
   }
 }
@@ -155,9 +158,9 @@ case class RotatedFeatureModel[T](
 /**
   * Prediction bundling the base learner's prediction with the list of rotated features and the transformation
   *
-  * @param baseResult
-  * @param rotatedFeatures
-  * @param trans
+  * @param baseResult predictions made on rotated inputs
+  * @param rotatedFeatures indices of features to rotate
+  * @param trans rotation matrix to apply to features
   * @tparam T label type
   */
 case class RotatedFeaturePrediction[T](
@@ -171,7 +174,7 @@ case class RotatedFeaturePrediction[T](
     *
     * @return expected value of each prediction
     */
-  override def getExpected(): Seq[T] = baseResult.getExpected().asInstanceOf[Seq[T]]
+  override def getExpected(): Seq[T] = baseResult.getExpected()
 
   /**
     * Get the uncertainty of the prediction by delegating to baseResult
@@ -202,10 +205,12 @@ object FeatureRotator {
     * Draw a random unitary matrix from the uniform (Haar) measure.
     *
     * @param dimension for which to get a rotator
+    * @param rng random number generator, for reproducibility
     * @return unitary matrix
     */
-  def getRandomRotation(dimension: Int): DenseMatrix[Double] = {
-    val gaussian = Gaussian(0, 1)(RandBasis.systemSeed)
+  def getRandomRotation(dimension: Int, rng: Random = Random()): DenseMatrix[Double] = {
+    val randBasis = breezeRandBasis(rng)
+    val gaussian = Gaussian(0, 1)(randBasis)
     val X = DenseMatrix.rand(dimension, dimension, gaussian)
     val QR(_Q, _R) = qr(X)
     val d = signum(diag(_R))

@@ -1,14 +1,15 @@
 package io.citrine.lolo.trees.splits
 
 import io.citrine.lolo.trees.impurity.ImpurityCalculator
+import io.citrine.random.Random
 
-import scala.util.Random
-
-/**
-  * Created by maxhutch on 7/5/17.
-  */
 trait Splitter[T] {
-  def getBestSplit(data: Seq[(Vector[AnyVal], T, Double)], numFeatures: Int, minInstances: Int): (Split, Double)
+  def getBestSplit(
+      data: Seq[(Vector[AnyVal], T, Double)],
+      numFeatures: Int,
+      minInstances: Int,
+      rng: Random = Random()
+  ): (Split, Double)
 }
 
 object Splitter {
@@ -32,6 +33,7 @@ object Splitter {
     * @param minCount minimum number of data points to allow in each of the resulting splits
     * @param randomizePivotLocation whether generate splits by drawing a random value uniformly between the two split points.
     *                               This can improve generalizability, particularly as part of an ensemble.
+    * @param rng  random number generator for reproducibility
     * @return the best split of this feature
     */
   def getBestRealSplit[T](
@@ -40,7 +42,7 @@ object Splitter {
       index: Int,
       minCount: Int,
       randomizePivotLocation: Boolean = false,
-      rng: Random = Random
+      rng: Random = Random()
   ): (Split, Double) = {
     /* Pull out the feature that's considered here and sort by it */
     val thinData = data.map(dat => (dat._1(index).asInstanceOf[Double], dat._2, dat._3)).sortBy(_._1)

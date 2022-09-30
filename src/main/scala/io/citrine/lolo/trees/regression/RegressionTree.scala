@@ -1,48 +1,45 @@
 package io.citrine.lolo.trees.regression
 
 import breeze.linalg.DenseMatrix
+import io.citrine.random.Random
 import io.citrine.lolo.encoders.CategoricalEncoder
 import io.citrine.lolo.linear.GuessTheMeanLearner
 import io.citrine.lolo.trees.splits.{NoSplit, RegressionSplitter, Splitter}
 import io.citrine.lolo.trees.{ModelNode, TrainingNode, TreeMeta}
 import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
 
-import scala.util.Random
-
 /**
   * Learner for regression trees
-  *
-  * Created by maxhutch on 11/28/16.
   *
   * @param numFeatures to randomly select from at each split (default: all)
   * @param maxDepth    to grow the tree to
   * @param minLeafInstances minimum number of training instances per leaf
   * @param leafLearner learner to train the leaves with
   * @param splitter to determine the best split of the node data
-  * @param rng random number generator, for reproducibility
   */
 case class RegressionTreeLearner(
     numFeatures: Int = -1,
     maxDepth: Int = 30,
     minLeafInstances: Int = 1,
     leafLearner: Option[Learner] = None,
-    splitter: Splitter[Double] = RegressionSplitter(),
-    rng: Random = Random
+    splitter: Splitter[Double] = RegressionSplitter()
 ) extends Learner {
 
   /** Learner to use for training the leaves */
-  @transient private lazy val myLeafLearner = leafLearner.getOrElse(GuessTheMeanLearner(rng = rng))
+  @transient private lazy val myLeafLearner = leafLearner.getOrElse(GuessTheMeanLearner())
 
   /**
     * Train the tree by recursively partitioning (splitting) the training data on a single feature
     *
     * @param trainingData to train on
     * @param weights      for the training rows, if applicable
+    * @param rng          random number generator for reproducibility
     * @return a RegressionTree
     */
   override def train(
       trainingData: Seq[(Vector[Any], Any)],
-      weights: Option[Seq[Double]] = None
+      weights: Option[Seq[Double]],
+      rng: Random
   ): RegressionTreeTrainingResult = {
     require(trainingData.nonEmpty, s"The input training data was empty")
     if (!trainingData.head._2.isInstanceOf[Double]) {
@@ -88,9 +85,9 @@ case class RegressionTreeLearner(
     }
 
     /* The tree is built of training nodes */
-    val (split, delta) = splitter.getBestSplit(finalTraining, numFeaturesActual, minLeafInstances)
+    val (split, delta) = splitter.getBestSplit(finalTraining, numFeaturesActual, minLeafInstances, rng)
     val rootTrainingNode: TrainingNode[AnyVal, Double] = if (split.isInstanceOf[NoSplit] || maxDepth == 0) {
-      new RegressionTrainingLeaf(finalTraining, myLeafLearner, 0)
+      new RegressionTrainingLeaf(finalTraining, myLeafLearner, 0, rng)
     } else {
       new RegressionTrainingNode(
         finalTraining,
@@ -101,7 +98,8 @@ case class RegressionTreeLearner(
         numFeaturesActual,
         minLeafInstances = minLeafInstances,
         remainingDepth = maxDepth - 1,
-        maxDepth
+        maxDepth,
+        rng
       )
     }
 

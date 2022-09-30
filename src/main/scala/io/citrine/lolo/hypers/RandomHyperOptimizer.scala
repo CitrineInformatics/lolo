@@ -1,8 +1,7 @@
 package io.citrine.lolo.hypers
 
 import io.citrine.lolo.Learner
-
-import scala.util.Random
+import io.citrine.random.Random
 
 /**
   * Search for hypers by randomly sampling the search space
@@ -11,7 +10,7 @@ import scala.util.Random
   * calls.
   * Created by maxhutch on 12/7/16.
   */
-class RandomHyperOptimizer(rng: Random = Random) extends HyperOptimizer {
+class RandomHyperOptimizer() extends HyperOptimizer {
 
   /** Keep track of the best hypers outside of the optimize call so it persists across calls */
   var best: Map[String, Any] = Map()
@@ -29,7 +28,8 @@ class RandomHyperOptimizer(rng: Random = Random) extends HyperOptimizer {
   override def optimize(
       trainingData: Seq[(Vector[Any], Any)],
       numIterations: Int,
-      builder: Map[String, Any] => Learner
+      builder: Map[String, Any] => Learner,
+      rng: Random
   ): (Map[String, Any], Double) = {
     /* Just draw numIteration times */
     (0 until numIterations).foreach { i =>
@@ -38,7 +38,7 @@ class RandomHyperOptimizer(rng: Random = Random) extends HyperOptimizer {
           n -> rng.shuffle(v).head
       }
       val testLearner = builder(testHypers)
-      val res = testLearner.train(trainingData)
+      val res = testLearner.train(trainingData, rng = rng)
       if (res.getLoss().isEmpty) {
         throw new IllegalArgumentException("Trying to optimize hyper-paramters for a learner without getLoss")
       }

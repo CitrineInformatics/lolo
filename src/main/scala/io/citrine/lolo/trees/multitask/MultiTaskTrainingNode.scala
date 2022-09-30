@@ -5,9 +5,9 @@ import io.citrine.lolo.linear.GuessTheMeanLearner
 import io.citrine.lolo.trees.regression.RegressionTrainingLeaf
 import io.citrine.lolo.trees.splits.{MultiTaskSplitter, NoSplit}
 import io.citrine.lolo.trees.{InternalModelNode, ModelNode, TrainingLeaf}
+import io.citrine.random.Random
 
 import scala.collection.mutable
-import scala.util.Random
 
 /**
   * Node in a multi-task training tree, which can produce nodes for its model trees.
@@ -26,17 +26,18 @@ class MultiTaskTrainingNode(
     maxDepth: Int,
     minInstances: Int,
     randomizePivotLocation: Boolean = false,
-    rng: Random = Random
+    rng: Random
 ) {
 
   // Compute a split
   val (split, deltaImpurity) = if (maxDepth <= 0) {
     (new NoSplit, 0.0)
   } else {
-    MultiTaskSplitter(rng = rng, randomizePivotLocation = randomizePivotLocation).getBestSplit(
+    MultiTaskSplitter(randomizePivotLocation = randomizePivotLocation).getBestSplit(
       inputs,
       numFeatures,
-      minInstances
+      minInstances,
+      rng
     )
   }
 
@@ -53,7 +54,7 @@ class MultiTaskTrainingNode(
             maxDepth - 1,
             minInstances,
             randomizePivotLocation,
-            rng = rng
+            rng = rng.split()
           )
         ),
         Some(
@@ -63,7 +64,7 @@ class MultiTaskTrainingNode(
             maxDepth - 1,
             minInstances,
             randomizePivotLocation,
-            rng = rng
+            rng = rng.split()
           )
         )
       )
@@ -93,17 +94,20 @@ class MultiTaskTrainingNode(
       case (_, Some(theRightChild)) if right.nonEmpty =>
         theRightChild.getFeatureImportance(index)
       case (_, _) =>
+        // TODO (PLA-10415): get the rng in here somehow (right now it's instantiating a random rng)
         if (label.isInstanceOf[Double]) {
           new RegressionTrainingLeaf(
             reducedData.asInstanceOf[Seq[(Vector[AnyVal], Double, Double)]],
             GuessTheMeanLearner(),
-            1
+            1,
+            rng = Random()
           ).getFeatureImportance()
         } else {
           new TrainingLeaf[Char](
             reducedData.asInstanceOf[Seq[(Vector[AnyVal], Char, Double)]],
             GuessTheMeanLearner(),
-            1
+            1,
+            rng = Random()
           ).getFeatureImportance()
         }
     }
@@ -147,17 +151,20 @@ class MultiTaskTrainingNode(
       case (_, Some(theRightChild)) if right.nonEmpty =>
         theRightChild.getNode(index)
       case (_, _) =>
+        // TODO (PLA-10415): get the rng in here somehow (right now it's instantiating a random rng)
         if (label.isInstanceOf[Double]) {
           new RegressionTrainingLeaf(
             reducedData.asInstanceOf[Seq[(Vector[AnyVal], Double, Double)]],
             GuessTheMeanLearner(),
-            1
+            1,
+            rng = Random()
           ).getNode()
         } else {
           new TrainingLeaf[Char](
             reducedData.asInstanceOf[Seq[(Vector[AnyVal], Char, Double)]],
             GuessTheMeanLearner(),
-            1
+            1,
+            rng = Random()
           ).getNode()
         }
     }

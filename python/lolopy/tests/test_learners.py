@@ -32,7 +32,7 @@ def _make_linear_data():
 class TestRF(TestCase):
 
     def test_rf_regressor(self):
-        rf = RandomForestRegressor(random_seed = 31247895)
+        rf = RandomForestRegressor()
 
         # Train the model
         X, y = load_diabetes(return_X_y=True)
@@ -42,7 +42,7 @@ class TestRF(TestCase):
             rf.predict(X)
 
         # Fit the model
-        rf.fit(X, y)
+        rf.fit(X, y, random_seed=31247895)
 
         # Run some predictions
         y_pred = rf.predict(X)
@@ -78,14 +78,26 @@ class TestRF(TestCase):
         rf.clear_model()
         self.assertIsNone(rf.model_)
 
+    def test_reproducibility(self):
+        seed = 31247895
+        rf1 = RandomForestRegressor()
+        rf2 = RandomForestRegressor()
+        X, y = load_diabetes(return_X_y=True)
+
+        rf1.fit(X, y, random_seed=seed)
+        rf2.fit(X, y, random_seed=seed)
+        pred1 = rf1.predict(X)
+        pred2 = rf2.predict(X)
+        self.assertTrue((pred1 == pred2).all())
+
     def test_rf_multioutput_regressor(self):
-        rf = RandomForestRegressor(random_seed=810355)
+        rf = RandomForestRegressor()
         # A regression dataset with 3 outputs
         X, y = load_linnerud(return_X_y=True)
         num_data = len(X)
         num_outputs = y.shape[1]
 
-        rf.fit(X, y)
+        rf.fit(X, y, random_seed=810355)
         y_pred, y_std = rf.predict(X, return_std=True)
         _, y_cov = rf.predict(X, return_cov_matrix=True)
 
@@ -103,11 +115,11 @@ class TestRF(TestCase):
             rf.predict(X, return_std=True, return_cov_matrix=True)
 
     def test_classifier(self):
-        rf = RandomForestClassifier(random_seed = 34789)
+        rf = RandomForestClassifier()
 
         # Load in the iris dataset
         X, y = load_iris(return_X_y=True)
-        rf.fit(X, y)
+        rf.fit(X, y, random_seed=34789)
 
         # Predict the probability of membership in each class
         y_prob = rf.predict_proba(X)
@@ -126,7 +138,7 @@ class TestRF(TestCase):
         self.assertAlmostEqual(acc, 1)  # Given default settings, we should get perfect fitness to training data
 
     def test_serialization(self):
-        rf = RandomForestClassifier(random_seed = 234785)
+        rf = RandomForestClassifier()
 
         # Make sure this doesn't error without a model training
         data = pkl.dumps(rf)
@@ -134,7 +146,7 @@ class TestRF(TestCase):
 
         # Load in the iris dataset and train model
         X, y = load_iris(return_X_y=True)
-        rf.fit(X, y)
+        rf.fit(X, y, random_seed=234785)
 
         # Try saving and loading the model
         data = pkl.dumps(rf)
@@ -207,19 +219,19 @@ class TestRF(TestCase):
         self.assertAlmostEqual(1.0, r2_score(y, tree.predict(X)))  # Linear leaves means perfect fit
 
         # Test whether changing leaf learner does something
-        rf = RandomForestRegressor(leaf_learner=LinearRegression(), min_leaf_instances=16, random_seed = 23478)
-        rf.fit(X[:16, :], y[:16])  # Train only on a subset
+        rf = RandomForestRegressor(leaf_learner=LinearRegression(), min_leaf_instances=16)
+        rf.fit(X[:16, :], y[:16], random_seed=23478)  # Train only on a subset
         self.assertAlmostEqual(1.0, r2_score(y, rf.predict(X)))  # Should fit perfectly on whole dataset
 
-        rf = RandomForestRegressor(random_seed = 7834)
-        rf.fit(X[:16, :], y[:16])
+        rf = RandomForestRegressor()
+        rf.fit(X[:16, :], y[:16], random_seed=7834)
         self.assertLess(r2_score(y, rf.predict(X)), 1.0)  # Should not fit the whole dataset perfectly
 
 
 class TestExtraRandomTrees(TestCase):
 
     def test_extra_random_trees_regressor(self):
-        rf = ExtraRandomTreesRegressor(random_seed = 378456)
+        rf = ExtraRandomTreesRegressor()
 
         # Train the model
         X, y = load_diabetes(return_X_y=True)
@@ -229,7 +241,7 @@ class TestExtraRandomTrees(TestCase):
             rf.predict(X)
 
         # Fit the model
-        rf.fit(X, y)
+        rf.fit(X, y, random_seed=378456)
 
         # Run some predictions
         y_pred = rf.predict(X)
@@ -261,12 +273,24 @@ class TestExtraRandomTrees(TestCase):
         rf.clear_model()
         self.assertIsNone(rf.model_)
 
+    def test_reproducibility(self):
+        seed = 378456
+        rf1 = ExtraRandomTreesRegressor()
+        rf2 = ExtraRandomTreesRegressor()
+        X, y = load_diabetes(return_X_y=True)
+
+        rf1.fit(X, y, random_seed=seed)
+        rf2.fit(X, y, random_seed=seed)
+        pred1 = rf1.predict(X)
+        pred2 = rf2.predict(X)
+        self.assertTrue((pred1 == pred2).all())
+
     def test_extra_random_trees_classifier(self):
-        rf = ExtraRandomTreesClassifier(random_seed = 378456)
+        rf = ExtraRandomTreesClassifier()
 
         # Load in the iris dataset
         X, y = load_iris(return_X_y=True)
-        rf.fit(X, y)
+        rf.fit(X, y, random_seed=378456)
 
         # Predict the probability of membership in each class
         y_prob = rf.predict_proba(X)
@@ -285,7 +309,7 @@ class TestExtraRandomTrees(TestCase):
         self.assertAlmostEqual(acc, 1)  # Given default settings, we should get perfect fitness to training data
 
     def test_serialization(self):
-        rf = ExtraRandomTreesClassifier(random_seed = 378945)
+        rf = ExtraRandomTreesClassifier()
 
         # Make sure this doesn't error without a model training
         data = pkl.dumps(rf)
@@ -293,7 +317,7 @@ class TestExtraRandomTrees(TestCase):
 
         # Load in the iris dataset and train model
         X, y = load_iris(return_X_y=True)
-        rf.fit(X, y)
+        rf.fit(X, y, random_seed=378945)
 
         # Try saving and loading the model
         data = pkl.dumps(rf)

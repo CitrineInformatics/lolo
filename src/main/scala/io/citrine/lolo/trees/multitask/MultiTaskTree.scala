@@ -1,12 +1,11 @@
 package io.citrine.lolo.trees.multitask
 
+import io.citrine.random.Random
 import io.citrine.lolo.encoders.CategoricalEncoder
 import io.citrine.lolo.trees.ModelNode
 import io.citrine.lolo.trees.classification.ClassificationTree
 import io.citrine.lolo.trees.regression.RegressionTree
 import io.citrine.lolo.{Model, MultiTaskLearner, MultiTaskTrainingResult, ParallelModels, PredictionResult}
-
-import scala.util.Random
 
 /**
   * A tree learner that operates on multiple labels.
@@ -15,26 +14,26 @@ import scala.util.Random
   * @param maxDepth to grow the tree to
   * @param minLeafInstances minimum number of training instances per leaf
   * @param randomizePivotLocation whether to generate splits randomly between the data points
-  * @param rng random number generator, for reproducibility
   */
 case class MultiTaskTreeLearner(
     numFeatures: Int = -1,
     maxDepth: Int = 30,
     minLeafInstances: Int = 1,
-    randomizePivotLocation: Boolean = false,
-    rng: Random = Random
+    randomizePivotLocation: Boolean = false
 ) extends MultiTaskLearner {
 
   /**
     * Construct one regression or classification tree for each label.
     *
-    * @param trainingData   to train on
-    * @param weights  for the training rows, if applicable
-    * @return         sequence of models, one for each label
+    * @param trainingData to train on
+    * @param weights      for the training rows, if applicable
+    * @param rng          random number generator for reproducibility
+    * @return             sequence of models, one for each label
     */
   override def train(
       trainingData: Seq[(Vector[Any], Vector[Any])],
-      weights: Option[Seq[Double]]
+      weights: Option[Seq[Double]],
+      rng: Random
   ): MultiTaskTreeTrainingResult = {
     val (inputs, labels) = trainingData.unzip
     val repInput = inputs.head

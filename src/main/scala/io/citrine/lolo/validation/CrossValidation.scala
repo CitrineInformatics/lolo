@@ -1,8 +1,7 @@
 package io.citrine.lolo.validation
 
+import io.citrine.random.Random
 import io.citrine.lolo.{Learner, PredictionResult}
-
-import scala.util.Random
 
 /**
   * Methods tha use cross-validation to calculate predicted-vs-actual data and metric estimates
@@ -27,7 +26,7 @@ case object CrossValidation {
       metrics: Map[String, Merit[T]],
       k: Int = 8,
       nTrial: Int = 1,
-      rng: Random = Random
+      rng: Random = Random()
   ): Map[String, (Double, Double)] = {
     Merit.estimateMerits(
       kFoldPvA(trainingData, learner, k, nTrial, rng).iterator,
@@ -51,7 +50,7 @@ case object CrossValidation {
       learner: Learner,
       k: Int = 8,
       nTrial: Int = 1,
-      rng: Random = Random
+      rng: Random = Random()
   ): Iterable[(PredictionResult[T], Seq[T])] = {
     val nTest: Int = Math.ceil(trainingData.size.toDouble / k).toInt
     (0 until nTrial).flatMap { _ =>
@@ -61,7 +60,7 @@ case object CrossValidation {
         val (testFolds, trainFolds) = folds.zipWithIndex.partition(_._2 == idx)
         val testData = testFolds.flatMap(_._1)
         val trainData = trainFolds.flatMap(_._1)
-        val model = learner.train(trainData).getModel()
+        val model = learner.train(trainData, rng = rng).getModel()
         val predictions: PredictionResult[T] = model.transform(testData.map(_._1)).asInstanceOf[PredictionResult[T]]
         (predictions, testData.map(_._2))
       }

@@ -1,32 +1,30 @@
 package io.citrine.lolo.trees.splits
 
+import io.citrine.random.Random
 import io.citrine.lolo.trees.impurity.{ImpurityCalculator, VarianceCalculator}
-
-import scala.util.Random
 
 /**
   * A splitter that defines Extremely Randomized Trees
   *
   * This is based on Geurts, P., Ernst, D. & Wehenkel, L. Extremely randomized trees. Mach Learn 63, 3–42 (2006).
   * https://doi.org/10.1007/s10994-006-6226-1.
-  *
-  * @param rng random number generator
   */
-case class ExtraRandomRegressionSplitter(
-    rng: Random = Random
-) extends Splitter[Double] {
+case class ExtraRandomRegressionSplitter() extends Splitter[Double] {
 
   /**
     * Get the best split, considering numFeature random features (w/o replacement)
     *
     * @param data        to split
     * @param numFeatures to consider, randomly
+    * @param minInstances minimum instances permitted in a post-split partition
+    * @param rng          random number generator for reproducibility
     * @return a split object that optimally divides data
     */
   def getBestSplit(
       data: Seq[(Vector[AnyVal], Double, Double)],
       numFeatures: Int,
-      minInstances: Int
+      minInstances: Int,
+      rng: Random
   ): (Split, Double) = {
 
     val calculator = VarianceCalculator.build(data.map(_._2), data.map(_._3))
@@ -41,8 +39,8 @@ case class ExtraRandomRegressionSplitter(
     rng.shuffle(featureIndices.toVector).take(numFeatures).foreach { index =>
       /* Use different spliters for each type */
       val (possibleSplit, possibleVariance) = rep._1(index) match {
-        case _: Double => getBestRealSplit(data, calculator.copy(), index, minInstances)
-        case _: Char   => getBestCategoricalSplit(data, calculator.copy(), index, minInstances)
+        case _: Double => getBestRealSplit(data, calculator.copy(), index, minInstances, rng)
+        case _: Char   => getBestCategoricalSplit(data, calculator.copy(), index, minInstances, rng)
         case _: Any    => throw new IllegalArgumentException("Trying to split unknown feature type")
       }
 
@@ -66,13 +64,15 @@ case class ExtraRandomRegressionSplitter(
     * @param data  to split
     * @param index of the feature to split on
     * @param minCount minimum number of data points to allow in each of the resulting splits
+    * @param rng      random number generator, for reproducibility
     * @return the best split of this feature
     */
   def getBestRealSplit(
       data: Seq[(Vector[AnyVal], Double, Double)],
       calculator: ImpurityCalculator[Double],
       index: Int,
-      minCount: Int
+      minCount: Int,
+      rng: Random
   ): (RealSplit, Double) = {
     /* Pull out the feature that's considered here and sort by it */
     val axis: Seq[Double] = data.map(_._1(index).asInstanceOf[Double])
@@ -98,13 +98,16 @@ case class ExtraRandomRegressionSplitter(
     *
     * @param data  to split
     * @param index of the feature to split on
+    * @param minCount minimum number of data points to allow in each of the resulting splits
+    * @param rng      random number generator, for reproducibility
     * @return the best split of this feature
     */
   def getBestCategoricalSplit(
       data: Seq[(Vector[AnyVal], Double, Double)],
       calculator: ImpurityCalculator[Double],
       index: Int,
-      minCount: Int
+      minCount: Int,
+      rng: Random
   ): (Split, Double) = {
     /* Extract the features at the index */
     val thinData = data.map(dat => (dat._1(index).asInstanceOf[Char], dat._2, dat._3))

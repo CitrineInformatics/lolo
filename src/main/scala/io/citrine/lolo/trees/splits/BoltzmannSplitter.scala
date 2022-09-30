@@ -1,10 +1,10 @@
 package io.citrine.lolo.trees.splits
 
+import io.citrine.random.Random
 import io.citrine.lolo.trees.impurity.VarianceCalculator
 import io.citrine.lolo.trees.splits.BoltzmannSplitter.SplitterResult
 
 import scala.collection.mutable
-import scala.util.Random
 
 /**
   * Find a split for a regression problem
@@ -30,7 +30,7 @@ import scala.util.Random
   * @param temperature used to control how sensitive the probability of a split is to its change in variance.
   *                    The temperature can be thought of as a hyperparameter.
   */
-case class BoltzmannSplitter(temperature: Double, rng: Random = Random) extends Splitter[Double] {
+case class BoltzmannSplitter(temperature: Double) extends Splitter[Double] {
   require(
     temperature >= Float.MinPositiveValue,
     s"Temperature must be >= ${Float.MinPositiveValue} to avoid numerical underflows"
@@ -43,12 +43,14 @@ case class BoltzmannSplitter(temperature: Double, rng: Random = Random) extends 
     * @param data         to split
     * @param numFeatures  to consider, randomly
     * @param minInstances minimum instances permitted in a post-split partition
+    * @param rng          random number generator for reproducibility
     * @return a split object that optimally divides data
     */
   def getBestSplit(
       data: Seq[(Vector[AnyVal], Double, Double)],
       numFeatures: Int,
-      minInstances: Int
+      minInstances: Int,
+      rng: Random
   ): (Split, Double) = {
     /* Pre-compute these for the variance calculation */
     val calculator = VarianceCalculator.build(data.map(_._2), data.map(_._3))
