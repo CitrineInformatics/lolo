@@ -132,8 +132,6 @@ object TestUtils {
     }
   }
 
-  def getBreezeRandBasis(rng: Random = Random()): RandBasis =
-    new RandBasis(new ThreadLocalRandomGenerator(new MersenneTwister(rng.nextLong())))
 }
 
 /**
@@ -142,9 +140,6 @@ object TestUtils {
 trait SeedRandomMixIn {
   // Reset random number generator.
   var rng: Random = Random(2348752L)
-
-  // Set global RNG also, as a hack to partially coerce internals to be more deterministic.
-  scala.util.Random.setSeed(rng.nextLong())
 
   @Before
   def initializeRandom(): Unit = {

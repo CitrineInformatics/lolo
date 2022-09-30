@@ -24,7 +24,7 @@ class RegressionTrainingNode(
       remainingDepth = remainingDepth
     ) {
 
-  // TODO (PLA-10388): see if there's a way to get the rng for this (and the other nodes) out of the constructor
+  // TODO (PLA-10415): see if there's a way to get the rng for this (and the other nodes) out of the constructor
   // val (split: Split, deltaImpurity: Double) = RegressionSplitter.getBestSplit(trainingData, numFeatures)
   assert(trainingData.size > 1, "If we are going to split, we need at least 2 training rows")
   assert(

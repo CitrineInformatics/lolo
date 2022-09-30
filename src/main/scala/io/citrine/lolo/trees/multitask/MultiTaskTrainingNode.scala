@@ -94,7 +94,7 @@ class MultiTaskTrainingNode(
       case (_, Some(theRightChild)) if right.nonEmpty =>
         theRightChild.getFeatureImportance(index)
       case (_, _) =>
-        // TODO (PLA-10388): get the rng in here somehow (right now it's instantiating a random rng)
+        // TODO (PLA-10415): get the rng in here somehow (right now it's instantiating a random rng)
         if (label.isInstanceOf[Double]) {
           new RegressionTrainingLeaf(
             reducedData.asInstanceOf[Seq[(Vector[AnyVal], Double, Double)]],
@@ -151,7 +151,7 @@ class MultiTaskTrainingNode(
       case (_, Some(theRightChild)) if right.nonEmpty =>
         theRightChild.getNode(index)
       case (_, _) =>
-        // TODO (PLA-10388): get the rng in here somehow (right now it's instantiating a random rng)
+        // TODO (PLA-10415): get the rng in here somehow (right now it's instantiating a random rng)
         if (label.isInstanceOf[Double]) {
           new RegressionTrainingLeaf(
             reducedData.asInstanceOf[Seq[(Vector[AnyVal], Double, Double)]],

@@ -1,5 +1,6 @@
 package io.citrine.lolo.util
 
+// TODO (PLA-10416): Remove Async
 /**
   * Object containing utility functions for supporting interrupts
   * Created by maxhutch on 4/20/17.
