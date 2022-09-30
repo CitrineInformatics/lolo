@@ -1,16 +1,16 @@
 package io.citrine.lolo.bags
 
 import breeze.linalg.DenseMatrix
-import breeze.stats.distributions.{Poisson, RandBasis, ThreadLocalRandomGenerator}
+import breeze.stats.distributions.Poisson
 import io.citrine.random.Random
 import io.citrine.lolo.stats.metrics.{ClassificationMetrics, RegressionMetrics}
+import io.citrine.lolo.stats.StatsUtils.breezeRandBasis
 import io.citrine.lolo.util.Async
 import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
 
 import scala.collection.parallel.immutable.ParSeq
 import scala.collection.parallel.CollectionConverters.IterableIsParallelizable
 import scala.reflect._
-import org.apache.commons.math3.random.MersenneTwister
 
 /**
   * A bagger creates an ensemble of models by training the learner on random samples of the training data
@@ -76,7 +76,7 @@ case class Bagger(
     )
 
     /* Compute the number of instances of each training row in each training sample */
-    val randBasis = new RandBasis(new ThreadLocalRandomGenerator(new MersenneTwister(rng.nextLong())))
+    val randBasis = breezeRandBasis(rng)
     val dist = new Poisson(1.0)(randBasis)
     val Nib: Vector[Vector[Int]] = if (disableBootstrap) {
       Vector.fill[Vector[Int]](actualBags)(Vector.fill[Int](trainingData.size)(1))
@@ -103,10 +103,10 @@ case class Bagger(
     }
 
     // Learn the actual models in parallel
-    val iterator = Nib.indices.toVector
+    val indices = Nib.indices.toVector
     val (models: ParSeq[Model[PredictionResult[Any]]], importances: ParSeq[Option[Vector[Double]]]) =
       rng
-        .zip(iterator)
+        .zip(indices)
         .par
         .map {
           case (thisRng, i) =>

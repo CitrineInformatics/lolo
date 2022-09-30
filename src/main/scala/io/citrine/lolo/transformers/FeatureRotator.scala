@@ -5,8 +5,8 @@ import io.citrine.random.Random
 import breeze.linalg.{diag, qr, DenseMatrix, DenseVector}
 import breeze.linalg.qr.QR
 import breeze.numerics.signum
-import breeze.stats.distributions.{Gaussian, RandBasis, ThreadLocalRandomGenerator}
-import org.apache.commons.math3.random.MersenneTwister
+import breeze.stats.distributions.Gaussian
+import io.citrine.lolo.stats.StatsUtils.breezeRandBasis
 
 /**
   * Rotate the training data before passing along to a base learner
@@ -209,7 +209,7 @@ object FeatureRotator {
     * @return unitary matrix
     */
   def getRandomRotation(dimension: Int, rng: Random = Random()): DenseMatrix[Double] = {
-    val randBasis = new RandBasis(new ThreadLocalRandomGenerator(new MersenneTwister(rng.nextLong())))
+    val randBasis = breezeRandBasis(rng)
     val gaussian = Gaussian(0, 1)(randBasis)
     val X = DenseMatrix.rand(dimension, dimension, gaussian)
     val QR(_Q, _R) = qr(X)

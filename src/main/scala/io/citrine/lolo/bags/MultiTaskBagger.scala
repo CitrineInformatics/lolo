@@ -1,6 +1,7 @@
 package io.citrine.lolo.bags
 
-import breeze.stats.distributions.{Poisson, RandBasis, ThreadLocalRandomGenerator}
+import breeze.stats.distributions.Poisson
+import io.citrine.lolo.stats.StatsUtils.breezeRandBasis
 import io.citrine.lolo.{Learner, Model, MultiTaskLearner, MultiTaskModel, MultiTaskTrainingResult, PredictionResult}
 import io.citrine.random.Random
 import io.citrine.lolo.stats.metrics.{ClassificationMetrics, RegressionMetrics}
@@ -8,7 +9,6 @@ import io.citrine.lolo.util.Async
 
 import scala.collection.parallel.immutable.ParSeq
 import scala.collection.parallel.CollectionConverters.IterableIsParallelizable
-import org.apache.commons.math3.random.MersenneTwister
 
 /**
   * Create an ensemble of multi-task models
@@ -54,7 +54,7 @@ case class MultiTaskBagger(
     val actualBags = if (numBags > 0) numBags else trainingData.size
 
     // Compute the number of instances of each training row in each training sample
-    val randBasis = new RandBasis(new ThreadLocalRandomGenerator(new MersenneTwister(rng.nextLong())))
+    val randBasis = breezeRandBasis(rng)
     val dist = new Poisson(1.0)(randBasis)
     val Nib: Vector[Vector[Int]] = Iterator
       .continually(Vector.fill(trainingData.size)(dist.draw))
@@ -69,10 +69,10 @@ case class MultiTaskBagger(
       .toVector
     val weightsActual = weights.getOrElse(Seq.fill(trainingData.size)(1.0))
 
-    val iterator = Nib.indices.toVector
+    val indices = Nib.indices.toVector
     val (models: ParSeq[MultiTaskModel], importances: ParSeq[Option[Vector[Double]]]) =
       rng
-        .zip(iterator)
+        .zip(indices)
         .par
         .map {
           case (thisRng, i) =>

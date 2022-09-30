@@ -16,7 +16,7 @@ object Dependencies {
   )
 
   lazy val loloDeps = Seq(
-      "io.citrine"            %% "theta"                      % thetaVersion,
+    "io.citrine"              %% "theta"                      % thetaVersion,
     "io.citrine"              %% "sprandom"                   % sprandomVersion,
     "org.scalanlp"            %% "breeze"                     % breezeVersion,
     "org.scala-lang.modules"  %% "scala-parallel-collections" % scalaParallelCollectionsVersion,
