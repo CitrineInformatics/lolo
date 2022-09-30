@@ -78,6 +78,18 @@ class TestRF(TestCase):
         rf.clear_model()
         self.assertIsNone(rf.model_)
 
+    def test_reproducibility(self):
+        seed = 31247895
+        rf1 = RandomForestRegressor()
+        rf2 = RandomForestRegressor()
+        X, y = load_diabetes(return_X_y=True)
+
+        rf1.fit(X, y, random_seed=seed)
+        rf2.fit(X, y, random_seed=seed)
+        pred1 = rf1.predict(X)
+        pred2 = rf2.predict(X)
+        self.assertEqual(pred1, pred2)
+
     def test_rf_multioutput_regressor(self):
         rf = RandomForestRegressor()
         # A regression dataset with 3 outputs
