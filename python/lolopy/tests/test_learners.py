@@ -273,6 +273,18 @@ class TestExtraRandomTrees(TestCase):
         rf.clear_model()
         self.assertIsNone(rf.model_)
 
+    def test_reproducibility(self):
+        seed = 378456
+        rf1 = ExtraRandomTreesRegressor()
+        rf2 = ExtraRandomTreesRegressor()
+        X, y = load_diabetes(return_X_y=True)
+
+        rf1.fit(X, y, random_seed=seed)
+        rf2.fit(X, y, random_seed=seed)
+        pred1 = rf1.predict(X)
+        pred2 = rf2.predict(X)
+        self.assertTrue((pred1 == pred2).all())
+
     def test_extra_random_trees_classifier(self):
         rf = ExtraRandomTreesClassifier()
 
