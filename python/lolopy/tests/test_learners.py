@@ -88,7 +88,7 @@ class TestRF(TestCase):
         rf2.fit(X, y, random_seed=seed)
         pred1 = rf1.predict(X)
         pred2 = rf2.predict(X)
-        self.assertEqual(pred1, pred2)
+        self.assertTrue((pred1 == pred2).all())
 
     def test_rf_multioutput_regressor(self):
         rf = RandomForestRegressor()
