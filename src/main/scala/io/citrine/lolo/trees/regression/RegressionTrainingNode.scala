@@ -25,7 +25,7 @@ case class RegressionTrainingNode(
       leftNode.getModelNode(),
       rightNode.getModelNode(),
       1,
-      trainingData.map(_._3).sum // TODO (PLA-10415): this change broke a Shapley test
+      trainingData.map(_._3).sum
     )
   }
 

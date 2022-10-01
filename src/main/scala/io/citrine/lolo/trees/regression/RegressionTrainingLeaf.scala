@@ -21,7 +21,7 @@ case class RegressionTrainingLeaf(
     * @return lightweight prediction node
     */
   def getModelNode(): ModelNode[PredictionResult[Double]] =
-    ModelLeaf(model, depth, trainingData.map(_._3).sum) // TODO (PLA-10415): this change broke a Shapely test
+    ModelLeaf(model, depth, trainingData.map(_._3).sum)
 
   /**
     * Pull the leaf model's feature importance and rescale it by the remaining impurity
