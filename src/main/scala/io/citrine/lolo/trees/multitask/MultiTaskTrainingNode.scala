@@ -96,19 +96,23 @@ class MultiTaskTrainingNode(
       case (_, _) =>
         // TODO (PLA-10415): get the rng in here somehow (right now it's instantiating a random rng)
         if (label.isInstanceOf[Double]) {
-          RegressionTrainingLeaf.build(
-            reducedData.asInstanceOf[Seq[(Vector[AnyVal], Double, Double)]],
-            GuessTheMeanLearner(),
-            1,
-            rng = Random()
-          ).getFeatureImportance()
+          RegressionTrainingLeaf
+            .build(
+              reducedData.asInstanceOf[Seq[(Vector[AnyVal], Double, Double)]],
+              GuessTheMeanLearner(),
+              1,
+              rng = Random()
+            )
+            .getFeatureImportance()
         } else {
-          new TrainingLeaf[Char](
-            reducedData.asInstanceOf[Seq[(Vector[AnyVal], Char, Double)]],
-            GuessTheMeanLearner(),
-            1,
-            rng = Random()
-          ).getFeatureImportance()
+          TrainingLeaf
+            .build(
+              reducedData.asInstanceOf[Seq[(Vector[AnyVal], Char, Double)]],
+              GuessTheMeanLearner(),
+              1,
+              rng = Random()
+            )
+            .getFeatureImportance()
         }
     }
   }
@@ -153,19 +157,23 @@ class MultiTaskTrainingNode(
       case (_, _) =>
         // TODO (PLA-10415): get the rng in here somehow (right now it's instantiating a random rng)
         if (label.isInstanceOf[Double]) {
-          RegressionTrainingLeaf.build(
-            reducedData.asInstanceOf[Seq[(Vector[AnyVal], Double, Double)]],
-            GuessTheMeanLearner(),
-            1,
-            rng = Random()
-          ).getModelNode()
+          RegressionTrainingLeaf
+            .build(
+              reducedData.asInstanceOf[Seq[(Vector[AnyVal], Double, Double)]],
+              GuessTheMeanLearner(),
+              1,
+              rng = Random()
+            )
+            .getModelNode()
         } else {
-          new TrainingLeaf[Char](
-            reducedData.asInstanceOf[Seq[(Vector[AnyVal], Char, Double)]],
-            GuessTheMeanLearner(),
-            1,
-            rng = Random()
-          ).getModelNode()
+          TrainingLeaf
+            .build(
+              reducedData.asInstanceOf[Seq[(Vector[AnyVal], Char, Double)]],
+              GuessTheMeanLearner(),
+              1,
+              rng = Random()
+            )
+            .getModelNode()
         }
     }
   }

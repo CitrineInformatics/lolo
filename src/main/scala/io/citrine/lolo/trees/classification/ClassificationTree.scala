@@ -73,27 +73,18 @@ case class ClassificationTreeLearner(
       finalTraining.head._1.size
     }
 
-    /* The tree is built of training nodes */
-    val (split, delta) = splitter.getBestSplit(finalTraining, numFeaturesActual, minLeafInstances, rng)
-    val rootTrainingNode = if (split.isInstanceOf[NoSplit] || maxDepth == 0) {
-      new TrainingLeaf(finalTraining, myLeafLearner, 0, rng)
-    } else {
-      new ClassificationTrainingNode(
-        finalTraining,
-        myLeafLearner,
-        split,
-        delta,
-        numFeaturesActual,
-        remainingDepth = maxDepth - 1,
-        maxDepth = maxDepth,
-        minLeafInstances = minLeafInstances,
-        numClasses = trainingData.map { _._2 }.distinct.length,
-        splitter = splitter,
-        rng = rng
-      )
-    }
-
-    /* Wrap them up in a regression tree */
+    // Recursively build the tree via it snodes and wrap the top node in a ClassificationTreeTrainingResult
+    val rootTrainingNode = ClassificationTrainingNode.build(
+      trainingData = finalTraining,
+      leafLearner = myLeafLearner,
+      splitter = splitter,
+      numFeatures = numFeaturesActual,
+      minLeafInstances = minLeafInstances,
+      remainingDepth = maxDepth,
+      maxDepth = maxDepth,
+      numClasses = trainingData.map(_._2).distinct.length,
+      rng = rng
+    )
     new ClassificationTrainingResult(rootTrainingNode, inputEncoders, outputEncoder)
   }
 }

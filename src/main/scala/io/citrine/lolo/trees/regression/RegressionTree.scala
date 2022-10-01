@@ -91,7 +91,7 @@ case class RegressionTreeLearner(
       splitter = splitter,
       numFeatures = numFeaturesActual,
       minLeafInstances = minLeafInstances,
-      remainingDepth = maxDepth - 1,
+      remainingDepth = maxDepth,
       maxDepth = maxDepth,
       rng = rng
     )

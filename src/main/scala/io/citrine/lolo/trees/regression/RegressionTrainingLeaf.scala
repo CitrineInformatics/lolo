@@ -21,7 +21,7 @@ case class RegressionTrainingLeaf(
     * @return lightweight prediction node
     */
   def getModelNode(): ModelNode[PredictionResult[Double]] =
-    ModelLeaf(model, depth, trainingData.size.toDouble)
+    ModelLeaf(model, depth, trainingData.map(_._3).sum) // TODO (PLA-10415): this change broke a Shapely test
 
   /**
     * Pull the leaf model's feature importance and rescale it by the remaining impurity
@@ -63,10 +63,10 @@ object RegressionTrainingLeaf {
     * @return a trained regression leaf node
     */
   def build(
-    trainingData: Seq[(Vector[AnyVal], Double, Double)],
-    leafLearner: Learner,
-    depth: Int,
-    rng: Random
+      trainingData: Seq[(Vector[AnyVal], Double, Double)],
+      leafLearner: Learner,
+      depth: Int,
+      rng: Random
   ): RegressionTrainingLeaf = {
     val trainingResult = leafLearner.train(trainingData, rng = rng)
     RegressionTrainingLeaf(trainingData, trainingResult, depth)

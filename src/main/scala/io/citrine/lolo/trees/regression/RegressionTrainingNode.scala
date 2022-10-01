@@ -25,7 +25,7 @@ case class RegressionTrainingNode(
       leftNode.getModelNode(),
       rightNode.getModelNode(),
       1,
-      trainingData.size.toDouble
+      trainingData.map(_._3).sum // TODO (PLA-10415): this change broke a Shapley test
     )
   }
 
@@ -61,23 +61,22 @@ object RegressionTrainingNode {
     * @return the child node, either a RegressionTrainingNode or TrainingLeaf
     */
   def build(
-     trainingData: Seq[(Vector[AnyVal], Double, Double)],
-     leafLearner: Learner,
-     splitter: Splitter[Double],
-     numFeatures: Int,
-     minLeafInstances: Int,
-     remainingDepth: Int,
-     maxDepth: Int,
-     rng: Random
-   ): TrainingNode[AnyVal, Double] = {
+      trainingData: Seq[(Vector[AnyVal], Double, Double)],
+      leafLearner: Learner,
+      splitter: Splitter[Double],
+      numFeatures: Int,
+      minLeafInstances: Int,
+      remainingDepth: Int,
+      maxDepth: Int,
+      rng: Random
+  ): TrainingNode[AnyVal, Double] = {
     val sufficientData = trainingData.size >= 2 * minLeafInstances &&
       remainingDepth > 0 &&
       trainingData.exists(_._2 != trainingData.head._2)
     if (sufficientData) {
-      val (split: Split, deltaImpurity: Double) = splitter.getBestSplit(trainingData, numFeatures, minLeafInstances, rng)
+      val (split: Split, deltaImpurity: Double) =
+        splitter.getBestSplit(trainingData, numFeatures, minLeafInstances, rng)
       if (!split.isInstanceOf[NoSplit]) {
-        val leftRng = rng.split() // TODO: this is likely unnecessary
-        val rightRng = rng.split()
         val (leftTrain, rightTrain) = trainingData.partition(r => split.turnLeft(r._1))
         val leftNode = RegressionTrainingNode.build(
           trainingData = leftTrain,
@@ -87,7 +86,7 @@ object RegressionTrainingNode {
           minLeafInstances = minLeafInstances,
           remainingDepth = remainingDepth - 1,
           maxDepth = maxDepth,
-          rng = leftRng
+          rng = rng
         )
         val rightNode = RegressionTrainingNode.build(
           trainingData = rightTrain,
@@ -97,7 +96,7 @@ object RegressionTrainingNode {
           minLeafInstances = minLeafInstances,
           remainingDepth = remainingDepth - 1,
           maxDepth = maxDepth,
-          rng = rightRng
+          rng = rng
         )
         RegressionTrainingNode(
           trainingData = trainingData,

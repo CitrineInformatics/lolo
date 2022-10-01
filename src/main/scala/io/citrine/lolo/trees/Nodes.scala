@@ -2,7 +2,7 @@ package io.citrine.lolo.trees
 
 import breeze.linalg.DenseMatrix
 import io.citrine.lolo.trees.splits.Split
-import io.citrine.lolo.{Learner, Model, PredictionResult}
+import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
 import io.citrine.random.Random
 
 import scala.collection.mutable
@@ -185,25 +185,27 @@ case class InternalModelNode[T <: PredictionResult[Any]](
   */
 case class TrainingLeaf[T](
     trainingData: Seq[(Vector[AnyVal], T, Double)],
-    leafLearner: Learner,
-    depth: Int,
-    rng: Random
+    trainingResult: TrainingResult,
+    depth: Int
 ) extends TrainingNode[AnyVal, T] {
 
-  /**
-    * Average the training data
-    *
-    * @return lightweight prediction node
-    */
-  def getModelNode(): ModelNode[PredictionResult[T]] = {
-    new ModelLeaf(
-      leafLearner.train(trainingData, rng = rng).getModel().asInstanceOf[Model[PredictionResult[T]]],
-      depth,
-      trainingData.size.toDouble
-    )
-  }
+  def getModelNode(): ModelNode[PredictionResult[T]] =
+    ModelLeaf(model, depth, trainingData.map(_._3).sum)
 
+  def model: Model[PredictionResult[T]] = trainingResult.getModel().asInstanceOf[Model[PredictionResult[T]]]
+
+  // TODO (PLA-10415): Are we not computing feature importance for classification models?
   override def getFeatureImportance(): mutable.ArraySeq[Double] = mutable.ArraySeq.fill(trainingData.head._1.size)(0.0)
+}
+
+object TrainingLeaf {
+  def build[T](
+      trainingData: Seq[(Vector[AnyVal], T, Double)],
+      leafLearner: Learner,
+      depth: Int,
+      rng: Random
+  ): TrainingLeaf[T] =
+    TrainingLeaf(trainingData, leafLearner.train(trainingData, rng), depth)
 }
 
 case class ModelLeaf[T](model: Model[PredictionResult[T]], depth: Int, trainingWeight: Double)
