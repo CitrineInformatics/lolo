@@ -4,7 +4,7 @@ import breeze.linalg.DenseMatrix
 import io.citrine.random.Random
 import io.citrine.lolo.encoders.CategoricalEncoder
 import io.citrine.lolo.linear.GuessTheMeanLearner
-import io.citrine.lolo.trees.splits.{NoSplit, RegressionSplitter, Splitter}
+import io.citrine.lolo.trees.splits.{RegressionSplitter, Splitter}
 import io.citrine.lolo.trees.{ModelNode, TrainingNode, TreeMeta}
 import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
 
@@ -59,10 +59,10 @@ case class RegressionTreeLearner(
         }
     }
 
-    /* Encode the training data */
+    // Encode the training data.
     val encodedTraining = trainingData.map(p => (CategoricalEncoder.encodeInput(p._1, encoders), p._2))
 
-    /* Add the weights to the (features, label) tuples and remove any with zero weight */
+    // Add the weights to the (features, label) tuples and remove any with zero weight.
     val finalTraining = encodedTraining
       .zip(weights.getOrElse(Seq.fill(trainingData.size)(1.0)))
       .map {
@@ -77,33 +77,24 @@ case class RegressionTreeLearner(
       s"We need to have at least 4 rows with non-zero weights, only ${finalTraining.size} given"
     )
 
-    /* If the number of features isn't specified, use all of them */
+    // If the number of features isn't specified, use all of them.
     val numFeaturesActual = if (numFeatures > 0) {
       numFeatures
     } else {
       finalTraining.head._1.size
     }
 
-    /* The tree is built of training nodes */
-    val (split, delta) = splitter.getBestSplit(finalTraining, numFeaturesActual, minLeafInstances, rng)
-    val rootTrainingNode: TrainingNode[AnyVal, Double] = if (split.isInstanceOf[NoSplit] || maxDepth == 0) {
-      new RegressionTrainingLeaf(finalTraining, myLeafLearner, 0, rng)
-    } else {
-      new RegressionTrainingNode(
-        finalTraining,
-        myLeafLearner,
-        splitter,
-        split,
-        delta,
-        numFeaturesActual,
-        minLeafInstances = minLeafInstances,
-        remainingDepth = maxDepth - 1,
-        maxDepth,
-        rng
-      )
-    }
-
-    /* Wrap them up in a regression tree */
+    // Recursively build the tree via its nodes and wrap the top node in a RegressionTreeTrainingResult.
+    val rootTrainingNode = RegressionTrainingNode.build(
+      trainingData = finalTraining,
+      leafLearner = myLeafLearner,
+      splitter = splitter,
+      numFeatures = numFeaturesActual,
+      minLeafInstances = minLeafInstances,
+      remainingDepth = maxDepth - 1,
+      maxDepth = maxDepth,
+      rng = rng
+    )
     new RegressionTreeTrainingResult(rootTrainingNode, encoders)
   }
 
@@ -113,7 +104,7 @@ class RegressionTreeTrainingResult(
     rootTrainingNode: TrainingNode[AnyVal, Double],
     encoders: Seq[Option[CategoricalEncoder[Any]]]
 ) extends TrainingResult {
-  lazy val model = new RegressionTree(rootTrainingNode.getNode(), encoders)
+  lazy val model = new RegressionTree(rootTrainingNode.getModelNode(), encoders)
   lazy val importance = rootTrainingNode.getFeatureImportance()
   private lazy val importanceNormalized = {
     if (Math.abs(importance.sum) > 0) {

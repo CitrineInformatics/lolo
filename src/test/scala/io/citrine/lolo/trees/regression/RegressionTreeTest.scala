@@ -347,15 +347,3 @@ class RegressionTreeTest extends SeedRandomMixIn {
   }
 }
 
-/** Companion driver */
-object RegressionTreeTest {
-
-  /**
-    * Test driver
-    *
-    * @param argv args
-    */
-  def main(argv: Array[String]): Unit = {
-    new RegressionTreeTest().testSimpleBoltzmannTree()
-  }
-}

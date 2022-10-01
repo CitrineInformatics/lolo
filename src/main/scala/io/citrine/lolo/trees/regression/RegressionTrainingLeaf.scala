@@ -1,7 +1,7 @@
 package io.citrine.lolo.trees.regression
 
 import io.citrine.lolo.trees.{ModelLeaf, ModelNode, TrainingNode}
-import io.citrine.lolo.{Learner, Model, PredictionResult}
+import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
 import io.citrine.random.Random
 
 import scala.collection.mutable
@@ -9,21 +9,19 @@ import scala.collection.mutable
 /**
   * Training leaf node for regression trees
   */
-class RegressionTrainingLeaf(
+case class RegressionTrainingLeaf(
     trainingData: Seq[(Vector[AnyVal], Double, Double)],
-    leafLearner: Learner,
-    depth: Int,
-    rng: Random
-) extends TrainingNode(trainingData, depth) {
+    trainingResult: TrainingResult,
+    depth: Int
+) extends TrainingNode[AnyVal, Double] {
 
   /**
     * Wrap the leaf model (previously trained) in a lightweight leaf node
     *
     * @return lightweight prediction node
     */
-  def getNode(): ModelNode[PredictionResult[Double]] = {
-    new ModelLeaf(model, depth, trainingData.size.toDouble)
-  }
+  def getModelNode(): ModelNode[PredictionResult[Double]] =
+    ModelLeaf(model, depth, trainingData.size.toDouble)
 
   /**
     * Pull the leaf model's feature importance and rescale it by the remaining impurity
@@ -48,12 +46,29 @@ class RegressionTrainingLeaf(
     }
   }
 
-  /** Train the leaf learner on the training data */
-  val leafTrainingResult = leafLearner.train(trainingData, rng = rng)
-
   /** Pull out the model for future use */
-  val model = leafTrainingResult.getModel().asInstanceOf[Model[PredictionResult[Double]]]
+  val model = trainingResult.getModel().asInstanceOf[Model[PredictionResult[Double]]]
 
   /** Pull out the importance for future use */
-  val importance = leafTrainingResult.getFeatureImportance()
+  val importance = trainingResult.getFeatureImportance()
+}
+
+object RegressionTrainingLeaf {
+
+  /**
+    * @param trainingData for this leaf node
+    * @param leafLearner on which to train the data
+    * @param depth depth in the tree
+    * @param rng random number generator, for reproducibility
+    * @return a trained regression leaf node
+    */
+  def build(
+    trainingData: Seq[(Vector[AnyVal], Double, Double)],
+    leafLearner: Learner,
+    depth: Int,
+    rng: Random
+  ): RegressionTrainingLeaf = {
+    val trainingResult = leafLearner.train(trainingData, rng = rng)
+    RegressionTrainingLeaf(trainingData, trainingResult, depth)
+  }
 }

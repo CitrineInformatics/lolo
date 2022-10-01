@@ -87,7 +87,7 @@ class MultiTaskTrainingNode(
       case (Some(theLeftChild), Some(theRightChild)) if left.nonEmpty && right.nonEmpty =>
         val ans =
           theLeftChild.getFeatureImportance(index).zip(theRightChild.getFeatureImportance(index)).map(p => p._1 + p._2)
-        ans(split.getIndex()) = ans(split.getIndex()) + deltaImpurity
+        ans(split.getIndex) = ans(split.getIndex) + deltaImpurity
         ans
       case (Some(theLeftChild), _) if left.nonEmpty =>
         theLeftChild.getFeatureImportance(index)
@@ -96,7 +96,7 @@ class MultiTaskTrainingNode(
       case (_, _) =>
         // TODO (PLA-10415): get the rng in here somehow (right now it's instantiating a random rng)
         if (label.isInstanceOf[Double]) {
-          new RegressionTrainingLeaf(
+          RegressionTrainingLeaf.build(
             reducedData.asInstanceOf[Seq[(Vector[AnyVal], Double, Double)]],
             GuessTheMeanLearner(),
             1,
@@ -153,19 +153,19 @@ class MultiTaskTrainingNode(
       case (_, _) =>
         // TODO (PLA-10415): get the rng in here somehow (right now it's instantiating a random rng)
         if (label.isInstanceOf[Double]) {
-          new RegressionTrainingLeaf(
+          RegressionTrainingLeaf.build(
             reducedData.asInstanceOf[Seq[(Vector[AnyVal], Double, Double)]],
             GuessTheMeanLearner(),
             1,
             rng = Random()
-          ).getNode()
+          ).getModelNode()
         } else {
           new TrainingLeaf[Char](
             reducedData.asInstanceOf[Seq[(Vector[AnyVal], Char, Double)]],
             GuessTheMeanLearner(),
             1,
             rng = Random()
-          ).getNode()
+          ).getModelNode()
         }
     }
   }

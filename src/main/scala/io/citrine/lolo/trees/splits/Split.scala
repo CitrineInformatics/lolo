@@ -5,7 +5,7 @@ import scala.collection.BitSet
 /**
   * Splits are used by decision trees to partition the input space
   */
-abstract trait Split extends Serializable {
+sealed trait Split extends Serializable {
 
   /**
     * Take the left branch in the binary split?
@@ -20,7 +20,7 @@ abstract trait Split extends Serializable {
     *
     * @return index of the input vector used by this split
     */
-  def getIndex(): Int
+  def getIndex: Int
 }
 
 /**
@@ -41,7 +41,7 @@ class NoSplit extends Split {
     *
     * @return index of the input vector used by this split
     */
-  override def getIndex(): Int = -1
+  override def getIndex: Int = -1
 }
 
 /**
@@ -80,7 +80,7 @@ class RealSplit(index: Int, pivot: Double) extends Split {
     *
     * @return debug string
     */
-  override def toString: String = s"Split index ${index} @ ${pivot}"
+  override def toString: String = s"Split index $index @ $pivot"
 }
 
 /**

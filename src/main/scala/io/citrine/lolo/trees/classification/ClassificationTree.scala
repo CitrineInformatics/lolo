@@ -104,7 +104,7 @@ class ClassificationTrainingResult(
     outputEncoder: CategoricalEncoder[Any]
 ) extends TrainingResult {
   /* Grab a prediction node.  The partitioning happens here */
-  lazy val model = new ClassificationTree(rootTrainingNode.getNode(), inputEncoders, outputEncoder)
+  lazy val model = new ClassificationTree(rootTrainingNode.getModelNode(), inputEncoders, outputEncoder)
 
   /* Grab the feature influences */
   lazy val importance = rootTrainingNode.getFeatureImportance()

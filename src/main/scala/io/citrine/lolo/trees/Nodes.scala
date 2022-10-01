@@ -8,24 +8,21 @@ import io.citrine.random.Random
 import scala.collection.mutable
 
 /**
-  * Class to provide getNode interface for internal and leaf training nodes
+  * Trait to provide getNode interface for internal and leaf training nodes
   *
-  * @param trainingData   that this node sees
-  * @param remainingDepth to stop growing the node
   * @tparam T type of the input vector
   * @tparam S type of the model output
   */
-abstract class TrainingNode[T <: AnyVal, S](
-    trainingData: Seq[(Vector[T], S, Double)],
-    remainingDepth: Int = Int.MaxValue
-) extends Serializable {
+trait TrainingNode[T <: AnyVal, S] extends Serializable {
+
+  def trainingData: Seq[(Vector[T], S, Double)]
 
   /**
     * Get the lightweight prediction node for the output tree
     *
     * @return lightweight prediction node
     */
-  def getNode(): ModelNode[PredictionResult[S]]
+  def getModelNode(): ModelNode[PredictionResult[S]]
 
   /**
     * Get the feature importance of the subtree below this node
@@ -88,7 +85,7 @@ trait ModelNode[+T <: PredictionResult[Any]] extends Serializable {
   * @param trainingWeight  weight of training data in subtree (i.e. size of unweighted training set)
   * @tparam T type of the output
   */
-class InternalModelNode[T <: PredictionResult[Any]](
+case class InternalModelNode[T <: PredictionResult[Any]](
     split: Split,
     left: ModelNode[T],
     right: ModelNode[T],
@@ -128,7 +125,7 @@ class InternalModelNode[T <: PredictionResult[Any]](
       omitFeatures: Set[Int],
       featureWeights: Map[Int, FeatureWeightFactor]
   ): DenseMatrix[Double] = {
-    val featureIndex = split.getIndex()
+    val featureIndex = split.getIndex
 
     // The hot node is the one that is selected when the feature is present
     val (hot, cold) = if (this.split.turnLeft(input)) {
@@ -186,22 +183,19 @@ class InternalModelNode[T <: PredictionResult[Any]](
   *
   * @param trainingData to train on
   */
-class TrainingLeaf[T](
+case class TrainingLeaf[T](
     trainingData: Seq[(Vector[AnyVal], T, Double)],
     leafLearner: Learner,
     depth: Int,
     rng: Random
-) extends TrainingNode(
-      trainingData = trainingData,
-      remainingDepth = 0
-    ) {
+) extends TrainingNode[AnyVal, T] {
 
   /**
     * Average the training data
     *
     * @return lightweight prediction node
     */
-  def getNode(): ModelNode[PredictionResult[T]] = {
+  def getModelNode(): ModelNode[PredictionResult[T]] = {
     new ModelLeaf(
       leafLearner.train(trainingData, rng = rng).getModel().asInstanceOf[Model[PredictionResult[T]]],
       depth,
@@ -212,7 +206,7 @@ class TrainingLeaf[T](
   override def getFeatureImportance(): mutable.ArraySeq[Double] = mutable.ArraySeq.fill(trainingData.head._1.size)(0.0)
 }
 
-class ModelLeaf[T](model: Model[PredictionResult[T]], depth: Int, trainingWeight: Double)
+case class ModelLeaf[T](model: Model[PredictionResult[T]], depth: Int, trainingWeight: Double)
     extends ModelNode[PredictionResult[T]] {
   override def transform(input: Vector[AnyVal]): (PredictionResult[T], TreeMeta) = {
     (model.transform(Seq(input)), TreeMeta(depth))

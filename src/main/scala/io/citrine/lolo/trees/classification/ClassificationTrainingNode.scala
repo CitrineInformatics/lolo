@@ -18,7 +18,7 @@ import io.citrine.random.Random
   * @param splitter         used to select splits
   * @param rng              random number generator for reproducibility
   */
-class ClassificationTrainingNode(
+case class ClassificationTrainingNode(
     trainingData: Seq[(Vector[AnyVal], Char, Double)],
     leafLearner: Learner,
     split: Split,
@@ -30,7 +30,7 @@ class ClassificationTrainingNode(
     numClasses: Int,
     splitter: Splitter[Char],
     rng: Random
-) extends TrainingNode(trainingData, remainingDepth) {
+) extends TrainingNode[AnyVal, Char] {
 
   assert(trainingData.size > 1, "If we are going to split, we need at least 2 training rows")
   assert(
@@ -43,7 +43,7 @@ class ClassificationTrainingNode(
   lazy val (leftTrain, rightTrain) = trainingData.partition(r => split.turnLeft(r._1))
   assert(
     leftTrain.nonEmpty && rightTrain.nonEmpty,
-    s"Split ${split} resulted in zero size: ${trainingData.map(_._1(split.getIndex()))}"
+    s"Split $split resulted in zero size: ${trainingData.map(_._1(split.getIndex))}"
   )
 
   lazy val leftChild = ClassificationTrainingNode.buildChild(
@@ -75,11 +75,11 @@ class ClassificationTrainingNode(
     *
     * @return lightweight prediction node
     */
-  override def getNode(): ModelNode[PredictionResult[Char]] =
+  override def getModelNode(): ModelNode[PredictionResult[Char]] =
     new InternalModelNode(
       split,
-      leftChild.getNode(),
-      rightChild.getNode(),
+      leftChild.getModelNode(),
+      rightChild.getModelNode(),
       numClasses,
       trainingData.size.toDouble
     )
@@ -87,7 +87,7 @@ class ClassificationTrainingNode(
   override def getFeatureImportance(): scala.collection.mutable.ArraySeq[Double] = {
     val improvement = deltaImpurity
     val ans = leftChild.getFeatureImportance().zip(rightChild.getFeatureImportance()).map(p => p._1 + p._2)
-    ans(split.getIndex()) = ans(split.getIndex()) + improvement
+    ans(split.getIndex) = ans(split.getIndex) + improvement
     ans
   }
 }
