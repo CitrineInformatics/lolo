@@ -90,7 +90,7 @@ case class ClassificationTreeLearner(
 }
 
 class ClassificationTrainingResult(
-    rootTrainingNode: TrainingNode[AnyVal, Char],
+    rootTrainingNode: TrainingNode[Char],
     inputEncoders: Seq[Option[CategoricalEncoder[Any]]],
     outputEncoder: CategoricalEncoder[Any]
 ) extends TrainingResult {

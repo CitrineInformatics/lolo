@@ -7,23 +7,21 @@ import io.citrine.random.Random
 
 import scala.collection.mutable
 
-// TODO (PLA-10415) is there a need for T? It's always going to be AnyVal
 /**
   * Trait to provide getNode interface for internal and leaf training nodes
   *
-  * @tparam T type of the input vector
-  * @tparam S type of the model output
+  * @tparam T type of the model output
   */
-trait TrainingNode[T <: AnyVal, +S] extends Serializable {
+trait TrainingNode[+T] extends Serializable {
 
-  def trainingData: Seq[(Vector[T], S, Double)]
+  def trainingData: Seq[(Vector[AnyVal], T, Double)]
 
   /**
     * Get the lightweight prediction node for the output tree
     *
     * @return lightweight prediction node
     */
-  def getModelNode(): ModelNode[PredictionResult[S]]
+  def getModelNode(): ModelNode[PredictionResult[T]]
 
   /**
     * Get the feature importance of the subtree below this node
@@ -191,7 +189,7 @@ case class TrainingLeaf[T](
     trainingData: Seq[(Vector[AnyVal], T, Double)],
     trainingResult: TrainingResult,
     depth: Int
-) extends TrainingNode[AnyVal, T] {
+) extends TrainingNode[T] {
 
   def getModelNode(): ModelNode[PredictionResult[T]] =
     ModelLeaf(model, depth, trainingData.map(_._3).sum)

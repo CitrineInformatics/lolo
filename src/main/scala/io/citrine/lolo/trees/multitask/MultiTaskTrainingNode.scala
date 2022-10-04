@@ -114,7 +114,7 @@ object MultiTaskTrainingNode {
       if (reducedData.isEmpty) {
         Inaccessible()
       } else if (split.isInstanceOf[NoSplit] || reducedData.length <= minInstances) {
-        val trainingLeaf: TrainingNode[AnyVal, AnyVal] = if (exampleLabel.isInstanceOf[Double]) {
+        val trainingLeaf: TrainingNode[AnyVal] = if (exampleLabel.isInstanceOf[Double]) {
           RegressionTrainingLeaf
             .build(
               reducedData.asInstanceOf[Seq[(Vector[AnyVal], Double, Double)]],
@@ -201,7 +201,7 @@ case class GoLeft() extends MultiTaskLabelInstruction
 case class GoRight() extends MultiTaskLabelInstruction
 
 /** Stop and evaluate the provided leaf node. */
-case class Stop(leaf: TrainingNode[AnyVal, AnyVal]) extends MultiTaskLabelInstruction
+case class Stop(leaf: TrainingNode[AnyVal]) extends MultiTaskLabelInstruction
 
 /** A placeholder for inaccessible sections of the tree, such as underneath a Stop() instruction. */
 case class Inaccessible() extends MultiTaskLabelInstruction

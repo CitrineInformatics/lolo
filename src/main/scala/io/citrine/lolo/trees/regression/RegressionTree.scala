@@ -101,7 +101,7 @@ case class RegressionTreeLearner(
 }
 
 class RegressionTreeTrainingResult(
-    rootTrainingNode: TrainingNode[AnyVal, Double],
+    rootTrainingNode: TrainingNode[Double],
     encoders: Seq[Option[CategoricalEncoder[Any]]]
 ) extends TrainingResult {
   lazy val model = new RegressionTree(rootTrainingNode.getModelNode(), encoders)

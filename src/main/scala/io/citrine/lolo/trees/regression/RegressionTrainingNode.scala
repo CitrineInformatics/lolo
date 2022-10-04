@@ -7,12 +7,12 @@ import io.citrine.random.Random
 
 case class RegressionTrainingNode(
     trainingData: Seq[(Vector[AnyVal], Double, Double)],
-    leftNode: TrainingNode[AnyVal, Double],
-    rightNode: TrainingNode[AnyVal, Double],
+    leftNode: TrainingNode[Double],
+    rightNode: TrainingNode[Double],
     leafLearner: Learner,
     split: Split,
     deltaImpurity: Double
-) extends TrainingNode[AnyVal, Double] {
+) extends TrainingNode[Double] {
 
   /**
     * Get the lightweight prediction node for the output tree
@@ -70,7 +70,7 @@ object RegressionTrainingNode {
       remainingDepth: Int,
       maxDepth: Int,
       rng: Random
-  ): TrainingNode[AnyVal, Double] = {
+  ): TrainingNode[Double] = {
     val sufficientData = trainingData.size >= 2 * minLeafInstances &&
       remainingDepth > 0 &&
       trainingData.exists(_._2 != trainingData.head._2)

@@ -13,7 +13,7 @@ case class RegressionTrainingLeaf(
     trainingData: Seq[(Vector[AnyVal], Double, Double)],
     trainingResult: TrainingResult,
     depth: Int
-) extends TrainingNode[AnyVal, Double] {
+) extends TrainingNode[Double] {
 
   /**
     * Wrap the leaf model (previously trained) in a lightweight leaf node
