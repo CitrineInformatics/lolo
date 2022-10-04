@@ -7,7 +7,7 @@ import io.citrine.lolo.transformers.{FeatureRotator, MultiTaskFeatureRotator, Mu
 import io.citrine.lolo.trees.classification.ClassificationTreeLearner
 import io.citrine.lolo.trees.multitask.MultiTaskTreeLearner
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
-import io.citrine.lolo.trees.splits.{ClassificationSplitter, RegressionSplitter}
+import io.citrine.lolo.trees.splits.{ClassificationSplitter, MultiTaskSplitter, RegressionSplitter}
 import io.citrine.lolo.{Learner, TrainingResult}
 
 /**
@@ -90,7 +90,7 @@ case class RandomForest(
             numFeatures = numFeatures,
             maxDepth = maxDepth,
             minLeafInstances = minLeafInstances,
-            randomizePivotLocation = randomizePivotLocation
+            splitter = MultiTaskSplitter(randomizePivotLocation)
           )
         )
         val bagger = MultiTaskBagger(

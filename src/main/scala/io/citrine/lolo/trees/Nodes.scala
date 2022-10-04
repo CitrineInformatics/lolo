@@ -7,13 +7,14 @@ import io.citrine.random.Random
 
 import scala.collection.mutable
 
+// TODO (PLA-10415) is there a need for T? It's always going to be AnyVal
 /**
   * Trait to provide getNode interface for internal and leaf training nodes
   *
   * @tparam T type of the input vector
   * @tparam S type of the model output
   */
-trait TrainingNode[T <: AnyVal, S] extends Serializable {
+trait TrainingNode[T <: AnyVal, +S] extends Serializable {
 
   def trainingData: Seq[(Vector[T], S, Double)]
 
@@ -71,7 +72,8 @@ trait ModelNode[+T <: PredictionResult[Any]] extends Serializable {
     *
     * @return total weight of training weight in subtree
     */
-  private[lolo] def getTrainingWeight(): Double
+  private[lolo] def getTrainingWeight()
+      : Double // TODO (PLA-10415) is this supposed to be the weight or the number of rows?
 }
 
 /**
@@ -178,6 +180,8 @@ case class InternalModelNode[T <: PredictionResult[Any]](
   override def getTrainingWeight(): Double = trainingWeight
 }
 
+// TODO (PLA-10415): make this a trait with a builder that holds most of hte logic, then regression/classification
+//  training leaves just need to implement the feature importance logic
 /**
   * Average the training data to make a leaf prediction
   *

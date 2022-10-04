@@ -5,6 +5,7 @@ import io.citrine.lolo.encoders.CategoricalEncoder
 import io.citrine.lolo.trees.ModelNode
 import io.citrine.lolo.trees.classification.ClassificationTree
 import io.citrine.lolo.trees.regression.RegressionTree
+import io.citrine.lolo.trees.splits.MultiTaskSplitter
 import io.citrine.lolo.{Model, MultiTaskLearner, MultiTaskTrainingResult, ParallelModels, PredictionResult}
 
 /**
@@ -13,13 +14,13 @@ import io.citrine.lolo.{Model, MultiTaskLearner, MultiTaskTrainingResult, Parall
   * @param numFeatures to random select from at each split (numbers less than 0 indicate that all features are used)
   * @param maxDepth to grow the tree to
   * @param minLeafInstances minimum number of training instances per leaf
-  * @param randomizePivotLocation whether to generate splits randomly between the data points
+  * @param splitter to determine the best split given data
   */
 case class MultiTaskTreeLearner(
     numFeatures: Int = -1,
     maxDepth: Int = 30,
     minLeafInstances: Int = 1,
-    randomizePivotLocation: Boolean = false
+    splitter: MultiTaskSplitter = MultiTaskSplitter(randomizePivotLocation = true)
 ) extends MultiTaskLearner {
 
   /**
@@ -77,12 +78,13 @@ case class MultiTaskTreeLearner(
     }
 
     // Construct the training tree
-    val root = new MultiTaskTrainingNode(
-      inputs = collectedData,
+    val root = MultiTaskTrainingNode.build(
+      trainingData = collectedData,
       numFeatures = numFeaturesActual,
+      remainingDepth = maxDepth,
       maxDepth = maxDepth,
       minInstances = minLeafInstances,
-      randomizePivotLocation = randomizePivotLocation,
+      splitter = splitter,
       rng = rng
     )
 

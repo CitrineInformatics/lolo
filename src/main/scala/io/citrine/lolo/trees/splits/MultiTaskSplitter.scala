@@ -54,25 +54,26 @@ case class MultiTaskSplitter(randomizePivotLocation: Boolean = false) extends Sp
   }
 
   /**
-    * Get find the best categorical splitter.
+    * Get the best categorical split.
     *
-    * @param data        to split
-    * @param totalWeight Pre-computed data.map(d => d._3).sum
-    * @param index       of the feature to split on
+    * @param data         to split
+    * @param calculator   calculates the impurity of training data subsets
+    * @param index        of the feature to split on
+    * @param minInstances minimum instances permitted in a post-split partition
     * @return the best split of this feature
     */
   def getBestCategoricalSplit(
       data: Seq[(Vector[AnyVal], Array[AnyVal], Double)],
       calculator: MultiImpurityCalculator,
       index: Int,
-      minCount: Int
+      minInstances: Int
   ): (Split, Double) = {
-    /* Extract the features at the index */
+    // Extract the features at the index.
     val thinData: Seq[(Char, Array[AnyVal], Double)] =
       data.map(dat => (dat._1(index).asInstanceOf[Char], dat._2, dat._3))
     val totalWeight = thinData.map(_._3).sum
 
-    /* Group the data by categorical feature and compute the weighted sum and sum of the weights for each */
+    // Group the data by categorical feature and compute the weighted sum and sum of the weights for each.
     val groupedData: Map[Char, (Double, Double, Double)] = thinData
       .groupBy(_._1)
       .mapValues(g => (computeImpurity(g.map(x => (x._2, x._3))), g.map(_._3).sum, g.size.toDouble))
@@ -90,14 +91,14 @@ case class MultiTaskSplitter(randomizePivotLocation: Boolean = false) extends Sp
     /* Add the categories one at a time in order of their average label */
     var leftNum = 0
     calculator.reset()
-    val pivots = (0 until orderedNames.size).flatMap { j =>
-      thinData.filter(r => orderedNames(j) == r._1).map { r =>
+    val pivots = orderedNames.indices.flatMap { j =>
+      thinData.filter(r => orderedNames(j) == r._1).foreach { r =>
         calculator.add(r._2, r._3)
         leftNum = leftNum + 1
       }
       val totalImpurity = calculator.getImpurity
 
-      if (leftNum >= minCount && thinData.size - leftNum >= minCount) {
+      if (leftNum >= minInstances && thinData.size - leftNum >= minInstances) {
         val set = orderedNames.take(j + 1).toSet
         Some(set, totalImpurity)
       } else {

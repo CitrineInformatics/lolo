@@ -53,6 +53,7 @@ object RegressionTrainingNode {
     *
     * @param trainingData     on which to split
     * @param leafLearner      to pass through until we get to a leaf node
+    * @param splitter         determines the best split
     * @param minLeafInstances minimum training instances per node
     * @param remainingDepth   the maximum number of splits left
     * @param maxDepth         to compute depth via remainingDepth

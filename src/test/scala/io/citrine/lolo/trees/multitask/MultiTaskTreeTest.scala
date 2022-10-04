@@ -12,7 +12,7 @@ import org.scalatest.Assertions._
 @Test
 class MultiTaskTreeTest extends SeedRandomMixIn {
 
-  /* Setup some data */
+  // Set up some data.
   val raw: Seq[(Vector[Double], Double)] =
     TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng)
   val (inputs: Seq[Vector[Double]], realLabel: Seq[Double]) = raw.unzip
@@ -25,7 +25,7 @@ class MultiTaskTreeTest extends SeedRandomMixIn {
   @Test
   def testTwoLabels(): Unit = {
     val learner = MultiTaskTreeLearner()
-    val models = learner.train(inputs.zip(labels)).getModels()
+    val models = learner.train(inputs.zip(labels), rng = rng).getModels()
     assert(models.size == 2)
     assert(models.head.isInstanceOf[RegressionTree])
     assert(models.last.isInstanceOf[ClassificationTree])
@@ -74,11 +74,11 @@ class MultiTaskTreeTest extends SeedRandomMixIn {
     val sparseLabels = Vector(realLabel, sparseCat).transpose
 
     val learner = MultiTaskTreeLearner()
-    val models = learner.train(inputs.zip(sparseLabels)).getModels()
+    val models = learner.train(inputs.zip(sparseLabels), rng = rng).getModels()
     val catResults = models.last.transform(inputs).getExpected().asInstanceOf[Seq[Boolean]]
 
     val reference = ClassificationTreeLearner()
-      .train(inputs.zip(sparseCat).filterNot(_._2 == null))
+      .train(inputs.zip(sparseCat).filterNot(_._2 == null), rng = rng)
       .getModel()
       .transform(inputs)
       .getExpected()
