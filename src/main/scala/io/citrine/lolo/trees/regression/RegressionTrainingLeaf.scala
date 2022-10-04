@@ -1,35 +1,25 @@
 package io.citrine.lolo.trees.regression
 
-import io.citrine.lolo.trees.{ModelLeaf, ModelNode, TrainingNode}
-import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
+import io.citrine.lolo.trees.TrainingLeaf
+import io.citrine.lolo.{Learner, TrainingResult}
 import io.citrine.random.Random
 
 import scala.collection.mutable
 
-/**
-  * Training leaf node for regression trees
-  */
+/** Training leaf node for regression trees. */
 case class RegressionTrainingLeaf(
     trainingData: Seq[(Vector[AnyVal], Double, Double)],
     trainingResult: TrainingResult,
     depth: Int
-) extends TrainingNode[Double] {
-
-  /**
-    * Wrap the leaf model (previously trained) in a lightweight leaf node
-    *
-    * @return lightweight prediction node
-    */
-  def getModelNode(): ModelNode[PredictionResult[Double]] =
-    ModelLeaf(model, depth, trainingData.map(_._3).sum)
+) extends TrainingLeaf[Double] {
 
   /**
     * Pull the leaf model's feature importance and rescale it by the remaining impurity
     *
     * @return feature importance as a vector
     */
-  def getFeatureImportance(): scala.collection.mutable.ArraySeq[Double] = {
-    importance match {
+  override def getFeatureImportance(): scala.collection.mutable.ArraySeq[Double] = {
+    trainingResult.getFeatureImportance() match {
       case Some(x) =>
         // Compute the weighted sum of the label, the square label, and the weights
         val expectations: (Double, Double, Double) = trainingData
@@ -45,12 +35,6 @@ case class RegressionTrainingLeaf(
       case None => mutable.ArraySeq.fill(trainingData.head._1.size)(0.0)
     }
   }
-
-  /** Pull out the model for future use */
-  val model = trainingResult.getModel().asInstanceOf[Model[PredictionResult[Double]]]
-
-  /** Pull out the importance for future use */
-  val importance = trainingResult.getFeatureImportance()
 }
 
 object RegressionTrainingLeaf {
@@ -67,8 +51,6 @@ object RegressionTrainingLeaf {
       leafLearner: Learner,
       depth: Int,
       rng: Random
-  ): RegressionTrainingLeaf = {
-    val trainingResult = leafLearner.train(trainingData, rng = rng)
-    RegressionTrainingLeaf(trainingData, trainingResult, depth)
-  }
+  ): RegressionTrainingLeaf =
+    RegressionTrainingLeaf(trainingData, leafLearner.train(trainingData, rng = rng), depth)
 }

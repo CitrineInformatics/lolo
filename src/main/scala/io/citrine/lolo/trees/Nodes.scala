@@ -2,8 +2,7 @@ package io.citrine.lolo.trees
 
 import breeze.linalg.DenseMatrix
 import io.citrine.lolo.trees.splits.Split
-import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
-import io.citrine.random.Random
+import io.citrine.lolo.{Model, PredictionResult, TrainingResult}
 
 import scala.collection.mutable
 
@@ -14,6 +13,7 @@ import scala.collection.mutable
   */
 trait TrainingNode[+T] extends Serializable {
 
+  // TODO (PLA-10415): make this a structured type
   def trainingData: Seq[(Vector[AnyVal], T, Double)]
 
   /**
@@ -178,36 +178,17 @@ case class InternalModelNode[T <: PredictionResult[Any]](
   override def getTrainingWeight(): Double = trainingWeight
 }
 
-// TODO (PLA-10415): make this a trait with a builder that holds most of hte logic, then regression/classification
-//  training leaves just need to implement the feature importance logic
-/**
-  * Average the training data to make a leaf prediction
-  *
-  * @param trainingData to train on
-  */
-case class TrainingLeaf[T](
-    trainingData: Seq[(Vector[AnyVal], T, Double)],
-    trainingResult: TrainingResult,
-    depth: Int
-) extends TrainingNode[T] {
+/** A leaf defined by a training result. */
+trait TrainingLeaf[T] extends TrainingNode[T] {
+
+  def trainingResult: TrainingResult
+
+  def depth: Int
 
   def getModelNode(): ModelNode[PredictionResult[T]] =
     ModelLeaf(model, depth, trainingData.map(_._3).sum)
 
   def model: Model[PredictionResult[T]] = trainingResult.getModel().asInstanceOf[Model[PredictionResult[T]]]
-
-  // TODO (PLA-10415): Are we not computing feature importance for classification models?
-  override def getFeatureImportance(): mutable.ArraySeq[Double] = mutable.ArraySeq.fill(trainingData.head._1.size)(0.0)
-}
-
-object TrainingLeaf {
-  def build[T](
-      trainingData: Seq[(Vector[AnyVal], T, Double)],
-      leafLearner: Learner,
-      depth: Int,
-      rng: Random
-  ): TrainingLeaf[T] =
-    TrainingLeaf(trainingData, leafLearner.train(trainingData, rng), depth)
 }
 
 case class ModelLeaf[T](model: Model[PredictionResult[T]], depth: Int, trainingWeight: Double)

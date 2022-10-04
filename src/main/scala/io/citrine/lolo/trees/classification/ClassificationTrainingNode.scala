@@ -1,7 +1,7 @@
 package io.citrine.lolo.trees.classification
 
 import io.citrine.lolo.trees.splits.{NoSplit, Split, Splitter}
-import io.citrine.lolo.trees.{InternalModelNode, ModelNode, TrainingLeaf, TrainingNode}
+import io.citrine.lolo.trees.{InternalModelNode, ModelNode, TrainingNode}
 import io.citrine.lolo.{Learner, PredictionResult}
 import io.citrine.random.Random
 
@@ -91,10 +91,10 @@ object ClassificationTrainingNode {
           numClasses = numClasses
         )
       } else {
-        TrainingLeaf.build(trainingData, leafLearner, maxDepth - remainingDepth, rng)
+        ClassificationTrainingLeaf.build(trainingData, leafLearner, maxDepth - remainingDepth, rng)
       }
     } else {
-      TrainingLeaf.build(trainingData, leafLearner, maxDepth - remainingDepth, rng)
+      ClassificationTrainingLeaf.build(trainingData, leafLearner, maxDepth - remainingDepth, rng)
     }
   }
 }

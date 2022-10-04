@@ -2,9 +2,10 @@ package io.citrine.lolo.trees.multitask
 
 import io.citrine.lolo.PredictionResult
 import io.citrine.lolo.linear.GuessTheMeanLearner
+import io.citrine.lolo.trees.classification.ClassificationTrainingLeaf
 import io.citrine.lolo.trees.regression.RegressionTrainingLeaf
 import io.citrine.lolo.trees.splits.{MultiTaskSplitter, NoSplit, Split}
-import io.citrine.lolo.trees.{InternalModelNode, ModelNode, TrainingLeaf, TrainingNode}
+import io.citrine.lolo.trees.{InternalModelNode, ModelNode, TrainingNode}
 import io.citrine.random.Random
 
 import scala.collection.mutable
@@ -123,7 +124,7 @@ object MultiTaskTrainingNode {
               rng
             )
         } else {
-          TrainingLeaf
+          ClassificationTrainingLeaf
             .build(
               reducedData.asInstanceOf[Seq[(Vector[AnyVal], Char, Double)]],
               GuessTheMeanLearner(),
