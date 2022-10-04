@@ -125,7 +125,7 @@ case class InternalModelNode[T <: PredictionResult[Any]](
       omitFeatures: Set[Int],
       featureWeights: Map[Int, FeatureWeightFactor]
   ): DenseMatrix[Double] = {
-    val featureIndex = split.getIndex
+    val featureIndex = split.index
 
     // The hot node is the one that is selected when the feature is present
     val (hot, cold) = if (this.split.turnLeft(input)) {

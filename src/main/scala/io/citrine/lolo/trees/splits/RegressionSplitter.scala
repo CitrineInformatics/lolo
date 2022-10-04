@@ -40,7 +40,7 @@ case class RegressionSplitter(randomizePivotLocation: Boolean = false) extends S
 
     val calculator = VarianceCalculator.build(data.map(_._2), data.map(_._3))
     val initialVariance = calculator.getImpurity
-    var bestSplit: Split = new NoSplit()
+    var bestSplit: Split = NoSplit()
     var bestVariance = Double.MaxValue
 
     val rep = data.head
@@ -63,7 +63,7 @@ case class RegressionSplitter(randomizePivotLocation: Boolean = false) extends S
       }
     }
     if (bestVariance == Double.MaxValue) {
-      (new NoSplit(), 0.0)
+      (NoSplit(), 0.0)
     } else {
       val deltaImpurity = initialVariance - bestVariance
       (bestSplit, deltaImpurity)
@@ -93,7 +93,7 @@ case class RegressionSplitter(randomizePivotLocation: Boolean = false) extends S
     /* Make sure there is more than one member for most of the classes */
     val nonTrivial: Double = groupedData.filter(_._2._3 > 1).map(_._2._2).sum
     if (nonTrivial / totalWeight < 0.5) {
-      return (new CategoricalSplit(index, BitSet()), Double.MaxValue)
+      return (CategoricalSplit(index, BitSet()), Double.MaxValue)
     }
 
     /* Compute the average label for each categorical value */
@@ -121,7 +121,7 @@ case class RegressionSplitter(randomizePivotLocation: Boolean = false) extends S
         bestSet = orderedNames.slice(0, j + 1).toSet
       }
     }
-    (new CategoricalSplit(index, new scala.collection.mutable.BitSet() ++ bestSet.map(_.toInt)), bestVariance)
+    (CategoricalSplit(index, new scala.collection.mutable.BitSet() ++ bestSet.map(_.toInt)), bestVariance)
   }
 
 }

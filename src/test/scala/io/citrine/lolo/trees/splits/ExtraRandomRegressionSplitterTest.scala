@@ -127,7 +127,7 @@ class ExtraRandomRegressionSplitterTest extends SeedRandomMixIn {
 
             // Finally, we can ensure that the index on which we split is correct...
             val testCaveatMessage = "NOTE: this test may inaccurately fail due to changes in the sequence of rng calls."
-            assert(bestSplit._1.getIndex == indexOfBest, s"Incorrect index of best split. $testCaveatMessage")
+            assert(bestSplit._1.index == indexOfBest, s"Incorrect index of best split. $testCaveatMessage")
             // Do a sanity check about the directionality of turnLeft to ensure this test is valid.
             assert(
               bestSplit._1.turnLeft(Vector.fill(numFeatures)(xTrain.flatten.min)),

@@ -9,7 +9,7 @@ class SplitTest {
     */
   @Test
   def testSplitNaN(): Unit = {
-    val split = new RealSplit(0, Double.NaN)
+    val split = RealSplit(0, Double.NaN)
     assert(
       split.turnLeft(Vector(0.0)) != split.turnLeft(Vector(Double.NaN)),
       "NaN and non-Nan values are split in the same direction."

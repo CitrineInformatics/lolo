@@ -20,7 +20,7 @@ case class MultiTaskSplitter(randomizePivotLocation: Boolean = false) extends Sp
       minInstances: Int,
       rng: Random
   ): (Split, Double) = {
-    var bestSplit: Split = new NoSplit()
+    var bestSplit: Split = NoSplit()
     var bestImpurity = Double.MaxValue
     val calculator = MultiImpurityCalculator.build(data.map(_._2), data.map(_._3))
     val initialImpurity = calculator.getImpurity
@@ -46,7 +46,7 @@ case class MultiTaskSplitter(randomizePivotLocation: Boolean = false) extends Sp
       }
     }
     if (bestImpurity == Double.MaxValue) {
-      (new NoSplit(), 0.0)
+      (NoSplit(), 0.0)
     } else {
       val deltaImpurity = initialImpurity - bestImpurity
       (bestSplit, deltaImpurity)
@@ -82,7 +82,7 @@ case class MultiTaskSplitter(randomizePivotLocation: Boolean = false) extends Sp
     /* Make sure there is more than one member for most of the classes */
     val nonTrivial: Double = groupedData.filter(_._2._3 > 1).map(_._2._2).sum
     if (nonTrivial / totalWeight < 0.25) {
-      return (new NoSplit, Double.MaxValue)
+      return (NoSplit(), Double.MaxValue)
     }
 
     /* Create an orderd list of the categories by average label */
@@ -106,10 +106,10 @@ case class MultiTaskSplitter(randomizePivotLocation: Boolean = false) extends Sp
       }
     }
     if (pivots.isEmpty) {
-      (new NoSplit, Double.MaxValue)
+      (NoSplit(), Double.MaxValue)
     } else {
       val best = pivots.minBy(_._2)
-      (new CategoricalSplit(index, new scala.collection.mutable.BitSet() ++ best._1.map(_.toInt)), best._2)
+      (CategoricalSplit(index, new scala.collection.mutable.BitSet() ++ best._1.map(_.toInt)), best._2)
     }
   }
 

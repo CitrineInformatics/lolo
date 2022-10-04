@@ -30,7 +30,7 @@ case class MultiTaskTrainingNode(
           .getFeatureImportance(index)
           .zip(rightNodeOption.get.getFeatureImportance(index))
           .map(p => p._1 + p._2)
-        ans(split.getIndex) = ans(split.getIndex) + deltaImpurity
+        ans(split.index) = ans(split.index) + deltaImpurity
         ans
       case Inaccessible() => throw new RuntimeException(s"No valid training data present for label $index")
     }
@@ -99,7 +99,7 @@ object MultiTaskTrainingNode {
         rng
       )
     } else {
-      (new NoSplit, 0.0) // TODO (PLA-10415): make this a case class
+      (NoSplit(), 0.0)
     }
 
     val exampleRow = trainingData.head

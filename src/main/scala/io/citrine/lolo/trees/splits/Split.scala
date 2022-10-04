@@ -20,13 +20,13 @@ sealed trait Split extends Serializable {
     *
     * @return index of the input vector used by this split
     */
-  def getIndex: Int
+  def index: Int
 }
 
 /**
   * If no split was found
   */
-class NoSplit extends Split {
+case class NoSplit() extends Split {
 
   /**
     * Take the left branch in the binary split?
@@ -41,7 +41,7 @@ class NoSplit extends Split {
     *
     * @return index of the input vector used by this split
     */
-  override def getIndex: Int = -1
+  override def index: Int = -1
 }
 
 /**
@@ -50,7 +50,7 @@ class NoSplit extends Split {
   * @param index position of the real value to inspect
   * @param pivot value at or below which to take the left split
   */
-class RealSplit(index: Int, pivot: Double) extends Split {
+case class RealSplit(index: Int, pivot: Double) extends Split {
 
   /**
     * If the value is at or less than the pivot, turn left
@@ -69,13 +69,6 @@ class RealSplit(index: Int, pivot: Double) extends Split {
   }
 
   /**
-    * ${inherit_doc}
-    *
-    * @return index of the input vector used by this split
-    */
-  override def getIndex: Int = index
-
-  /**
     * Pretty print
     *
     * @return debug string
@@ -89,7 +82,7 @@ class RealSplit(index: Int, pivot: Double) extends Split {
   * @param index      of the categorical feature
   * @param includeSet set of values that turn left
   */
-class CategoricalSplit(index: Int, includeSet: BitSet) extends Split {
+case class CategoricalSplit(index: Int, includeSet: BitSet) extends Split {
 
   /**
     * If the value at the index position is in the set, turn left
@@ -100,11 +93,4 @@ class CategoricalSplit(index: Int, includeSet: BitSet) extends Split {
   override def turnLeft(input: Vector[AnyVal]): Boolean = {
     includeSet.contains(input(index).asInstanceOf[Char].toInt)
   }
-
-  /**
-    * ${inherit_doc}
-    *
-    * @return index of the input vector used by this split
-    */
-  override def getIndex: Int = index
 }
