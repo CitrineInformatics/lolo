@@ -65,8 +65,8 @@ case class ClassificationSplitter(randomizedPivotLocation: Boolean = false) exte
       minCount: Int
   ): (CategoricalSplit, Double) = {
     val thinData = data.map(dat => (dat._1(index).asInstanceOf[Char], dat._2, dat._3))
-    val groupedData = thinData.groupBy(_._1).mapValues { g =>
-      val dict = g.groupBy(_._2).mapValues(v => v.map(_._3).sum)
+    val groupedData = thinData.groupBy(_._1).view.mapValues { g =>
+      val dict = g.groupBy(_._2).view.mapValues(v => v.map(_._3).sum)
       val impurity = dict.values.map(Math.pow(_, 2)).sum / Math.pow(dict.values.sum, 2)
       (dict, impurity, g.size)
     }

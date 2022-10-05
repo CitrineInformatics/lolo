@@ -26,7 +26,7 @@ case class GridHyperOptimizer() extends HyperOptimizer {
     var best: Map[String, Any] = Map()
     var loss = Double.MaxValue
     /* Get the size of each dimension for index arithmetic */
-    val sizes = hyperGrids.mapValues(_.size)
+    val sizes = hyperGrids.view.mapValues(_.size)
 
     /* We are flattening the loops into a single look with index arithmetic */
     (0 until sizes.values.product).foreach { i =>

@@ -45,9 +45,13 @@ case object RootMeanSquareError extends Merit[Double] {
       rng: Random = Random()
   ): Double = {
     Math.sqrt(
-      (predictionResult.getExpected(), actual).zipped.map {
-        case (x, y) => Math.pow(x - y, 2)
-      }.sum / predictionResult.getExpected().size
+      predictionResult
+        .getExpected()
+        .zip(actual)
+        .map {
+          case (x, y) => Math.pow(x - y, 2)
+        }
+        .sum / predictionResult.getExpected().size
     )
   }
 }
@@ -79,7 +83,7 @@ case object StandardConfidence extends Merit[Double] {
   ): Double = {
     if (predictionResult.getUncertainty().isEmpty) return 0.0
 
-    (predictionResult.getExpected(), predictionResult.getUncertainty().get, actual).zipped.count {
+    predictionResult.getExpected().lazyZip(predictionResult.getUncertainty().get).lazyZip(actual).count {
       case (x, sigma: Double, y) => Math.abs(x - y) < sigma
     } / predictionResult.getExpected().size.toDouble
   }
@@ -95,9 +99,10 @@ case class StandardError(rescale: Double = 1.0) extends Merit[Double] {
       rng: Random = Random()
   ): Double = {
     if (predictionResult.getUncertainty().isEmpty) return Double.PositiveInfinity
-    val standardized = (predictionResult.getExpected(), predictionResult.getUncertainty().get, actual).zipped.map {
-      case (x, sigma: Double, y) => (x - y) / sigma
-    }
+    val standardized =
+      predictionResult.getExpected().lazyZip(predictionResult.getUncertainty().get).lazyZip(actual).map {
+        case (x, sigma: Double, y) => (x - y) / sigma
+      }
     rescale * Math.sqrt(standardized.map(Math.pow(_, 2.0)).sum / standardized.size)
   }
 }
@@ -120,10 +125,12 @@ case object UncertaintyCorrelation extends Merit[Double] {
       rng: Random = Random()
   ): Double = {
     val predictedUncertaintyActual: Seq[(Double, Double, Double)] = (
-      predictionResult.getExpected(),
-      predictionResult.getUncertainty().get.asInstanceOf[Seq[Double]],
-      actual
-    ).zipped.toSeq
+      predictionResult
+        .getExpected()
+        .lazyZip(predictionResult.getUncertainty().get.asInstanceOf[Seq[Double]])
+        .lazyZip(actual)
+      )
+      .toSeq
 
     val ideal = predictedUncertaintyActual.map {
       case (_, uncertainty, actual) =>
@@ -175,10 +182,12 @@ object Merit {
       .flatMap {
         case (predictions, actual) =>
           // apply all the merits to the batch at the same time so the batch can fall out of memory
-          merits.mapValues(f => f.evaluate(predictions, actual, rng)).toSeq
+          merits.view.mapValues(f => f.evaluate(predictions, actual, rng)).toSeq
       }
-      .toIterable
+      .iterator
+      .to(Iterable)
       .groupBy(_._1)
+      .view
       .mapValues { x =>
         val meritResults = x.map(_._2)
         val mean = meritResults.sum / meritResults.size

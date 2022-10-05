@@ -119,11 +119,11 @@ class StandardizerTrainingResult(
       case None => None
       case Some(predictedVsActual) =>
         Some(
-          (
-            Standardizer.invertStandardization(predictedVsActual.map(_._1), inputTrans),
-            Standardizer.invertStandardization(predictedVsActual.map(_._2), outputTrans),
-            Standardizer.invertStandardization(predictedVsActual.map(_._3), outputTrans)
-          ).zipped.toSeq
+          Standardizer
+            .invertStandardization(predictedVsActual.map(_._1), inputTrans)
+            .lazyZip(Standardizer.invertStandardization(predictedVsActual.map(_._2), outputTrans))
+            .lazyZip(Standardizer.invertStandardization(predictedVsActual.map(_._3), outputTrans))
+            .toSeq
         )
     }
   }
@@ -156,11 +156,11 @@ class MultiTaskStandardizerTrainingResult(
       case None => None
       case Some(predictedVsActual) =>
         Some(
-          (
-            Standardizer.invertStandardization(predictedVsActual.map(_._1), inputTrans),
-            Standardizer.invertStandardizationOption(predictedVsActual.map(_._2), outputTrans),
-            Standardizer.invertStandardizationOption(predictedVsActual.map(_._3), outputTrans)
-          ).zipped.toSeq
+          Standardizer
+            .invertStandardization(predictedVsActual.map(_._1), inputTrans)
+            .lazyZip(Standardizer.invertStandardizationOption(predictedVsActual.map(_._2), outputTrans))
+            .lazyZip(Standardizer.invertStandardizationOption(predictedVsActual.map(_._3), outputTrans))
+            .toSeq
         )
     }
   }

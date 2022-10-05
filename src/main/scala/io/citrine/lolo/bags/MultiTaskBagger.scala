@@ -57,7 +57,7 @@ case class MultiTaskBagger(
     val randBasis = breezeRandBasis(rng)
     val dist = new Poisson(1.0)(randBasis)
     val Nib: Vector[Vector[Int]] = Iterator
-      .continually(Vector.fill(trainingData.size)(dist.draw))
+      .continually(Vector.fill(trainingData.size)(dist.draw()))
       .filter { suggestedCounts =>
         val allOutputsRepresented = (0 until numOutputs).forall(i =>
           labels.zip(suggestedCounts).exists { case (row, count) => validOutput(row(i)) && count > 0 }
@@ -193,10 +193,10 @@ class MultiTaskBaggedTrainingResult(
     val allInputs = predictedVsActual.map(_._1)
     val allPredicted: Seq[Seq[Option[Any]]] = predictedVsActual.map(_._2).transpose
     val allActual: Seq[Seq[Option[Any]]] = predictedVsActual.map(_._3).transpose
-    (allPredicted, allActual, models.head.getRealLabels).zipped.map {
+    allPredicted.lazyZip(allActual).lazyZip(models.head.getRealLabels).map {
       case (labelPredicted, labelActual, isReal) =>
         // Construct predicted-vs-actual for just this label, only keeping entries for which both predicted and actual are defined
-        val pva = (allInputs, labelPredicted, labelActual).zipped.flatMap {
+        val pva = allInputs.lazyZip(labelPredicted).lazyZip(labelActual).flatMap {
           case (input, Some(p), Some(a)) => Some((input, p, a))
           case _                         => None
         }
