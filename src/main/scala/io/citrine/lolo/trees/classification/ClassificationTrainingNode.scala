@@ -39,7 +39,6 @@ case class ClassificationTrainingNode(
 
 object ClassificationTrainingNode {
 
-  // TODO (PLA-10415): Can this be consolidated with regression code?
   def build(
       trainingData: Seq[(Vector[AnyVal], Char, Double)],
       leafLearner: Learner,

@@ -48,8 +48,8 @@ case class MultiTaskTrainingNode(
             split = split,
             left = leftNodeOption.get.getNode(index).asInstanceOf[ModelNode[PredictionResult[Double]]],
             right = rightNodeOption.get.getNode(index).asInstanceOf[ModelNode[PredictionResult[Double]]],
-            outputDimension = 0,
-            trainingWeight = 0.0
+            outputDimension = 0, // Shapley is not implemented for multi-task nodes
+            trainingWeight = trainingData.map(_._3).sum
           )
         } else {
           new InternalModelNode[PredictionResult[Char]](
@@ -57,7 +57,7 @@ case class MultiTaskTrainingNode(
             left = leftNodeOption.get.getNode(index).asInstanceOf[ModelNode[PredictionResult[Char]]],
             right = rightNodeOption.get.getNode(index).asInstanceOf[ModelNode[PredictionResult[Char]]],
             outputDimension = 0,
-            trainingWeight = 0.0
+            trainingWeight = trainingData.map(_._3).sum
           )
         }
       case Inaccessible() => throw new RuntimeException(s"No valid training data present for label $index")

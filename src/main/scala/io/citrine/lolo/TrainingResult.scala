@@ -1,6 +1,6 @@
 package io.citrine.lolo
 
-// TODO (PLA-10415): Can we put a type parameter on TrainingResult?
+// TODO (PLA-10433): Can we put a type parameter on TrainingResult?
 trait TrainingResult extends Serializable {
 
   /**

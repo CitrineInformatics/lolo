@@ -13,7 +13,7 @@ import scala.collection.mutable
   */
 trait TrainingNode[+T] extends Serializable {
 
-  // TODO (PLA-10415): make this a structured type
+  // TODO (PLA-10433): make this a structured type
   def trainingData: Seq[(Vector[AnyVal], T, Double)]
 
   /**
@@ -70,8 +70,7 @@ trait ModelNode[+T <: PredictionResult[Any]] extends Serializable {
     *
     * @return total weight of training weight in subtree
     */
-  private[lolo] def getTrainingWeight()
-      : Double // TODO (PLA-10415) is this supposed to be the weight or the number of rows?
+  private[lolo] def getTrainingWeight(): Double
 }
 
 /**
