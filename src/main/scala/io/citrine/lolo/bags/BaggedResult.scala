@@ -8,7 +8,6 @@ import io.citrine.lolo.{
   PredictionResult,
   RegressionResult
 }
-import io.citrine.lolo.util.Async
 import org.slf4j.{Logger, LoggerFactory}
 
 /**
@@ -340,22 +339,16 @@ case class MultiPredictionBaggedResult(
 
     /* These operations are pulled out of the loop and extra-verbose for performance */
     val JMat = NibJ.t * predMat
-    Async.canStop()
     val JMat2 = JMat *:* JMat * ((Nib.size - 1.0) / Nib.size)
-    Async.canStop()
     val IJMat = NibIJ.t * predMat
-    Async.canStop()
     val IJMat2 = IJMat *:* IJMat
-    Async.canStop()
     val arg = IJMat2 + JMat2
-    Async.canStop()
 
     /* Avoid division in the loop, calculate (n - 1) / (n * B^2) */
     val prefactor = 1.0 / Math.pow(modelPredictions.head.size, 2.0) * (Nib.size - 1) / Nib.size
 
     modelPredictions.indices
       .map { i =>
-        Async.canStop()
         /* Compute the first order bias correction for the variance estimators */
         val correction = prefactor * Math.pow(norm(predMat(::, i) - meanPrediction(i)), 2)
 

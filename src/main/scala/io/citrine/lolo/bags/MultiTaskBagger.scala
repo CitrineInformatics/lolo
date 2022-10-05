@@ -5,7 +5,6 @@ import io.citrine.lolo.stats.StatsUtils.breezeRandBasis
 import io.citrine.lolo.{Learner, Model, MultiTaskLearner, MultiTaskModel, MultiTaskTrainingResult, PredictionResult}
 import io.citrine.random.Random
 import io.citrine.lolo.stats.metrics.{ClassificationMetrics, RegressionMetrics}
-import io.citrine.lolo.util.Async
 
 import scala.collection.parallel.immutable.ParSeq
 import scala.collection.parallel.CollectionConverters.IterableIsParallelizable
@@ -94,7 +93,6 @@ case class MultiTaskBagger(
         val thisTrainingData = trainingData.map { case (inputs, outputs) => (inputs, outputs(i)) }
         val helper = BaggerHelper(thisLabelModels, thisTrainingData, Nib, useJackknife, uncertaintyCalibration)
         val biasModel = if (biasLearner.isDefined && isRegression) {
-          Async.canStop()
           Some(
             biasLearner.get
               .train(helper.biasTraining, rng = rng)

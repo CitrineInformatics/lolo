@@ -5,7 +5,6 @@ import breeze.stats.distributions.Poisson
 import io.citrine.random.Random
 import io.citrine.lolo.stats.metrics.{ClassificationMetrics, RegressionMetrics}
 import io.citrine.lolo.stats.StatsUtils.breezeRandBasis
-import io.citrine.lolo.util.Async
 import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
 
 import scala.collection.parallel.immutable.ParSeq
@@ -124,7 +123,6 @@ case class Bagger(
     /* Wrap the models in a BaggedModel object */
     val helper = BaggerHelper(models, trainingData, Nib, useJackknife, uncertaintyCalibration)
     val biasModel = if (biasLearner.isDefined && helper.oobErrors.nonEmpty && helper.isRegression) {
-      Async.canStop()
       Some(
         biasLearner.get.train(helper.biasTraining, rng = rng).getModel().asInstanceOf[Model[PredictionResult[Double]]]
       )

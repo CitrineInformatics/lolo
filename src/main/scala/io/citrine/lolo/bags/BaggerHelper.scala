@@ -1,7 +1,6 @@
 package io.citrine.lolo.bags
 
 import io.citrine.lolo.stats.{MathUtils, StatsUtils}
-import io.citrine.lolo.util.Async
 import io.citrine.lolo.{Model, PredictionResult, RegressionResult}
 
 import scala.collection.parallel.immutable.ParSeq
@@ -39,7 +38,6 @@ protected case class BaggerHelper(
     if (oobModels.size < 2 || label == null || (label.isInstanceOf[Double] && label.asInstanceOf[Double].isNaN)) {
       None
     } else {
-      Async.canStop()
       val model = new BaggedModel(
         oobModels,
         Nib.filter {
@@ -60,7 +58,6 @@ protected case class BaggerHelper(
 
   /** Uncertainty calibration ratio based on the OOB errors. */
   val rescaleRatio: Double = if (uncertaintyCalibration && isRegression && useJackknife) {
-    Async.canStop()
     val trainingLabels = trainingData.collect { case (_, x: Double) if !(x.isInfinite || x.isNaN) => x }
     val zeroTolerance = StatsUtils.range(trainingLabels) / 1e12
     BaggerHelper.calculateRescaleRatio(oobErrors.map { case (_, e, u) => (e, u) }, zeroTolerance = zeroTolerance)
