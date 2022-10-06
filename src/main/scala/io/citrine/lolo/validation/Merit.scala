@@ -1,12 +1,11 @@
 package io.citrine.lolo.validation
 
 import java.util
-
 import io.citrine.lolo.PredictionResult
 import io.citrine.random.Random
 import org.knowm.xchart.XYChart
 
-import scala.collection.JavaConverters._
+import scala.collection.mutable.ArrayBuffer
 
 /**
   * Real-valued figure of merit on predictions of type T
@@ -220,11 +219,11 @@ object Merit {
       pvaBuilder: Double => Iterator[(PredictionResult[T], Seq[T])]
   ): XYChart = {
 
-    val seriesData: Map[String, util.ArrayList[Double]] = merits.flatMap {
+    val seriesData: Map[String, ArrayBuffer[Double]] = merits.flatMap {
       case (name, _) =>
         Seq(
-          name -> new util.ArrayList[Double](),
-          s"${name}_err" -> new util.ArrayList[Double]()
+          name -> new ArrayBuffer[Double],
+          s"${name}_err" -> new ArrayBuffer[Double]
         )
     }
 
@@ -233,8 +232,8 @@ object Merit {
       val meritResults = Merit.estimateMerits(pva, merits, rng)
       meritResults.foreach {
         case (name, (mean, err)) =>
-          seriesData(name).add(mean)
-          seriesData(s"${name}_err").add(err)
+          seriesData(name) += mean
+          seriesData(s"${name}_err") += err
       }
     }
     val chart = new XYChart(900, 600)
@@ -245,8 +244,8 @@ object Merit {
         chart.addSeries(
           name,
           parameterValues.toArray,
-          seriesData(name).asScala.toArray,
-          seriesData(s"${name}_err").asScala.toArray
+          seriesData(name).toArray,
+          seriesData(s"${name}_err").toArray
         )
     }
 

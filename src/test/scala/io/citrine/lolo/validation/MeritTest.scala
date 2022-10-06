@@ -133,21 +133,3 @@ class MeritTest extends SeedRandomMixIn {
     assert(uncertainty < 0.05, s"Uncertainty correlation estimate was not precise enough")
   }
 }
-
-object MeritTest {
-
-  /**
-    * Driver to test tolerance calibration so the false negative rate is low
-    */
-  def main(args: Array[String]): Unit = {
-    val N = 1024
-    val failures = Seq
-      .fill(N) {
-        Try(
-          new MeritTest().testZeroUncertaintyCorrelation() // place test here
-        ).isSuccess
-      }
-      .count(!_)
-    println(s"Failure rate is ${failures.toDouble / N}")
-  }
-}
