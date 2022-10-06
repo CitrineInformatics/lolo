@@ -37,9 +37,9 @@ case class RegressionTrainingNode(
     *
     * @return feature importance as a vector
     */
-  override def getFeatureImportance(): scala.collection.mutable.ArraySeq[Double] = {
+  override def featureImportance: scala.collection.mutable.ArraySeq[Double] = {
     val improvement = deltaImpurity
-    val ans = leftNode.getFeatureImportance().zip(rightNode.getFeatureImportance()).map(p => p._1 + p._2)
+    val ans = leftNode.featureImportance.zip(rightNode.featureImportance).map(p => p._1 + p._2)
     ans(split.index) = ans(split.index) + improvement
     ans
   }

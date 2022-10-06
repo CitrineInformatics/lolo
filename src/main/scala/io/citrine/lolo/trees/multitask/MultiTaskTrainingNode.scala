@@ -19,7 +19,7 @@ case class MultiTaskTrainingNode(
   // get feature importance for the `index`th label
   def featureImportanceByLabelIndex(index: Int): mutable.ArraySeq[Double] = {
     labelWiseInstructions(index) match {
-      case Stop(leaf)             => leaf.getFeatureImportance()
+      case Stop(leaf)             => leaf.featureImportance
       case FollowChild(childNode) => childNode.featureImportanceByLabelIndex(index)
       case DoSplit(split, leftNode, rightNode) =>
         val ans = leftNode

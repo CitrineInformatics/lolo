@@ -98,7 +98,7 @@ class ClassificationTrainingResult(
   lazy val model = new ClassificationTree(rootTrainingNode.modelNode, inputEncoders, outputEncoder)
 
   /* Grab the feature influences */
-  lazy val importance = rootTrainingNode.getFeatureImportance()
+  lazy val importance = rootTrainingNode.featureImportance
   private lazy val importanceNormalized = {
     if (Math.abs(importance.sum) > 0) {
       importance.map(_ / importance.sum)

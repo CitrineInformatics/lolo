@@ -28,7 +28,7 @@ trait TrainingNode[+T] extends Serializable {
     *
     * @return feature importance as a vector
     */
-  def getFeatureImportance(): mutable.ArraySeq[Double]
+  def featureImportance: mutable.ArraySeq[Double]
 }
 
 trait ModelNode[+T <: PredictionResult[Any]] extends Serializable {

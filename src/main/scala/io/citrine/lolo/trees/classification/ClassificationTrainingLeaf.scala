@@ -13,7 +13,7 @@ case class ClassificationTrainingLeaf(
     depth: Int
 ) extends TrainingLeaf[Char] {
 
-  override def getFeatureImportance(): mutable.ArraySeq[Double] = mutable.ArraySeq.fill(trainingData.head._1.size)(0.0)
+  override def featureImportance: mutable.ArraySeq[Double] = mutable.ArraySeq.fill(trainingData.head._1.size)(0.0)
 }
 
 object ClassificationTrainingLeaf {

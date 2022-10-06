@@ -105,7 +105,7 @@ class RegressionTreeTrainingResult(
     encoders: Seq[Option[CategoricalEncoder[Any]]]
 ) extends TrainingResult {
   lazy val model = new RegressionTree(rootTrainingNode.modelNode, encoders)
-  lazy val importance = rootTrainingNode.getFeatureImportance()
+  lazy val importance = rootTrainingNode.featureImportance
   private lazy val importanceNormalized = {
     if (Math.abs(importance.sum) > 0) {
       importance.map(_ / importance.sum)
