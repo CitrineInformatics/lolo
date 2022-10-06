@@ -89,7 +89,7 @@ case class MultiTaskTreeLearner(
     )
 
     // Construct the model trees
-    val nodes = labelIndices.map(root.getNode)
+    val nodes = labelIndices.map(root.modelNodeByLabelIndex)
 
     // Stick the model trees into RegressionTree and ClassificationTree objects
     val models = labelIndices.map { i =>
@@ -110,7 +110,7 @@ case class MultiTaskTreeLearner(
     val sumFeatureImportance: Vector[Double] = {
       val startingImportances = Vector.fill(repInput.length)(0.0)
       labelIndices.foldLeft(startingImportances) { (importance, i) =>
-        root.getFeatureImportance(i).toVector.zip(importance).map(p => p._1 + p._2)
+        root.featureImportanceByLabelIndex(i).toVector.zip(importance).map(p => p._1 + p._2)
       }
     }
 

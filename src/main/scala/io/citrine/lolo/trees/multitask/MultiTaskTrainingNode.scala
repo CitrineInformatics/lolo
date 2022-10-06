@@ -16,15 +16,15 @@ case class MultiTaskTrainingNode(
     deltaImpurity: Double
 ) {
 
-  // get feature importance for the i'th label
-  def getFeatureImportance(index: Int): mutable.ArraySeq[Double] = {
+  // get feature importance for the `index`th label
+  def featureImportanceByLabelIndex(index: Int): mutable.ArraySeq[Double] = {
     labelWiseInstructions(index) match {
       case Stop(leaf)             => leaf.getFeatureImportance()
-      case FollowChild(childNode) => childNode.getFeatureImportance(index)
+      case FollowChild(childNode) => childNode.featureImportanceByLabelIndex(index)
       case DoSplit(split, leftNode, rightNode) =>
         val ans = leftNode
-          .getFeatureImportance(index)
-          .zip(rightNode.getFeatureImportance(index))
+          .featureImportanceByLabelIndex(index)
+          .zip(rightNode.featureImportanceByLabelIndex(index))
           .map(p => p._1 + p._2)
         ans(split.index) = ans(split.index) + deltaImpurity
         ans
@@ -33,24 +33,24 @@ case class MultiTaskTrainingNode(
   }
 
   // Construct the model node for the `index`th label
-  def getNode(index: Int): ModelNode[PredictionResult[Any]] = {
+  def modelNodeByLabelIndex(index: Int): ModelNode[PredictionResult[Any]] = {
     labelWiseInstructions(index) match {
       case Stop(leaf)             => leaf.modelNode
-      case FollowChild(childNode) => childNode.getNode(index)
+      case FollowChild(childNode) => childNode.modelNodeByLabelIndex(index)
       case DoSplit(split, leftNode, rightNode) =>
         if (trainingData.head._2(index).isInstanceOf[Double]) {
           new InternalModelNode[PredictionResult[Double]](
             split = split,
-            left = leftNode.getNode(index).asInstanceOf[ModelNode[PredictionResult[Double]]],
-            right = rightNode.getNode(index).asInstanceOf[ModelNode[PredictionResult[Double]]],
+            left = leftNode.modelNodeByLabelIndex(index).asInstanceOf[ModelNode[PredictionResult[Double]]],
+            right = rightNode.modelNodeByLabelIndex(index).asInstanceOf[ModelNode[PredictionResult[Double]]],
             outputDimension = 0, // Shapley is not implemented for multi-task nodes
             trainingWeight = trainingData.map(_._3).sum
           )
         } else {
           new InternalModelNode[PredictionResult[Char]](
             split = split,
-            left = leftNode.getNode(index).asInstanceOf[ModelNode[PredictionResult[Char]]],
-            right = rightNode.getNode(index).asInstanceOf[ModelNode[PredictionResult[Char]]],
+            left = leftNode.modelNodeByLabelIndex(index).asInstanceOf[ModelNode[PredictionResult[Char]]],
+            right = rightNode.modelNodeByLabelIndex(index).asInstanceOf[ModelNode[PredictionResult[Char]]],
             outputDimension = 0,
             trainingWeight = trainingData.map(_._3).sum
           )
