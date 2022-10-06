@@ -203,7 +203,8 @@ object CalibrationStudy extends SeedRandomMixIn {
         512,
         rng = rng
       )
-      .toIterable
+      .iterator
+      .to(Iterable)
 
     val chart =
       generativeHistogram(fullStream, plotNormal = true, plotCauchy = true, calibrate = true, range = range)
@@ -218,7 +219,8 @@ object CalibrationStudy extends SeedRandomMixIn {
         2,
         rng = rng
       )
-      .toIterable
+      .iterator
+      .to(Iterable)
     val pva = PredictedVsActual().visualize(dataStream)
     BitmapEncoder.saveBitmap(pva, s"./pva_${funcName}-nTrain.${nTrain}-nTree.${nTree}", BitmapFormat.PNG)
     Merit.estimateMerits(
@@ -372,7 +374,8 @@ object CalibrationStudy extends SeedRandomMixIn {
         512,
         rng = rng
       )
-      .toIterable
+      .iterator
+      .to(Iterable)
 
     val chart =
       generativeHistogram(fullStream, plotNormal = true, plotCauchy = true, calibrate = true, range = range)
@@ -387,7 +390,8 @@ object CalibrationStudy extends SeedRandomMixIn {
         2,
         rng = rng
       )
-      .toIterable
+      .iterator
+      .to(Iterable)
     val pva = PredictedVsActual().visualize(dataStream)
     BitmapEncoder.saveBitmap(pva, s"./pva_hcep-nTrain.${nTrain}-nTree.${nTree}", BitmapFormat.PNG)
     Merit.estimateMerits(
