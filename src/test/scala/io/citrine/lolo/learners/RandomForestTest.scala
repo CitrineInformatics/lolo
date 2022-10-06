@@ -239,7 +239,7 @@ class RandomForestTest extends SeedRandomMixIn {
       trainingData: Seq[(Vector[Any], Double)],
       evalLocation: Vector[Any],
       expected: Vector[Double],
-      rtol: Double = 5e-2
+      rtol: Double = 0.1
   ): Unit = {
     val actual = RandomForest().train(trainingData, rng = rng).getModel().shapley(evalLocation) match {
       case None => fail("Unexpected None returned by shapley.")
@@ -308,16 +308,5 @@ class RandomForestTest extends SeedRandomMixIn {
     )
     val expected4 = Vector(0.0333333333333333, 0.2, 0.8666666666666667, 3.533333333333333, 16.866666666666667)
     shapleyCompare((1 to 8).map { _ => trainingData4 }.flatten, Vector.fill[Any](5)(1.0), expected4)
-  }
-}
-
-object RandomForestTest {
-  def main(argv: Array[String]): Unit = {
-    new RandomForestTest()
-      .testClassificationForest()
-    new RandomForestTest()
-      .testClassificationForestUnbiased()
-    new RandomForestTest()
-      .testShapley()
   }
 }

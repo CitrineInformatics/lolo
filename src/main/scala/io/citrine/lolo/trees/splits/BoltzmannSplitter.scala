@@ -58,7 +58,7 @@ case class BoltzmannSplitter(temperature: Double) extends Splitter[Double] {
 
     // Don't split if there is no impurity to reduce
     if (initialVariance == 0) {
-      return (new NoSplit(), 0.0)
+      return (NoSplit(), 0.0)
     }
     val beta = 1.0 / (temperature * initialVariance)
 
@@ -78,7 +78,7 @@ case class BoltzmannSplitter(temperature: Double) extends Splitter[Double] {
 
     // If we couldn't find a split, then return NoSplit with no variance reduction
     if (possibleSplits.isEmpty) {
-      return (new NoSplit(), 0.0)
+      return (NoSplit(), 0.0)
     }
 
     // Re-based the probabilities, such that the largest probability is order-1.0
@@ -174,7 +174,7 @@ object BoltzmannSplitter {
       case (score, pivot, variance) =>
         cumSum = cumSum + Math.exp(score - base)
         if (draw < cumSum) {
-          return Some(SplitterResult(new RealSplit(index, pivot), variance, totalScore, base))
+          return Some(SplitterResult(RealSplit(index, pivot), variance, totalScore, base))
         }
     }
     // This should never be hit; it would mean there's a bug in the logic above ^^
@@ -250,7 +250,7 @@ object BoltzmannSplitter {
       case (score, includeSet, variance) =>
         cumSum = cumSum + Math.exp(score - base)
         if (draw < cumSum) {
-          return Some(SplitterResult(new CategoricalSplit(index, includeSet), variance, totalScore, base))
+          return Some(SplitterResult(CategoricalSplit(index, includeSet), variance, totalScore, base))
         }
     }
     // This should never be hit; it would mean there's a bug in the logic above ^^

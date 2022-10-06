@@ -29,7 +29,7 @@ case class ExtraRandomClassificationSplitter() extends Splitter[Char] {
 
     val calculator = GiniCalculator.build(data.map { p => (p._2, p._3) })
     val initialVariance = calculator.getImpurity
-    var bestSplit: Split = new NoSplit()
+    var bestSplit: Split = NoSplit()
     var bestVariance = Double.MaxValue
 
     val rep = data.head
@@ -51,7 +51,7 @@ case class ExtraRandomClassificationSplitter() extends Splitter[Char] {
       }
     }
     if (bestVariance >= initialVariance) {
-      (new NoSplit(), 0.0)
+      (NoSplit(), 0.0)
     } else {
       val deltaImpurity = initialVariance - bestVariance
       (bestSplit, deltaImpurity)
@@ -80,7 +80,7 @@ case class ExtraRandomClassificationSplitter() extends Splitter[Char] {
     val upperBound = axis.max
     val pivot = lowerBound + (upperBound - lowerBound) * rng.nextDouble()
 
-    val split = new RealSplit(index, pivot)
+    val split = RealSplit(index, pivot)
 
     /* Move the data from the right to the left partition one value at a time */
     calculator.reset()
@@ -122,12 +122,12 @@ case class ExtraRandomClassificationSplitter() extends Splitter[Char] {
     val orderedNames: Seq[Char] = categoryAverages.toSeq.sortBy(_._2).map(_._1)
     if (orderedNames.size == 1) {
       calculator.reset()
-      return (new NoSplit(), calculator.getImpurity)
+      return (NoSplit(), calculator.getImpurity)
     }
 
     val pivot = rng.nextInt(orderedNames.size - 1)
     val bestSet = orderedNames.slice(0, pivot + 1).toSet
-    val split = new CategoricalSplit(index, new scala.collection.mutable.BitSet() ++ bestSet.map(_.toInt))
+    val split = CategoricalSplit(index, new scala.collection.mutable.BitSet() ++ bestSet.map(_.toInt))
 
     /* Move the data from the right to the left partition one value at a time */
     calculator.reset()

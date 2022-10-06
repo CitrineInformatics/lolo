@@ -2,37 +2,33 @@ package io.citrine.lolo.trees
 
 import breeze.linalg.DenseMatrix
 import io.citrine.lolo.trees.splits.Split
-import io.citrine.lolo.{Learner, Model, PredictionResult}
-import io.citrine.random.Random
+import io.citrine.lolo.{Model, PredictionResult, TrainingResult}
 
 import scala.collection.mutable
 
 /**
-  * Class to provide getNode interface for internal and leaf training nodes
+  * Trait to provide getNode interface for internal and leaf training nodes
   *
-  * @param trainingData   that this node sees
-  * @param remainingDepth to stop growing the node
-  * @tparam T type of the input vector
-  * @tparam S type of the model output
+  * @tparam T type of the model output
   */
-abstract class TrainingNode[T <: AnyVal, S](
-    trainingData: Seq[(Vector[T], S, Double)],
-    remainingDepth: Int = Int.MaxValue
-) extends Serializable {
+trait TrainingNode[+T] extends Serializable {
+
+  // TODO (PLA-10433): make this a structured type
+  def trainingData: Seq[(Vector[AnyVal], T, Double)]
 
   /**
     * Get the lightweight prediction node for the output tree
     *
     * @return lightweight prediction node
     */
-  def getNode(): ModelNode[PredictionResult[S]]
+  def modelNode: ModelNode[PredictionResult[T]]
 
   /**
     * Get the feature importance of the subtree below this node
     *
     * @return feature importance as a vector
     */
-  def getFeatureImportance(): mutable.ArraySeq[Double]
+  def featureImportance: mutable.ArraySeq[Double]
 }
 
 trait ModelNode[+T <: PredictionResult[Any]] extends Serializable {
@@ -88,7 +84,7 @@ trait ModelNode[+T <: PredictionResult[Any]] extends Serializable {
   * @param trainingWeight  weight of training data in subtree (i.e. size of unweighted training set)
   * @tparam T type of the output
   */
-class InternalModelNode[T <: PredictionResult[Any]](
+case class InternalModelNode[T <: PredictionResult[Any]](
     split: Split,
     left: ModelNode[T],
     right: ModelNode[T],
@@ -128,7 +124,7 @@ class InternalModelNode[T <: PredictionResult[Any]](
       omitFeatures: Set[Int],
       featureWeights: Map[Int, FeatureWeightFactor]
   ): DenseMatrix[Double] = {
-    val featureIndex = split.getIndex()
+    val featureIndex = split.index
 
     // The hot node is the one that is selected when the feature is present
     val (hot, cold) = if (this.split.turnLeft(input)) {
@@ -181,38 +177,20 @@ class InternalModelNode[T <: PredictionResult[Any]](
   override def getTrainingWeight(): Double = trainingWeight
 }
 
-/**
-  * Average the training data to make a leaf prediction
-  *
-  * @param trainingData to train on
-  */
-class TrainingLeaf[T](
-    trainingData: Seq[(Vector[AnyVal], T, Double)],
-    leafLearner: Learner,
-    depth: Int,
-    rng: Random
-) extends TrainingNode(
-      trainingData = trainingData,
-      remainingDepth = 0
-    ) {
+/** A leaf defined by a training result. */
+trait TrainingLeaf[T] extends TrainingNode[T] {
 
-  /**
-    * Average the training data
-    *
-    * @return lightweight prediction node
-    */
-  def getNode(): ModelNode[PredictionResult[T]] = {
-    new ModelLeaf(
-      leafLearner.train(trainingData, rng = rng).getModel().asInstanceOf[Model[PredictionResult[T]]],
-      depth,
-      trainingData.size.toDouble
-    )
-  }
+  def trainingResult: TrainingResult
 
-  override def getFeatureImportance(): mutable.ArraySeq[Double] = mutable.ArraySeq.fill(trainingData.head._1.size)(0.0)
+  def depth: Int
+
+  def modelNode: ModelNode[PredictionResult[T]] =
+    ModelLeaf(model, depth, trainingData.map(_._3).sum)
+
+  def model: Model[PredictionResult[T]] = trainingResult.getModel().asInstanceOf[Model[PredictionResult[T]]]
 }
 
-class ModelLeaf[T](model: Model[PredictionResult[T]], depth: Int, trainingWeight: Double)
+case class ModelLeaf[T](model: Model[PredictionResult[T]], depth: Int, trainingWeight: Double)
     extends ModelNode[PredictionResult[T]] {
   override def transform(input: Vector[AnyVal]): (PredictionResult[T], TreeMeta) = {
     (model.transform(Seq(input)), TreeMeta(depth))

@@ -67,6 +67,6 @@ object Splitter {
         }
       }
     }
-    (new RealSplit(index, bestPivot), bestImpurity)
+    (RealSplit(index, bestPivot), bestImpurity)
   }
 }

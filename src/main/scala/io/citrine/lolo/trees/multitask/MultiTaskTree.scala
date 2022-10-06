@@ -5,6 +5,7 @@ import io.citrine.lolo.encoders.CategoricalEncoder
 import io.citrine.lolo.trees.ModelNode
 import io.citrine.lolo.trees.classification.ClassificationTree
 import io.citrine.lolo.trees.regression.RegressionTree
+import io.citrine.lolo.trees.splits.MultiTaskSplitter
 import io.citrine.lolo.{Model, MultiTaskLearner, MultiTaskTrainingResult, ParallelModels, PredictionResult}
 
 /**
@@ -13,13 +14,13 @@ import io.citrine.lolo.{Model, MultiTaskLearner, MultiTaskTrainingResult, Parall
   * @param numFeatures to random select from at each split (numbers less than 0 indicate that all features are used)
   * @param maxDepth to grow the tree to
   * @param minLeafInstances minimum number of training instances per leaf
-  * @param randomizePivotLocation whether to generate splits randomly between the data points
+  * @param splitter to determine the best split given data
   */
 case class MultiTaskTreeLearner(
     numFeatures: Int = -1,
     maxDepth: Int = 30,
     minLeafInstances: Int = 1,
-    randomizePivotLocation: Boolean = false
+    splitter: MultiTaskSplitter = MultiTaskSplitter(randomizePivotLocation = true)
 ) extends MultiTaskLearner {
 
   /**
@@ -65,7 +66,7 @@ case class MultiTaskTreeLearner(
     // Encode the inputs, outputs, and filter out zero weight rows
     val collectedData = inputs.indices
       .map { i =>
-        (encodedInputs(i), encodedLabels(i).toArray, weights.map(_(i)).getOrElse(1.0))
+        (encodedInputs(i), encodedLabels(i), weights.map(_(i)).getOrElse(1.0))
       }
       .filter(_._3 > 0.0)
 
@@ -77,17 +78,18 @@ case class MultiTaskTreeLearner(
     }
 
     // Construct the training tree
-    val root = new MultiTaskTrainingNode(
-      inputs = collectedData,
+    val root = MultiTaskTrainingNode.build(
+      trainingData = collectedData,
       numFeatures = numFeaturesActual,
+      remainingDepth = maxDepth,
       maxDepth = maxDepth,
       minInstances = minLeafInstances,
-      randomizePivotLocation = randomizePivotLocation,
+      splitter = splitter,
       rng = rng
     )
 
     // Construct the model trees
-    val nodes = labelIndices.map(root.getNode)
+    val nodes = labelIndices.map(root.modelNodeByLabelIndex)
 
     // Stick the model trees into RegressionTree and ClassificationTree objects
     val models = labelIndices.map { i =>
@@ -108,7 +110,7 @@ case class MultiTaskTreeLearner(
     val sumFeatureImportance: Vector[Double] = {
       val startingImportances = Vector.fill(repInput.length)(0.0)
       labelIndices.foldLeft(startingImportances) { (importance, i) =>
-        root.getFeatureImportance(i).toVector.zip(importance).map(p => p._1 + p._2)
+        root.featureImportanceByLabelIndex(i).toVector.zip(importance).map(p => p._1 + p._2)
       }
     }
 

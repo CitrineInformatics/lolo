@@ -40,11 +40,11 @@ class RegressionTreeTest extends SeedRandomMixIn {
     /* We should be able to memorize the inputs */
     val output = DT.transform(trainingData.map(_._1))
     trainingData.zip(output.getExpected()).foreach {
-      case ((x, a), p) =>
+      case ((_, a), p) =>
         assert(Math.abs(a - p) < 1.0e-9)
     }
     assert(output.getGradient().isEmpty)
-    output.getDepth().foreach(d => assert(d > 3 && d < 9, s"Depth is ${d}"))
+    output.getDepth().foreach(d => assert(d > 3 && d < 9, s"Depth is $d"))
   }
 
   /**
@@ -65,7 +65,7 @@ class RegressionTreeTest extends SeedRandomMixIn {
         assert(Math.abs(a - p) < 1.0e-9)
     }
     assert(output.getGradient().isEmpty)
-    output.getDepth().foreach(d => assert(d > 3 && d < 9, s"Depth is ${d}"))
+    output.getDepth().foreach(d => assert(d > 3 && d < 9, s"Depth is $d"))
   }
 
   /**
@@ -162,7 +162,7 @@ class RegressionTreeTest extends SeedRandomMixIn {
         assert(Math.abs(a - p) < 1.0e-9)
     }
     assert(output.getGradient().isDefined)
-    output.getDepth().foreach(d => assert(d > 4 && d < 18, s"Depth is ${d}"))
+    output.getDepth().foreach(d => assert(d > 4 && d < 18, s"Depth is $d"))
 
     /* The first feature should be the most important */
     val importances = DTMeta.getFeatureImportance().get
@@ -344,18 +344,5 @@ class RegressionTreeTest extends SeedRandomMixIn {
 
     // Ensure we don't crash when restricting number of features.
     RegressionTreeLearner(numFeatures = 1).train(trainingData4).getModel().shapley(Vector.fill[Any](5)(0.0), Set())
-  }
-}
-
-/** Companion driver */
-object RegressionTreeTest {
-
-  /**
-    * Test driver
-    *
-    * @param argv args
-    */
-  def main(argv: Array[String]): Unit = {
-    new RegressionTreeTest().testSimpleBoltzmannTree()
   }
 }

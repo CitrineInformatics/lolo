@@ -25,7 +25,7 @@ case class ClassificationSplitter(randomizedPivotLocation: Boolean = false) exte
       minInstances: Int,
       rng: Random
   ): (Split, Double) = {
-    var bestSplit: Split = new NoSplit()
+    var bestSplit: Split = NoSplit()
     var bestImpurity = Double.MaxValue
 
     /* Pre-compute these for the variance calculation */
@@ -51,7 +51,7 @@ case class ClassificationSplitter(randomizedPivotLocation: Boolean = false) exte
       }
     }
     if (bestImpurity == Double.MaxValue) {
-      (new NoSplit(), 0.0)
+      (NoSplit(), 0.0)
     } else {
       val deltaImpurity = initialImpurity - bestImpurity
       (bestSplit, deltaImpurity)
@@ -101,7 +101,7 @@ case class ClassificationSplitter(randomizedPivotLocation: Boolean = false) exte
         bestSet = orderedNames.slice(0, j + 1).toSet
       }
     }
-    (new CategoricalSplit(index, new scala.collection.mutable.BitSet() ++ bestSet.map(_.toInt)), bestPurity)
+    (CategoricalSplit(index, new scala.collection.mutable.BitSet() ++ bestSet.map(_.toInt)), bestPurity)
   }
 
 }

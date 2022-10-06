@@ -1,37 +1,25 @@
 package io.citrine.lolo.trees.regression
 
-import io.citrine.lolo.trees.{ModelLeaf, ModelNode, TrainingNode}
-import io.citrine.lolo.{Learner, Model, PredictionResult}
+import io.citrine.lolo.trees.TrainingLeaf
+import io.citrine.lolo.{Learner, TrainingResult}
 import io.citrine.random.Random
 
 import scala.collection.mutable
 
-/**
-  * Training leaf node for regression trees
-  */
-class RegressionTrainingLeaf(
+/** Training leaf node for regression trees. */
+case class RegressionTrainingLeaf(
     trainingData: Seq[(Vector[AnyVal], Double, Double)],
-    leafLearner: Learner,
-    depth: Int,
-    rng: Random
-) extends TrainingNode(trainingData, depth) {
-
-  /**
-    * Wrap the leaf model (previously trained) in a lightweight leaf node
-    *
-    * @return lightweight prediction node
-    */
-  def getNode(): ModelNode[PredictionResult[Double]] = {
-    new ModelLeaf(model, depth, trainingData.size.toDouble)
-  }
+    trainingResult: TrainingResult,
+    depth: Int
+) extends TrainingLeaf[Double] {
 
   /**
     * Pull the leaf model's feature importance and rescale it by the remaining impurity
     *
     * @return feature importance as a vector
     */
-  def getFeatureImportance(): scala.collection.mutable.ArraySeq[Double] = {
-    importance match {
+  override def featureImportance: scala.collection.mutable.ArraySeq[Double] = {
+    trainingResult.getFeatureImportance() match {
       case Some(x) =>
         // Compute the weighted sum of the label, the square label, and the weights
         val expectations: (Double, Double, Double) = trainingData
@@ -47,13 +35,22 @@ class RegressionTrainingLeaf(
       case None => mutable.ArraySeq.fill(trainingData.head._1.size)(0.0)
     }
   }
+}
 
-  /** Train the leaf learner on the training data */
-  val leafTrainingResult = leafLearner.train(trainingData, rng = rng)
+object RegressionTrainingLeaf {
 
-  /** Pull out the model for future use */
-  val model = leafTrainingResult.getModel().asInstanceOf[Model[PredictionResult[Double]]]
-
-  /** Pull out the importance for future use */
-  val importance = leafTrainingResult.getFeatureImportance()
+  /**
+    * @param trainingData for this leaf node
+    * @param leafLearner on which to train the data
+    * @param depth depth in the tree
+    * @param rng random number generator, for reproducibility
+    * @return a trained regression leaf node
+    */
+  def build(
+      trainingData: Seq[(Vector[AnyVal], Double, Double)],
+      leafLearner: Learner,
+      depth: Int,
+      rng: Random
+  ): RegressionTrainingLeaf =
+    RegressionTrainingLeaf(trainingData, leafLearner.train(trainingData, rng = rng), depth)
 }

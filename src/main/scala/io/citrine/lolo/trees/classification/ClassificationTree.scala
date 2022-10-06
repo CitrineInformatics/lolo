@@ -73,41 +73,32 @@ case class ClassificationTreeLearner(
       finalTraining.head._1.size
     }
 
-    /* The tree is built of training nodes */
-    val (split, delta) = splitter.getBestSplit(finalTraining, numFeaturesActual, minLeafInstances, rng)
-    val rootTrainingNode = if (split.isInstanceOf[NoSplit] || maxDepth == 0) {
-      new TrainingLeaf(finalTraining, myLeafLearner, 0, rng)
-    } else {
-      new ClassificationTrainingNode(
-        finalTraining,
-        myLeafLearner,
-        split,
-        delta,
-        numFeaturesActual,
-        remainingDepth = maxDepth - 1,
-        maxDepth = maxDepth,
-        minLeafInstances = minLeafInstances,
-        numClasses = trainingData.map { _._2 }.distinct.length,
-        splitter = splitter,
-        rng = rng
-      )
-    }
-
-    /* Wrap them up in a regression tree */
+    // Recursively build the tree via its nodes and wrap the top node in a ClassificationTreeTrainingResult
+    val rootTrainingNode = ClassificationTrainingNode.build(
+      trainingData = finalTraining,
+      leafLearner = myLeafLearner,
+      splitter = splitter,
+      numFeatures = numFeaturesActual,
+      minLeafInstances = minLeafInstances,
+      remainingDepth = maxDepth,
+      maxDepth = maxDepth,
+      numClasses = trainingData.map(_._2).distinct.length,
+      rng = rng
+    )
     new ClassificationTrainingResult(rootTrainingNode, inputEncoders, outputEncoder)
   }
 }
 
 class ClassificationTrainingResult(
-    rootTrainingNode: TrainingNode[AnyVal, Char],
+    rootTrainingNode: TrainingNode[Char],
     inputEncoders: Seq[Option[CategoricalEncoder[Any]]],
     outputEncoder: CategoricalEncoder[Any]
 ) extends TrainingResult {
   /* Grab a prediction node.  The partitioning happens here */
-  lazy val model = new ClassificationTree(rootTrainingNode.getNode(), inputEncoders, outputEncoder)
+  lazy val model = new ClassificationTree(rootTrainingNode.modelNode, inputEncoders, outputEncoder)
 
   /* Grab the feature influences */
-  lazy val importance = rootTrainingNode.getFeatureImportance()
+  lazy val importance = rootTrainingNode.featureImportance
   private lazy val importanceNormalized = {
     if (Math.abs(importance.sum) > 0) {
       importance.map(_ / importance.sum)
