@@ -13,22 +13,18 @@ import scala.collection.mutable
 case class MultiTaskTrainingNode(
     trainingData: Seq[(Vector[AnyVal], Vector[AnyVal], Double)],
     labelWiseInstructions: Seq[MultiTaskLabelInstruction],
-    split: Split,
-    leftNodeOption: Option[MultiTaskTrainingNode],
-    rightNodeOption: Option[MultiTaskTrainingNode],
     deltaImpurity: Double
 ) {
 
   // get feature importance for the i'th label
   def getFeatureImportance(index: Int): mutable.ArraySeq[Double] = {
     labelWiseInstructions(index) match {
-      case Stop(leaf) => leaf.getFeatureImportance()
-      case GoLeft()   => leftNodeOption.get.getFeatureImportance(index)
-      case GoRight()  => rightNodeOption.get.getFeatureImportance(index)
-      case DoSplit() =>
-        val ans = leftNodeOption.get
+      case Stop(leaf)             => leaf.getFeatureImportance()
+      case FollowChild(childNode) => childNode.getFeatureImportance(index)
+      case DoSplit(split, leftNode, rightNode) =>
+        val ans = leftNode
           .getFeatureImportance(index)
-          .zip(rightNodeOption.get.getFeatureImportance(index))
+          .zip(rightNode.getFeatureImportance(index))
           .map(p => p._1 + p._2)
         ans(split.index) = ans(split.index) + deltaImpurity
         ans
@@ -39,23 +35,22 @@ case class MultiTaskTrainingNode(
   // Construct the model node for the `index`th label
   def getNode(index: Int): ModelNode[PredictionResult[Any]] = {
     labelWiseInstructions(index) match {
-      case Stop(leaf) => leaf.modelNode
-      case GoLeft()   => leftNodeOption.get.getNode(index)
-      case GoRight()  => rightNodeOption.get.getNode(index)
-      case DoSplit() =>
+      case Stop(leaf)             => leaf.modelNode
+      case FollowChild(childNode) => childNode.getNode(index)
+      case DoSplit(split, leftNode, rightNode) =>
         if (trainingData.head._2(index).isInstanceOf[Double]) {
           new InternalModelNode[PredictionResult[Double]](
             split = split,
-            left = leftNodeOption.get.getNode(index).asInstanceOf[ModelNode[PredictionResult[Double]]],
-            right = rightNodeOption.get.getNode(index).asInstanceOf[ModelNode[PredictionResult[Double]]],
+            left = leftNode.getNode(index).asInstanceOf[ModelNode[PredictionResult[Double]]],
+            right = rightNode.getNode(index).asInstanceOf[ModelNode[PredictionResult[Double]]],
             outputDimension = 0, // Shapley is not implemented for multi-task nodes
             trainingWeight = trainingData.map(_._3).sum
           )
         } else {
           new InternalModelNode[PredictionResult[Char]](
             split = split,
-            left = leftNodeOption.get.getNode(index).asInstanceOf[ModelNode[PredictionResult[Char]]],
-            right = rightNodeOption.get.getNode(index).asInstanceOf[ModelNode[PredictionResult[Char]]],
+            left = leftNode.getNode(index).asInstanceOf[ModelNode[PredictionResult[Char]]],
+            right = rightNode.getNode(index).asInstanceOf[ModelNode[PredictionResult[Char]]],
             outputDimension = 0,
             trainingWeight = trainingData.map(_._3).sum
           )
@@ -88,6 +83,7 @@ object MultiTaskTrainingNode {
       splitter: MultiTaskSplitter,
       rng: Random = Random()
   ): MultiTaskTrainingNode = {
+    // Determine the overall split.
     val sufficientData = trainingData.size >= 2 * minInstances &&
       remainingDepth > 0 &&
       trainingData.exists(row => row._2 != trainingData.head._2)
@@ -101,57 +97,9 @@ object MultiTaskTrainingNode {
     } else {
       (NoSplit(), 0.0)
     }
-
-    val exampleRow = trainingData.head
-    val labelWiseInstructions = exampleRow._2.indices.map { index =>
-      val exampleLabel = exampleRow._2(index)
-      val reducedData = if (exampleLabel.isInstanceOf[Double]) {
-        trainingData.map(x => (x._1, x._2(index).asInstanceOf[Double], x._3)).filterNot(_._2.isNaN)
-      } else {
-        trainingData.map(x => (x._1, x._2(index).asInstanceOf[Char], x._3)).filter(_._2 > 0)
-      }
-      val (left, right) = reducedData.partition(r => split.turnLeft(r._1))
-
-      if (reducedData.isEmpty) {
-        Inaccessible()
-      } else if (split.isInstanceOf[NoSplit] || reducedData.length <= minInstances) {
-        val trainingLeaf: TrainingNode[AnyVal] = if (exampleLabel.isInstanceOf[Double]) {
-          RegressionTrainingLeaf
-            .build(
-              reducedData.asInstanceOf[Seq[(Vector[AnyVal], Double, Double)]],
-              GuessTheMeanLearner(),
-              maxDepth - remainingDepth,
-              rng
-            )
-        } else {
-          ClassificationTrainingLeaf
-            .build(
-              reducedData.asInstanceOf[Seq[(Vector[AnyVal], Char, Double)]],
-              GuessTheMeanLearner(),
-              maxDepth - remainingDepth,
-              rng
-            )
-        }
-        Stop(trainingLeaf)
-      } else if (left.nonEmpty && right.nonEmpty) {
-        DoSplit()
-      } else if (left.nonEmpty) {
-        GoLeft()
-      } else {
-        GoRight()
-      }
-    }
-
-    split match {
-      case split: NoSplit =>
-        MultiTaskTrainingNode(
-          trainingData = trainingData,
-          labelWiseInstructions = labelWiseInstructions,
-          split = split,
-          leftNodeOption = None,
-          rightNodeOption = None,
-          deltaImpurity = deltaImpurity
-        )
+    // Build the left and right nodes (assuming the split exists).
+    val nodesOpt: Option[(MultiTaskTrainingNode, MultiTaskTrainingNode)] = split match {
+      case _: NoSplit => None
       case split: Split =>
         val (leftTrain, rightTrain) = trainingData.partition(r => split.turnLeft(r._1))
         val leftNode = MultiTaskTrainingNode.build(
@@ -172,34 +120,74 @@ object MultiTaskTrainingNode {
           splitter = splitter,
           rng = rng
         )
-        MultiTaskTrainingNode(
-          trainingData = trainingData,
-          labelWiseInstructions = labelWiseInstructions,
-          split = split,
-          leftNodeOption = Some(leftNode),
-          rightNodeOption = Some(rightNode),
-          deltaImpurity = deltaImpurity
-        )
+        Some((leftNode, rightNode))
     }
+    // Determine what to do for each label (evaluate a model, evaluate the split, go left, or go right).
+    val exampleRow = trainingData.head
+    val labelWiseInstructions = exampleRow._2.indices.map { index =>
+      // Determine how much data *with this label* goes down each branch
+      val exampleLabel = exampleRow._2(index)
+      val reducedData = if (exampleLabel.isInstanceOf[Double]) {
+        trainingData.map(x => (x._1, x._2(index).asInstanceOf[Double], x._3)).filterNot(_._2.isNaN)
+      } else {
+        trainingData.map(x => (x._1, x._2(index).asInstanceOf[Char], x._3)).filter(_._2 > 0)
+      }
+      val (left, right) = reducedData.partition(r => split.turnLeft(r._1))
+
+      if (reducedData.isEmpty) {
+        Inaccessible()
+      } else if (nodesOpt.isEmpty || reducedData.length <= minInstances) {
+        // Either there's no split or there's not enough data remaining with this label. Build a leaf node.
+        val trainingLeaf: TrainingNode[AnyVal] = if (exampleLabel.isInstanceOf[Double]) {
+          RegressionTrainingLeaf
+            .build(
+              reducedData.asInstanceOf[Seq[(Vector[AnyVal], Double, Double)]],
+              GuessTheMeanLearner(),
+              maxDepth - remainingDepth,
+              rng
+            )
+        } else {
+          ClassificationTrainingLeaf
+            .build(
+              reducedData.asInstanceOf[Seq[(Vector[AnyVal], Char, Double)]],
+              GuessTheMeanLearner(),
+              maxDepth - remainingDepth,
+              rng
+            )
+        }
+        Stop(trainingLeaf)
+      } else if (left.nonEmpty && right.nonEmpty) {
+        // From this point onwards we know that nodesOpt is defined. Follow the split.
+        DoSplit(split, nodesOpt.get._1, nodesOpt.get._2)
+      } else if (left.nonEmpty) {
+        // This label only has data on the left-hand side, so go left.
+        FollowChild(nodesOpt.get._1)
+      } else {
+        // This label only has data on the right-hand side, so go right.
+        FollowChild(nodesOpt.get._2)
+      }
+    }
+
+    MultiTaskTrainingNode(
+      trainingData = trainingData,
+      labelWiseInstructions = labelWiseInstructions,
+      deltaImpurity = deltaImpurity
+    )
   }
 }
 
-/**
-  * An enumeration specifying what behavior to perform for a specific label.
-  * The logic of MultiTaskTrainingNode.build() enforces that instructions will only be given in valid situations.
-  * For example, DoSplit() will only occur if there is a valid split and this label has training data that
-  * go down both paths.
-  */
+/** An enumeration specifying what behavior to perform for a specific label. */
 sealed trait MultiTaskLabelInstruction
 
 /** Follow the proscribed split. */
-case class DoSplit() extends MultiTaskLabelInstruction
+case class DoSplit(
+    split: Split,
+    leftNode: MultiTaskTrainingNode,
+    rightNode: MultiTaskTrainingNode
+) extends MultiTaskLabelInstruction
 
-/** Always go to the left child. */
-case class GoLeft() extends MultiTaskLabelInstruction
-
-/** Always go to the riht child. */
-case class GoRight() extends MultiTaskLabelInstruction
+/** Always go to the specified child node. */
+case class FollowChild(childNode: MultiTaskTrainingNode) extends MultiTaskLabelInstruction
 
 /** Stop and evaluate the provided leaf node. */
 case class Stop(leaf: TrainingNode[AnyVal]) extends MultiTaskLabelInstruction
