@@ -53,10 +53,15 @@ object ClassificationTrainingNode {
     val sufficientData = trainingData.size >= 2 * minLeafInstances &&
       remainingDepth > 0 &&
       trainingData.exists(_._2 != trainingData.head._2)
-    if (sufficientData) {
-      val (split: Split, deltaImpurity: Double) =
-        splitter.getBestSplit(trainingData, numFeatures, minLeafInstances, rng)
-      if (!split.isInstanceOf[NoSplit]) {
+    val (split: Split, deltaImpurity: Double) = if (sufficientData) {
+      splitter.getBestSplit(trainingData, numFeatures, minLeafInstances, rng)
+    } else {
+      (NoSplit(), 0.0)
+    }
+    split match {
+      case _: NoSplit =>
+        ClassificationTrainingLeaf.build(trainingData, leafLearner, maxDepth - remainingDepth, rng)
+      case split: Split =>
         val (leftTrain, rightTrain) = trainingData.partition(r => split.turnLeft(r._1))
         val leftNode = ClassificationTrainingNode.build(
           trainingData = leftTrain,
@@ -89,11 +94,6 @@ object ClassificationTrainingNode {
           deltaImpurity = deltaImpurity,
           numClasses = numClasses
         )
-      } else {
-        ClassificationTrainingLeaf.build(trainingData, leafLearner, maxDepth - remainingDepth, rng)
-      }
-    } else {
-      ClassificationTrainingLeaf.build(trainingData, leafLearner, maxDepth - remainingDepth, rng)
     }
   }
 }
