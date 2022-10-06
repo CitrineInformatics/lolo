@@ -33,7 +33,7 @@ jobs:
       - ./miniconda.sh -b
       - export PATH=/home/travis/miniconda3/bin:$PATH
       - conda update --yes conda
-      - conda create --yes -n condaenv python=3.7
+      - conda create --yes -n condaenv python=3.8
       - conda install --yes -n condaenv pip
       - source activate condaenv
     install:
@@ -58,7 +58,7 @@ jobs:
       - ./miniconda.sh -b
       - export PATH=/home/travis/miniconda3/bin:$PATH
       - conda update --yes conda
-      - conda create --yes -n condaenv python=3.7
+      - conda create --yes -n condaenv python=3.8
       - conda install --yes -n condaenv pip
       - source activate condaenv
     install:
