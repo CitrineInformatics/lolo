@@ -24,7 +24,7 @@ case class GuessTheMeanLearner() extends Learner {
     val data = trainingData.map(_._2).zip(weights.getOrElse(Seq.fill(trainingData.size)(1.0)))
     val mean = data.head._1 match {
       case _: Double => data.asInstanceOf[Seq[(Double, Double)]].map(p => p._1 * p._2).sum / data.map(_._2).sum
-      case _: Any    => rng.shuffle(data.groupBy(_._1).mapValues(_.map(_._2).sum).toSeq).maxBy(_._2)._1
+      case _: Any    => rng.shuffle(data.groupBy(_._1).view.mapValues(_.map(_._2).sum).toSeq).maxBy(_._2)._1
     }
 
     new GuessTheMeanTrainingResult(new GuessTheMeanModel(mean))

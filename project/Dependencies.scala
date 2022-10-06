@@ -3,7 +3,7 @@ import sbt._
 object Dependencies {
   lazy val thetaVersion = "1.1.5"
   lazy val sprandomVersion = "0.1.1"
-  lazy val breezeVersion = "2.0"
+  lazy val breezeVersion = "2.1.0"
   lazy val junitVersion = "4.13.1"
   lazy val scalaTestVersion = "3.2.2"
   lazy val scalaParallelCollectionsVersion = "1.0.0"

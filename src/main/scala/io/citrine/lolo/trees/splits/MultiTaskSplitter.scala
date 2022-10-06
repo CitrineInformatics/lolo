@@ -75,6 +75,7 @@ case class MultiTaskSplitter(randomizePivotLocation: Boolean = false) extends Sp
     /* Group the data by categorical feature and compute the weighted sum and sum of the weights for each */
     val groupedData: Map[Char, (Double, Double, Double)] = thinData
       .groupBy(_._1)
+      .view
       .mapValues(g => (computeImpurity(g.map(x => (x._2, x._3))), g.map(_._3).sum, g.size.toDouble))
       .toMap
 

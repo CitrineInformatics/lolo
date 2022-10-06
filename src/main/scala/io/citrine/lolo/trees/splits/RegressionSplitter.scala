@@ -88,7 +88,7 @@ case class RegressionSplitter(randomizePivotLocation: Boolean = false) extends S
     val totalWeight = thinData.map(_._3).sum
 
     /* Group the data by categorical feature and compute the weighted sum and sum of the weights for each */
-    val groupedData = thinData.groupBy(_._1).mapValues(g => (g.map(v => v._2 * v._3).sum, g.map(_._3).sum, g.size))
+    val groupedData = thinData.groupBy(_._1).view.mapValues(g => (g.map(v => v._2 * v._3).sum, g.map(_._3).sum, g.size))
 
     /* Make sure there is more than one member for most of the classes */
     val nonTrivial: Double = groupedData.filter(_._2._3 > 1).map(_._2._2).sum
