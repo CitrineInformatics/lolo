@@ -11,7 +11,7 @@ import io.citrine.random.Random
 import scala.collection.mutable
 
 case class MultiTaskTrainingNode(
-    trainingData: Seq[(Vector[AnyVal], Array[AnyVal], Double)],
+    trainingData: Seq[(Vector[AnyVal], Vector[AnyVal], Double)],
     labelWiseInstructions: Seq[MultiTaskLabelInstruction],
     split: Split,
     leftNodeOption: Option[MultiTaskTrainingNode],
@@ -80,7 +80,7 @@ object MultiTaskTrainingNode {
     * @return
     */
   def build(
-      trainingData: Seq[(Vector[AnyVal], Array[AnyVal], Double)],
+      trainingData: Seq[(Vector[AnyVal], Vector[AnyVal], Double)],
       numFeatures: Int,
       remainingDepth: Int,
       maxDepth: Int,
@@ -90,7 +90,7 @@ object MultiTaskTrainingNode {
   ): MultiTaskTrainingNode = {
     val sufficientData = trainingData.size >= 2 * minInstances &&
       remainingDepth > 0 &&
-      trainingData.exists(row => !row._2.sameElements(trainingData.head._2))
+      trainingData.exists(row => row._2 != trainingData.head._2)
     val (split: Split, deltaImpurity: Double) = if (sufficientData) {
       splitter.getBestSplit(
         trainingData,

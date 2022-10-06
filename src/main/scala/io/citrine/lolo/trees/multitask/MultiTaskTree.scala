@@ -66,7 +66,7 @@ case class MultiTaskTreeLearner(
     // Encode the inputs, outputs, and filter out zero weight rows
     val collectedData = inputs.indices
       .map { i =>
-        (encodedInputs(i), encodedLabels(i).toArray, weights.map(_(i)).getOrElse(1.0))
+        (encodedInputs(i), encodedLabels(i), weights.map(_(i)).getOrElse(1.0))
       }
       .filter(_._3 > 0.0)
 
