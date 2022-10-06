@@ -7,26 +7,26 @@ Lolo
 
 Lolo is a [random forest](https://en.wikipedia.org/wiki/Lolo_National_Forest)-centered machine learning library in Scala.
 
-The core of Lolo is bagging simple base learners, like decision trees, to imbue robust uncertainty estimates via 
-[jackknife-style variance estimators](http://jmlr.org/papers/volume15/wager14a/wager14a.pdf) and explicit bias models.
+The core of Lolo is bagging simple base learners, like decision trees, to produce models that can generate robust uncertainty estimates.
 
 Lolo supports:
  * continuous and categorical features
- * regression and classification trees
+ * regression, classification, and multi-task trees
  * bagged learners to produce ensemble models, e.g. random forests
  * linear and ridge regression
  * regression _leaf models_, e.g. ridge regression trained on the leaf data
  * random rotation ensembles
- * bias-corrected jackknife-after-bootstrap and infinitesimal jackknife variance estimates
+ * [recalibrated bootstrap prediction interval estimates](https://arxiv.org/abs/2205.02260)
+ * bias-corrected jackknife-after-bootstrap and infinitesimal jackknife [confidence interval estimates](http://jmlr.org/papers/volume15/wager14a/wager14a.pdf)
  * bias models trained on out-of-bag residuals
- * discrete influence scores, which characterize the response of a prediction each training instance
+ * feature importances computed via variance reduction or [Shapley values](https://proceedings.neurips.cc/paper/2017/hash/8a20a8621978632d76c43dfd28b67767-Abstract.html) (which are additive and per-prediction)
  * model based feature importance
  * distance correlation
  * hyperparameter optimization via grid or random search
- * out-of-bag error estimates
  * parallel training via scala parallel collections
  * validation metrics for accuracy and uncertainty quantification
  * visualization of predicted-vs-actual validations
+ * deterministic training via random seeds
 
 # Usage
 Lolo is on the central repository, and can be used by simply adding the following dependency block in your pom file:
@@ -34,7 +34,7 @@ Lolo is on the central repository, and can be used by simply adding the followin
 <dependency>
     <groupId>io.citrine</groupId>
     <artifactId>lolo</artifactId>
-    <version>4.0.0</version>
+    <version>5.0.0</version>
 </dependency>
 ```
 Lolo provides higher level wrappers for common learner combinations.
