@@ -3,12 +3,12 @@ package io.citrine.lolo.validation
 import io.citrine.lolo.bags.Bagger
 import io.citrine.lolo.stats.functions.{Friedman, Linear}
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
-import io.citrine.lolo.{Learner, PredictionResult, SeedRandomMixIn, TestUtils}
+import io.citrine.lolo.{PredictionResult, SeedRandomMixIn, TestUtils}
 import org.apache.commons.math3.distribution.CauchyDistribution
 import org.knowm.xchart.BitmapEncoder.BitmapFormat
 import org.knowm.xchart.{BitmapEncoder, CategoryChart, CategoryChartBuilder}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters.MapHasAsJava
 
 object CalibrationStudy extends SeedRandomMixIn {
 
@@ -203,10 +203,11 @@ object CalibrationStudy extends SeedRandomMixIn {
         512,
         rng = rng
       )
-      .toIterable
+      .iterator
+      .to(Iterable)
 
     val chart =
-      generativeHistogram(fullStream, learner, plotNormal = true, plotCauchy = true, calibrate = true, range = range)
+      generativeHistogram(fullStream, plotNormal = true, plotCauchy = true, calibrate = true, range = range)
     BitmapEncoder.saveBitmap(chart, s"./stdres_${funcName}-nTrain.${nTrain}-nTree.${nTree}", BitmapFormat.PNG)
 
     val dataStream = StatisticalValidation()
@@ -218,7 +219,8 @@ object CalibrationStudy extends SeedRandomMixIn {
         2,
         rng = rng
       )
-      .toIterable
+      .iterator
+      .to(Iterable)
     val pva = PredictedVsActual().visualize(dataStream)
     BitmapEncoder.saveBitmap(pva, s"./pva_${funcName}-nTrain.${nTrain}-nTree.${nTree}", BitmapFormat.PNG)
     Merit.estimateMerits(
@@ -235,7 +237,6 @@ object CalibrationStudy extends SeedRandomMixIn {
 
   def generativeHistogram(
       source: Iterable[(PredictionResult[Double], Seq[Double])],
-      learner: Learner,
       plotCauchy: Boolean = false,
       plotNormal: Boolean = false,
       calibrate: Boolean = true,
@@ -243,7 +244,11 @@ object CalibrationStudy extends SeedRandomMixIn {
   ): CategoryChart = {
     val data: Seq[(Double, Double, Double)] = source.flatMap {
       case (predictions, actual) =>
-        (predictions.getExpected(), predictions.getUncertainty().get.asInstanceOf[Seq[Double]], actual).zipped.toSeq
+        predictions
+          .getExpected()
+          .lazyZip(predictions.getUncertainty().get.asInstanceOf[Seq[Double]])
+          .lazyZip(actual)
+          .toSeq
     }.toSeq
 
     val standardErrors = data.map { case (predicted, sigma, actual) => (predicted - actual) / sigma }
@@ -260,7 +265,7 @@ object CalibrationStudy extends SeedRandomMixIn {
     }
 
     val normalVar = if (calibrate) {
-      Math.pow(standardErrors.map(Math.abs(_)).sorted.drop((0.68 * standardErrors.size).toInt).head, 2)
+      Math.pow(standardErrors.map(math.abs).sorted.drop((0.68 * standardErrors.size).toInt).head, 2)
     } else {
       1.0
     }
@@ -274,7 +279,7 @@ object CalibrationStudy extends SeedRandomMixIn {
       chart.addSeries(f"Normal(0, ${Math.sqrt(normalVar)}%6.3f)", counts.map(_._1).toArray, normalSeries.toArray)
     }
 
-    val halfWidth = standardErrors.map(Math.abs(_)).sorted.drop((0.5 * standardErrors.size).toInt).head
+    val halfWidth = standardErrors.map(math.abs).sorted.drop((0.5 * standardErrors.size).toInt).head
     val gamma: Double = if (calibrate) {
       halfWidth
     } else {
@@ -369,10 +374,11 @@ object CalibrationStudy extends SeedRandomMixIn {
         512,
         rng = rng
       )
-      .toIterable
+      .iterator
+      .to(Iterable)
 
     val chart =
-      generativeHistogram(fullStream, learner, plotNormal = true, plotCauchy = true, calibrate = true, range = range)
+      generativeHistogram(fullStream, plotNormal = true, plotCauchy = true, calibrate = true, range = range)
     BitmapEncoder.saveBitmap(chart, s"./stdres_hcep-nTrain.${nTrain}-nTree.${nTree}", BitmapFormat.PNG)
 
     val dataStream = StatisticalValidation()
@@ -384,7 +390,8 @@ object CalibrationStudy extends SeedRandomMixIn {
         2,
         rng = rng
       )
-      .toIterable
+      .iterator
+      .to(Iterable)
     val pva = PredictedVsActual().visualize(dataStream)
     BitmapEncoder.saveBitmap(pva, s"./pva_hcep-nTrain.${nTrain}-nTree.${nTree}", BitmapFormat.PNG)
     Merit.estimateMerits(

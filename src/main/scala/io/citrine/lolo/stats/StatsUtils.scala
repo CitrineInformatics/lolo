@@ -51,7 +51,7 @@ object StatsUtils {
     val totalWeight = actualWeights.sum
     val muX = mean(X, Some(actualWeights))
     val muY = mean(Y, Some(actualWeights))
-    (X, Y, actualWeights).zipped.map { case (x, y, w) => (x - muX) * (y - muY) * w }.sum / totalWeight
+    X.lazyZip(Y).lazyZip(actualWeights).map { case (x, y, w) => (x - muX) * (y - muY) * w }.sum / totalWeight
   }
 
   /** Compute the (weighted) correlation coefficient between two vectors, X and Y, of the same length. */

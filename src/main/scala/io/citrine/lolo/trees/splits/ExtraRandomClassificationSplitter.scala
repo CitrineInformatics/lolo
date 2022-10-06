@@ -112,10 +112,10 @@ case class ExtraRandomClassificationSplitter() extends Splitter[Char] {
     /* Extract the features at the index */
     val thinData = data.map(dat => (dat._1(index).asInstanceOf[Char], dat._2, dat._3))
 
-    /* Group the data by categorical feature and compute the weighted sum and sum of the weights for each */
-    val groupedData = thinData.groupBy(_._1).mapValues(g => (g.map(v => v._2 * v._3).sum, g.map(_._3).sum, g.size))
+    // Group the data by categorical feature and compute the weighted sum and sum of the weights for each
+    val groupedData = thinData.groupBy(_._1).view.mapValues(g => (g.map(v => v._2 * v._3).sum, g.map(_._3).sum, g.size))
 
-    /* Compute the average label for each categorical value */
+    // Compute the average label for each categorical value
     val categoryAverages: Map[Char, Double] = groupedData.mapValues(p => p._1 / p._2).toMap
 
     /* Create an ordered list of the categories by average label */
