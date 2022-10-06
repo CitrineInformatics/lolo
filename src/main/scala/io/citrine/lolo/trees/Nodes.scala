@@ -21,7 +21,7 @@ trait TrainingNode[+T] extends Serializable {
     *
     * @return lightweight prediction node
     */
-  def getModelNode(): ModelNode[PredictionResult[T]]
+  def modelNode: ModelNode[PredictionResult[T]]
 
   /**
     * Get the feature importance of the subtree below this node
@@ -184,7 +184,7 @@ trait TrainingLeaf[T] extends TrainingNode[T] {
 
   def depth: Int
 
-  def getModelNode(): ModelNode[PredictionResult[T]] =
+  def modelNode: ModelNode[PredictionResult[T]] =
     ModelLeaf(model, depth, trainingData.map(_._3).sum)
 
   def model: Model[PredictionResult[T]] = trainingResult.getModel().asInstanceOf[Model[PredictionResult[T]]]

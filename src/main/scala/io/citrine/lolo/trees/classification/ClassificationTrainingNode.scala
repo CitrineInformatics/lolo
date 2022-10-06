@@ -20,11 +20,11 @@ case class ClassificationTrainingNode(
     *
     * @return lightweight prediction node
     */
-  override def getModelNode(): ModelNode[PredictionResult[Char]] =
+  override def modelNode: ModelNode[PredictionResult[Char]] =
     InternalModelNode(
       split,
-      leftNode.getModelNode(),
-      rightNode.getModelNode(),
+      leftNode.modelNode,
+      rightNode.modelNode,
       numClasses,
       trainingData.map(_._3).sum
     )

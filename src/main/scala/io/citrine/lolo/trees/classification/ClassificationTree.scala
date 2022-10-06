@@ -73,7 +73,7 @@ case class ClassificationTreeLearner(
       finalTraining.head._1.size
     }
 
-    // Recursively build the tree via it snodes and wrap the top node in a ClassificationTreeTrainingResult
+    // Recursively build the tree via its nodes and wrap the top node in a ClassificationTreeTrainingResult
     val rootTrainingNode = ClassificationTrainingNode.build(
       trainingData = finalTraining,
       leafLearner = myLeafLearner,
@@ -95,7 +95,7 @@ class ClassificationTrainingResult(
     outputEncoder: CategoricalEncoder[Any]
 ) extends TrainingResult {
   /* Grab a prediction node.  The partitioning happens here */
-  lazy val model = new ClassificationTree(rootTrainingNode.getModelNode(), inputEncoders, outputEncoder)
+  lazy val model = new ClassificationTree(rootTrainingNode.modelNode, inputEncoders, outputEncoder)
 
   /* Grab the feature influences */
   lazy val importance = rootTrainingNode.getFeatureImportance()

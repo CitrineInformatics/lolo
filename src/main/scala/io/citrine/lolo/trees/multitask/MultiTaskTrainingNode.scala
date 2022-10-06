@@ -39,7 +39,7 @@ case class MultiTaskTrainingNode(
   // Construct the model node for the `index`th label
   def getNode(index: Int): ModelNode[PredictionResult[Any]] = {
     labelWiseInstructions(index) match {
-      case Stop(leaf) => leaf.getModelNode()
+      case Stop(leaf) => leaf.modelNode
       case GoLeft()   => leftNodeOption.get.getNode(index)
       case GoRight()  => rightNodeOption.get.getNode(index)
       case DoSplit() =>

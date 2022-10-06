@@ -19,11 +19,11 @@ case class RegressionTrainingNode(
     *
     * @return lightweight prediction node
     */
-  override def getModelNode(): ModelNode[PredictionResult[Double]] = {
+  override def modelNode: ModelNode[PredictionResult[Double]] = {
     new InternalModelNode[PredictionResult[Double]](
       split,
-      leftNode.getModelNode(),
-      rightNode.getModelNode(),
+      leftNode.modelNode,
+      rightNode.modelNode,
       1,
       trainingData.map(_._3).sum
     )
