@@ -21,7 +21,7 @@ trait TrainingNode[+T] extends Serializable {
     *
     * @return lightweight prediction node
     */
-  def modelNode: ModelNode[PredictionResult[T]]
+  def modelNode: ModelNode[T, PredictionResult[T]]
 
   /**
     * Get the feature importance of the subtree below this node
@@ -31,8 +31,10 @@ trait TrainingNode[+T] extends Serializable {
   def featureImportance: mutable.ArraySeq[Double]
 }
 
-trait ModelNode[+T, P <: PredictionResult[T]] extends Serializable {
-  def transform(input: Vector[AnyVal]): (T, TreeMeta)
+trait ModelNode[+T, +P <: PredictionResult[T]] extends Serializable {
+
+  /** Transform the inputs, returning a prediction result and meta information regarding the tree depth. */
+  def transform(input: Vector[AnyVal]): (P, TreeMeta)
 
   /**
     * Compute Shapley feature attributions for a given input in this node's subtree
@@ -98,7 +100,7 @@ case class InternalModelNode[T, P <: PredictionResult[T]](
     * @param input to predict for
     * @return prediction
     */
-  override def transform(input: Vector[AnyVal]): (T, TreeMeta) = {
+  override def transform(input: Vector[AnyVal]): (P, TreeMeta) = {
     if (split.turnLeft(input)) {
       left.transform(input)
     } else {
@@ -191,7 +193,7 @@ trait TrainingLeaf[T] extends TrainingNode[T] {
 }
 
 case class ModelLeaf[T](model: Model[PredictionResult[T]], depth: Int, trainingWeight: Double)
-    extends ModelNode[PredictionResult[T]] {
+    extends ModelNode[T, PredictionResult[T]] {
   override def transform(input: Vector[AnyVal]): (PredictionResult[T], TreeMeta) = {
     (model.transform(Seq(input)), TreeMeta(depth))
   }

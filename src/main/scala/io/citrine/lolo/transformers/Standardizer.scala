@@ -3,8 +3,6 @@ package io.citrine.lolo.transformers
 import io.citrine.lolo._
 import io.citrine.random.Random
 
-import scala.reflect.ClassTag
-
 case class Standardization(shift: Double, scale: Double) {
   require(scale > 0 && scale < Double.PositiveInfinity)
 
@@ -44,10 +42,10 @@ case class Standardizer[T](baseLearner: Learner[T]) extends Learner[T] {
     }
 
     val (inputs, labels) = trainingData.unzip
+    val standardInputs = Standardizer.applyStandardization(inputs, inputTrans)
+    val standardLabels = Standardizer.applyStandardization(labels, outputTrans)
+    val standardTrainingData = standardInputs.zip(standardLabels)
 
-    val standardizedInputs = Standardizer.applyStandardization(inputs, inputTrans)
-    val standardizedLabels = Standardizer.applyStandardization(labels, outputTrans)
-    val standardTrainingData = standardizedInputs.zip(standardizedLabels)
     val baseTrainingResult = baseLearner.train(standardTrainingData, weights, rng)
     new StandardizerTrainingResult(baseTrainingResult, outputTrans, inputTrans)
   }

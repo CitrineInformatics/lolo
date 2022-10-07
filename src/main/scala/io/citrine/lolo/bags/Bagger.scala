@@ -71,7 +71,7 @@ case class Bagger[T](
     val minBags = Math.log(1 - Math.pow(2, -1.0 / trainingData.size)) / Math.log((Math.E - 1) / Math.E)
     require(
       !useJackknife || actualBags >= minBags,
-      s"Jackknife requires $minBags bags for ${trainingData.size} training rows, but only ${actualBags} given."
+      s"Jackknife requires $minBags bags for ${trainingData.size} training rows, but only $actualBags given."
     )
 
     /* Compute the number of instances of each training row in each training sample */

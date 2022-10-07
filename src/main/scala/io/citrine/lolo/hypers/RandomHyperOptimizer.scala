@@ -8,7 +8,6 @@ import io.citrine.random.Random
   *
   * This optimizer can be evaluated multiple times and will persist the best results across those
   * calls.
-  * Created by maxhutch on 12/7/16.
   */
 class RandomHyperOptimizer() extends HyperOptimizer {
 
@@ -16,7 +15,7 @@ class RandomHyperOptimizer() extends HyperOptimizer {
   var best: Map[String, Any] = Map()
 
   /** Likewise with the lowest loss */
-  var loss = Double.MaxValue
+  var loss: Double = Double.MaxValue
 
   /**
     * Search over numIterations random draws for the search space
@@ -25,14 +24,14 @@ class RandomHyperOptimizer() extends HyperOptimizer {
     * @param numIterations number of draws to take
     * @return the best hyper map found in give iterations and the corresponding loss
     */
-  override def optimize(
-      trainingData: Seq[(Vector[Any], Any)],
+  override def optimize[T](
+      trainingData: Seq[(Vector[Any], T)],
       numIterations: Int,
-      builder: Map[String, Any] => Learner,
+      builder: Map[String, Any] => Learner[T],
       rng: Random
   ): (Map[String, Any], Double) = {
     /* Just draw numIteration times */
-    (0 until numIterations).foreach { i =>
+    (0 until numIterations).foreach { _ =>
       val testHypers = hyperGrids.map {
         case (n, v) =>
           n -> rng.shuffle(v).head
@@ -47,7 +46,7 @@ class RandomHyperOptimizer() extends HyperOptimizer {
       if (thisLoss < loss) {
         best = testHypers
         loss = thisLoss
-        println(s"Improved the loss to ${loss} with ${best}")
+        println(s"Improved the loss to $loss with $best")
       }
     }
     (best, loss)

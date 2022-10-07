@@ -29,15 +29,15 @@ import io.citrine.lolo.{Learner, TrainingResult}
 case class ExtraRandomTrees(
     numTrees: Int = -1,
     useJackknife: Boolean = false,
-    biasLearner: Option[Learner] = None,
-    leafLearner: Option[Learner] = None,
+    biasLearner: Option[Learner[Double]] = None,
+    leafLearner: Option[Learner[Any]] = None,
     subsetStrategy: Any = "auto",
     minLeafInstances: Int = 1,
     maxDepth: Int = Integer.MAX_VALUE,
     uncertaintyCalibration: Boolean = false,
     disableBootstrap: Boolean = true,
     randomlyRotateFeatures: Boolean = false
-) extends Learner {
+) extends Learner[Any] {
 
   /**
     * Train an extremely randomized tree ensemble model
@@ -51,7 +51,7 @@ case class ExtraRandomTrees(
       trainingData: Seq[(Vector[Any], Any)],
       weights: Option[Seq[Double]],
       rng: Random
-  ): TrainingResult = {
+  ): TrainingResult[Any] = {
     val repOutput = trainingData.head._2
     val isRegression = repOutput.isInstanceOf[Double]
     val numFeatures: Int = RandomForest.getNumFeatures(subsetStrategy, trainingData.head._1.size, isRegression)

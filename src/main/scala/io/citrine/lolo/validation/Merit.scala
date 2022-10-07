@@ -123,12 +123,10 @@ case object UncertaintyCorrelation extends Merit[Double] {
       actual: Seq[Double],
       rng: Random = Random()
   ): Double = {
-    val predictedUncertaintyActual: Seq[(Double, Double, Double)] = (
-      predictionResult
-        .getExpected()
-        .lazyZip(predictionResult.getUncertainty().get.asInstanceOf[Seq[Double]])
-        .lazyZip(actual)
-      )
+    val predictedUncertaintyActual: Seq[(Double, Double, Double)] = predictionResult
+      .getExpected()
+      .lazyZip(predictionResult.getUncertainty().get.asInstanceOf[Seq[Double]])
+      .lazyZip(actual)
       .toSeq
 
     val ideal = predictedUncertaintyActual.map {

@@ -8,10 +8,9 @@ import org.slf4j.LoggerFactory
 import scala.util.{Failure, Success, Try}
 
 /**
-  * Linear and ridge regression learner
+  * Linear ridge regression learner.
   *
-  * Created by maxhutch on 12/6/16.
-  *
+  * @param regParam regularization to use for the ridge model
   * @param fitIntercept whether to fit an intercept or not
   */
 case class LinearRegressionLearner(
@@ -61,7 +60,7 @@ case class LinearRegressionLearner(
       new DenseMatrix(numFeatures, numSamples, featureArray)
     }
     val X = Xt.t
-    val y = new DenseVector(labels.map(_.asInstanceOf[Double]).toArray)
+    val y = new DenseVector(labels.toArray)
 
     /* Rescale data by weight matrix */
     val weightsMatrix = weights.map(w => diag(new DenseVector(w.toArray)))
@@ -156,7 +155,7 @@ class LinearRegressionModel(
     */
   override def transform(inputs: Seq[Vector[Any]]): LinearRegressionResult = {
     val filteredInputs = indices
-      .map { case (ind, size) => inputs.map(inp => ind.map(inp(_))) }
+      .map { case (ind, _) => inputs.map(inp => ind.map(inp(_))) }
       .getOrElse(inputs)
       .flatten
       .asInstanceOf[Seq[Double]]

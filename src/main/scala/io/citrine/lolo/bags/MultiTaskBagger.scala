@@ -22,7 +22,7 @@ case class MultiTaskBagger(
     method: MultiTaskLearner,
     numBags: Int = -1,
     useJackknife: Boolean = true,
-    biasLearner: Option[Learner] = None,
+    biasLearner: Option[Learner[Double]] = None,
     uncertaintyCalibration: Boolean = true
 ) extends MultiTaskLearner {
 
@@ -187,7 +187,7 @@ class MultiTaskBaggedTrainingResult(
         }
     }
 
-  lazy val loss = {
+  lazy val loss: Double = {
     val allInputs = predictedVsActual.map(_._1)
     val allPredicted: Seq[Seq[Option[Any]]] = predictedVsActual.map(_._2).transpose
     val allActual: Seq[Seq[Option[Any]]] = predictedVsActual.map(_._3).transpose
@@ -225,7 +225,7 @@ class MultiTaskBaggedTrainingResult(
           )
         } else {
           new BaggedModel[Any](
-            thisLabelModels.asInstanceOf[ParSeq[Model[PredictionResult[Any]]]],
+            thisLabelModels,
             Nib,
             useJackknife,
             biasModels(i),
@@ -275,7 +275,7 @@ class MultiTaskBaggedModel(
     }
   }
 
-  override def transform(inputs: Seq[Vector[Any]]) =
+  override def transform(inputs: Seq[Vector[Any]]): MultiTaskBaggedResult =
     MultiTaskBaggedResult(groupedModels.map(_.transform(inputs)), getRealLabels, Nib)
 
   override val numLabels: Int = models.head.numLabels
