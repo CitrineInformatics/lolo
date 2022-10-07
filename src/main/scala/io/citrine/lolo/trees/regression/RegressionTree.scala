@@ -8,6 +8,8 @@ import io.citrine.lolo.trees.splits.{RegressionSplitter, Splitter}
 import io.citrine.lolo.trees.{ModelNode, TrainingNode, TreeMeta}
 import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
 
+import scala.collection.mutable
+
 /**
   * Learner for regression trees
   *
@@ -65,10 +67,7 @@ case class RegressionTreeLearner(
     // Add the weights to the (features, label) tuples and remove any with zero weight.
     val finalTraining = encodedTraining
       .zip(weights.getOrElse(Seq.fill(trainingData.size)(1.0)))
-      .map {
-        case ((f, l), w) =>
-          (f, l.asInstanceOf[Double], w)
-      }
+      .map { case ((f, l), w) => (f, l, w) }
       .filter(_._3 > 0)
       .toVector
 
@@ -103,9 +102,9 @@ case class RegressionTreeLearner(
 class RegressionTreeTrainingResult(
     rootTrainingNode: TrainingNode[Double],
     encoders: Seq[Option[CategoricalEncoder[Any]]]
-) extends TrainingResult {
+) extends TrainingResult[Double] {
   lazy val model = new RegressionTree(rootTrainingNode.modelNode, encoders)
-  lazy val importance = rootTrainingNode.featureImportance
+  lazy val importance: mutable.ArraySeq[Double] = rootTrainingNode.featureImportance
   private lazy val importanceNormalized = {
     if (Math.abs(importance.sum) > 0) {
       importance.map(_ / importance.sum)
@@ -131,7 +130,7 @@ class RegressionTreeTrainingResult(
   * @param encoders for categorical variables
   */
 class RegressionTree(
-    root: ModelNode[PredictionResult[Double]],
+    root: ModelNode[Double],
     encoders: Seq[Option[CategoricalEncoder[Any]]]
 ) extends Model[RegressionTreeResult] {
 
@@ -182,7 +181,7 @@ class RegressionTreeResult(predictions: Seq[(PredictionResult[Double], TreeMeta)
     * @return a vector of doubles for each prediction
     */
   override def getGradient(): Option[Seq[Vector[Double]]] = {
-    if (!predictions.head._1.getGradient().isDefined) {
+    if (predictions.head._1.getGradient().isEmpty) {
       return None
     }
     Some(predictions.map(_._1.getGradient().get.head))

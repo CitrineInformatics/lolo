@@ -2,14 +2,14 @@ package io.citrine.lolo.trees.regression
 
 import io.citrine.lolo.trees.splits.{NoSplit, Split, Splitter}
 import io.citrine.lolo.trees.{InternalModelNode, ModelNode, TrainingNode}
-import io.citrine.lolo.{Learner, PredictionResult}
+import io.citrine.lolo.Learner
 import io.citrine.random.Random
 
 case class RegressionTrainingNode(
     trainingData: Seq[(Vector[AnyVal], Double, Double)],
     leftNode: TrainingNode[Double],
     rightNode: TrainingNode[Double],
-    leafLearner: Learner,
+    leafLearner: Learner[Double],
     split: Split,
     deltaImpurity: Double
 ) extends TrainingNode[Double] {
@@ -19,12 +19,12 @@ case class RegressionTrainingNode(
     *
     * @return lightweight prediction node
     */
-  override def modelNode: ModelNode[PredictionResult[Double]] = {
-    new InternalModelNode[PredictionResult[Double]](
+  override def modelNode: ModelNode[Double] = {
+    InternalModelNode(
       split,
       leftNode.modelNode,
       rightNode.modelNode,
-      1,
+      outputDimension = 1,
       trainingData.map(_._3).sum
     )
   }

@@ -2,14 +2,16 @@ package io.citrine.lolo.trees.classification
 
 import io.citrine.lolo.trees.splits.{NoSplit, Split, Splitter}
 import io.citrine.lolo.trees.{InternalModelNode, ModelNode, TrainingNode}
-import io.citrine.lolo.{Learner, PredictionResult}
+import io.citrine.lolo.Learner
 import io.citrine.random.Random
+
+import scala.collection.mutable
 
 case class ClassificationTrainingNode(
     trainingData: Seq[(Vector[AnyVal], Char, Double)],
     leftNode: TrainingNode[Char],
     rightNode: TrainingNode[Char],
-    leafLearner: Learner,
+    leafLearner: Learner[Char],
     split: Split,
     deltaImpurity: Double,
     numClasses: Int
@@ -20,7 +22,7 @@ case class ClassificationTrainingNode(
     *
     * @return lightweight prediction node
     */
-  override def modelNode: ModelNode[PredictionResult[Char]] =
+  override def modelNode: ModelNode[Char] =
     InternalModelNode(
       split,
       leftNode.modelNode,
@@ -29,7 +31,7 @@ case class ClassificationTrainingNode(
       trainingData.map(_._3).sum
     )
 
-  override def featureImportance: scala.collection.mutable.ArraySeq[Double] = {
+  override def featureImportance: mutable.ArraySeq[Double] = {
     val improvement = deltaImpurity
     val ans = leftNode.featureImportance.zip(rightNode.featureImportance).map(p => p._1 + p._2)
     ans(split.index) = ans(split.index) + improvement
@@ -40,8 +42,8 @@ case class ClassificationTrainingNode(
 object ClassificationTrainingNode {
 
   def build(
-      trainingData: Seq[(Vector[AnyVal], Char, Double)],
-      leafLearner: Learner,
+      trainingData: Seq[(Vector[AnyVal], Any, Double)],
+      leafLearner: Learner[Any],
       splitter: Splitter[Char],
       numFeatures: Int,
       minLeafInstances: Int,

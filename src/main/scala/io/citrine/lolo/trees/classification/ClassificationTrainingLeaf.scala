@@ -9,7 +9,7 @@ import scala.collection.mutable
 /** Training leaf for a classification tree. */
 case class ClassificationTrainingLeaf(
     trainingData: Seq[(Vector[AnyVal], Char, Double)],
-    trainingResult: TrainingResult,
+    trainingResult: TrainingResult[Char],
     depth: Int
 ) extends TrainingLeaf[Char] {
 
@@ -27,7 +27,7 @@ object ClassificationTrainingLeaf {
     */
   def build(
       trainingData: Seq[(Vector[AnyVal], Char, Double)],
-      leafLearner: Learner,
+      leafLearner: Learner[Char],
       depth: Int,
       rng: Random
   ): ClassificationTrainingLeaf =

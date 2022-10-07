@@ -2,10 +2,12 @@ package io.citrine.lolo.trees.classification
 
 import io.citrine.random.Random
 import io.citrine.lolo.encoders.CategoricalEncoder
-import io.citrine.lolo.linear.GuessTheMeanLearner
+import io.citrine.lolo.linear.{GuessTheMeanLearner, GuessTheModeLearner}
 import io.citrine.lolo.trees.splits.{ClassificationSplitter, NoSplit, Splitter}
 import io.citrine.lolo.trees.{ModelNode, TrainingLeaf, TrainingNode, TreeMeta}
 import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
+
+import scala.collection.mutable
 
 /**
   * @param numFeatures subset of features to select splits from
@@ -14,15 +16,15 @@ import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
   * @param leafLearner to train on leaves
   * @param splitter used to select splits
   */
-case class ClassificationTreeLearner(
+case class ClassificationTreeLearner[T](
     numFeatures: Int = -1,
     maxDepth: Int = 30,
     minLeafInstances: Int = 1,
-    leafLearner: Option[Learner] = None,
+    leafLearner: Option[Learner[T]] = None,
     splitter: Splitter[Char] = ClassificationSplitter()
-) extends Learner {
+) extends Learner[T] {
 
-  @transient private lazy val myLeafLearner: Learner = leafLearner.getOrElse(GuessTheMeanLearner())
+  @transient private lazy val myLeafLearner: Learner[T] = leafLearner.getOrElse(GuessTheModeLearner())
 
   /**
     * Train classification tree
@@ -33,7 +35,7 @@ case class ClassificationTreeLearner(
     * @return a classification tree
     */
   override def train(
-      trainingData: Seq[(Vector[Any], Any)],
+      trainingData: Seq[(Vector[Any], T)],
       weights: Option[Seq[Double]],
       rng: Random
   ): ClassificationTrainingResult = {
@@ -93,12 +95,12 @@ class ClassificationTrainingResult(
     rootTrainingNode: TrainingNode[Char],
     inputEncoders: Seq[Option[CategoricalEncoder[Any]]],
     outputEncoder: CategoricalEncoder[Any]
-) extends TrainingResult {
-  /* Grab a prediction node.  The partitioning happens here */
+) extends TrainingResult[Any] {
+  // Grab a prediction node. The partitioning happens here
   lazy val model = new ClassificationTree(rootTrainingNode.modelNode, inputEncoders, outputEncoder)
 
-  /* Grab the feature influences */
-  lazy val importance = rootTrainingNode.featureImportance
+  // Grab the feature influences
+  lazy val importance: mutable.ArraySeq[Double] = rootTrainingNode.featureImportance
   private lazy val importanceNormalized = {
     if (Math.abs(importance.sum) > 0) {
       importance.map(_ / importance.sum)
@@ -121,7 +123,7 @@ class ClassificationTrainingResult(
   * Classification tree
   */
 class ClassificationTree(
-    rootModelNode: ModelNode[PredictionResult[Char]],
+    rootModelNode: ModelNode[Char],
     inputEncoders: Seq[Option[CategoricalEncoder[Any]]],
     outputEncoder: CategoricalEncoder[Any]
 ) extends Model[ClassificationResult] {

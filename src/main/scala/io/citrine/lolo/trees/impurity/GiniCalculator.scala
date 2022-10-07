@@ -62,7 +62,7 @@ class GiniCalculator(
     }
   }
 
-  private val leftCategoryWeights = new Array[Double](totalCategoryWeights.size)
+  private val leftCategoryWeights = new Array[Double](totalCategoryWeights.length)
   private var leftWeight: Double = 0.0
   private var leftSquareSum: Double = 0.0
   private var rightSquareSum: Double = totalSquareSum
