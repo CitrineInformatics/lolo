@@ -2,7 +2,10 @@ package io.citrine.lolo
 
 import io.citrine.random.Random
 
-trait Learner extends Serializable {
+/** Parent trait to unify type hierarchy between single- and multi-task learners. */
+trait LearnerMeta extends Serializable
+
+trait Learner[T] extends LearnerMeta {
 
   /**
     * Train a model
@@ -13,28 +16,20 @@ trait Learner extends Serializable {
     * @return training result containing a model
     */
   def train(
-      trainingData: Seq[(Vector[Any], Any)],
+      trainingData: Seq[(Vector[Any], T)],
       weights: Option[Seq[Double]] = None,
       rng: Random = Random()
-  ): TrainingResult
+  ): TrainingResult[T]
 
-  /**
-    * Train a model with weights
-    *
-    * @param trainingData with weights in the form (features, label, weight)
-    * @param rng          random number generator for reproducibility
-    * @return training result containing a model
-    */
-  def train(trainingData: Seq[(Vector[Any], Any, Double)], rng: Random): TrainingResult = {
+  def train(trainingData: Seq[(Vector[Any], T, Double)], rng: Random): TrainingResult[T] = {
     train(trainingData.map(r => (r._1, r._2)), Some(trainingData.map(_._3)), rng)
   }
-
 }
 
 /**
   * A learner that trains on multiple labels, outputting a single model that makes predictions for all labels.
   */
-trait MultiTaskLearner extends Serializable {
+trait MultiTaskLearner extends LearnerMeta {
 
   /**
     * Train a model

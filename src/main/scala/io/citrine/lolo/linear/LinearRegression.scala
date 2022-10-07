@@ -17,7 +17,7 @@ import scala.util.{Failure, Success, Try}
 case class LinearRegressionLearner(
     regParam: Option[Double] = None,
     fitIntercept: Boolean = true
-) extends Learner {
+) extends Learner[Double] {
 
   /**
     * Train a linear model via direct inversion.
@@ -28,7 +28,7 @@ case class LinearRegressionLearner(
     * @return a model
     */
   override def train(
-      trainingData: Seq[(Vector[Any], Any)],
+      trainingData: Seq[(Vector[Any], Double)],
       weights: Option[Seq[Double]],
       rng: Random
   ): LinearRegressionTrainingResult = {
@@ -119,7 +119,7 @@ case class LinearRegressionLearner(
   *
   * @param model contained
   */
-class LinearRegressionTrainingResult(model: LinearRegressionModel) extends TrainingResult {
+class LinearRegressionTrainingResult(model: LinearRegressionModel) extends TrainingResult[Double] {
 
   override def getModel(): LinearRegressionModel = model
 

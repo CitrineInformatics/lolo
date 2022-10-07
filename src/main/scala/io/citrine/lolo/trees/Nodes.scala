@@ -31,7 +31,7 @@ trait TrainingNode[+T] extends Serializable {
   def featureImportance: mutable.ArraySeq[Double]
 }
 
-trait ModelNode[+T <: PredictionResult[Any]] extends Serializable {
+trait ModelNode[+T, P <: PredictionResult[T]] extends Serializable {
   def transform(input: Vector[AnyVal]): (T, TreeMeta)
 
   /**
@@ -84,13 +84,13 @@ trait ModelNode[+T <: PredictionResult[Any]] extends Serializable {
   * @param trainingWeight  weight of training data in subtree (i.e. size of unweighted training set)
   * @tparam T type of the output
   */
-case class InternalModelNode[T <: PredictionResult[Any]](
+case class InternalModelNode[T, P <: PredictionResult[T]](
     split: Split,
-    left: ModelNode[T],
-    right: ModelNode[T],
+    left: ModelNode[T, P],
+    right: ModelNode[T, P],
     outputDimension: Int,
     trainingWeight: Double
-) extends ModelNode[T] {
+) extends ModelNode[T, P] {
 
   /**
     * Just propagate the prediction call through the appropriate child
@@ -180,14 +180,14 @@ case class InternalModelNode[T <: PredictionResult[Any]](
 /** A leaf defined by a training result. */
 trait TrainingLeaf[T] extends TrainingNode[T] {
 
-  def trainingResult: TrainingResult
+  def trainingResult: TrainingResult[T]
 
   def depth: Int
 
-  def modelNode: ModelNode[PredictionResult[T]] =
+  def modelNode: ModelNode[T, PredictionResult[T]] =
     ModelLeaf(model, depth, trainingData.map(_._3).sum)
 
-  def model: Model[PredictionResult[T]] = trainingResult.getModel().asInstanceOf[Model[PredictionResult[T]]]
+  def model: Model[PredictionResult[T]] = trainingResult.getModel()
 }
 
 case class ModelLeaf[T](model: Model[PredictionResult[T]], depth: Int, trainingWeight: Double)

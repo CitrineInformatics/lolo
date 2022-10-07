@@ -21,9 +21,9 @@ case class RegressionTreeLearner(
     numFeatures: Int = -1,
     maxDepth: Int = 30,
     minLeafInstances: Int = 1,
-    leafLearner: Option[Learner] = None,
+    leafLearner: Option[Learner[Double]] = None,
     splitter: Splitter[Double] = RegressionSplitter()
-) extends Learner {
+) extends Learner[Double] {
 
   /** Learner to use for training the leaves */
   @transient private lazy val myLeafLearner = leafLearner.getOrElse(GuessTheMeanLearner())
@@ -37,7 +37,7 @@ case class RegressionTreeLearner(
     * @return a RegressionTree
     */
   override def train(
-      trainingData: Seq[(Vector[Any], Any)],
+      trainingData: Seq[(Vector[Any], Double)],
       weights: Option[Seq[Double]],
       rng: Random
   ): RegressionTreeTrainingResult = {

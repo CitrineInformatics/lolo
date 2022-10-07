@@ -1,14 +1,13 @@
 package io.citrine.lolo
 
-// TODO (PLA-10433): Can we put a type parameter on TrainingResult?
-trait TrainingResult extends Serializable {
+trait TrainingResult[+T] extends Serializable {
 
   /**
     * Get the model contained in the training result
     *
     * @return the model
     */
-  def getModel(): Model[PredictionResult[Any]]
+  def getModel(): Model[PredictionResult[T]]
 
   /**
     * Get a measure of the importance of the model features
@@ -32,7 +31,7 @@ trait TrainingResult extends Serializable {
   def getPredictedVsActual(): Option[Seq[(Vector[Any], Any, Any)]] = None
 }
 
-trait MultiTaskTrainingResult extends TrainingResult {
+trait MultiTaskTrainingResult extends TrainingResult[Any] {
   override def getModel(): MultiTaskModel
 
   def getModels(): Seq[Model[PredictionResult[Any]]]

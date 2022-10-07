@@ -376,7 +376,7 @@ class BaggerTest extends SeedRandomMixIn {
     val model = Bagger(DTLearner)
       .train(trainingData, rng = rng)
       .getModel()
-    val trees = model.getModels()
+    val trees = model.models
     trainingData.foreach {
       case (x, _) =>
         val shapley = model.shapley(x).get

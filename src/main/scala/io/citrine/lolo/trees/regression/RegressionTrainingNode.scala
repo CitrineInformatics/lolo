@@ -63,7 +63,7 @@ object RegressionTrainingNode {
     */
   def build(
       trainingData: Seq[(Vector[AnyVal], Double, Double)],
-      leafLearner: Learner,
+      leafLearner: Learner[Double],
       splitter: Splitter[Double],
       numFeatures: Int,
       minLeafInstances: Int,

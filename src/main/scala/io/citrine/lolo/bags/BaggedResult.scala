@@ -150,7 +150,7 @@ case class SinglePredictionBaggedResult(
         }
       }
       // Compute the infinitesimal jackknife estimate
-      val varIJ = Math.pow(cov / vecN.size, 2.0)
+      val varIJ = Math.pow(cov / vecN.length, 2.0)
 
       if (tNotCount > 0) {
         // Compute the Jackknife after bootstrap estimate
@@ -168,14 +168,13 @@ case class SinglePredictionBaggedResult(
   }
 }
 
-case class BaggedClassificationResult(
-    predictions: Seq[PredictionResult[Any]]
-) extends BaggedResult[Any] {
-  val predictionEnsemble = predictions.map { p => p.getExpected() }
-  lazy val expectedMatrix: Seq[Seq[Any]] = predictions.map(p => p.getExpected()).transpose
+case class BaggedClassificationResult[T](
+    predictions: Seq[PredictionResult[T]]
+) extends BaggedResult[T] {
+  lazy val expectedMatrix: Seq[Seq[T]] = predictions.map(p => p.getExpected()).transpose
 
-  lazy val expected: Seq[Any] = expectedMatrix.map(ps => ps.groupBy(identity).maxBy(_._2.size)._1)
-  lazy val uncertainty: Seq[Map[Any, Double]] =
+  lazy val expected: Seq[T] = expectedMatrix.map(ps => ps.groupBy(identity).maxBy(_._2.size)._1)
+  lazy val uncertainty: Seq[Map[T, Double]] =
     expectedMatrix.map(ps => ps.groupBy(identity).view.mapValues(_.size.toDouble / ps.size).toMap)
 
   override def numPredictions: Int = expectedMatrix.length
@@ -185,9 +184,9 @@ case class BaggedClassificationResult(
     *
     * @return expected value of each prediction
     */
-  override def getExpected(): Seq[Any] = expected
+  override def getExpected(): Seq[T] = expected
 
-  override def getUncertainty(includeNoise: Boolean = true): Option[Seq[Any]] = Some(uncertainty)
+  override def getUncertainty(includeNoise: Boolean = true): Option[Seq[Map[T, Double]]] = Some(uncertainty)
 }
 
 /**

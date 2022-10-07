@@ -3,6 +3,8 @@ package io.citrine.lolo.transformers
 import io.citrine.lolo._
 import io.citrine.random.Random
 
+import scala.reflect.ClassTag
+
 case class Standardization(shift: Double, scale: Double) {
   require(scale > 0 && scale < Double.PositiveInfinity)
 
@@ -20,7 +22,7 @@ case class Standardization(shift: Double, scale: Double) {
   *
   * Created by maxhutch on 2/19/17.
   */
-case class Standardizer(baseLearner: Learner) extends Learner {
+case class Standardizer[T](baseLearner: Learner[T]) extends Learner[T] {
 
   /**
     * Create affine transformations for continuous features and labels; pass data through to learner
@@ -31,21 +33,22 @@ case class Standardizer(baseLearner: Learner) extends Learner {
     * @return training result containing a model
     */
   override def train(
-      trainingData: Seq[(Vector[Any], Any)],
+      trainingData: Seq[(Vector[Any], T)],
       weights: Option[Seq[Double]],
       rng: Random
-  ): StandardizerTrainingResult = {
+  ): StandardizerTrainingResult[T] = {
     val inputTrans = Standardizer.getMultiStandardization(trainingData.map(_._1))
     val outputTrans = trainingData.head._2 match {
       case _: Double => Some(Standardizer.getStandardization(trainingData.map(_._2.asInstanceOf[Double])))
-      case _: Any    => None
+      case _         => None
     }
 
     val (inputs, labels) = trainingData.unzip
-    val standardTrainingData =
-      Standardizer.applyStandardization(inputs, inputTrans).zip(Standardizer.applyStandardization(labels, outputTrans))
-    val baseTrainingResult = baseLearner.train(standardTrainingData, weights, rng)
 
+    val standardizedInputs = Standardizer.applyStandardization(inputs, inputTrans)
+    val standardizedLabels = Standardizer.applyStandardization(labels, outputTrans)
+    val standardTrainingData = standardizedInputs.zip(standardizedLabels)
+    val baseTrainingResult = baseLearner.train(standardTrainingData, weights, rng)
     new StandardizerTrainingResult(baseTrainingResult, outputTrans, inputTrans)
   }
 }
@@ -98,18 +101,18 @@ class MultiTaskStandardizer(baseLearner: MultiTaskLearner) extends MultiTaskLear
   * @param outputTrans optional transformation (rescale, offset) of output label
   * @param inputTrans sequence of optional transformations (rescale, offset) of inputs
   */
-class StandardizerTrainingResult(
-    baseTrainingResult: TrainingResult,
+class StandardizerTrainingResult[T](
+    baseTrainingResult: TrainingResult[T],
     outputTrans: Option[Standardization],
     inputTrans: Seq[Option[Standardization]]
-) extends TrainingResult {
+) extends TrainingResult[T] {
 
   /**
     * Get the model contained in the training result
     *
     * @return the model
     */
-  override def getModel(): Model[PredictionResult[Any]] =
+  override def getModel(): Model[PredictionResult[T]] =
     new StandardizerModel(baseTrainingResult.getModel(), outputTrans, inputTrans)
 
   override def getFeatureImportance(): Option[Vector[Double]] = baseTrainingResult.getFeatureImportance()
@@ -261,7 +264,7 @@ class StandardizerPrediction[T](
     }
   }
 
-  val outputRescale = outputTrans.map(_.scale).getOrElse(1.0)
+  val outputRescale: Double = outputTrans.map(_.scale).getOrElse(1.0)
 }
 
 /**
@@ -379,5 +382,4 @@ object Standardizer {
     if (trans.isEmpty) return input
     input.asInstanceOf[Seq[Double]].map(trans.get.invert)
   }
-
 }
