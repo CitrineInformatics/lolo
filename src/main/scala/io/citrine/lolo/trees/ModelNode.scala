@@ -59,7 +59,7 @@ trait ModelNode[+T] extends Serializable {
   * @param trainingWeight  weight of training data in subtree (i.e. size of unweighted training set)
   * @tparam T type of the output
   */
-case class InternalModelNode[T](
+case class InternalModelNode[+T](
     split: Split,
     left: ModelNode[T],
     right: ModelNode[T],
@@ -150,7 +150,7 @@ case class InternalModelNode[T](
   }
 }
 
-case class ModelLeaf[T](model: Model[PredictionResult[T]], depth: Int, trainingWeight: Double) extends ModelNode[T] {
+case class ModelLeaf[+T](model: Model[T], depth: Int, trainingWeight: Double) extends ModelNode[T] {
 
   override def transform(input: Vector[AnyVal]): (PredictionResult[T], TreeMeta) =
     (model.transform(Seq(input)), TreeMeta(depth))

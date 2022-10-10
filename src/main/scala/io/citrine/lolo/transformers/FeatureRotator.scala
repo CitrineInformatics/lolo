@@ -83,7 +83,7 @@ case class RotatedFeatureTrainingResult[T](
     *
     * @return the model
     */
-  override def getModel(): Model[PredictionResult[T]] = {
+  override def getModel(): Model[T] = {
     RotatedFeatureModel(baseTrainingResult.getModel(), rotatedFeatures, trans)
   }
 
@@ -112,7 +112,7 @@ case class MultiTaskRotatedFeatureTrainingResult(
 ) extends MultiTaskTrainingResult {
   override def getModel(): MultiTaskModel = new ParallelModels(getModels(), baseTrainingResult.getModel().getRealLabels)
 
-  override def getModels(): Seq[Model[PredictionResult[Any]]] =
+  override def getModels(): Seq[Model[Any]] =
     baseTrainingResult.getModels().map { model =>
       RotatedFeatureModel(model, rotatedFeatures, trans)
     }
@@ -138,10 +138,10 @@ case class MultiTaskRotatedFeatureTrainingResult(
   * @tparam T label type
   */
 case class RotatedFeatureModel[T](
-    baseModel: Model[PredictionResult[T]],
+    baseModel: Model[T],
     rotatedFeatures: IndexedSeq[Int],
     trans: DenseMatrix[Double]
-) extends Model[PredictionResult[T]] {
+) extends Model[T] {
 
   /**
     * Transform the inputs and then apply the base model

@@ -44,14 +44,9 @@ case class RegressionTreeLearner(
       rng: Random
   ): RegressionTreeTrainingResult = {
     require(trainingData.nonEmpty, s"The input training data was empty")
-    if (!trainingData.head._2.isInstanceOf[Double]) {
-      throw new IllegalArgumentException(
-        s"Tried to train regression on non-double labels, e.g.: ${trainingData.head._2}"
-      )
-    }
-    val repInput = trainingData.head._1
 
     /* Create encoders for any categorical features */
+    val repInput = trainingData.head._1
     val encoders: Seq[Option[CategoricalEncoder[Any]]] = repInput.zipWithIndex.map {
       case (v, i) =>
         if (v.isInstanceOf[Double]) {
@@ -132,7 +127,7 @@ class RegressionTreeTrainingResult(
 class RegressionTree(
     root: ModelNode[Double],
     encoders: Seq[Option[CategoricalEncoder[Any]]]
-) extends Model[RegressionTreeResult] {
+) extends Model[Double] {
 
   /**
     * Apply the model by calling predict and wrapping the results

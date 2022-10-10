@@ -1,6 +1,6 @@
 package io.citrine.lolo.trees
 
-import io.citrine.lolo.{Model, PredictionResult, TrainingResult}
+import io.citrine.lolo.{Model, TrainingResult}
 
 import scala.collection.mutable
 
@@ -30,7 +30,7 @@ trait TrainingNode[+T] extends Serializable {
 }
 
 /** A leaf defined by a training result. */
-trait TrainingLeaf[T] extends TrainingNode[T] {
+trait TrainingLeaf[+T] extends TrainingNode[T] {
 
   def depth: Int
 
@@ -38,5 +38,5 @@ trait TrainingLeaf[T] extends TrainingNode[T] {
 
   def modelNode: ModelNode[T] = ModelLeaf(model, depth, trainingData.map(_._3).sum)
 
-  def model: Model[PredictionResult[T]] = trainingResult.getModel()
+  def model: Model[T] = trainingResult.getModel()
 }

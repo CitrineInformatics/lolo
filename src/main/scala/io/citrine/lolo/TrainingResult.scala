@@ -31,7 +31,7 @@ trait TrainingResult[+T] extends Serializable {
   def getPredictedVsActual(): Option[Seq[(Vector[Any], T, T)]] = None
 }
 
-trait MultiTaskTrainingResult extends TrainingResult[Any] {
+trait MultiTaskTrainingResult extends TrainingResult[Seq[Any]] {
   override def getModel(): MultiTaskModel
 
   def getModels(): Seq[Model[Any]]

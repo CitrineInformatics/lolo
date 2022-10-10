@@ -42,8 +42,8 @@ case class ClassificationTrainingNode(
 object ClassificationTrainingNode {
 
   def build(
-      trainingData: Seq[(Vector[AnyVal], Any, Double)],
-      leafLearner: Learner[Any],
+      trainingData: Seq[(Vector[AnyVal], Char, Double)],
+      leafLearner: Learner[Char],
       splitter: Splitter[Char],
       numFeatures: Int,
       minLeafInstances: Int,

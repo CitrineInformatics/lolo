@@ -2,9 +2,9 @@ package io.citrine.lolo.trees.classification
 
 import io.citrine.random.Random
 import io.citrine.lolo.encoders.CategoricalEncoder
-import io.citrine.lolo.linear.{GuessTheMeanLearner, GuessTheModeLearner}
-import io.citrine.lolo.trees.splits.{ClassificationSplitter, NoSplit, Splitter}
-import io.citrine.lolo.trees.{ModelNode, TrainingLeaf, TrainingNode, TreeMeta}
+import io.citrine.lolo.linear.GuessTheModeLearner
+import io.citrine.lolo.trees.splits.{ClassificationSplitter, Splitter}
+import io.citrine.lolo.trees.{ModelNode, TrainingNode, TreeMeta}
 import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
 
 import scala.collection.mutable
@@ -16,15 +16,15 @@ import scala.collection.mutable
   * @param leafLearner to train on leaves
   * @param splitter used to select splits
   */
-case class ClassificationTreeLearner[T](
+case class ClassificationTreeLearner(
     numFeatures: Int = -1,
     maxDepth: Int = 30,
     minLeafInstances: Int = 1,
-    leafLearner: Option[Learner[T]] = None,
+    leafLearner: Option[Learner[Char]] = None,
     splitter: Splitter[Char] = ClassificationSplitter()
-) extends Learner[T] {
+) extends Learner[Any] {
 
-  @transient private lazy val myLeafLearner: Learner[T] = leafLearner.getOrElse(GuessTheModeLearner())
+  @transient private lazy val myLeafLearner: Learner[Char] = leafLearner.getOrElse(GuessTheModeLearner())
 
   /**
     * Train classification tree
@@ -35,7 +35,7 @@ case class ClassificationTreeLearner[T](
     * @return a classification tree
     */
   override def train(
-      trainingData: Seq[(Vector[Any], T)],
+      trainingData: Seq[(Vector[Any], Any)],
       weights: Option[Seq[Double]],
       rng: Random
   ): ClassificationTrainingResult = {
@@ -126,7 +126,7 @@ class ClassificationTree(
     rootModelNode: ModelNode[Char],
     inputEncoders: Seq[Option[CategoricalEncoder[Any]]],
     outputEncoder: CategoricalEncoder[Any]
-) extends Model[ClassificationResult] {
+) extends Model[Any] {
 
   /**
     * Apply the model to a seq of inputs

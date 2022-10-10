@@ -1,7 +1,7 @@
 package io.citrine.lolo.trees.multitask
 
 import io.citrine.lolo.PredictionResult
-import io.citrine.lolo.linear.GuessTheMeanLearner
+import io.citrine.lolo.linear.{GuessTheMeanLearner, GuessTheModeLearner}
 import io.citrine.lolo.trees.classification.ClassificationTrainingLeaf
 import io.citrine.lolo.trees.regression.RegressionTrainingLeaf
 import io.citrine.lolo.trees.splits.{MultiTaskSplitter, NoSplit, Split}
@@ -33,7 +33,7 @@ case class MultiTaskTrainingNode(
   }
 
   // Construct the model node for the `index`th label
-  def modelNodeByLabelIndex(index: Int): ModelNode[PredictionResult[Any]] = {
+  def modelNodeByLabelIndex(index: Int): ModelNode[Any] = {
     labelWiseInstructions(index) match {
       case Stop(leaf)             => leaf.modelNode
       case FollowChild(childNode) => childNode.modelNodeByLabelIndex(index)
@@ -141,7 +141,7 @@ object MultiTaskTrainingNode {
         val trainingLeaf: TrainingNode[AnyVal] = if (exampleLabel.isInstanceOf[Double]) {
           RegressionTrainingLeaf
             .build(
-              reducedData.asInstanceOf[Seq[(Vector[AnyVal], Double, Double)]],
+              reducedData,
               GuessTheMeanLearner(),
               maxDepth - remainingDepth,
               rng
@@ -150,7 +150,7 @@ object MultiTaskTrainingNode {
           ClassificationTrainingLeaf
             .build(
               reducedData.asInstanceOf[Seq[(Vector[AnyVal], Char, Double)]],
-              GuessTheMeanLearner(),
+              GuessTheModeLearner(),
               maxDepth - remainingDepth,
               rng
             )
