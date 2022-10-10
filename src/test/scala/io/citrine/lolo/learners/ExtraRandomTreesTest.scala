@@ -21,7 +21,7 @@ class ExtraRandomTreesTest extends SeedRandomMixIn {
     )
 
     Seq(true, false).foreach { randomlyRotateFeatures =>
-      val RFMeta = ExtraRandomTrees(randomlyRotateFeatures = randomlyRotateFeatures)
+      val RFMeta = ExtraRandomTreesRegressor(randomlyRotateFeatures = randomlyRotateFeatures)
         .train(trainingData, rng = rng)
       val RF = RFMeta.getModel()
 

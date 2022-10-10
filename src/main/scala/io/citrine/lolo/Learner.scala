@@ -2,10 +2,8 @@ package io.citrine.lolo
 
 import io.citrine.random.Random
 
-/** Parent trait to unify type hierarchy between single- and multi-task learners. */
-trait LearnerMeta extends Serializable
-
-trait Learner[T] extends LearnerMeta {
+// TODO: Unify type hierarchy between single and multi-task learners
+trait Learner[T] {
 
   /**
     * Train a model
@@ -29,7 +27,7 @@ trait Learner[T] extends LearnerMeta {
 /**
   * A learner that trains on multiple labels, outputting a single model that makes predictions for all labels.
   */
-trait MultiTaskLearner extends LearnerMeta {
+trait MultiTaskLearner {
 
   /**
     * Train a model

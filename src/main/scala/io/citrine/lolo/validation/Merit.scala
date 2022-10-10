@@ -1,6 +1,5 @@
 package io.citrine.lolo.validation
 
-import java.util
 import io.citrine.lolo.PredictionResult
 import io.citrine.random.Random
 import org.knowm.xchart.XYChart

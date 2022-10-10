@@ -1,11 +1,9 @@
 package io.citrine.lolo
 
-import breeze.stats.distributions.{RandBasis, ThreadLocalRandomGenerator}
 import io.citrine.lolo.linear.LinearRegressionLearner
 import io.citrine.lolo.stats.StatsUtils.variance
 import io.citrine.lolo.stats.functions.Friedman
 import io.citrine.random.Random
-import org.apache.commons.math3.random.MersenneTwister
 import org.junit.Before
 
 import scala.util.Try
