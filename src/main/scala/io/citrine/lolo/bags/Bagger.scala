@@ -141,12 +141,12 @@ case class Bagger[T](
 }
 
 class BaggedTrainingResult[+T: ClassTag](
-    models: ParSeq[Model[PredictionResult[T]]],
+    models: ParSeq[Model[T]],
     featureImportance: Option[Vector[Double]],
     Nib: Vector[Vector[Int]],
     trainingData: Seq[(Vector[Any], T)],
     useJackknife: Boolean,
-    biasModel: Option[Model[PredictionResult[Double]]] = None,
+    biasModel: Option[Model[Double]] = None,
     rescale: Double = 1.0,
     disableBootstrap: Boolean = false
 ) extends TrainingResult[T] {
@@ -154,7 +154,7 @@ class BaggedTrainingResult[+T: ClassTag](
   lazy val NibT: Seq[Vector[Int]] = Nib.transpose
   lazy val model = new BaggedModel(models, Nib, useJackknife, biasModel, rescale, disableBootstrap)
   lazy val rep: T = trainingData.find(_._2 != null).get._2
-  lazy val predictedVsActual: Seq[(Vector[Any], Any, T)] = trainingData.zip(NibT).flatMap {
+  lazy val predictedVsActual: Seq[(Vector[Any], T, T)] = trainingData.zip(NibT).flatMap {
     case ((f, l), nb) =>
       val oob = if (disableBootstrap) {
         models.zip(nb)
@@ -167,15 +167,15 @@ class BaggedTrainingResult[+T: ClassTag](
       } else {
         val predicted = l match {
           case _: Double => oob.map(_._1.transform(Seq(f)).getExpected().head.asInstanceOf[Double]).sum / oob.size
-          case _: Any    => oob.map(_._1.transform(Seq(f)).getExpected().head).groupBy(identity).maxBy(_._2.size)._1
+          case _         => oob.map(_._1.transform(Seq(f)).getExpected().head).groupBy(identity).maxBy(_._2.size)._1
         }
-        Seq((f, predicted, l))
+        Seq((f, predicted.asInstanceOf[T], l))
       }
   }
 
   lazy val loss: Double = rep match {
     case _: Double => RegressionMetrics.RMSE(predictedVsActual.asInstanceOf[Seq[(Vector[Any], Double, Double)]])
-    case _: Any    => ClassificationMetrics.loss(predictedVsActual)
+    case _         => ClassificationMetrics.loss(predictedVsActual)
   }
 
   /**
@@ -187,7 +187,7 @@ class BaggedTrainingResult[+T: ClassTag](
 
   override def getModel(): BaggedModel[T] = model
 
-  override def getPredictedVsActual(): Option[Seq[(Vector[Any], Any, Any)]] = Some(predictedVsActual)
+  override def getPredictedVsActual(): Option[Seq[(Vector[Any], T, T)]] = Some(predictedVsActual)
 
   override def getLoss(): Option[Double] = {
     if (predictedVsActual.nonEmpty) {
@@ -205,13 +205,13 @@ class BaggedTrainingResult[+T: ClassTag](
   * @param Nib    training sample counts
   */
 class BaggedModel[+T: ClassTag](
-    models: ParSeq[Model[PredictionResult[T]]],
+    models: ParSeq[Model[T]],
     Nib: Vector[Vector[Int]],
     useJackknife: Boolean,
-    biasModel: Option[Model[PredictionResult[Double]]] = None,
+    biasModel: Option[Model[Double]] = None,
     rescale: Double = 1.0,
     disableBootstrap: Boolean = false
-) extends Model[BaggedResult[T]] {
+) extends Model[T] {
 
   /**
     * Apply each model to the outputs and wrap them up
@@ -280,7 +280,7 @@ class BaggedModel[+T: ClassTag](
   }
 
   // Accessor useful for testing.
-  private[bags] def models(): ParSeq[Model[PredictionResult[T]]] = models
+  private[bags] def models(): ParSeq[Model[T]] = models
 }
 
 object Bagger {

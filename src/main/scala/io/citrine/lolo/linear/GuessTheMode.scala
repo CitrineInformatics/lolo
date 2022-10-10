@@ -17,10 +17,10 @@ case class GuessTheModeLearner[T]() extends Learner[T] {
 }
 
 case class GuessTheModeTrainingResult[T](model: GuessTheModeModel[T]) extends TrainingResult[T] {
-  override def getModel(): Model[GuessTheModeResult[T]] = model
+  override def getModel(): Model[T] = model
 }
 
-class GuessTheModeModel[T](mean: T) extends Model[GuessTheModeResult[T]] {
+class GuessTheModeModel[T](mean: T) extends Model[T] {
 
   def transform(inputs: Seq[Vector[Any]]): GuessTheModeResult[T] = {
     new GuessTheModeResult(Seq.fill(inputs.size)(mean))

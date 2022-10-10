@@ -15,7 +15,7 @@ import scala.collection.parallel.immutable.ParSeq
   * @param uncertaintyCalibration whether to apply empirical uncertainty calibration
   */
 protected case class BaggerHelper(
-    models: ParSeq[Model[PredictionResult[Any]]],
+    models: ParSeq[Model[Any]],
     trainingData: Seq[(Vector[Any], Any)],
     Nib: Vector[Vector[Int]],
     useJackknife: Boolean,
@@ -32,17 +32,14 @@ protected case class BaggerHelper(
     * Defined as lazy so it's only computed if needed for the ratio or bias learner calculations.
     */
   lazy val oobErrors: Seq[(Vector[Any], Double, Double)] = trainingData.indices.flatMap { idx =>
-    val oobModels =
-      models.zip(Nib.map(_(idx))).filter(_._2 == 0).map(_._1).asInstanceOf[ParSeq[Model[PredictionResult[Double]]]]
+    val oobModels = models.zip(Nib.map(_(idx))).filter(_._2 == 0).map(_._1).asInstanceOf[ParSeq[Model[Double]]]
     val label = trainingData(idx)._2
     if (oobModels.size < 2 || label == null || (label.isInstanceOf[Double] && label.asInstanceOf[Double].isNaN)) {
       None
     } else {
       val model = new BaggedModel(
         oobModels,
-        Nib.filter {
-          _(idx) == 0
-        },
+        Nib.filter { _(idx) == 0 },
         useJackknife
       )
       val predicted = model.transform(Seq(trainingData(idx)._1))

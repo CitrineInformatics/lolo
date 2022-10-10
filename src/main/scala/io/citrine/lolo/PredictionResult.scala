@@ -2,7 +2,8 @@ package io.citrine.lolo
 
 /**
   * Container for prediction results; must include expected values
-  * Created by maxhutch on 11/29/16.
+  *
+  * @tparam T the type of label variables being predicted
   */
 trait PredictionResult[+T] {
 

@@ -17,10 +17,10 @@ case class GuessTheMeanLearner() extends Learner[Double] {
 }
 
 case class GuessTheMeanTrainingResult(model: GuessTheMeanModel) extends TrainingResult[Double] {
-  override def getModel(): Model[GuessTheMeanResult] = model
+  override def getModel(): GuessTheMeanModel = model
 }
 
-class GuessTheMeanModel(mean: Double) extends Model[GuessTheMeanResult] {
+class GuessTheMeanModel(mean: Double) extends Model[Double] {
 
   def transform(inputs: Seq[Vector[Any]]): GuessTheMeanResult = {
     new GuessTheMeanResult(Seq.fill(inputs.size)(mean))
@@ -34,5 +34,5 @@ class GuessTheMeanResult(result: Seq[Double]) extends PredictionResult[Double] {
     *
     * @return expected value of each prediction
     */
-  override def getExpected(): Seq[T] = result
+  override def getExpected(): Seq[Double] = result
 }

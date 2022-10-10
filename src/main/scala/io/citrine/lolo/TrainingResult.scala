@@ -7,7 +7,7 @@ trait TrainingResult[+T] extends Serializable {
     *
     * @return the model
     */
-  def getModel(): Model[PredictionResult[T]]
+  def getModel(): Model[T]
 
   /**
     * Get a measure of the importance of the model features
@@ -28,13 +28,13 @@ trait TrainingResult[+T] extends Serializable {
     *
     * @return seq of (feature vector, predicted value, and actual value)
     */
-  def getPredictedVsActual(): Option[Seq[(Vector[Any], Any, Any)]] = None
+  def getPredictedVsActual(): Option[Seq[(Vector[Any], T, T)]] = None
 }
 
 trait MultiTaskTrainingResult extends TrainingResult[Any] {
   override def getModel(): MultiTaskModel
 
-  def getModels(): Seq[Model[PredictionResult[Any]]]
+  def getModels(): Seq[Model[Any]]
 
   override def getPredictedVsActual(): Option[Seq[(Vector[Any], Seq[Option[Any]], Seq[Option[Any]])]] = None
 }

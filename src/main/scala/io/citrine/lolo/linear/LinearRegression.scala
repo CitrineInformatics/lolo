@@ -145,13 +145,13 @@ class LinearRegressionModel(
     beta: DenseVector[Double],
     intercept: Double,
     indices: Option[(Vector[Int], Int)] = None
-) extends Model[LinearRegressionResult] {
+) extends Model[Double] {
 
   /**
     * Apply the model to a seq of inputs
     *
     * @param inputs to apply the model to
-    * @return a predictionresult which includes, at least, the expected outputs
+    * @return a prediction result which includes, at least, the expected outputs
     */
   override def transform(inputs: Seq[Vector[Any]]): LinearRegressionResult = {
     val filteredInputs = indices
