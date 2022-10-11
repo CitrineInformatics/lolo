@@ -140,7 +140,18 @@ class RandomForestTest extends SeedRandomMixIn {
       randomizePivotLocation = true,
       randomlyRotateFeatures = true
     )
-    checkReproducibility(rfClassifier, inputs.zip(catLabel), testInputs, rng)
+    checkReproducibility(rfClassifier, inputs.zip(catLabel), testInputs, rng = Random(seed))
+
+    // TODO: Use other function when MultiTaskLearner <: Learner[Seq[Any]]
+    val rfMultiTask = MultiTaskRandomForest(
+      randomizePivotLocation = true,
+      randomlyRotateFeatures = true
+    )
+    val multiModel1 = rfMultiTask.train(inputs.zip(allLabels), rng = Random(seed)).getModel()
+    val multiModel2 = rfMultiTask.train(inputs.zip(allLabels), rng = Random(seed)).getModel()
+    val multiPred1 = multiModel1.transform(testInputs)
+    val multiPred2 = multiModel2.transform(testInputs)
+    assert(multiPred1.getExpected() == multiPred2.getExpected())
   }
 
   /**
