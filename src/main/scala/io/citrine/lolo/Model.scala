@@ -25,7 +25,7 @@ trait Model[+T] extends Serializable {
 }
 
 /** A model that predicts a sequence of values, corresponding to multiple labels. */
-trait MultiTaskModel extends Model[Seq[Any]] {
+trait MultiTaskModel extends Model[Vector[Any]] {
 
   /** The number of labels. Every prediction must have this length. */
   val numLabels: Int
@@ -51,7 +51,7 @@ class ParallelModels(models: Seq[Model[Any]], realLabels: Seq[Boolean]) extends 
   override def getModels: Seq[Model[Any]] = models
 
   override def transform(inputs: Seq[Vector[Any]]): ParallelModelsPredictionResult = {
-    val predictions = models.map(_.transform(inputs).getExpected()).transpose
+    val predictions = models.map(_.transform(inputs).getExpected()).toVector.transpose
     new ParallelModelsPredictionResult(predictions)
   }
 }

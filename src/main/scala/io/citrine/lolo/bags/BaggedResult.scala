@@ -413,7 +413,7 @@ case class MultiPredictionBaggedResult(
   * @param NibIn              the sampling matrix as (# bags) x (# training)
   */
 case class MultiTaskBaggedResult(
-    baggedPredictions: Seq[BaggedResult[Any]],
+    baggedPredictions: Vector[BaggedResult[Any]],
     realLabels: Seq[Boolean],
     NibIn: Vector[Vector[Int]]
 ) extends BaggedResult[Seq[Any]]
@@ -424,7 +424,7 @@ case class MultiTaskBaggedResult(
 
   override def numPredictions: Int = baggedPredictions.head.numPredictions
 
-  override def getExpected(): Seq[Seq[Any]] = baggedPredictions.map(_.getExpected()).transpose
+  override def getExpected(): Seq[Vector[Any]] = baggedPredictions.map(_.getExpected()).transpose
 
   override def predictions: Seq[PredictionResult[Seq[Any]]] =
     baggedPredictions

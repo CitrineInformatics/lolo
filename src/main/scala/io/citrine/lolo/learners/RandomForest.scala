@@ -115,8 +115,8 @@ case class MultiTaskRandomForest(
       rng: Random
   ): MultiTaskTrainingResult = {
     val rep = trainingData.head._2
-    val isRegression = rep.exists(_.isInstanceOf[Double])
-    val numFeatures = RandomForest.getNumFeatures(subsetStrategy, trainingData.head._1.size, isRegression)
+    val hasRegression = rep.exists(_.isInstanceOf[Double])
+    val numFeatures = RandomForest.getNumFeatures(subsetStrategy, trainingData.head._1.size, hasRegression)
 
     val DTLearner = new MultiTaskStandardizer(
       MultiTaskTreeLearner(

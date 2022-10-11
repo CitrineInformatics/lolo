@@ -2,8 +2,7 @@ package io.citrine.lolo
 
 import io.citrine.random.Random
 
-// TODO: Unify type hierarchy between single and multi-task learners
-trait Learner[T] {
+trait Learner[T] extends Serializable {
 
   /**
     * Train a model
@@ -27,19 +26,11 @@ trait Learner[T] {
 /**
   * A learner that trains on multiple labels, outputting a single model that makes predictions for all labels.
   */
-trait MultiTaskLearner {
+trait MultiTaskLearner extends Learner[Vector[Any]] {
 
-  /**
-    * Train a model
-    *
-    * @param trainingData  to train on. Each entry is a tuple (vector of inputs, vector of labels)
-    * @param weights for the training rows, if applicable
-    * @param rng          random number generator for reproducibility
-    * @return A training result that encompasses model(s) for all labels.
-    */
-  def train(
+  override def train(
       trainingData: Seq[(Vector[Any], Vector[Any])],
-      weights: Option[Seq[Double]] = None,
-      rng: Random = Random()
+      weights: Option[Seq[Double]],
+      rng: Random
   ): MultiTaskTrainingResult
 }

@@ -142,6 +142,7 @@ class MultiTaskStandardizerTrainingResult(
     outputTrans: Seq[Option[Standardization]],
     inputTrans: Seq[Option[Standardization]]
 ) extends MultiTaskTrainingResult {
+
   override def getModel(): MultiTaskModel = new ParallelModels(getModels(), baseTrainingResult.getModel().getRealLabels)
 
   override def getModels(): Seq[Model[Any]] =
@@ -152,7 +153,7 @@ class MultiTaskStandardizerTrainingResult(
 
   override def getFeatureImportance(): Option[Vector[Double]] = baseTrainingResult.getFeatureImportance()
 
-  override def getPredictedVsActual(): Option[Seq[(Vector[Any], Seq[Option[Any]], Seq[Option[Any]])]] = {
+  override def getPredictedVsActual(): Option[Seq[(Vector[Any], Vector[Option[Any]], Vector[Option[Any]])]] = {
     baseTrainingResult.getPredictedVsActual() match {
       case None => None
       case Some(predictedVsActual) =>
@@ -382,9 +383,9 @@ object Standardizer {
     * @return       sequence of restored vectors
     */
   def invertStandardizationOption(
-      input: Seq[Seq[Option[Any]]],
+      input: Seq[Vector[Option[Any]]],
       trans: Seq[Option[Standardization]]
-  ): Seq[Seq[Option[Any]]] = {
+  ): Seq[Vector[Option[Any]]] = {
     input.map { r =>
       r.zip(trans).map {
         case (Some(x: Double), Some(t)) => Some(t.invert(x))

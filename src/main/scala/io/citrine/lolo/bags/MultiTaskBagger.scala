@@ -143,7 +143,7 @@ class MultiTaskBaggedTrainingResult(
     models: ParSeq[MultiTaskModel],
     featureImportance: Option[Vector[Double]],
     Nib: Vector[Vector[Int]],
-    trainingData: Seq[(Vector[Any], Seq[Any])],
+    trainingData: Seq[(Vector[Any], Vector[Any])],
     useJackknife: Boolean,
     biasModels: Seq[Option[Model[Double]]],
     rescaleRatios: Seq[Double]
@@ -155,7 +155,7 @@ class MultiTaskBaggedTrainingResult(
   // The labels are of type Option[Any] because a given training datum might not have a value for every single label.
   // If the actual value for a label is None, then the corresponding prediction is recorded as None. The model could generate
   // a prediction, but that's not useful in this context, since the point is to compare predictions with ground-truth values.
-  lazy val predictedVsActual: Seq[(Vector[Any], Seq[Option[Any]], Seq[Option[Any]])] =
+  lazy val predictedVsActual: Seq[(Vector[Any], Vector[Option[Any]], Vector[Option[Any]])] =
     trainingData.zip(Nib.transpose).flatMap {
       case ((features, labels), nb) =>
         // Bagged models that were not trained on this input
@@ -230,7 +230,7 @@ class MultiTaskBaggedTrainingResult(
     }
   }
 
-  override def getPredictedVsActual(): Option[Seq[(Vector[Any], Seq[Option[Any]], Seq[Option[Any]])]] =
+  override def getPredictedVsActual(): Option[Seq[(Vector[Any], Vector[Option[Any]], Vector[Option[Any]])]] =
     Some(predictedVsActual)
 
   override def getLoss(): Option[Double] = {
@@ -255,7 +255,7 @@ class MultiTaskBaggedModel(
     rescaleRatios: Seq[Double]
 ) extends MultiTaskModel {
 
-  lazy val groupedModels: Seq[BaggedModel[Any]] = Seq.tabulate(numLabels) { i =>
+  lazy val groupedModels: Vector[BaggedModel[Any]] = Vector.tabulate(numLabels) { i =>
     val thisLabelsModels = models.map(_.getModels(i))
     if (getRealLabels(i)) {
       new BaggedModel[Double](
