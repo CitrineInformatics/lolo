@@ -16,10 +16,12 @@ import org.junit.Test
 @Test
 class FeatureRotatorTest extends SeedRandomMixIn {
 
-  val data: Seq[(Vector[Any], Any)] = TestUtils.binTrainingData(
-    TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng),
-    inputBins = Seq((0, 8))
-  )
+  val data: Seq[(Vector[Any], Double)] = {
+    val (baseInputs, baseLabels) =
+      TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng).unzip
+    val binnedInputs = TestUtils.binTrainingInputs(baseInputs, bins = Seq((0, 8)))
+    binnedInputs.zip(baseLabels)
+  }
   val weights: Vector[Double] = Vector.fill(data.size)(if (rng.nextBoolean()) rng.nextDouble() else 0.0)
 
   @Test

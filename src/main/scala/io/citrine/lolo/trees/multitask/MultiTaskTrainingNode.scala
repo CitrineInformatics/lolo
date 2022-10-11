@@ -141,7 +141,7 @@ object MultiTaskTrainingNode {
         val trainingLeaf: TrainingNode[AnyVal] = if (exampleLabel.isInstanceOf[Double]) {
           RegressionTrainingLeaf
             .build(
-              reducedData,
+              reducedData.asInstanceOf[Seq[(Vector[AnyVal], Double, Double)]],
               GuessTheMeanLearner(),
               maxDepth - remainingDepth,
               rng

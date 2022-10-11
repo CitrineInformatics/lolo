@@ -25,7 +25,7 @@ class AccuracyTest extends SeedRandomMixIn {
     .asInstanceOf[Seq[(Vector[Any], Double)]] // binTrainingData isn't binning the labels
 
   // Get the out-of-bag RMSE
-  private def computeMetrics(learner: Learner, rng: Random): Double = {
+  private def computeMetrics(learner: Learner[Double], rng: Random): Double = {
     learner.train(trainingData, rng = rng).getLoss().get
   }
 

@@ -21,7 +21,7 @@ import scala.reflect._
   * @param uncertaintyCalibration whether to enable empirical uncertainty calibration
   * @param disableBootstrap whether to disable bootstrap (useful when `method` implements its own randomization)
   */
-case class Bagger[T](
+case class Bagger[T: ClassTag](
     method: Learner[T],
     numBags: Int = -1,
     useJackknife: Boolean = true,

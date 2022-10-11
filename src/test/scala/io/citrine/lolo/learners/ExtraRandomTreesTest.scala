@@ -17,7 +17,7 @@ class ExtraRandomTreesTest extends SeedRandomMixIn {
   def testRegression(): Unit = {
     val (baseInputs, baseLabels) =
       TestUtils.generateTrainingData(256, 5, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng).unzip
-    val binnedInputs = TestUtils.binTrainingData(baseInputs, bins = Seq((0, 8)))
+    val binnedInputs = TestUtils.binTrainingInputs(baseInputs, bins = Seq((0, 8)))
     val trainingData = binnedInputs.zip(baseLabels)
 
     Seq(true, false).foreach { randomlyRotateFeatures =>
@@ -59,7 +59,7 @@ class ExtraRandomTreesTest extends SeedRandomMixIn {
 
     val (baseInputs, baseLabels) =
       TestUtils.generateTrainingData(nTrain, 5, noise = 0.0, function = Friedman.friedmanSilverman, rng = rng).unzip
-    val binnedLabels = TestUtils.binTrainingData(baseLabels, nBins)
+    val binnedLabels = TestUtils.binTrainingResponses(baseLabels, nBins)
     val trainingData = baseInputs.zip(binnedLabels)
 
     /* Generate small perturbations from the training data */
@@ -217,10 +217,7 @@ class ExtraRandomTreesTest extends SeedRandomMixIn {
     val regPredictions2 = regModel2.transform(testInputs)
     assert(regPredictions1.getExpected() == regPredictions2.getExpected())
 
-    val extraClassifier = ExtraRandomTreesClassifier(
-      biasLearner = Some(RegressionTreeLearner(maxDepth = 5)),
-      randomlyRotateFeatures = true
-    )
+    val extraClassifier = ExtraRandomTreesClassifier(randomlyRotateFeatures = true)
     val classModel1 = extraClassifier.train(inputs.zip(catLabel), rng = Random(seed)).getModel()
     val classModel2 = extraClassifier.train(inputs.zip(catLabel), rng = Random(seed)).getModel()
     val classPredictions1 = classModel1.transform(testInputs)

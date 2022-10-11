@@ -8,13 +8,15 @@ import breeze.numerics.signum
 import breeze.stats.distributions.Gaussian
 import io.citrine.lolo.stats.StatsUtils.breezeRandBasis
 
+import scala.reflect.ClassTag
+
 /**
   * Rotate the training data before passing along to a base learner
   *
   * This may be useful for improving randomization in random forests,
   * especially when using random feature selection without bagging.
   */
-case class FeatureRotator[T](baseLearner: Learner[T]) extends Learner[T] {
+case class FeatureRotator[T: ClassTag](baseLearner: Learner[T]) extends Learner[T] {
 
   /**
     * Create linear transformations for continuous features and labels & pass data through to learner

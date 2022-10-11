@@ -17,42 +17,21 @@ import io.citrine.theta.Stopwatch
   */
 class PerformanceTest extends SeedRandomMixIn {
 
-  /**
-    * Time training and application of models
-    *
-    * @param trainingData which is used both to train and then later apply the models to
-    * @param n            number of training rows to take
-    * @param k            number of features to consider per split
-    * @param b            number of trees in the forest
-    * @param quiet        whether to print messages to the screen
-    * @return the training and application time, in seconds
-    */
-  def timedTest(
-      trainingData: Seq[(Vector[Any], Any)],
-      n: Int,
-      k: Int,
-      b: Int,
-      quiet: Boolean = true
+  private def timedTest[T](
+      bagger: Bagger[T],
+      trainingData: Seq[(Vector[Any], T)]
   ): (Double, Double) = {
-    val data = trainingData.map(p => (p._1.take(k), p._2)).take(n)
-    val inputs = data.map(_._1)
-    val DTLearner = if (trainingData.head._2.isInstanceOf[Double]) {
-      new RegressionTreeLearner(numFeatures = k / 4)
-    } else {
-      new ClassificationTreeLearner(numFeatures = k / 4)
-    }
-    val baggedLearner = new Bagger(DTLearner, numBags = b)
-
+    val inputs = trainingData.map(_._1)
     val timeTraining = Stopwatch.time(
       {
-        baggedLearner.train(data).getModel()
+        bagger.train(trainingData).getModel()
       },
       benchmark = "None",
       minRun = 4,
       targetError = 0.1,
       maxRun = 32
     )
-    val model = baggedLearner.train(data).getModel()
+    val model = bagger.train(trainingData).getModel()
 
     val timePredicting = Stopwatch.time(
       {
@@ -64,8 +43,31 @@ class PerformanceTest extends SeedRandomMixIn {
       maxRun = 32
     )
 
-    if (!quiet) println(f"${timeTraining}%10.4f, ${timePredicting}%10.4f, ${n}%6d, ${k}%6d, ${b}%6d")
     (timeTraining, timePredicting)
+  }
+
+  def timeRegressor(
+      trainingData: Seq[(Vector[Any], Double)],
+      n: Int,
+      k: Int,
+      b: Int
+  ): (Double, Double) = {
+    val data = trainingData.map(p => (p._1.take(k), p._2)).take(n)
+    val baseLearner = RegressionTreeLearner(numFeatures = k / 4)
+    val bagger = new Bagger(baseLearner, numBags = b)
+    timedTest(bagger, data)
+  }
+
+  def timeClassifier[T](
+      trainingData: Seq[(Vector[Any], T)],
+      n: Int,
+      k: Int,
+      b: Int
+  ): (Double, Double) = {
+    val data = trainingData.map(p => (p._1.take(k), p._2)).take(n)
+    val baseLearner = ClassificationTreeLearner(numFeatures = k / 4)
+    val bagger = new Bagger(baseLearner, numBags = b)
+    timedTest(bagger, data)
   }
 
   // @Test
@@ -75,12 +77,12 @@ class PerformanceTest extends SeedRandomMixIn {
     val Ks = Seq(8, 16, 32)
     val Bs = Seq(1024, 2048, 4096)
     if (!quiet) println(f"${"Train"}%10s, ${"Apply"}%10s, ${"N"}%6s, ${"K"}%6s, ${"B"}%6s")
-    timedTest(trainingData, Ns.head, Ks.head, Bs.head, true)
-    val (bTrain, bApply) = Bs.map(b => timedTest(trainingData, Ns.head, Ks.head, b, quiet)).unzip
+    timeRegressor(regressionData, Ns.head, Ks.head, Bs.head)
+    val (bTrain, bApply) = Bs.map(b => timeRegressor(regressionData, Ns.head, Ks.head, b)).unzip
     val (kTrain, kApply) =
-      (bTrain.zip(bApply).take(1) ++ Ks.tail.map(k => timedTest(trainingData, Ns.head, k, Bs.head, quiet))).unzip
+      (bTrain.zip(bApply).take(1) ++ Ks.tail.map(k => timeRegressor(regressionData, Ns.head, k, Bs.head))).unzip
     val (nTrain, nApply) =
-      (bTrain.zip(bApply).take(1) ++ Ns.tail.map(n => timedTest(trainingData, n, Ks.head, Bs.head, quiet))).unzip
+      (bTrain.zip(bApply).take(1) ++ Ns.tail.map(n => timeRegressor(regressionData, n, Ks.head, Bs.head))).unzip
 
     val bTrainScale = (1 until bTrain.size).map(i => bTrain(i) / bTrain(i - 1))
     val nTrainScale = (1 until nTrain.size).map(i => nTrain(i) / nTrain(i - 1))
@@ -104,12 +106,12 @@ class PerformanceTest extends SeedRandomMixIn {
     * Test the absolute performance to check for overall regressions
     */
   def testAbsolute(): Unit = {
-    val (nominalTrain, nominalPredict) = timedTest(classificationData, 1024, 32, 1024)
+    val (nominalTrain, nominalPredict) = timeClassifier(classificationData, 1024, 32, 1024)
     println(nominalTrain, nominalPredict)
   }
 
   def testMultitaskOverhead(N: Int): (Double, Double) = {
-    val subset = trainingData.take(N)
+    val subset = regressionData.take(N)
     val (inputs, realLabels) = subset.unzip
     val catLabels = realLabels.map(_ > realLabels.sum / realLabels.size)
     val labels = Vector(realLabels, catLabels).transpose
@@ -134,13 +136,12 @@ class PerformanceTest extends SeedRandomMixIn {
     (trainMulti, trainSingle)
   }
 
-  val trainingData = TestUtils.generateTrainingData(2048, 37, rng = rng)
-  val classificationData = TestUtils.binTrainingData(trainingData, responseBins = Some(8))
+  val regressionData: Seq[(Vector[Double], Double)] = TestUtils.generateTrainingData(2048, 37, rng = rng)
+  val classificationData: Seq[(Vector[Any], Any)] = TestUtils.binTrainingData(regressionData, responseBins = Some(8))
 }
 
 object PerformanceTest {
   def main(argv: Array[String]): Unit = {
     new PerformanceTest().testAbsolute()
-
   }
 }

@@ -90,13 +90,14 @@ object TestUtils {
     }
   }
 
-  def binTrainingData(continuousData: Vector[Double], nBins: Int): Vector[String] = {
+  // TODO(PLA-10433): Better scheme for training data generation/binning alongside TrainingRow classes
+  def binTrainingResponses(continuousData: Vector[Double], nBins: Int): Vector[String] = {
     val min = continuousData.min
     val max = continuousData.max
     continuousData.map(x => math.round(x * nBins / (max - min)).toString)
   }
 
-  def binTrainingData(
+  def binTrainingInputs(
       continuousData: Seq[Vector[Double]],
       bins: Seq[(Int, Int)] = Seq.empty
   ): Seq[Vector[Any]] = {
@@ -108,7 +109,7 @@ object TestUtils {
         val indexData = transposedData(index)
         indexToBins
           .get(index)
-          .map { nBins => binTrainingData(indexData, nBins) }
+          .map { nBins => binTrainingResponses(indexData, nBins) }
           .getOrElse(indexData)
       }
       .transpose

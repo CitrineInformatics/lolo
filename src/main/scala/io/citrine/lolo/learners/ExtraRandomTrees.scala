@@ -68,12 +68,10 @@ case class ExtraRandomTreesRegressor(
 case class ExtraRandomTreesClassifier(
     numTrees: Int = -1,
     useJackknife: Boolean = false,
-    biasLearner: Option[Learner[Double]] = None,
     leafLearner: Option[Learner[Char]] = None,
     subsetStrategy: Any = "auto",
     minLeafInstances: Int = 1,
     maxDepth: Int = Integer.MAX_VALUE,
-    uncertaintyCalibration: Boolean = false,
     disableBootstrap: Boolean = true,
     randomlyRotateFeatures: Boolean = false
 ) extends Learner[Any] {
@@ -96,8 +94,6 @@ case class ExtraRandomTreesClassifier(
       if (randomlyRotateFeatures) FeatureRotator(DTLearner) else DTLearner,
       numBags = numTrees,
       useJackknife = useJackknife,
-      biasLearner = biasLearner,
-      uncertaintyCalibration = uncertaintyCalibration,
       disableBootstrap = disableBootstrap
     )
     bagger.train(trainingData, weights, rng)

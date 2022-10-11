@@ -67,13 +67,10 @@ case class RandomForestRegressor(
 
 case class RandomForestClassifier(
     numTrees: Int = -1,
-    useJackknife: Boolean = true,
-    biasLearner: Option[Learner[Double]] = None,
     leafLearner: Option[Learner[Char]] = None,
     subsetStrategy: Any = "auto",
     minLeafInstances: Int = 1,
     maxDepth: Int = Integer.MAX_VALUE,
-    uncertaintyCalibration: Boolean = true,
     randomizePivotLocation: Boolean = false,
     randomlyRotateFeatures: Boolean = false
 ) extends Learner[Any] {

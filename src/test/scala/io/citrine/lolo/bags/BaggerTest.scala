@@ -12,7 +12,6 @@ import org.junit.Test
 import org.scalatest.Assertions._
 
 import java.io.{File, PrintWriter}
-import java.util.concurrent._
 
 /**
   * Created by maxhutch on 11/29/16.
@@ -57,10 +56,11 @@ class BaggerTest extends SeedRandomMixIn {
     */
   @Test
   def testRegressionBagger(): Unit = {
-    val trainingData = TestUtils.binTrainingData(
-      TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng),
-      inputBins = Seq((0, 8))
-    )
+    val (baseInputs, baseLabels) =
+      TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng).unzip
+    val binnedInputs = TestUtils.binTrainingInputs(baseInputs, bins = Seq((0, 8)))
+    val trainingData = binnedInputs.zip(baseLabels)
+
     val DTLearner = RegressionTreeLearner(numFeatures = 3)
     val baggedLearner =
       Bagger(DTLearner, numBags = trainingData.size)
@@ -70,7 +70,6 @@ class BaggerTest extends SeedRandomMixIn {
     assert(RFMeta.getLoss().get < 1.0, "Loss of bagger is larger than expected")
 
     val results = RF.transform(trainingData.map(_._1))
-    val means = results.getExpected()
     val sigma: Seq[Double] = results.getUncertainty().get.asInstanceOf[Seq[Double]]
     assert(sigma.forall(_ > 0.0))
 
@@ -160,9 +159,8 @@ class BaggerTest extends SeedRandomMixIn {
   def testUncertaintyCalibrationWithConstantResponse(): Unit = {
     // setup some training data with constant labels
     val nFeatures = 5
-    val X: Vector[Vector[Any]] =
-      TestUtils.generateTrainingData(128, nFeatures, xscale = 0.5, rng = rng).map(_._1)
-    val y: Vector[Any] = X.map(_ => 0.0)
+    val X = TestUtils.generateTrainingData(128, nFeatures, xscale = 0.5, rng = rng).map(_._1)
+    val y = X.map(_ => 0.0)
 
     // setup a relatively complicated random forest (turn a bunch of stuff on)
     val DTLearner = RegressionTreeLearner(
@@ -233,10 +231,11 @@ class BaggerTest extends SeedRandomMixIn {
     */
   @Test
   def calibrationTimeTest(): Unit = {
-    val trainingData = TestUtils.binTrainingData(
-      TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng),
-      inputBins = Seq((0, 8))
-    )
+    val (baseInputs, baseLabels) =
+      TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng).unzip
+    val binnedInputs = TestUtils.binTrainingInputs(baseInputs, bins = Seq((0, 8)))
+    val trainingData = binnedInputs.zip(baseLabels)
+
     val DTLearner = RegressionTreeLearner(numFeatures = 3)
     val start = System.nanoTime()
     Bagger(
