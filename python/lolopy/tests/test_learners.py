@@ -1,6 +1,7 @@
 from lolopy.learners import (
     RandomForestRegressor,
     RandomForestClassifier,
+    MultiTaskRandomForest,
     RegressionTreeLearner,
     LinearRegression,
     ExtraRandomTreesRegressor,
@@ -91,7 +92,7 @@ class TestRF(TestCase):
         self.assertTrue((pred1 == pred2).all())
 
     def test_rf_multioutput_regressor(self):
-        rf = RandomForestRegressor()
+        rf = MultiTaskRandomForest()
         # A regression dataset with 3 outputs
         X, y = load_linnerud(return_X_y=True)
         num_data = len(X)

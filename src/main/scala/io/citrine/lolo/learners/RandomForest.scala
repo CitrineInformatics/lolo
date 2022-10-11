@@ -68,6 +68,7 @@ case class RandomForestRegressor(
   * Standard random forest classifier as a wrapper around bagged decision trees
   *
   * @param numTrees       number of trees to use (-1 => number of training instances)
+  * @param useJackknife   whether to use jackknife based variance estimates
   * @param leafLearner    learner to use at the leaves of the trees
   * @param subsetStrategy for random feature selection at each split
   *                       (auto => all fetures for regression, sqrt for classification)
@@ -78,6 +79,7 @@ case class RandomForestRegressor(
   */
 case class RandomForestClassifier(
     numTrees: Int = -1,
+    useJackknife: Boolean = true,
     leafLearner: Option[Learner[Char]] = None,
     subsetStrategy: Any = "auto",
     minLeafInstances: Int = 1,
@@ -102,7 +104,8 @@ case class RandomForestClassifier(
     )
     val bagger = Bagger(
       if (randomlyRotateFeatures) FeatureRotator(DTLearner) else DTLearner,
-      numBags = numTrees
+      numBags = numTrees,
+      useJackknife = useJackknife
     )
     bagger.train(trainingData, weights, rng)
   }
