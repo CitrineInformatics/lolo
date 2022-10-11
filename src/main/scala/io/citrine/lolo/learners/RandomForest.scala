@@ -12,7 +12,7 @@ import io.citrine.lolo.{Learner, MultiTaskLearner, MultiTaskTrainingResult, Trai
 import scala.annotation.tailrec
 
 /**
-  * Standard random forest regressor as a wrapper around bagged decision trees
+  * Standard random forest regressor as a wrapper around bagged decision trees.
   *
   * @param numTrees       number of trees to use (-1 => number of training instances)
   * @param useJackknife   whether to use jackknife based variance estimates
@@ -53,7 +53,6 @@ case class RandomForestRegressor(
       maxDepth = maxDepth,
       splitter = RegressionSplitter(randomizePivotLocation)
     )
-
     val bagger = Bagger(
       if (randomlyRotateFeatures) FeatureRotator(DTLearner) else DTLearner,
       numBags = numTrees,
@@ -65,6 +64,18 @@ case class RandomForestRegressor(
   }
 }
 
+/**
+  * Standard random forest classifier as a wrapper around bagged decision trees
+  *
+  * @param numTrees       number of trees to use (-1 => number of training instances)
+  * @param leafLearner    learner to use at the leaves of the trees
+  * @param subsetStrategy for random feature selection at each split
+  *                       (auto => all fetures for regression, sqrt for classification)
+  * @param minLeafInstances minimum number of instances per leave in each tree
+  * @param maxDepth       maximum depth of each tree in the forest (default: unlimited)
+  * @param randomizePivotLocation whether to generate splits randomly between the data points (default: false)
+  * @param randomlyRotateFeatures whether to randomly rotate real features for each tree in the forest (default: false)
+  */
 case class RandomForestClassifier(
     numTrees: Int = -1,
     leafLearner: Option[Learner[Char]] = None,

@@ -48,21 +48,18 @@ class RandomForestTest extends SeedRandomMixIn {
   /** Test that a random forest with multiple outputs produces a multitask bagger. */
   @Test
   def testMultitaskForest(): Unit = {
-    val (inputs: Seq[Vector[Double]], realLabel: Seq[Double]) = TestUtils
-      .binTrainingData(
-        TestUtils
-          .generateTrainingData(256, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng),
-        inputBins = Seq((0, 8))
-      )
-      .unzip
-    val catLabel: Seq[Boolean] = realLabel.map(_ > realLabel.max / 2.0)
-    val quadLabel: Seq[Double] = realLabel.map(x => x * x)
-    val labels = Vector(realLabel, catLabel, quadLabel).transpose
+    val (baseInputs, realLabels) =
+      TestUtils.generateTrainingData(256, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng).unzip
+    val binnedInputs = TestUtils.binTrainingInputs(baseInputs, bins = Seq((0, 8)))
 
-    val RFMeta = MultiTaskRandomForest().train(inputs.zip(labels), rng = rng)
+    val catLabels = realLabels.map(_ > realLabels.max / 2.0)
+    val quadLabels = realLabels.map(x => x * x)
+    val allLabels = Vector(realLabels, catLabels, quadLabels).transpose
+
+    val RFMeta = MultiTaskRandomForest().train(binnedInputs.zip(allLabels), rng = rng)
     val model = RFMeta.getModel()
 
-    val results = model.transform(inputs).asInstanceOf[MultiTaskBaggedResult]
+    val results = model.transform(binnedInputs).asInstanceOf[MultiTaskBaggedResult]
     assert(results.getUncertainty().isDefined)
     assert(results.getUncertaintyCorrelation(0, 2).isDefined)
   }
@@ -107,10 +104,10 @@ class RandomForestTest extends SeedRandomMixIn {
         learner: Learner[T],
         trainingData: Seq[(Vector[Any], T)],
         testInputs: Seq[Vector[Any]],
-        rng: Random
+        seed: Long
     ): Unit = {
-      val model1 = learner.train(trainingData, rng = rng).getModel()
-      val model2 = learner.train(trainingData, rng = rng).getModel()
+      val model1 = learner.train(trainingData, rng = Random(seed)).getModel()
+      val model2 = learner.train(trainingData, rng = Random(seed)).getModel()
       val predictions1 = model1.transform(testInputs)
       val predictions2 = model2.transform(testInputs)
       assert(predictions1.getExpected() == predictions2.getExpected())
@@ -118,10 +115,10 @@ class RandomForestTest extends SeedRandomMixIn {
 
     val numTrain = 50
     // Generate completely random training data
-    val (inputs: Seq[Vector[Double]], realLabel: Seq[Double]) = TestUtils
+    val (inputs, realLabel) = TestUtils
       .generateTrainingData(rows = numTrain, cols = 12, noise = 5.0, function = _ => 0.0, rng = rng)
       .unzip
-    val catLabel: Seq[Boolean] = Seq.fill(numTrain)(rng.nextBoolean())
+    val catLabel = Vector.fill(numTrain)(rng.nextBoolean())
     val allLabels = Vector(realLabel, catLabel).transpose
 
     // Generate test points
@@ -134,24 +131,19 @@ class RandomForestTest extends SeedRandomMixIn {
       randomizePivotLocation = true,
       randomlyRotateFeatures = true
     )
-    checkReproducibility(rfRegressor, inputs.zip(realLabel), testInputs, rng = Random(seed))
+    checkReproducibility(rfRegressor, inputs.zip(realLabel), testInputs, seed)
 
     val rfClassifier = RandomForestClassifier(
       randomizePivotLocation = true,
       randomlyRotateFeatures = true
     )
-    checkReproducibility(rfClassifier, inputs.zip(catLabel), testInputs, rng = Random(seed))
+    checkReproducibility(rfClassifier, inputs.zip(catLabel), testInputs, seed)
 
-    // TODO: Use other function when MultiTaskLearner <: Learner[Seq[Any]]
     val rfMultiTask = MultiTaskRandomForest(
       randomizePivotLocation = true,
       randomlyRotateFeatures = true
     )
-    val multiModel1 = rfMultiTask.train(inputs.zip(allLabels), rng = Random(seed)).getModel()
-    val multiModel2 = rfMultiTask.train(inputs.zip(allLabels), rng = Random(seed)).getModel()
-    val multiPred1 = multiModel1.transform(testInputs)
-    val multiPred2 = multiModel2.transform(testInputs)
-    assert(multiPred1.getExpected() == multiPred2.getExpected())
+    checkReproducibility(rfMultiTask, inputs.zip(allLabels), testInputs, seed)
   }
 
   /**

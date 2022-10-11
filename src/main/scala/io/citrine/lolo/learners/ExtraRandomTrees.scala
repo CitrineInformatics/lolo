@@ -94,7 +94,8 @@ case class ExtraRandomTreesClassifier(
       if (randomlyRotateFeatures) FeatureRotator(DTLearner) else DTLearner,
       numBags = numTrees,
       useJackknife = useJackknife,
-      disableBootstrap = disableBootstrap
+      disableBootstrap = disableBootstrap,
+      uncertaintyCalibration = false
     )
     bagger.train(trainingData, weights, rng)
   }
