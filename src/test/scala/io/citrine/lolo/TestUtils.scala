@@ -90,6 +90,30 @@ object TestUtils {
     }
   }
 
+  def binTrainingData(continuousData: Vector[Double], nBins: Int): Vector[String] = {
+    val min = continuousData.min
+    val max = continuousData.max
+    continuousData.map(x => math.round(x * nBins / (max - min)).toString)
+  }
+
+  def binTrainingData(
+      continuousData: Seq[Vector[Double]],
+      bins: Seq[(Int, Int)] = Seq.empty
+  ): Seq[Vector[Any]] = {
+    val indexToBins = bins.toMap
+    val transposedData = continuousData.toVector.transpose
+    // Tabulating as a vector to maintain Vector type during transpose
+    Vector
+      .tabulate(transposedData.length) { index =>
+        val indexData = transposedData(index)
+        indexToBins
+          .get(index)
+          .map { nBins => binTrainingData(indexData, nBins) }
+          .getOrElse(indexData)
+      }
+      .transpose
+  }
+
   def binTrainingData(
       continuousData: Seq[(Vector[Double], Double)],
       inputBins: Seq[(Int, Int)] = Seq(),

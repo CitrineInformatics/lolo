@@ -15,10 +15,10 @@ class ExtraRandomTreesTest extends SeedRandomMixIn {
     */
   @Test
   def testRegression(): Unit = {
-    val trainingData = TestUtils.binTrainingData(
-      TestUtils.generateTrainingData(256, 5, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng),
-      inputBins = Seq((0, 8))
-    )
+    val (baseInputs, baseLabels) =
+      TestUtils.generateTrainingData(256, 5, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng).unzip
+    val binnedInputs = TestUtils.binTrainingData(baseInputs, bins = Seq((0, 8)))
+    val trainingData = binnedInputs.zip(baseLabels)
 
     Seq(true, false).foreach { randomlyRotateFeatures =>
       val RFMeta = ExtraRandomTreesRegressor(randomlyRotateFeatures = randomlyRotateFeatures)
@@ -56,16 +56,15 @@ class ExtraRandomTreesTest extends SeedRandomMixIn {
     val nTrain = 64
     val nTest = nTrain
     val nBins = 8
-    val trainingData = TestUtils.binTrainingData(
-      TestUtils.generateTrainingData(nTrain, 5, noise = 0.0, function = Friedman.friedmanSilverman, rng = rng),
-      responseBins = Some(nBins)
-    )
+
+    val (baseInputs, baseLabels) =
+      TestUtils.generateTrainingData(nTrain, 5, noise = 0.0, function = Friedman.friedmanSilverman, rng = rng).unzip
+    val binnedLabels = TestUtils.binTrainingData(baseLabels, nBins)
+    val trainingData = baseInputs.zip(binnedLabels)
 
     /* Generate small perturbations from the training data */
     val testData = trainingData
-      .map { r =>
-        (r._1.map { _.asInstanceOf[Double] + 0.05 * rng.nextGaussian() }, r._2)
-      }
+      .map { r => (r._1.map(x => x + 0.05 * rng.nextGaussian()), r._2) }
       .take(nTest)
 
     Seq(true, false).foreach { randomlyRotateFeatures =>
@@ -73,7 +72,7 @@ class ExtraRandomTreesTest extends SeedRandomMixIn {
         Seq(1, 2).foreach { minLeafInstances =>
           rng = Random(238834L)
 
-          val RFMeta = ExtraRandomTrees(
+          val RFMeta = ExtraRandomTreesClassifier(
             numTrees = trainingData.size * 4,
             randomlyRotateFeatures = randomlyRotateFeatures,
             disableBootstrap = disableBootstrap,
@@ -146,9 +145,9 @@ class ExtraRandomTreesTest extends SeedRandomMixIn {
         ) ++ mainTrainingData
 
         val RFSuffixed =
-          ExtraRandomTrees(numTrees = trainingDataSuffixed.size * 2).train(trainingDataSuffixed, rng = rng)
+          ExtraRandomTreesClassifier(numTrees = trainingDataSuffixed.size * 2).train(trainingDataSuffixed, rng = rng)
         val RFPrefixed =
-          ExtraRandomTrees(numTrees = trainingDataPrefixed.size * 2).train(trainingDataPrefixed, rng = rng)
+          ExtraRandomTreesClassifier(numTrees = trainingDataPrefixed.size * 2).train(trainingDataPrefixed, rng = rng)
         val predictedSuffixed = RFSuffixed.getModel().transform(testData.map(_._1))
         val predictedPrefixed = RFPrefixed.getModel().transform(testData.map(_._1))
         val extraLabelCountSuffixed = predictedSuffixed.getExpected().count { case p: String => p == dupeLabel }
@@ -188,7 +187,7 @@ class ExtraRandomTreesTest extends SeedRandomMixIn {
     val trainingData = TestUtils.generateTrainingData(8, 1)
     // the number of trees is the number of times we generate weights
     // so this has the effect of creating lots of different sets of weights
-    val learner = ExtraRandomTrees(numTrees = 16384)
+    val learner = ExtraRandomTreesRegressor(numTrees = 16384)
     // the test is that this training doesn't throw an exception
     learner.train(trainingData, rng = rng).getModel()
   }
@@ -208,17 +207,24 @@ class ExtraRandomTreesTest extends SeedRandomMixIn {
     val testInputs = TestUtils.generateTrainingData(rows = numTest, cols = 12, function = _ => 0.0, rng = rng).map(_._1)
 
     val seed = 67852103L
-    val RFMeta = ExtraRandomTrees(
+    val extraRegressor = ExtraRandomTreesRegressor(
       biasLearner = Some(RegressionTreeLearner(maxDepth = 5)),
       randomlyRotateFeatures = true
     )
-    Vector(realLabel, catLabel).foreach { labels =>
-      val model1 = RFMeta.train(inputs.zip(labels), rng = Random(seed)).getModel()
-      val model2 = RFMeta.train(inputs.zip(labels), rng = Random(seed)).getModel()
-      val predictions1 = model1.transform(testInputs)
-      val predictions2 = model2.transform(testInputs)
-      assert(predictions1.getExpected() == predictions2.getExpected())
-    }
-  }
+    val regModel1 = extraRegressor.train(inputs.zip(realLabel), rng = Random(seed)).getModel()
+    val regModel2 = extraRegressor.train(inputs.zip(realLabel), rng = Random(seed)).getModel()
+    val regPredictions1 = regModel1.transform(testInputs)
+    val regPredictions2 = regModel2.transform(testInputs)
+    assert(regPredictions1.getExpected() == regPredictions2.getExpected())
 
+    val extraClassifier = ExtraRandomTreesClassifier(
+      biasLearner = Some(RegressionTreeLearner(maxDepth = 5)),
+      randomlyRotateFeatures = true
+    )
+    val classModel1 = extraClassifier.train(inputs.zip(catLabel), rng = Random(seed)).getModel()
+    val classModel2 = extraClassifier.train(inputs.zip(catLabel), rng = Random(seed)).getModel()
+    val classPredictions1 = classModel1.transform(testInputs)
+    val classPredictions2 = classModel2.transform(testInputs)
+    assert(classPredictions1.getExpected() == classPredictions2.getExpected())
+  }
 }
