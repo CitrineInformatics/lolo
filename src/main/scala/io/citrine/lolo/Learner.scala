@@ -10,7 +10,9 @@ import io.citrine.random.Random
 trait Learner[T] extends Serializable {
 
   /**
-    * Train a model
+    * Train a model on the provided training data.
+    *
+    * TODO(PLA-10433): Add a concrete type for training rows
     *
     * @param trainingData to train on
     * @param weights      for the training rows, if applicable
@@ -28,9 +30,7 @@ trait Learner[T] extends Serializable {
   }
 }
 
-/**
-  * A learner that trains on multiple labels, outputting a single model that makes predictions for all labels.
-  */
+/** A learner that trains on multiple labels, outputting a single model that makes predictions for all labels. */
 trait MultiTaskLearner extends Learner[Vector[Any]] {
 
   override def train(
