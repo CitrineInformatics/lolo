@@ -235,7 +235,7 @@ class TestRF(TestCase):
 class TestExtraRandomTrees(TestCase):
 
     def test_extra_random_trees_regressor(self):
-        rf = ExtraRandomTreesRegressor()
+        rf = ExtraRandomTreesRegressor(disable_bootstrap=False)
 
         # Train the model
         X, y = load_diabetes(return_X_y=True)

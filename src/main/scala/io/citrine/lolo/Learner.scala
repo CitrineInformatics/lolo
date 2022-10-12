@@ -2,6 +2,11 @@ package io.citrine.lolo
 
 import io.citrine.random.Random
 
+/**
+  * Base trait for a supervised learner that produces a model.
+  *
+  * @tparam T the label type of the data the learner is trained on
+  */
 trait Learner[T] extends Serializable {
 
   /**

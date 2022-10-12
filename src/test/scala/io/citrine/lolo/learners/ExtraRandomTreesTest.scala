@@ -6,6 +6,7 @@ import io.citrine.lolo.stats.functions.Friedman
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
 import io.citrine.random.Random
 import org.junit.Test
+import org.scalatest.Assertions._
 
 @Test
 class ExtraRandomTreesTest extends SeedRandomMixIn {

@@ -35,7 +35,7 @@ case class ExtraRandomTreesRegressor(
     minLeafInstances: Int = 1,
     maxDepth: Int = Integer.MAX_VALUE,
     uncertaintyCalibration: Boolean = false,
-    disableBootstrap: Boolean = false,
+    disableBootstrap: Boolean = true,
     randomlyRotateFeatures: Boolean = false
 ) extends Learner[Double] {
 
@@ -88,7 +88,7 @@ case class ExtraRandomTreesClassifier(
     subsetStrategy: Any = "auto",
     minLeafInstances: Int = 1,
     maxDepth: Int = Integer.MAX_VALUE,
-    disableBootstrap: Boolean = false,
+    disableBootstrap: Boolean = true,
     randomlyRotateFeatures: Boolean = false
 ) extends Learner[Any] {
 
