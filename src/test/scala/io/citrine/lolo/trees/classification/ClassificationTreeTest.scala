@@ -1,6 +1,6 @@
 package io.citrine.lolo.trees.classification
 
-import io.citrine.lolo.{DataGenerator, SeedRandomMixIn, TestUtils}
+import io.citrine.lolo.{DataGenerator, SeedRandomMixIn}
 import io.citrine.lolo.stats.functions.Friedman
 import org.junit.Test
 import org.scalatest.Assertions._

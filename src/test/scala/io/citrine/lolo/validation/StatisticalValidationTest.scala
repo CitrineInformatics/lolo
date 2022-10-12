@@ -1,7 +1,7 @@
 package io.citrine.lolo.validation
 
-import io.citrine.lolo.{DataGenerator, SeedRandomMixIn, TestUtils}
-import io.citrine.lolo.learners.{RandomForest, RandomForestRegressor}
+import io.citrine.lolo.{DataGenerator, SeedRandomMixIn}
+import io.citrine.lolo.learners.RandomForestRegressor
 import io.citrine.lolo.stats.functions.Friedman
 import org.junit.Test
 

@@ -1,7 +1,6 @@
 package io.citrine.lolo.util
-import io.citrine.lolo.{PredictionResult, TestUtils}
-import io.citrine.lolo.learners.{RandomForest, RandomForestRegressor}
-import io.citrine.lolo.stats.functions.Friedman
+import io.citrine.lolo.PredictionResult
+import io.citrine.lolo.learners.RandomForestRegressor
 import org.junit.Test
 
 class LoloPyDataLoaderTest {
