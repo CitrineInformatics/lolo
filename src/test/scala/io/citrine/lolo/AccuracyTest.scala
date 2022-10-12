@@ -17,12 +17,11 @@ class AccuracyTest extends SeedRandomMixIn {
   val nScal: Int = 2
   val minInstances: Int = 1
 
-  val trainingData: Seq[(Vector[Any], Double)] = TestUtils
-    .binTrainingData(
-      TestUtils.generateTrainingData(nRow, nFeat, noise = noiseLevel, rng = rng),
-      inputBins = Seq((4, 32))
-    )
-    .asInstanceOf[Seq[(Vector[Any], Double)]] // binTrainingData isn't binning the labels
+  val trainingData: Seq[(Vector[Any], Double)] = {
+    val (baseInputs, baseLabels) = TestUtils.generateTrainingData(nRow, nFeat, noise = noiseLevel, rng = rng).unzip
+    val binnedInputs = TestUtils.binTrainingInputs(baseInputs, bins = Seq((4, 32)))
+    binnedInputs.zip(baseLabels)
+  }
 
   // Get the out-of-bag RMSE
   private def computeMetrics(learner: Learner[Double], rng: Random): Double = {
@@ -82,12 +81,11 @@ class AccuracyTest extends SeedRandomMixIn {
   */
 object AccuracyTest extends SeedRandomMixIn {
 
-  val trainingDataFull: Seq[(Vector[Any], Double)] = TestUtils
-    .binTrainingData(
-      TestUtils.generateTrainingData(2048, 48, rng = rng),
-      inputBins = Seq((2, 32)) // bin the 3rd feature into a categorical
-    )
-    .asInstanceOf[Seq[(Vector[Any], Double)]]
+  val trainingDataFull: Seq[(Vector[Any], Double)] = {
+    val (baseInputs, baseLabels) = TestUtils.generateTrainingData(2048, 48, rng = rng).unzip
+    val binnedInputs = TestUtils.binTrainingInputs(baseInputs, bins = Seq((2, 32)))
+    binnedInputs.zip(baseLabels)
+  }
 
   /**
     * Compute the RMSE and standard residual for a Boltzmann tree with the given temperature

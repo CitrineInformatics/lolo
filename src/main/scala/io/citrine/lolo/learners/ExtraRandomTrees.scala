@@ -23,7 +23,7 @@ import io.citrine.lolo.{Learner, TrainingResult}
   * @param minLeafInstances minimum number of instances per leave in each tree
   * @param maxDepth       maximum depth of each tree in the forest (default: unlimited)
   * @param uncertaintyCalibration whether to empirically recalibrate the predicted uncertainties (default: false)
-  * @param disableBootstrap whether to disable bootstrap (default: false)
+  * @param disableBootstrap whether to disable bootstrap (default: true)
   * @param randomlyRotateFeatures whether to randomly rotate real features for each tree in the forest (default: false)
   */
 case class ExtraRandomTreesRegressor(
@@ -78,7 +78,7 @@ case class ExtraRandomTreesRegressor(
   *                         (auto => all features for regression)
   * @param minLeafInstances minimum number of instances per leave in each tree
   * @param maxDepth         maximum depth of each tree in the forest (default: unlimited)
-  * @param disableBootstrap whether to disable bootstrap (default: false)
+  * @param disableBootstrap whether to disable bootstrap (default: true)
   * @param randomlyRotateFeatures whether to randomly rotate real features for each tree in the forest (default: false)
   */
 case class ExtraRandomTreesClassifier(

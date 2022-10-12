@@ -35,6 +35,9 @@ trait MultiTaskModel extends Model[Vector[Any]] {
 
   /** Individual models corresponding to each label */
   def getModels: Seq[Model[Any]]
+
+  override def transform(inputs: Seq[Vector[Any]]): MultiTaskModelPredictionResult
+
 }
 
 /**

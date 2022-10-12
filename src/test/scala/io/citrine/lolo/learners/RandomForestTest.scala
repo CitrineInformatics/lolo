@@ -2,7 +2,7 @@ package io.citrine.lolo.learners
 
 import breeze.linalg.DenseMatrix
 import breeze.stats.distributions.{Beta, RandBasis}
-import io.citrine.lolo.{Learner, SeedRandomMixIn, TestUtils}
+import io.citrine.lolo.{DataGenerator, Learner, SeedRandomMixIn, TestUtils}
 import io.citrine.lolo.bags.MultiTaskBaggedResult
 import io.citrine.lolo.stats.functions.Friedman
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
@@ -18,10 +18,10 @@ class RandomForestTest extends SeedRandomMixIn {
     */
   @Test
   def testRegressionForest(): Unit = {
-    val (baseInputs, baseLabels) =
-      TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng).unzip
-    val binnedInputs = TestUtils.binTrainingInputs(baseInputs, bins = Seq((0, 8)))
-    val trainingData = binnedInputs.zip(baseLabels)
+    val trainingData = DataGenerator
+      .generate(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng)
+      .withBinnedInputs(bins = Seq((0, 8)))
+      .data
 
     Seq(true, false).foreach { randomlyRotateFeatures =>
       val RFMeta = RandomForestRegressor(randomlyRotateFeatures = randomlyRotateFeatures)
@@ -48,18 +48,20 @@ class RandomForestTest extends SeedRandomMixIn {
   /** Test that a random forest with multiple outputs produces a multitask bagger. */
   @Test
   def testMultiTaskForest(): Unit = {
-    val (baseInputs, realLabels) =
-      TestUtils.generateTrainingData(256, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng).unzip
-    val binnedInputs = TestUtils.binTrainingInputs(baseInputs, bins = Seq((0, 8)))
+    val (inputs, realLabels) = DataGenerator
+      .generate(256, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng)
+      .withBinnedInputs(bins = Seq((0, 8)))
+      .data
+      .unzip
 
     val catLabels = realLabels.map(_ > realLabels.max / 2.0)
     val quadLabels = realLabels.map(x => x * x)
     val allLabels = Vector(realLabels, catLabels, quadLabels).transpose
 
-    val RFMeta = MultiTaskRandomForest().train(binnedInputs.zip(allLabels), rng = rng)
+    val RFMeta = MultiTaskRandomForest().train(inputs.zip(allLabels), weights = None, rng = rng)
     val model = RFMeta.getModel()
 
-    val results = model.transform(binnedInputs).asInstanceOf[MultiTaskBaggedResult]
+    val results = model.transform(inputs).asInstanceOf[MultiTaskBaggedResult]
     assert(results.getUncertainty().isDefined)
     assert(results.getUncertaintyCorrelation(0, 2).isDefined)
   }
@@ -69,11 +71,11 @@ class RandomForestTest extends SeedRandomMixIn {
     */
   @Test
   def testClassificationForest(): Unit = {
-    val (baseInputs, baseLabels) =
-      TestUtils.generateTrainingData(128, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng).unzip
-    val binnedInputs = TestUtils.binTrainingInputs(baseInputs, bins = Seq((0, 8)))
-    val binnedLabels = TestUtils.binTrainingResponses(baseLabels, nBins = 8)
-    val trainingData = binnedInputs.zip(binnedLabels)
+    val trainingData = DataGenerator
+      .generate(128, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng)
+      .withBinnedInputs(bins = Seq((0, 8)))
+      .withBinnedLabels(bins = 8)
+      .data
 
     Seq(true, false).foreach { randomlyRotateFeatures =>
       val RFMeta =
@@ -155,11 +157,11 @@ class RandomForestTest extends SeedRandomMixIn {
     val numTrials = 20
     val (winsSuffixed, winsPrefixed): (Int, Int) = (0 until numTrials)
       .map { _ =>
-        val mainTrainingData = TestUtils.binTrainingData(
-          TestUtils
-            .generateTrainingData(64, 5, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng),
-          responseBins = Some(2)
-        )
+        val mainTrainingData = DataGenerator
+          .generate(64, 5, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng)
+          .withBinnedLabels(bins = 2)
+          .data
+
         val dupeLabel = "DUPE"
         val trainingDataSuffixed = mainTrainingData ++ Seq(
           (mainTrainingData.head._1, dupeLabel)

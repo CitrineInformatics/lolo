@@ -170,10 +170,7 @@ case class SinglePredictionBaggedResult(
   }
 }
 
-case class BaggedClassificationResult[T](
-    predictions: Seq[PredictionResult[T]]
-) extends BaggedResult[T] {
-
+case class BaggedClassificationResult[T](predictions: Seq[PredictionResult[T]]) extends BaggedResult[T] {
   lazy val expectedMatrix: Seq[Seq[T]] = predictions.map(p => p.getExpected()).transpose
   lazy val expected: Seq[T] = expectedMatrix.map(ps => ps.groupBy(identity).maxBy(_._2.size)._1)
   lazy val uncertainty: Seq[Map[T, Double]] =

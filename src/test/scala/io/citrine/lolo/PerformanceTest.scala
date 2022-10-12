@@ -136,8 +136,12 @@ class PerformanceTest extends SeedRandomMixIn {
     (trainMulti, trainSingle)
   }
 
-  val regressionData: Seq[(Vector[Double], Double)] = TestUtils.generateTrainingData(2048, 37, rng = rng)
-  val classificationData: Seq[(Vector[Any], Any)] = TestUtils.binTrainingData(regressionData, responseBins = Some(8))
+  val regressionData: Vector[(Vector[Double], Double)] = TestUtils.generateTrainingData(2048, 37, rng = rng)
+  val classificationData: Seq[(Vector[Any], Any)] = {
+    val (baseLabels, baseResponses) = regressionData.unzip
+    val binnedResponses = TestUtils.binTrainingResponses(baseResponses, nBins = 8)
+    baseLabels.zip(binnedResponses)
+  }
 }
 
 object PerformanceTest {

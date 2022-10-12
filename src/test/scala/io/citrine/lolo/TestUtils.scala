@@ -115,30 +115,6 @@ object TestUtils {
       .transpose
   }
 
-  def binTrainingData(
-      continuousData: Seq[(Vector[Double], Double)],
-      inputBins: Seq[(Int, Int)] = Seq(),
-      responseBins: Option[Int] = None
-  ): Seq[(Vector[Any], Any)] = {
-    var outputData: Seq[(Vector[Any], Any)] = continuousData
-    inputBins.foreach {
-      case (index, nBins) =>
-        outputData = outputData.map {
-          case (input, response) =>
-            (input.updated(index, Math.round(input(index).asInstanceOf[Double] * nBins).toString), response)
-        }
-    }
-    responseBins.foreach { nBins =>
-      val max = continuousData.map(_._2).max
-      val min = continuousData.map(_._2).min
-      outputData = outputData.map {
-        case (input, response) =>
-          (input, Math.round(response.asInstanceOf[Double] * nBins / (max - min)).toString)
-      }
-    }
-    outputData
-  }
-
   /**
     * Enumerate the cartesian product of items in baseGrids.
     *
