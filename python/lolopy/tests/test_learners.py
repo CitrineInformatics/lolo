@@ -14,6 +14,9 @@ from unittest import TestCase, main
 import pickle as pkl
 import numpy as np
 
+import logging
+logging.getLogger("py4j.java_gateway").setLevel(logging.ERROR)
+
 
 def _make_linear_data():
     """Make data corresponding to y = x + 1
@@ -287,7 +290,7 @@ class TestExtraRandomTrees(TestCase):
         self.assertTrue((pred1 == pred2).all())
 
     def test_extra_random_trees_classifier(self):
-        rf = ExtraRandomTreesClassifier()
+        rf = ExtraRandomTreesClassifier(disable_bootstrap=True)
 
         # Load in the iris dataset
         X, y = load_iris(return_X_y=True)

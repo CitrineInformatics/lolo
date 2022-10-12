@@ -9,7 +9,7 @@ import io.citrine.lolo.trees.splits.{ExtraRandomClassificationSplitter, ExtraRan
 import io.citrine.lolo.{Learner, TrainingResult}
 
 /**
-  * Extremely randomized tree ensemble
+  * Extremely randomized tree ensemble for regression.
   *
   * This is based on Geurts, P., Ernst, D. & Wehenkel, L. Extremely randomized trees. Mach Learn 63, 3–42 (2006).
   * https://doi.org/10.1007/s10994-006-6226-1.
@@ -23,7 +23,7 @@ import io.citrine.lolo.{Learner, TrainingResult}
   * @param minLeafInstances minimum number of instances per leave in each tree
   * @param maxDepth       maximum depth of each tree in the forest (default: unlimited)
   * @param uncertaintyCalibration whether to empirically recalibrate the predicted uncertainties (default: false)
-  * @param disableBootstrap whether to disable bootstrap (default: true)
+  * @param disableBootstrap whether to disable bootstrap (default: false)
   * @param randomlyRotateFeatures whether to randomly rotate real features for each tree in the forest (default: false)
   */
 case class ExtraRandomTreesRegressor(
@@ -35,7 +35,7 @@ case class ExtraRandomTreesRegressor(
     minLeafInstances: Int = 1,
     maxDepth: Int = Integer.MAX_VALUE,
     uncertaintyCalibration: Boolean = false,
-    disableBootstrap: Boolean = true,
+    disableBootstrap: Boolean = false,
     randomlyRotateFeatures: Boolean = false
 ) extends Learner[Double] {
 
@@ -65,6 +65,22 @@ case class ExtraRandomTreesRegressor(
   }
 }
 
+/**
+  * Extremely randomized tree ensemble for classification.
+  *
+  * This is based on Geurts, P., Ernst, D. & Wehenkel, L. Extremely randomized trees. Mach Learn 63, 3–42 (2006).
+  * https://doi.org/10.1007/s10994-006-6226-1.
+  *
+  * @param numTrees         number of trees to use (-1 => number of training instances)
+  * @param useJackknife     whether to use jackknife based variance estimates
+  * @param leafLearner      learner to use at the leaves of the trees
+  * @param subsetStrategy   for random feature selection at each split
+  *                         (auto => all features for regression)
+  * @param minLeafInstances minimum number of instances per leave in each tree
+  * @param maxDepth         maximum depth of each tree in the forest (default: unlimited)
+  * @param disableBootstrap whether to disable bootstrap (default: false)
+  * @param randomlyRotateFeatures whether to randomly rotate real features for each tree in the forest (default: false)
+  */
 case class ExtraRandomTreesClassifier(
     numTrees: Int = -1,
     useJackknife: Boolean = false,
@@ -72,7 +88,7 @@ case class ExtraRandomTreesClassifier(
     subsetStrategy: Any = "auto",
     minLeafInstances: Int = 1,
     maxDepth: Int = Integer.MAX_VALUE,
-    disableBootstrap: Boolean = true,
+    disableBootstrap: Boolean = false,
     randomlyRotateFeatures: Boolean = false
 ) extends Learner[Any] {
 

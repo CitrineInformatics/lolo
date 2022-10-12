@@ -493,7 +493,7 @@ class ExtraRandomTreesRegressor(BaseLoloRegressor):
 
     def __init__(self, num_trees=-1, use_jackknife=False, bias_learner=None,
                  leaf_learner=None, subset_strategy="auto", min_leaf_instances=1,
-                 max_depth=2**30, uncertainty_calibration=False, disable_bootstrap=True,
+                 max_depth=2**30, uncertainty_calibration=False, disable_bootstrap=False,
                  randomly_rotate_features=False):
         """Initialize the ExtraRandomTrees ensemble
 
@@ -512,7 +512,7 @@ class ExtraRandomTreesRegressor(BaseLoloRegressor):
             min_leaf_instances (int): Minimum number of features used at each leaf
             max_depth (int): Maximum depth to which to allow the decision trees to grow
             uncertainty_calibration (bool): whether to re-calibrate the predicted uncertainty based on out-of-bag residuals
-            disable_bootstrap (bool): whether to disable bootstrapping (default: true)
+            disable_bootstrap (bool): whether to disable bootstrapping (default: False)
             randomly_rotate_features (bool): whether to randomly rotate real features for each tree in the forest
         """
         super().__init__()
@@ -559,7 +559,7 @@ class ExtraRandomTreesClassifier(BaseLoloClassifier):
 
     def __init__(self, num_trees=-1, use_jackknife=False, bias_learner=None,
                  leaf_learner=None, subset_strategy="auto", min_leaf_instances=1,
-                 max_depth=2**30, uncertainty_calibration=False, disable_bootstrap=True,
+                 max_depth=2**30, uncertainty_calibration=False, disable_bootstrap=False,
                  randomly_rotate_features=False):
         """Initialize the ExtraRandomTrees ensemble
 
@@ -576,7 +576,7 @@ class ExtraRandomTreesClassifier(BaseLoloClassifier):
                     float: Use a certain fraction of the features
             min_leaf_instances (int): Minimum number of features used at each leaf
             max_depth (int): Maximum depth to which to allow the decision trees to grow
-            disable_bootstrap (bool): whether to disable bootstrapping (default: true)
+            disable_bootstrap (bool): whether to disable bootstrapping (default: False)
             randomly_rotate_features (bool): whether to randomly rotate real features for each tree in the forest
         """
         super().__init__()
