@@ -65,7 +65,7 @@ case class RandomForestRegressor(
 }
 
 /**
-  * Standard random forest classifier as a wrapper around bagged decision trees
+  * Standard random forest classifier as a wrapper around bagged decision trees.
   *
   * @param numTrees       number of trees to use (-1 => number of training instances)
   * @param useJackknife   whether to use jackknife based variance estimates
@@ -111,6 +111,20 @@ case class RandomForestClassifier(
   }
 }
 
+/**
+  * Multi-task, mixed-task random forest model as a wrapper around bagged decision trees.
+  *
+  * @param numTrees         number of trees to use (-1 => number of training instances)
+  * @param useJackknife     whether to use jackknife based variance estimates
+  * @param biasLearner      learner to model bias (absolute residual)
+  * @param subsetStrategy   for random feature selection at each split
+  *                         (auto => all fetures for regression, sqrt for classification)
+  * @param minLeafInstances minimum number of instances per leave in each tree
+  * @param maxDepth         maximum depth of each tree in the forest (default: unlimited)
+  * @param uncertaintyCalibration whether to empirically recalibrate the predicted uncertainties (default: false)
+  * @param randomizePivotLocation whether to generate splits randomly between the data points (default: false)
+  * @param randomlyRotateFeatures whether to randomly rotate real features for each tree in the forest (default: false)
+  */
 case class MultiTaskRandomForest(
     numTrees: Int = -1,
     useJackknife: Boolean = true,

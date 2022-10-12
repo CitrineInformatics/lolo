@@ -47,7 +47,7 @@ class RandomForestTest extends SeedRandomMixIn {
 
   /** Test that a random forest with multiple outputs produces a multitask bagger. */
   @Test
-  def testMultitaskForest(): Unit = {
+  def testMultiTaskForest(): Unit = {
     val (baseInputs, realLabels) =
       TestUtils.generateTrainingData(256, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng).unzip
     val binnedInputs = TestUtils.binTrainingInputs(baseInputs, bins = Seq((0, 8)))
