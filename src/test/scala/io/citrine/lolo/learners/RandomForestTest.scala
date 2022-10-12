@@ -117,15 +117,16 @@ class RandomForestTest extends SeedRandomMixIn {
 
     val numTrain = 50
     // Generate completely random training data
-    val (inputs, realLabel) = TestUtils
-      .generateTrainingData(rows = numTrain, cols = 12, noise = 5.0, function = _ => 0.0, rng = rng)
+    val (inputs, realLabel) = DataGenerator
+      .generate(rows = numTrain, cols = 12, noise = 5.0, function = _ => 0.0, rng = rng)
+      .data
       .unzip
     val catLabel = Vector.fill(numTrain)(rng.nextBoolean())
     val allLabels = Vector(realLabel, catLabel).transpose
 
     // Generate test points
     val numTest = 25
-    val testInputs = TestUtils.generateTrainingData(rows = numTest, cols = 12, function = _ => 0.0, rng = rng).map(_._1)
+    val testInputs = DataGenerator.generate(rows = numTest, cols = 12, function = _ => 0.0, rng = rng).data.map(_._1)
 
     val seed = 67852103L
     val rfRegressor = RandomForestRegressor(
@@ -212,12 +213,9 @@ class RandomForestTest extends SeedRandomMixIn {
   @Test
   def testRandomizedSplitLocations(): Unit = {
     // Generate a linear signal in one dimension: 2 * x
-    val trainingData: Seq[(Vector[Double], Double)] = TestUtils.generateTrainingData(
-      32,
-      1,
-      function = { x => x.head * 2.0 },
-      rng = rng
-    )
+    val trainingData: Seq[(Vector[Double], Double)] = DataGenerator
+      .generate(32, 1, function = { x => x.head * 2.0 }, rng = rng)
+      .data
 
     // Create a consistent set of parameters
     val baseForest = RandomForestRegressor(numTrees = 16384, useJackknife = false)
@@ -244,7 +242,7 @@ class RandomForestTest extends SeedRandomMixIn {
     */
   @Test
   def testWeightsWithSmallData(): Unit = {
-    val trainingData = TestUtils.generateTrainingData(8, 1, rng = rng)
+    val trainingData = DataGenerator.generate(8, 1, rng = rng).data
     // the number of trees is the number of times we generate weights
     // so this has the effect of creating lots of different sets of weights
     val learner = RandomForestRegressor(numTrees = 16384)

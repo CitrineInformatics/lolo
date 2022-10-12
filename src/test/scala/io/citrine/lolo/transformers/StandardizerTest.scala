@@ -1,6 +1,6 @@
 package io.citrine.lolo.transformers
 
-import io.citrine.lolo.{SeedRandomMixIn, TestUtils}
+import io.citrine.lolo.{DataGenerator, SeedRandomMixIn}
 import io.citrine.lolo.linear.{GuessTheMeanLearner, LinearRegressionLearner}
 import io.citrine.lolo.stats.functions.Friedman
 import io.citrine.lolo.stats.metrics.ClassificationMetrics
@@ -14,12 +14,12 @@ import org.junit.Test
 @Test
 class StandardizerTest extends SeedRandomMixIn {
 
-  val data: Vector[(Vector[Double], Double)] =
-    TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng)
+  val data: Seq[(Vector[Double], Double)] =
+    DataGenerator.generate(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng).data
   val weights: Vector[Double] = Vector.fill(data.size)(if (rng.nextBoolean()) rng.nextDouble() else 0.0)
 
   // Creating another dataset which has 1 feature that has 0 variance.
-  val dataWithConstant: Vector[(Vector[Double], Double)] = data.map(d => (0.0 +: d._1, d._2))
+  val dataWithConstant: Seq[(Vector[Double], Double)] = data.map(d => (0.0 +: d._1, d._2))
 
   @Test
   def testStandardMeanAndVariance(): Unit = {
@@ -160,10 +160,10 @@ class StandardizerTest extends SeedRandomMixIn {
 
   @Test
   def testStandardClassification(): Unit = {
-    val trainingData = TestUtils.binTrainingData(
-      TestUtils.generateTrainingData(2048, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng),
-      responseBins = Some(2)
-    )
+    val trainingData = DataGenerator
+      .generate(2048, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng)
+      .withBinnedLabels(bins = 2)
+      .data
 
     val learner = ClassificationTreeLearner()
     val model = learner.train(trainingData).getModel()

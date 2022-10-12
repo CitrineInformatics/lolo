@@ -1,6 +1,6 @@
 package io.citrine.lolo.validation
 
-import io.citrine.lolo.{SeedRandomMixIn, TestUtils}
+import io.citrine.lolo.{DataGenerator, SeedRandomMixIn, TestUtils}
 import io.citrine.lolo.learners.{RandomForest, RandomForestRegressor}
 import io.citrine.lolo.stats.functions.Friedman
 import org.junit.Test
@@ -10,8 +10,8 @@ class StatisticalValidationTest extends SeedRandomMixIn {
   @Test
   def testCompareToKFolds(): Unit = {
     val learner = RandomForestRegressor()
-    val dataSet = TestUtils.generateTrainingData(128, 8, Friedman.friedmanSilverman, rng = rng)
-    val dataGenerator = TestUtils.iterateTrainingData(8, Friedman.friedmanSilverman, rng = rng)
+    val dataSet = DataGenerator.generate(128, 8, Friedman.friedmanSilverman, rng = rng).data
+    val dataGenerator = DataGenerator.iterate(8, Friedman.friedmanSilverman, rng = rng)
 
     val metrics = Map("rmse" -> RootMeanSquareError)
     val (rmseFromCV, uncertaintyFromCV) =

@@ -1,6 +1,6 @@
 package io.citrine.lolo.trees.splits
 
-import io.citrine.lolo.{SeedRandomMixIn, TestUtils}
+import io.citrine.lolo.{DataGenerator, SeedRandomMixIn}
 import io.citrine.random.Random
 import org.junit.Test
 
@@ -54,7 +54,7 @@ class ExtraRandomRegressionSplitterTest extends SeedRandomMixIn {
     Seq(1, 5, 9).foreach { numFeatures =>
       // Arrange training input data as a regular grid, and then as a Gaussian-distributed sample.
       Seq(
-        TestUtils.enumerateGrid(Seq.fill(numFeatures)(baseGrid)),
+        DataGenerator.enumerateGrid(Seq.fill(numFeatures)(baseGrid)),
         Seq.fill(64)(Vector.fill(numFeatures)(rng.nextGaussian()))
       ).foreach { xTrain =>
         // Have ExtraRandomSplitter.getBestSplit choose a split from this number of randomly-chosen features.

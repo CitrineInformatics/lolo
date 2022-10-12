@@ -16,7 +16,7 @@ import scala.reflect.ClassTag
   * This may be useful for improving randomization in random forests,
   * especially when using random feature selection without bagging.
   */
-case class FeatureRotator[T: ClassTag](baseLearner: Learner[T]) extends Learner[T] {
+case class FeatureRotator[T](baseLearner: Learner[T]) extends Learner[T] {
 
   /**
     * Create linear transformations for continuous features and labels & pass data through to learner

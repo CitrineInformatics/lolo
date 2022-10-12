@@ -77,12 +77,12 @@ class PerformanceTest extends SeedRandomMixIn {
     val Ks = Seq(8, 16, 32)
     val Bs = Seq(1024, 2048, 4096)
     if (!quiet) println(f"${"Train"}%10s, ${"Apply"}%10s, ${"N"}%6s, ${"K"}%6s, ${"B"}%6s")
-    timeRegressor(regressionData, Ns.head, Ks.head, Bs.head)
-    val (bTrain, bApply) = Bs.map(b => timeRegressor(regressionData, Ns.head, Ks.head, b)).unzip
+    timeRegressor(regressionData.data, Ns.head, Ks.head, Bs.head)
+    val (bTrain, bApply) = Bs.map(b => timeRegressor(regressionData.data, Ns.head, Ks.head, b)).unzip
     val (kTrain, kApply) =
-      (bTrain.zip(bApply).take(1) ++ Ks.tail.map(k => timeRegressor(regressionData, Ns.head, k, Bs.head))).unzip
+      (bTrain.zip(bApply).take(1) ++ Ks.tail.map(k => timeRegressor(regressionData.data, Ns.head, k, Bs.head))).unzip
     val (nTrain, nApply) =
-      (bTrain.zip(bApply).take(1) ++ Ns.tail.map(n => timeRegressor(regressionData, n, Ks.head, Bs.head))).unzip
+      (bTrain.zip(bApply).take(1) ++ Ns.tail.map(n => timeRegressor(regressionData.data, n, Ks.head, Bs.head))).unzip
 
     val bTrainScale = (1 until bTrain.size).map(i => bTrain(i) / bTrain(i - 1))
     val nTrainScale = (1 until nTrain.size).map(i => nTrain(i) / nTrain(i - 1))
@@ -106,12 +106,12 @@ class PerformanceTest extends SeedRandomMixIn {
     * Test the absolute performance to check for overall regressions
     */
   def testAbsolute(): Unit = {
-    val (nominalTrain, nominalPredict) = timeClassifier(classificationData, 1024, 32, 1024)
+    val (nominalTrain, nominalPredict) = timeClassifier(classificationData.data, 1024, 32, 1024)
     println(nominalTrain, nominalPredict)
   }
 
   def testMultitaskOverhead(N: Int): (Double, Double) = {
-    val subset = regressionData.take(N)
+    val subset = regressionData.data.take(N)
     val (inputs, realLabels) = subset.unzip
     val catLabels = realLabels.map(_ > realLabels.sum / realLabels.size)
     val labels = Vector(realLabels, catLabels).transpose
@@ -127,7 +127,7 @@ class PerformanceTest extends SeedRandomMixIn {
 
     val trainMulti: Double = Stopwatch.time(
       {
-        MultiTaskBagger(MultiTaskTreeLearner()).train(inputs.zip(labels)).getLoss()
+        MultiTaskBagger(MultiTaskTreeLearner()).train(inputs.zip(labels), weights = None, rng = rng).getLoss()
       },
       minRun = 1,
       maxRun = 1
@@ -136,12 +136,8 @@ class PerformanceTest extends SeedRandomMixIn {
     (trainMulti, trainSingle)
   }
 
-  val regressionData: Vector[(Vector[Double], Double)] = TestUtils.generateTrainingData(2048, 37, rng = rng)
-  val classificationData: Seq[(Vector[Any], Any)] = {
-    val (baseLabels, baseResponses) = regressionData.unzip
-    val binnedResponses = TestUtils.binTrainingResponses(baseResponses, nBins = 8)
-    baseLabels.zip(binnedResponses)
-  }
+  val regressionData: DataGenerator.TrainingData[Double, Double] = DataGenerator.generate(2048, 37, rng = rng)
+  val classificationData: DataGenerator.TrainingData[Double, String] = regressionData.withBinnedLabels(bins = 8)
 }
 
 object PerformanceTest {

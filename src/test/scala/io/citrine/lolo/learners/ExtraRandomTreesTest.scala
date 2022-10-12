@@ -1,7 +1,7 @@
 package io.citrine.lolo.learners
 
 import breeze.stats.distributions.{Beta, RandBasis}
-import io.citrine.lolo.{SeedRandomMixIn, TestUtils}
+import io.citrine.lolo.{DataGenerator, SeedRandomMixIn, TestUtils}
 import io.citrine.lolo.stats.functions.Friedman
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
 import io.citrine.random.Random
@@ -16,10 +16,10 @@ class ExtraRandomTreesTest extends SeedRandomMixIn {
     */
   @Test
   def testRegression(): Unit = {
-    val (baseInputs, baseLabels) =
-      TestUtils.generateTrainingData(256, 5, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng).unzip
-    val binnedInputs = TestUtils.binTrainingInputs(baseInputs, bins = Seq((0, 8)))
-    val trainingData = binnedInputs.zip(baseLabels)
+    val trainingData = DataGenerator
+      .generate(256, 5, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng)
+      .withBinnedInputs(bins = Seq((0, 8)))
+      .data
 
     Seq(true, false).foreach { randomlyRotateFeatures =>
       val RFMeta = ExtraRandomTreesRegressor(randomlyRotateFeatures = randomlyRotateFeatures)
@@ -58,10 +58,10 @@ class ExtraRandomTreesTest extends SeedRandomMixIn {
     val nTest = nTrain
     val nBins = 8
 
-    val (baseInputs, baseLabels) =
-      TestUtils.generateTrainingData(nTrain, 5, noise = 0.0, function = Friedman.friedmanSilverman, rng = rng).unzip
-    val binnedLabels = TestUtils.binTrainingResponses(baseLabels, nBins)
-    val trainingData = baseInputs.zip(binnedLabels)
+    val trainingData = DataGenerator
+      .generate(nTrain, 5, noise = 0.0, function = Friedman.friedmanSilverman, rng = rng)
+      .withBinnedLabels(bins = nBins)
+      .data
 
     /* Generate small perturbations from the training data */
     val testData = trainingData
@@ -125,16 +125,16 @@ class ExtraRandomTreesTest extends SeedRandomMixIn {
         val nTrain = 64
         val nTest = 16
         val (mainTrainingData, testData) = {
-          val allData = TestUtils.binTrainingData(
-            TestUtils.generateTrainingData(
+          val allData = DataGenerator
+            .generate(
               nTrain + nTest,
               5,
               noise = 0.1,
               function = Friedman.friedmanSilverman,
               rng = rng
-            ),
-            responseBins = Some(2)
-          )
+            )
+            .withBinnedLabels(bins = 2)
+            .data
           (allData.take(nTrain), allData.takeRight(nTest))
         }
         val dupeLabel = "DUPE"
@@ -185,7 +185,7 @@ class ExtraRandomTreesTest extends SeedRandomMixIn {
     */
   @Test
   def testWeightsWithSmallData(): Unit = {
-    val trainingData = TestUtils.generateTrainingData(8, 1)
+    val trainingData = DataGenerator.generate(8, 1).data
     // the number of trees is the number of times we generate weights
     // so this has the effect of creating lots of different sets of weights
     val learner = ExtraRandomTreesRegressor(numTrees = 16384)
@@ -198,14 +198,13 @@ class ExtraRandomTreesTest extends SeedRandomMixIn {
   def testReproducibility(): Unit = {
     val numTrain = 50
     // Generate completely random training data
-    val (inputs: Seq[Vector[Double]], realLabel: Seq[Double]) = TestUtils
-      .generateTrainingData(rows = numTrain, cols = 12, noise = 5.0, function = _ => 0.0, rng = rng)
-      .unzip
+    val (inputs: Seq[Vector[Double]], realLabel: Seq[Double]) =
+      DataGenerator.generate(rows = numTrain, cols = 12, noise = 5.0, function = _ => 0.0, rng = rng).data.unzip
     val catLabel: Seq[Boolean] = Seq.fill(numTrain)(rng.nextBoolean())
 
     // Generate test points
     val numTest = 25
-    val testInputs = TestUtils.generateTrainingData(rows = numTest, cols = 12, function = _ => 0.0, rng = rng).map(_._1)
+    val testInputs = DataGenerator.generate(rows = numTest, cols = 12, function = _ => 0.0, rng = rng).data.map(_._1)
 
     val seed = 67852103L
     val extraRegressor = ExtraRandomTreesRegressor(

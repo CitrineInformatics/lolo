@@ -8,35 +8,35 @@ import io.citrine.random.Random
 object DataGenerator {
 
   /** Sequence of inputs and labels generated for training a learner. */
-  trait TrainingData[+T] { def data: Seq[(Vector[Any], T)] }
+  case class TrainingData[I, L](data: Seq[(Vector[I], L)])
 
-  case class ClassificationData(data: Seq[(Vector[Any], String)]) extends TrainingData[String]
-
-  case class RegressionData(data: Seq[(Vector[Any], Double)]) extends TrainingData[Double] {
-    def withBinnedInputs(bins: Seq[(Int, Int)]): RegressionData = {
-      val (baseInputs, baseLabels) = data.unzip
+  implicit class TrainingInputBinner[L](trainingData: TrainingData[Double, L]) {
+    def withBinnedInputs(bins: Seq[(Int, Int)]): TrainingData[Any, L] = {
+      val (baseInputs, baseLabels) = trainingData.data.unzip
       val indexToBins = bins.toMap
       val transposedInputs = baseInputs.transpose
       val binnedInputs = Vector
         .tabulate(transposedInputs.length) { index =>
-          val indexData = transposedInputs(index).asInstanceOf[Seq[Double]]
+          val indexData = transposedInputs(index)
           indexToBins
             .get(index)
             .map { nBins => binData(indexData, nBins) }
             .getOrElse(indexData)
         }
         .transpose
-      RegressionData(binnedInputs.zip(baseLabels))
-    }
-
-    def withBinnedLabels(bins: Int): ClassificationData = {
-      val (baseInputs, baseLabels) = data.unzip
-      val binnedLabels = binData(baseLabels, bins)
-      ClassificationData(baseInputs.zip(binnedLabels))
+      TrainingData(binnedInputs.zip(baseLabels))
     }
   }
 
-  private def binData(continuousData: Seq[Double], nBins: Int): Seq[String] = {
+  implicit class TrainingLabelBinner[I](trainingData: TrainingData[I, Double]) {
+    def withBinnedLabels(bins: Int): TrainingData[I, String] = {
+      val (baseInputs, baseLabels) = trainingData.data.unzip
+      val binnedLabels = binData(baseLabels, bins)
+      TrainingData(baseInputs.zip(binnedLabels))
+    }
+  }
+
+  def binData(continuousData: Seq[Double], nBins: Int): Seq[String] = {
     val min = continuousData.min
     val max = continuousData.max
     continuousData.map(x => math.round(x * nBins / (max - min)).toString)
@@ -50,12 +50,12 @@ object DataGenerator {
       xoff: Double = 0.0,
       noise: Double = 0.0,
       rng: Random = Random()
-  ): RegressionData = {
+  ): TrainingData[Double, Double] = {
     val data = Vector.fill(rows) {
       val input = Vector.fill(cols)(xscale * rng.nextDouble() + xoff)
       (input, function(input) + noise * rng.nextGaussian())
     }
-    RegressionData(data)
+    TrainingData(data)
   }
 
   def iterate(
@@ -69,6 +69,22 @@ object DataGenerator {
     Iterator.continually {
       val input = Vector.fill(cols)(xscale * rng.nextDouble() + xoff)
       (input, function(input) + noise * rng.nextGaussian())
+    }
+  }
+
+  /**
+    * Enumerate the cartesian product of items in baseGrids.
+    *
+    * @param baseGrids a sequence of 1-d mesh specifications, one for each dimension of the output vectors
+    * @return a sequence of vectors enumerating the cartesian product of items in baseGrids
+    */
+  def enumerateGrid(baseGrids: Seq[Seq[Double]]): Seq[Vector[Double]] = {
+    if (baseGrids.length == 1) {
+      baseGrids.head.map { x => Vector(x) }
+    } else {
+      baseGrids.head.flatMap { x =>
+        enumerateGrid(baseGrids.takeRight(baseGrids.length - 1)).map { n => x +: n }
+      }
     }
   }
 

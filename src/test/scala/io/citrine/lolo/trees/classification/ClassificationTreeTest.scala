@@ -1,6 +1,6 @@
 package io.citrine.lolo.trees.classification
 
-import io.citrine.lolo.{SeedRandomMixIn, TestUtils}
+import io.citrine.lolo.{DataGenerator, SeedRandomMixIn, TestUtils}
 import io.citrine.lolo.stats.functions.Friedman
 import org.junit.Test
 import org.scalatest.Assertions._
@@ -29,10 +29,11 @@ class ClassificationTreeTest extends SeedRandomMixIn {
 
   @Test
   def testBinary(): Unit = {
-    val trainingData = TestUtils.binTrainingData(
-      TestUtils.generateTrainingData(2048, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng),
-      responseBins = Some(2)
-    )
+    val trainingData = DataGenerator
+      .generate(2048, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng)
+      .withBinnedLabels(bins = 2)
+      .data
+
     val DTLearner = ClassificationTreeLearner()
     val DTMeta = DTLearner.train(trainingData)
     val DT = DTMeta.getModel()
@@ -56,11 +57,11 @@ class ClassificationTreeTest extends SeedRandomMixIn {
     */
   @Test
   def longerTest(): Unit = {
-    val trainingData = TestUtils.binTrainingData(
-      TestUtils
-        .generateTrainingData(1024, 12, noise = 0.05, function = Friedman.friedmanSilverman, rng = rng),
-      responseBins = Some(16)
-    )
+    val trainingData = DataGenerator
+      .generate(1024, 12, noise = 0.05, function = Friedman.friedmanSilverman, rng = rng)
+      .withBinnedLabels(bins = 16)
+      .data
+
     val DTLearner = ClassificationTreeLearner()
     val N = 100
     val start = System.nanoTime()
@@ -89,12 +90,12 @@ class ClassificationTreeTest extends SeedRandomMixIn {
     */
   @Test
   def testCategorical(): Unit = {
-    val trainingData = TestUtils.binTrainingData(
-      TestUtils
-        .generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng),
-      inputBins = Seq((0, 8)),
-      responseBins = Some(16)
-    )
+    val trainingData = DataGenerator
+      .generate(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng)
+      .withBinnedInputs(bins = Seq((0, 8)))
+      .withBinnedLabels(bins = 16)
+      .data
+
     val DTLearner = ClassificationTreeLearner()
     val N = 100
     val start = System.nanoTime()

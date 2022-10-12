@@ -35,7 +35,7 @@ trait MultiTaskLearner extends Learner[Vector[Any]] {
 
   override def train(
       trainingData: Seq[(Vector[Any], Vector[Any])],
-      weights: Option[Seq[Double]],
-      rng: Random
+      weights: Option[Seq[Double]] = None,
+      rng: Random = Random()
   ): MultiTaskTrainingResult
 }

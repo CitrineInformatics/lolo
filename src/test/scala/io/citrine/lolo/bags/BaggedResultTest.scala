@@ -1,7 +1,7 @@
 package io.citrine.lolo.bags
 
 import breeze.stats.distributions.{Beta, RandBasis}
-import io.citrine.lolo.{RegressionResult, SeedRandomMixIn, TestUtils}
+import io.citrine.lolo.{DataGenerator, RegressionResult, SeedRandomMixIn, TestUtils}
 import io.citrine.lolo.linear.GuessTheMeanLearner
 import io.citrine.lolo.stats.functions.Friedman
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
@@ -12,10 +12,10 @@ class BaggedResultTest extends SeedRandomMixIn {
 
   @Test
   def testSingleMultiConsistency(): Unit = {
-    val (baseInputs, baseLabels) =
-      TestUtils.generateTrainingData(512, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng).unzip
-    val binnedInputs = TestUtils.binTrainingInputs(baseInputs, bins = Seq((0, 8)))
-    val trainingData = binnedInputs.zip(baseLabels)
+    val trainingData = DataGenerator
+      .generate(512, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng)
+      .withBinnedInputs(bins = Seq((0, 8)))
+      .data
 
     val DTLearner = RegressionTreeLearner(numFeatures = 12)
     val biasLearner = RegressionTreeLearner(maxDepth = 5, leafLearner = Some(GuessTheMeanLearner()))
@@ -60,7 +60,7 @@ class BaggedResultTest extends SeedRandomMixIn {
 
             val sigmaObsAndSigmaMean: Seq[(Double, Double)] = (1 to 20).flatMap { _ =>
               val trainingDataTmp =
-                TestUtils.generateTrainingData(nRows, nCols, noise = 0.0, function = _ => 0.0, rng = rng)
+                DataGenerator.generate(nRows, nCols, noise = 0.0, function = _ => 0.0, rng = rng).data
               val trainingData = trainingDataTmp.map { x => (x._1, x._2 + noiseLevel * rng.nextDouble()) }
               val baggedLearner = Bagger(baseLearner, numBags = nBags, uncertaintyCalibration = true)
               val RFMeta = baggedLearner.train(trainingData, rng = rng)

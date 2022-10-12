@@ -2,7 +2,7 @@ package io.citrine.lolo.trees.regression
 
 import java.io.{File, FileOutputStream, ObjectOutputStream}
 import breeze.linalg.DenseMatrix
-import io.citrine.lolo.{SeedRandomMixIn, TestUtils}
+import io.citrine.lolo.{DataGenerator, SeedRandomMixIn, TestUtils}
 import io.citrine.lolo.linear.LinearRegressionLearner
 import io.citrine.lolo.stats.functions.Friedman
 import io.citrine.lolo.trees.splits.{BoltzmannSplitter, RegressionSplitter}
@@ -74,7 +74,7 @@ class RegressionTreeTest extends SeedRandomMixIn {
   @Test
   def longerTest(): Unit = {
     val trainingData =
-      TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng)
+      DataGenerator.generate(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng).data
     val DTLearner = RegressionTreeLearner()
     val N = 100
     val start = System.nanoTime()
@@ -108,12 +108,10 @@ class RegressionTreeTest extends SeedRandomMixIn {
     */
   @Test
   def testCategorical(): Unit = {
-    val trainingData = TestUtils
-      .binTrainingData(
-        TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng),
-        inputBins = Seq((0, 8))
-      )
-      .asInstanceOf[Seq[(Vector[Any], Double)]]
+    val trainingData = DataGenerator
+      .generate(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng)
+      .withBinnedInputs(bins = Seq((0, 8)))
+      .data
 
     val DTLearner = RegressionTreeLearner()
     val N = 100
@@ -148,7 +146,7 @@ class RegressionTreeTest extends SeedRandomMixIn {
   @Test
   def testLinearLeaves(): Unit = {
     val trainingData =
-      TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng)
+      DataGenerator.generate(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng).data
 
     val linearLearner = LinearRegressionLearner(regParam = Some(0.0))
     val DTLearner = RegressionTreeLearner(leafLearner = Some(linearLearner), minLeafInstances = 2)
@@ -180,12 +178,10 @@ class RegressionTreeTest extends SeedRandomMixIn {
     */
   @Test
   def testStumpWithLinearLeaf(): Unit = {
-    val trainingData = TestUtils
-      .binTrainingData(
-        TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng),
-        inputBins = Seq((11, 8))
-      )
-      .asInstanceOf[Seq[(Vector[Any], Double)]]
+    val trainingData = DataGenerator
+      .generate(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng)
+      .withBinnedInputs(bins = Seq((11, 8)))
+      .data
 
     val linearLearner = LinearRegressionLearner(regParam = Some(1.0))
     val DTLearner = RegressionTreeLearner(leafLearner = Some(linearLearner), maxDepth = 0)
@@ -216,7 +212,7 @@ class RegressionTreeTest extends SeedRandomMixIn {
   @Test
   def testWeights(): Unit = {
     val trainingData =
-      TestUtils.generateTrainingData(32, 12, noise = 100.0, function = Friedman.friedmanSilverman, rng = rng)
+      DataGenerator.generate(32, 12, noise = 100.0, function = Friedman.friedmanSilverman, rng = rng).data
 
     val linearLearner = LinearRegressionLearner(regParam = Some(1.0))
     val DTLearner = RegressionTreeLearner(leafLearner = Some(linearLearner), maxDepth = 1)
