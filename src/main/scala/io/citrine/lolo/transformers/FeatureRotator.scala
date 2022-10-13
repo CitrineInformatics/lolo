@@ -8,8 +8,6 @@ import breeze.numerics.signum
 import breeze.stats.distributions.Gaussian
 import io.citrine.lolo.stats.StatsUtils.breezeRandBasis
 
-import scala.reflect.ClassTag
-
 /**
   * Rotate the training data before passing along to a base learner
   *
