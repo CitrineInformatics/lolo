@@ -235,6 +235,7 @@ class TestRF(TestCase):
 class TestExtraRandomTrees(TestCase):
 
     def test_extra_random_trees_regressor(self):
+        # Setting disable_bootstrap=False allows us to generate uncertainty estimates from the bagged ensemble
         rf = ExtraRandomTreesRegressor(disable_bootstrap=False)
 
         # Train the model
@@ -268,6 +269,7 @@ class TestExtraRandomTrees(TestCase):
         self.assertAlmostEqual(1.0, np.sum(rf.feature_importances_))
 
         # Run predictions with std dev
+        # Requires disable_bootstrap=False on the learner to generate std dev alongside predictions
         y_pred, y_std = rf.predict(X, return_std=True)
         self.assertEqual(len(y_pred), len(y_std))
         self.assertTrue((y_std >= 0).all())  # They must be positive
