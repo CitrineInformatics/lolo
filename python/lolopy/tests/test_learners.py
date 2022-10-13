@@ -292,7 +292,7 @@ class TestExtraRandomTrees(TestCase):
         self.assertTrue((pred1 == pred2).all())
 
     def test_extra_random_trees_classifier(self):
-        rf = ExtraRandomTreesClassifier(disable_bootstrap=True)
+        rf = ExtraRandomTreesClassifier()
 
         # Load in the iris dataset
         X, y = load_iris(return_X_y=True)
