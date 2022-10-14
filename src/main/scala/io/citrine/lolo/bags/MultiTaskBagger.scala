@@ -251,6 +251,8 @@ class MultiTaskBaggedModel(
     rescaleRatios: Seq[Option[Double]]
 ) extends MultiTaskModel {
 
+  override val numLabels: Int = models.head.numLabels
+
   lazy val groupedModels: Vector[BaggedModel[Any]] = Vector.tabulate(numLabels) { i =>
     val thisLabelsModels = models.map(_.getModels(i))
     if (getRealLabels(i)) {
@@ -267,8 +269,6 @@ class MultiTaskBaggedModel(
 
   override def transform(inputs: Seq[Vector[Any]]): MultiTaskBaggedResult =
     MultiTaskBaggedResult(groupedModels.map(_.transform(inputs)), getRealLabels, Nib)
-
-  override val numLabels: Int = models.head.numLabels
 
   override def getRealLabels: Seq[Boolean] = models.head.getRealLabels
 
