@@ -1,7 +1,7 @@
 package io.citrine.lolo.bags
 
 import io.citrine.lolo.stats.{MathUtils, StatsUtils}
-import io.citrine.lolo.{Model, RegressionResult}
+import io.citrine.lolo.Model
 
 import scala.collection.parallel.immutable.ParSeq
 
@@ -35,11 +35,7 @@ protected[bags] case class BaggerHelper(
       val model = new BaggedRegressionModel(oobModels, Nib.filter { _(idx) == 0 })
       val predicted = model.transform(Seq(trainingData(idx)._1))
       val error = predicted.getExpected().head - trainingData(idx)._2
-      val uncertainty = predicted match {
-        case x: RegressionResult => x.getStdDevObs().get.head
-        case _: Any =>
-          throw new UnsupportedOperationException("Computing oobErrors for classification is not supported.")
-      }
+      val uncertainty = predicted.getStdDevObs().get.head
       Some(trainingData(idx)._1, error, uncertainty)
     }
   }

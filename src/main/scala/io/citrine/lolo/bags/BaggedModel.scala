@@ -37,7 +37,7 @@ class BaggedRegressionModel(
     biasModel: Option[Model[Double]] = None
 ) extends BaggedModel[Double] {
 
-  override def transform(inputs: Seq[Vector[Any]]): BaggedResult[Double] = {
+  override def transform(inputs: Seq[Vector[Any]]): BaggedRegressionResult = {
     assert(inputs.forall(_.size == inputs.head.size))
 
     val bias = biasModel.map(_.transform(inputs).getExpected())
@@ -64,11 +64,7 @@ class BaggedRegressionModel(
   }
 }
 
-class BaggedClassificationModel(
-    val models: ParSeq[Model[Any]],
-    Nib: Vector[Vector[Int]],
-    disableBootstrap: Boolean = false
-) extends BaggedModel[Any] {
+class BaggedClassificationModel(val models: ParSeq[Model[Any]], Nib: Vector[Vector[Int]]) extends BaggedModel[Any] {
 
   override def transform(inputs: Seq[Vector[Any]]): BaggedClassificationResult = {
     assert(inputs.forall(_.size == inputs.head.size))

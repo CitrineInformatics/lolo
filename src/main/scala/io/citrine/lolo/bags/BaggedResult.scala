@@ -40,6 +40,9 @@ trait BaggedResult[+T] extends PredictionResult[T] {
   }
 }
 
+/** Interface for [[BaggedResult]]s for regression tasks with task-specific methods. */
+sealed trait BaggedRegressionResult extends BaggedResult[Double] with RegressionResult
+
 /**
   * Container with model-wise predictions at a single input point.
   *
@@ -56,8 +59,7 @@ case class SinglePredictionBaggedResult(
     bias: Option[Double] = None,
     rescaleRatio: Double = 1.0,
     disableBootstrap: Boolean = false
-) extends BaggedResult[Double]
-    with RegressionResult {
+) extends BaggedRegressionResult {
 
   override def numPredictions: Int = 1
 
@@ -178,8 +180,7 @@ case class MultiPredictionBaggedResult(
     bias: Option[Seq[Double]] = None,
     rescaleRatio: Double = 1.0,
     disableBootstrap: Boolean = false
-) extends BaggedResult[Double]
-    with RegressionResult {
+) extends BaggedRegressionResult {
 
   override def getExpected(): Seq[Double] = expected.zip(biasCorrection).map(x => x._1 + x._2)
 

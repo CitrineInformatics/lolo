@@ -5,8 +5,8 @@ import io.citrine.lolo.{Model, TrainingResult}
 
 import scala.collection.parallel.immutable.ParSeq
 
-/** The result of training a [[Bagger]] which produces a [[BaggedModel]]. */
-trait BaggedTrainingResult[+T] extends TrainingResult[T] {
+/** The result of training a [[Bagger]] to produce a [[BaggedModel]]. */
+sealed trait BaggedTrainingResult[+T] extends TrainingResult[T] {
 
   override def getModel(): BaggedModel[T]
 }

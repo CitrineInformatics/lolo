@@ -2,7 +2,6 @@ package io.citrine.lolo.learners
 
 import io.citrine.random.Random
 import io.citrine.lolo.bags.{ClassificationBagger, RegressionBagger}
-import io.citrine.lolo.transformers.FeatureRotator
 import io.citrine.lolo.transformers.rotation.FeatureRotator
 import io.citrine.lolo.trees.classification.ClassificationTreeLearner
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
