@@ -2,9 +2,9 @@ package io.citrine.lolo.bags
 
 import breeze.linalg.DenseMatrix
 import breeze.stats.distributions.Poisson
+import io.citrine.lolo.stats.StatsUtils
 import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
-import io.citrine.lolo.stats.StatsUtils.breezeRandBasis
-import io.citrine.lolo.stats.metrics.RegressionMetrics
+import io.citrine.lolo.stats.metrics.ClassificationMetrics
 import io.citrine.random.Random
 
 import scala.collection.parallel.CollectionConverters._
@@ -63,7 +63,7 @@ case class ClassificationBagger(
     )
 
     /* Compute the number of instances of each training row in each training sample */
-    val randBasis = breezeRandBasis(rng)
+    val randBasis = StatsUtils.breezeRandBasis(rng)
     val dist = new Poisson(1.0)(randBasis)
     val Nib: Vector[Vector[Int]] = if (disableBootstrap) {
       Vector.fill[Vector[Int]](actualBags)(Vector.fill[Int](trainingData.size)(1))
@@ -112,7 +112,6 @@ case class ClassificationBagger(
       Nib = Nib,
       trainingData = trainingData,
       featureImportance = averageImportance,
-      useJackknife = useJackknife,
       disableBootstrap = disableBootstrap
     )
   }
@@ -123,13 +122,12 @@ class ClassificationBaggerTrainingResult(
     Nib: Vector[Vector[Int]],
     trainingData: Seq[(Vector[Any], Any)],
     featureImportance: Option[Vector[Double]],
-    useJackknife: Boolean,
     disableBootstrap: Boolean = false
 ) extends TrainingResult[Any] {
 
   lazy val NibT: Seq[Vector[Int]] = Nib.transpose
-  lazy val model = new BaggedClassificationModel(models, Nib, useJackknife, biasModel, rescale, disableBootstrap)
-  lazy val predictedVsActual: Seq[(Vector[Any], Double, Double)] = trainingData.zip(NibT).flatMap {
+  lazy val model = new BaggedClassificationModel(models, Nib, disableBootstrap)
+  lazy val predictedVsActual: Seq[(Vector[Any], Any, Any)] = trainingData.zip(NibT).flatMap {
     case ((f, l), nb) =>
       val oob = if (disableBootstrap) {
         models.zip(nb)
@@ -137,21 +135,21 @@ class ClassificationBaggerTrainingResult(
         models.zip(nb).filter(_._2 == 0)
       }
 
-      if (oob.isEmpty || (l.isInstanceOf[Double] && l.isNaN)) {
-        Seq.empty
+      if (oob.isEmpty || l == null) {
+        Seq()
       } else {
-        val predicted = oob.map(_._1.transform(Seq(f)).getExpected().head).sum / oob.size
+        val predicted = oob.map(_._1.transform(Seq(f)).getExpected().head).groupBy(identity).maxBy(_._2.size)._1
         Seq((f, predicted, l))
       }
   }
 
-  lazy val loss: Double = RegressionMetrics.RMSE(predictedVsActual)
+  lazy val loss: Double = ClassificationMetrics.loss(predictedVsActual)
 
   override def getFeatureImportance(): Option[Vector[Double]] = featureImportance
 
-  override def getModel(): BaggedRegressionModel = model
+  override def getModel(): BaggedClassificationModel = model
 
-  override def getPredictedVsActual(): Option[Seq[(Vector[Any], Double, Double)]] = Some(predictedVsActual)
+  override def getPredictedVsActual(): Option[Seq[(Vector[Any], Any, Any)]] = Some(predictedVsActual)
 
   override def getLoss(): Option[Double] = {
     if (predictedVsActual.nonEmpty) {
@@ -169,13 +167,12 @@ class ClassificationBaggerTrainingResult(
   * @param Nib    training sample counts
   */
 class BaggedClassificationModel(
-    models: ParSeq[Model[Any]],
+    val models: ParSeq[Model[Any]],
     Nib: Vector[Vector[Int]],
-    useJackknife: Boolean,
     disableBootstrap: Boolean = false
-) extends Model[Any] {
+) extends BaggedModel[Any] {
 
-  override def transform(inputs: Seq[Vector[Any]]): BaggedResult[T] = {
+  override def transform(inputs: Seq[Vector[Any]]): BaggedClassificationResult = {
     assert(inputs.forall(_.size == inputs.head.size))
     val ensemblePredictions = models.map(model => model.transform(inputs)).seq
     BaggedClassificationResult(ensemblePredictions)
@@ -205,25 +202,17 @@ class BaggedClassificationModel(
       Some(scale * ensembleShapley.reduce(sumReducer).get)
     }
   }
-
-  // Accessor useful for testing.
-  private[bags] def models(): ParSeq[Model[T]] = models
 }
 
-case class BaggedClassificationResult[T](predictions: Seq[PredictionResult[T]]) extends BaggedResult[T] {
-  lazy val expectedMatrix: Seq[Seq[T]] = predictions.map(p => p.getExpected()).transpose
-  lazy val expected: Seq[T] = expectedMatrix.map(ps => ps.groupBy(identity).maxBy(_._2.size)._1)
-  lazy val uncertainty: Seq[Map[T, Double]] =
+case class BaggedClassificationResult(predictions: Seq[PredictionResult[Any]]) extends BaggedResult[Any] {
+  lazy val expectedMatrix: Seq[Seq[Any]] = predictions.map(p => p.getExpected()).transpose
+  lazy val expected: Seq[Any] = expectedMatrix.map(ps => ps.groupBy(identity).maxBy(_._2.size)._1)
+  lazy val uncertainty: Seq[Map[Any, Double]] =
     expectedMatrix.map(ps => ps.groupBy(identity).view.mapValues(_.size.toDouble / ps.size).toMap)
 
   override def numPredictions: Int = expectedMatrix.length
 
-  /**
-    * Return the majority vote vote
-    *
-    * @return expected value of each prediction
-    */
-  override def getExpected(): Seq[T] = expected
+  override def getExpected(): Seq[Any] = expected
 
-  override def getUncertainty(includeNoise: Boolean = true): Option[Seq[Map[T, Double]]] = Some(uncertainty)
+  override def getUncertainty(includeNoise: Boolean = true): Option[Seq[Map[Any, Double]]] = Some(uncertainty)
 }

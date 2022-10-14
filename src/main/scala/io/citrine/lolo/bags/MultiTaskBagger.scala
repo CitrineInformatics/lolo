@@ -16,7 +16,7 @@ import io.citrine.random.Random
 import io.citrine.lolo.stats.metrics.{ClassificationMetrics, RegressionMetrics}
 
 import scala.collection.parallel.immutable.ParSeq
-import scala.collection.parallel.CollectionConverters.IterableIsParallelizable
+import scala.collection.parallel.CollectionConverters._
 
 /**
   * Create an ensemble of multi-task models.
@@ -91,40 +91,38 @@ case class MultiTaskBagger(
         .unzip
 
     val averageImportance: Option[Vector[Double]] = importances
-      .reduce(combineImportance)
+      .reduce(Bagger.combineImportance)
       .map(_.map(_ / importances.size))
 
     // Get bias model and rescale ratio for each label
-    val (biasModels, ratios) = Seq
+    val (biasModels, rescaleRatios) = Seq
       .tabulate(numOutputs) { i =>
-        val thisLabelModels: ParSeq[Model[Any]] = models.map(_.getModels(i))
         val isRegression = models.head.getRealLabels(i)
-        val thisTrainingData = trainingData.map { case (inputs, outputs) => (inputs, outputs(i)) }
-        val helper = BaggerHelper(thisLabelModels, thisTrainingData, Nib, useJackknife, uncertaintyCalibration)
-        val biasModel = if (biasLearner.isDefined && isRegression) {
-          Some(biasLearner.get.train(helper.biasTraining, rng = rng).getModel())
-        } else None
-        (biasModel, helper.rescaleRatio)
+        if (isRegression) {
+          val thisLabelModels = models.map(_.getModels(i).asInstanceOf[Model[Double]])
+          val thisTrainingData = trainingData.map {
+            case (inputs, outputs) => (inputs, outputs(i).asInstanceOf[Double])
+          }
+          val helper = BaggerHelper(thisLabelModels, thisTrainingData, Nib, useJackknife, uncertaintyCalibration)
+          val biasModel = biasLearner.collect {
+            case learner if helper.oobErrors.nonEmpty =>
+              learner.train(helper.biasTraining, rng = rng).getModel()
+          }
+          (biasModel, Some(helper.rescaleRatio))
+        } else {
+          (None, None)
+        }
       }
       .unzip
 
     new MultiTaskBaggedTrainingResult(
       models = models,
-      featureImportance = averageImportance,
       Nib = Nib,
+      featureImportance = averageImportance,
       trainingData = trainingData,
-      useJackknife = useJackknife,
       biasModels = biasModels,
-      rescaleRatios = ratios
+      rescaleRatios = rescaleRatios
     )
-  }
-
-  /** Combine two optional feature importance vectors. */
-  def combineImportance(v1: Option[Vector[Double]], v2: Option[Vector[Double]]): Option[Vector[Double]] = {
-    (v1, v2) match {
-      case (Some(v1: Vector[Double]), Some(v2: Vector[Double])) => Some(v1.zip(v2).map(p => p._1 + p._2))
-      case _                                                    => None
-    }
   }
 
   /** Flag NaNs and nulls. */
@@ -140,25 +138,23 @@ case class MultiTaskBagger(
 /**
   * The result of training a bagger on a multi-label combined model.
   *
-  * @param models             sequence of multi-models, one for each bag
-  * @param featureImportance  importance of input features
-  * @param Nib                matrix representing number of times each training datum appears in each bag
-  * @param trainingData       multi-label training data
-  * @param useJackknife       whether to enable jackknife uncertainty estimate
-  * @param biasModels         sequence of optional bias-correction models, one for each label
-  * @param rescaleRatios      sequence of uncertainty calibration ratios for each label
+  * @param models            sequence of multi-models, one for each bag
+  * @param featureImportance importance of input features
+  * @param Nib               matrix representing number of times each training datum appears in each bag
+  * @param trainingData      multi-label training data
+  * @param biasModels        sequence of optional bias-correction models, one for each label
+  * @param rescaleRatios     sequence of uncertainty calibration ratios for each label
   */
 class MultiTaskBaggedTrainingResult(
     models: ParSeq[MultiTaskModel],
-    featureImportance: Option[Vector[Double]],
     Nib: Vector[Vector[Int]],
     trainingData: Seq[(Vector[Any], Vector[Any])],
-    useJackknife: Boolean,
+    featureImportance: Option[Vector[Double]],
     biasModels: Seq[Option[Model[Double]]],
-    rescaleRatios: Seq[Double]
+    rescaleRatios: Seq[Option[Double]]
 ) extends MultiTaskTrainingResult {
 
-  lazy val model = new MultiTaskBaggedModel(models, Nib, useJackknife, biasModels, rescaleRatios)
+  lazy val model = new MultiTaskBaggedModel(models, Nib, biasModels, rescaleRatios)
 
   // Each entry is a tuple, (feature vector, seq of predicted labels, seq of actual labels).
   // The labels are of type Option[Any] because a given training datum might not have a value for every single label.
@@ -220,21 +216,14 @@ class MultiTaskBaggedTrainingResult(
       case (isReal: Boolean, i: Int) =>
         val thisLabelModels = models.map(_.getModels(i))
         if (isReal) {
-          new BaggedModel[Double](
+          new BaggedRegressionModel(
             thisLabelModels.asInstanceOf[ParSeq[Model[Double]]],
-            Nib,
-            useJackknife,
-            biasModels(i),
-            rescaleRatios(i)
+            Nib = Nib,
+            rescale = rescaleRatios(i).get,
+            biasModel = biasModels(i)
           )
         } else {
-          new BaggedModel[Any](
-            thisLabelModels,
-            Nib,
-            useJackknife,
-            biasModels(i),
-            rescaleRatios(i)
-          )
+          new BaggedClassificationModel(thisLabelModels, Nib)
         }
     }
   }
@@ -252,30 +241,27 @@ class MultiTaskBaggedTrainingResult(
   *
   * @param models       sequence of multi-models, one for each bag
   * @param Nib          matrix representing number of times each training datum appears in each bag
-  * @param useJackknife whether to enable jackknife uncertainty estimate
   * @param biasModels   sequence of optional bias-correction models, one for each label
   * @param rescaleRatios  sequence of uncertainty calibration ratios for each label
   */
 class MultiTaskBaggedModel(
     models: ParSeq[MultiTaskModel],
     Nib: Vector[Vector[Int]],
-    useJackknife: Boolean,
     biasModels: Seq[Option[Model[Double]]],
-    rescaleRatios: Seq[Double]
+    rescaleRatios: Seq[Option[Double]]
 ) extends MultiTaskModel {
 
   lazy val groupedModels: Vector[BaggedModel[Any]] = Vector.tabulate(numLabels) { i =>
     val thisLabelsModels = models.map(_.getModels(i))
     if (getRealLabels(i)) {
-      new BaggedModel[Double](
+      new BaggedRegressionModel(
         thisLabelsModels.asInstanceOf[ParSeq[Model[Double]]],
-        Nib,
-        useJackknife,
-        biasModels(i),
-        rescaleRatios(i)
+        Nib = Nib,
+        rescale = rescaleRatios(i).get,
+        biasModel = biasModels(i)
       )
     } else {
-      new BaggedModel(thisLabelsModels, Nib, useJackknife, biasModels(i), rescaleRatios(i))
+      new BaggedClassificationModel(thisLabelsModels, Nib)
     }
   }
 
@@ -300,7 +286,7 @@ case class MultiTaskBaggedResult(
     baggedPredictions: Vector[BaggedResult[Any]],
     realLabels: Seq[Boolean],
     NibIn: Vector[Vector[Int]]
-) extends BaggedResult[Seq[Any]]
+) extends BaggedResult[Vector[Any]]
     with MultiTaskModelPredictionResult {
 
   /* transpose to be (# training) x (# models) */
@@ -310,7 +296,7 @@ case class MultiTaskBaggedResult(
 
   override def getExpected(): Seq[Vector[Any]] = baggedPredictions.map(_.getExpected()).transpose
 
-  override def predictions: Seq[PredictionResult[Seq[Any]]] =
+  override def predictions: Seq[PredictionResult[Vector[Any]]] =
     baggedPredictions
       .map(_.predictions.map(_.getExpected()))
       .transpose
@@ -339,7 +325,10 @@ case class MultiTaskBaggedResult(
     }
   }
 
-  /** The uncertainty correlation of the observational distribution is the correlation coefficient calculated over the bootstrap ensemble predictions. */
+  /**
+    * The uncertainty correlation of the observational distribution is the correlation coefficient
+    * calculated over the bootstrap ensemble predictions.
+    */
   private def uncertaintyCorrelationObservational(i: Int, j: Int): Seq[Double] = {
     // make (# predictions) x (# bags) prediction matrices for each label
     val baggedPredictionsI =

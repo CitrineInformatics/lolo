@@ -132,7 +132,6 @@ case class RegressionBagger(
       featureImportance = averageImportance,
       biasModel = biasModel,
       rescale = helper.rescaleRatio,
-      useJackknife = useJackknife,
       disableBootstrap = disableBootstrap
     )
   }
@@ -145,7 +144,6 @@ class RegressionBaggerTrainingResult(
     featureImportance: Option[Vector[Double]],
     biasModel: Option[Model[Double]] = None,
     rescale: Double = 1.0,
-    useJackknife: Boolean,
     disableBootstrap: Boolean = false
 ) extends TrainingResult[Double] {
 
@@ -191,12 +189,12 @@ class RegressionBaggerTrainingResult(
   * @param Nib    training sample counts
   */
 class BaggedRegressionModel(
-    models: ParSeq[Model[Double]],
+    val models: ParSeq[Model[Double]],
     Nib: Vector[Vector[Int]],
     rescale: Double = 1.0,
     disableBootstrap: Boolean = false,
     biasModel: Option[Model[Double]] = None
-) extends Model[Double] {
+) extends BaggedModel[Double] {
 
   override def transform(inputs: Seq[Vector[Any]]): BaggedResult[Double] = {
     assert(inputs.forall(_.size == inputs.head.size))
@@ -248,9 +246,6 @@ class BaggedRegressionModel(
       Some(scale * ensembleShapley.reduce(sumReducer).get)
     }
   }
-
-  // Accessor useful for testing.
-  private[bags] def models(): ParSeq[Model[Double]] = models
 }
 
 /**
@@ -267,7 +262,7 @@ case class SinglePredictionBaggedResult(
     predictions: Seq[PredictionResult[Double]],
     NibIn: Vector[Vector[Int]],
     bias: Option[Double] = None,
-    rescale: Double = 1.0,
+    rescaleRatio: Double = 1.0,
     disableBootstrap: Boolean = false
 ) extends BaggedResult[Double]
     with RegressionResult {
@@ -280,7 +275,7 @@ case class SinglePredictionBaggedResult(
     if (disableBootstrap) {
       // If bootstrap is disabled, rescale is unity and treeVariance is our only option for UQ.
       // Since it's not recalibrated, it's best considered to be a confidence interval of the underlying weak learner.
-      assert(rescale == 1.0)
+      assert(rescaleRatio == 1.0)
       Some(Seq(Math.sqrt(treeVariance)))
     } else {
       Some(Seq(stdDevMean))
@@ -324,7 +319,7 @@ case class SinglePredictionBaggedResult(
   private lazy val stdDevMean: Double = Math.sqrt(BaggedResult.rectifyEstimatedVariance(singleScores))
 
   private lazy val stdDevObs: Double = {
-    rescale * Math.sqrt(treeVariance)
+    rescaleRatio * Math.sqrt(treeVariance)
   } ensuring (_ >= 0.0)
 
   private lazy val singleScores: Vector[Double] = {
@@ -389,7 +384,7 @@ case class MultiPredictionBaggedResult(
     predictions: Seq[PredictionResult[Double]],
     NibIn: Vector[Vector[Int]],
     bias: Option[Seq[Double]] = None,
-    rescale: Double = 1.0,
+    rescaleRatio: Double = 1.0,
     disableBootstrap: Boolean = false
 ) extends BaggedResult[Double]
     with RegressionResult {
@@ -408,7 +403,7 @@ case class MultiPredictionBaggedResult(
     if (disableBootstrap) {
       // If bootstrap is disabled, rescale is unity and treeVariance is our only option for UQ.
       // Since it's not recalibrated, it's best considered to be a confidence interval of the underlying weak learner.
-      assert(rescale == 1.0)
+      assert(rescaleRatio == 1.0)
       Some(varObs.map { v => Math.sqrt(v) })
     } else {
       Some(stdDevMean)
@@ -469,7 +464,7 @@ case class MultiPredictionBaggedResult(
   lazy val varObs: Seq[Double] = expectedMatrix.zip(expected).map {
     case (b, y) =>
       assert(Nib.size > 1, "Bootstrap variance undefined for fewer than 2 bootstrap samples.")
-      b.map { x => rescale * rescale * Math.pow(x - y, 2.0) }.sum / (b.size - 1)
+      b.map { x => rescaleRatio * rescaleRatio * Math.pow(x - y, 2.0) }.sum / (b.size - 1)
   }
 
   /* Compute the scores one prediction at a time */

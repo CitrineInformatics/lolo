@@ -6,7 +6,7 @@ import io.citrine.lolo.{Model, RegressionResult}
 import scala.collection.parallel.immutable.ParSeq
 
 /**
-  * Helper class to subsume shared functionality of Bagger and MultiTaskBagger.
+  * Helper class to subsume shared functionality of RegressionBagger and MultiTaskBagger.
   *
   * @param models collection of trained models
   * @param trainingData on which models were trained
@@ -14,7 +14,7 @@ import scala.collection.parallel.immutable.ParSeq
   * @param useJackknife whether to use jackknife for uncertainty quantification
   * @param uncertaintyCalibration whether to apply empirical uncertainty calibration
   */
-protected case class BaggerHelper(
+protected[bags] case class BaggerHelper(
     models: ParSeq[Model[Double]],
     trainingData: Seq[(Vector[Any], Double)],
     Nib: Vector[Vector[Int]],
@@ -64,7 +64,7 @@ protected case class BaggerHelper(
   }
 }
 
-object BaggerHelper {
+protected[bags] object BaggerHelper {
 
   /**
     * Calculate the uncertainty calibration ratio, which is the 68th percentile of error/uncertainty for the training points.
