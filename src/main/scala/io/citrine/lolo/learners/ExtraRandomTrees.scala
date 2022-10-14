@@ -1,8 +1,9 @@
 package io.citrine.lolo.learners
 
 import io.citrine.random.Random
-import io.citrine.lolo.bags.Bagger
+import io.citrine.lolo.bags.{ClassificationBagger, RegressionBagger}
 import io.citrine.lolo.transformers.FeatureRotator
+import io.citrine.lolo.transformers.rotation.FeatureRotator
 import io.citrine.lolo.trees.classification.ClassificationTreeLearner
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
 import io.citrine.lolo.trees.splits.{ExtraRandomClassificationSplitter, ExtraRandomRegressionSplitter}
@@ -53,7 +54,7 @@ case class ExtraRandomTreesRegressor(
       maxDepth = maxDepth,
       splitter = ExtraRandomRegressionSplitter()
     )
-    val bagger = Bagger(
+    val bagger = RegressionBagger(
       if (randomlyRotateFeatures) FeatureRotator(DTLearner) else DTLearner,
       numBags = numTrees,
       useJackknife = useJackknife,
@@ -106,12 +107,11 @@ case class ExtraRandomTreesClassifier(
       maxDepth = maxDepth,
       splitter = ExtraRandomClassificationSplitter()
     )
-    val bagger = Bagger(
+    val bagger = ClassificationBagger(
       if (randomlyRotateFeatures) FeatureRotator(DTLearner) else DTLearner,
       numBags = numTrees,
       useJackknife = useJackknife,
-      disableBootstrap = disableBootstrap,
-      uncertaintyCalibration = false
+      disableBootstrap = disableBootstrap
     )
     bagger.train(trainingData, weights, rng)
   }

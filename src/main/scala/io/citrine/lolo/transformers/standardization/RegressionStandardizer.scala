@@ -41,7 +41,7 @@ case class RegressionStandardizer(baseLearner: Learner[Double]) extends Learner[
 case class RegressionStandardizerTrainingResult(
     baseTrainingResult: TrainingResult[Double],
     outputTrans: Standardization,
-    inputTrans: Seq[Option[Standardization]]
+    inputTrans: Map[Int, Standardization]
 ) extends TrainingResult[Double] {
 
   override def getModel(): RegressionStandardizerModel =
@@ -62,7 +62,7 @@ case class RegressionStandardizerTrainingResult(
 case class RegressionStandardizerModel(
     baseModel: Model[Double],
     outputTrans: Standardization,
-    inputTrans: Seq[Option[Standardization]]
+    inputTrans: Map[Int, Standardization]
 ) extends Model[Double] {
 
   override def transform(inputs: Seq[Vector[Any]]): RegressionStandardizerPrediction = {
@@ -74,7 +74,7 @@ case class RegressionStandardizerModel(
 case class RegressionStandardizerPrediction(
     baseResult: PredictionResult[Double],
     outputTrans: Standardization,
-    inputTrans: Seq[Option[Standardization]]
+    inputTrans: Map[Int, Standardization]
 ) extends PredictionResult[Double] {
 
   override def getExpected(): Seq[Double] = baseResult.getExpected().map(outputTrans.invert)
@@ -90,11 +90,13 @@ case class RegressionStandardizerPrediction(
   override def getGradient(): Option[Seq[Vector[Double]]] = {
     baseResult.getGradient().map { gradients =>
       gradients.map { g =>
-        g.zip(inputTrans).map {
-          // If there was a (linear) transformer used on that input, take the slope "m" and rescale by it
-          case (y, Some(inputStandardization)) => y * outputTrans.scale / inputStandardization.scale
-          // Otherwise, just rescale by the output transformer
-          case (y, None) => y * outputTrans.scale
+        g.zipWithIndex.map {
+          case (y, idx) =>
+            // If there was a (linear) transformer used on that input, take the slope "m" and rescale by it
+            // Otherwise, just rescale by the output transformer
+            val inputScale = inputTrans.get(idx).map(_.scale).getOrElse(1.0)
+            val outputScale = outputTrans.scale
+            y * outputScale / inputScale
         }
       }
     }

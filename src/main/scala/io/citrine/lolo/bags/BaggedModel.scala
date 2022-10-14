@@ -5,17 +5,30 @@ import io.citrine.lolo.Model
 
 import scala.collection.parallel.immutable.ParSeq
 
+/** A model holding a parallel sequence of models and the sample counts used to train them. */
 trait BaggedModel[+T] extends Model[T] {
 
+  def models: ParSeq[Model[T]]
+
   override def transform(inputs: Seq[Vector[Any]]): BaggedResult[T]
+
+  override def shapley(input: Vector[Any], omitFeatures: Set[Int] = Set()): Option[DenseMatrix[Double]] = {
+    val ensembleShapley = models.map(model => model.shapley(input, omitFeatures))
+    if (ensembleShapley.head.isEmpty) {
+      None
+    } else {
+      assert(ensembleShapley.forall(x => x.isDefined))
+
+      def sumReducer(a: Option[DenseMatrix[Double]], b: Option[DenseMatrix[Double]]): Option[DenseMatrix[Double]] = {
+        Some(a.get + b.get)
+      }
+
+      val scale = 1.0 / ensembleShapley.length
+      Some(scale * ensembleShapley.reduce(sumReducer).get)
+    }
+  }
 }
 
-/**
-  * Container holding a parallel sequence of models and the sample counts used to train them
-  *
-  * @param models in this bagged model
-  * @param Nib    training sample counts
-  */
 class BaggedRegressionModel(
     val models: ParSeq[Model[Double]],
     Nib: Vector[Vector[Int]],
@@ -49,39 +62,8 @@ class BaggedRegressionModel(
       )
     }
   }
-
-  /**
-    * Compute Shapley feature attributions for a given input
-    *
-    * @param input for which to compute feature attributions.
-    * @param omitFeatures feature indices to omit in computing Shapley values
-    * @return matrix of attributions for each feature and output
-    *         One row per feature, each of length equal to the output dimension.
-    *         The output dimension is 1 for single-task regression, or equal to the number of classification categories.
-    */
-  override def shapley(input: Vector[Any], omitFeatures: Set[Int] = Set()): Option[DenseMatrix[Double]] = {
-    val ensembleShapley = models.map(model => model.shapley(input, omitFeatures))
-    if (ensembleShapley.head.isEmpty) {
-      None
-    } else {
-      assert(ensembleShapley.forall(x => x.isDefined))
-
-      def sumReducer(a: Option[DenseMatrix[Double]], b: Option[DenseMatrix[Double]]): Option[DenseMatrix[Double]] = {
-        Some(a.get + b.get)
-      }
-      val scale = 1.0 / ensembleShapley.length
-
-      Some(scale * ensembleShapley.reduce(sumReducer).get)
-    }
-  }
 }
 
-/**
-  * Container holding a parallel sequence of models and the sample counts used to train them
-  *
-  * @param models in this bagged model
-  * @param Nib    training sample counts
-  */
 class BaggedClassificationModel(
     val models: ParSeq[Model[Any]],
     Nib: Vector[Vector[Int]],
@@ -92,30 +74,5 @@ class BaggedClassificationModel(
     assert(inputs.forall(_.size == inputs.head.size))
     val ensemblePredictions = models.map(model => model.transform(inputs)).seq
     BaggedClassificationResult(ensemblePredictions)
-  }
-
-  /**
-    * Compute Shapley feature attributions for a given input
-    *
-    * @param input for which to compute feature attributions.
-    * @param omitFeatures feature indices to omit in computing Shapley values
-    * @return matrix of attributions for each feature and output
-    *         One row per feature, each of length equal to the output dimension.
-    *         The output dimension is 1 for single-task regression, or equal to the number of classification categories.
-    */
-  override def shapley(input: Vector[Any], omitFeatures: Set[Int] = Set()): Option[DenseMatrix[Double]] = {
-    val ensembleShapley = models.map(model => model.shapley(input, omitFeatures))
-    if (ensembleShapley.head.isEmpty) {
-      None
-    } else {
-      assert(ensembleShapley.forall(x => x.isDefined))
-
-      def sumReducer(a: Option[DenseMatrix[Double]], b: Option[DenseMatrix[Double]]): Option[DenseMatrix[Double]] = {
-        Some(a.get + b.get)
-      }
-      val scale = 1.0 / ensembleShapley.length
-
-      Some(scale * ensembleShapley.reduce(sumReducer).get)
-    }
   }
 }

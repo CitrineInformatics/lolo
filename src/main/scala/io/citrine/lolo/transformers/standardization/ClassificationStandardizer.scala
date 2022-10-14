@@ -37,7 +37,7 @@ case class ClassificationStandardizer(baseLearner: Learner[Any]) extends Learner
   */
 case class ClassificationStandardizerTrainingResult(
     baseTrainingResult: TrainingResult[Any],
-    inputTrans: Seq[Option[Standardization]]
+    inputTrans: Map[Int, Standardization]
 ) extends TrainingResult[Any] {
 
   override def getModel(): ClassificationStandardizerModel =
@@ -56,7 +56,7 @@ case class ClassificationStandardizerTrainingResult(
 
 case class ClassificationStandardizerModel(
     baseModel: Model[Any],
-    inputTrans: Seq[Option[Standardization]]
+    inputTrans: Map[Int, Standardization]
 ) extends Model[Any] {
 
   override def transform(inputs: Seq[Vector[Any]]): ClassificationStandardizerPrediction = {
@@ -67,7 +67,7 @@ case class ClassificationStandardizerModel(
 
 case class ClassificationStandardizerPrediction(
     baseResult: PredictionResult[Any],
-    inputTrans: Seq[Option[Standardization]]
+    inputTrans: Map[Int, Standardization]
 ) extends PredictionResult[Any] {
 
   override def getExpected(): Seq[Any] = baseResult.getExpected()
@@ -77,10 +77,11 @@ case class ClassificationStandardizerPrediction(
   override def getGradient(): Option[Seq[Vector[Double]]] = {
     baseResult.getGradient().map { gradients =>
       gradients.map { g =>
-        g.zip(inputTrans).map {
-          // If there was a (linear) transformer used on that input, take the slope "m" and rescale by it
-          case (y, Some(inputStandardization)) => y / inputStandardization.scale
-          case (y, _)                          => y
+        g.zipWithIndex.map {
+          case (y, idx) =>
+            // If there was a (linear) transformer used on that input, take the slope "m" and rescale by it
+            val inputScale = inputTrans.get(idx).map(_.scale).getOrElse(1.0)
+            y / inputScale
         }
       }
     }

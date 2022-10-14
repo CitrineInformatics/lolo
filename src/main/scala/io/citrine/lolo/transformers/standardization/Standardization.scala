@@ -38,44 +38,69 @@ object Standardization {
     * @param values sequence of vectors to be standardized
     * @return sequence of standardization, each as an option
     */
-  def buildMulti(values: Seq[Vector[Any]]): Seq[Option[Standardization]] = {
-    values.headOption
-      .map { rep =>
-        rep.indices.map { i =>
-          rep(i) match {
-            case _: Double => Some(Standardization.build(values.map(r => r(i).asInstanceOf[Double])))
-            case _: Any    => None
-          }
-        }
-      }
-      .getOrElse(Seq.empty)
+  def buildMulti(values: Seq[Vector[Any]]): Map[Int, Standardization] = {
+    val rep = values.head
+    val valuesTransposed = values.transpose
+    rep.zipWithIndex.collect {
+      case (_: Double, idx) =>
+        val doubleValues = valuesTransposed(idx).collect { case x: Double if !x.isNaN => x }
+        idx -> Standardization.build(doubleValues)
+    }.toMap
   }
 
   /**
-    * Apply the standardizations to vectors, which should result in an output with zero mean and unit variance
+    * Apply the standardizations to a vector, which should result in an output with zero mean and unit variance
     *
     * @param input to standardize
-    * @param trans transformtions to apply.  None means no transformation
-    * @return sequence of standardized vectors
+    * @param trans transformations to apply
+    * @return a standardized vector
     */
-  def applyMulti(input: Vector[Any], trans: Seq[Option[Standardization]]): Vector[Any] = {
-    input.zip(trans).map {
-      case (x: Double, Some(t)) => t.apply(x)
-      case (x, _)               => x
+  def applyMulti(input: Vector[Any], trans: Map[Int, Standardization]): Vector[Any] = {
+    input.zipWithIndex.map {
+      case (x: Double, idx) => trans.get(idx).map(_.apply(x)).getOrElse(x)
+      case (x, _)           => x
     }
   }
 
   /**
-    * Invert the standardizations on vectors.
+    * Apply the standardizations to a sequence of optional values.
+    *
+    * @param input to apply the standardization, if the value is defined
+    * @param trans transformations to un-apply
+    * @return a standardized vector of optional values
+    */
+  def applyMultiOption(input: Vector[Option[Any]], trans: Map[Int, Standardization]): Vector[Option[Any]] = {
+    input.zipWithIndex.map {
+      case (Some(x: Double), idx) => Some(trans.get(idx).map(_.apply(x)).getOrElse(x))
+      case (x, _)                 => x
+    }
+  }
+
+  /**
+    * Invert the standardization on a vector.
     *
     * @param input to invert the standardization
-    * @param trans transformations to un-apply. None means no transformation
-    * @return sequence of restored vectors
+    * @param trans transformations to un-apply
+    * @return a restored vector
     */
-  def invertMulti(input: Vector[Any], trans: Seq[Option[Standardization]]): Vector[Any] = {
-    input.zip(trans).map {
-      case (x: Double, Some(t)) => t.invert(x)
-      case (x, _)               => x
+  def invertMulti(input: Vector[Any], trans: Map[Int, Standardization]): Vector[Any] = {
+    input.zipWithIndex.map {
+      case (x: Double, idx) => trans.get(idx).map(_.invert(x)).getOrElse(x)
+      case (x, _)           => x
+    }
+  }
+
+  /**
+    * Invert the standardizations on a sequence of optional values.
+    *
+    * @param input to invert the standardization, if the value is defined
+    * @param trans transformations to un-apply
+    * @return a restored vector of optional values
+    */
+  def invertMultiOption(input: Vector[Option[Any]], trans: Map[Int, Standardization]): Vector[Option[Any]] = {
+    input.zipWithIndex.map {
+      case (Some(x: Double), idx) => Some(trans.get(idx).map(_.invert(x)).getOrElse(x))
+      case (x, _)                 => x
     }
   }
 }

@@ -2,7 +2,6 @@ package io.citrine.lolo.transformers.rotation
 
 import breeze.linalg.DenseMatrix
 import io.citrine.lolo.{Model, MultiTaskLearner, MultiTaskModel, MultiTaskTrainingResult, ParallelModels}
-import io.citrine.lolo.transformers.{FeatureRotator, RotatedFeatureModel}
 import io.citrine.random.Random
 
 case class MultiTaskFeatureRotator(baseLearner: MultiTaskLearner) extends MultiTaskLearner {
@@ -20,8 +19,7 @@ case class MultiTaskFeatureRotator(baseLearner: MultiTaskLearner) extends MultiT
       weights: Option[Seq[Double]],
       rng: Random
   ): MultiTaskRotatedFeatureTrainingResult = {
-    val inputs = trainingData.map(_._1)
-    val labels = trainingData.map(_._2)
+    val (inputs, labels) = trainingData.unzip
     val featuresToRotate = FeatureRotator.getDoubleFeatures(inputs.head)
     val trans = FeatureRotator.getRandomRotation(inputs.head.length, rng)
     val rotatedFeatures = FeatureRotator.applyRotation(inputs, featuresToRotate, trans)

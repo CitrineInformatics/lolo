@@ -68,7 +68,7 @@ case class SinglePredictionBaggedResult(
       // If bootstrap is disabled, rescale is unity and treeVariance is our only option for UQ.
       // Since it's not recalibrated, it's best considered to be a confidence interval of the underlying weak learner.
       assert(rescaleRatio == 1.0)
-      Some(Seq(Math.sqrt(treeVariance)))
+      Some(Seq(math.sqrt(treeVariance)))
     } else {
       Some(Seq(stdDevMean))
     }
@@ -105,13 +105,13 @@ case class SinglePredictionBaggedResult(
   private lazy val expected = treePredictions.sum / treePredictions.length
   private lazy val treeVariance = {
     assert(treePredictions.length > 1, "Bootstrap variance undefined for fewer than 2 bootstrap samples.")
-    treePredictions.map(x => Math.pow(x - expected, 2.0)).sum / (treePredictions.length - 1)
+    treePredictions.map(x => math.pow(x - expected, 2.0)).sum / (treePredictions.length - 1)
   }
 
-  private lazy val stdDevMean: Double = Math.sqrt(BaggedResult.rectifyEstimatedVariance(singleScores))
+  private lazy val stdDevMean: Double = math.sqrt(BaggedResult.rectifyEstimatedVariance(singleScores))
 
   private lazy val stdDevObs: Double = {
-    rescaleRatio * Math.sqrt(treeVariance)
+    rescaleRatio * math.sqrt(treeVariance)
   } ensuring (_ >= 0.0)
 
   private lazy val singleScores: Vector[Double] = {
@@ -143,13 +143,13 @@ case class SinglePredictionBaggedResult(
         }
       }
       // Compute the infinitesimal jackknife estimate
-      val varIJ = Math.pow(cov / vecN.length, 2.0)
+      val varIJ = math.pow(cov / vecN.length, 2.0)
 
       if (tNotCount > 0) {
         // Compute the Jackknife after bootstrap estimate
-        val varJ = Math.pow(tNot / tNotCount - expected, 2.0) * (nMat.size - 1) / nMat.size
+        val varJ = math.pow(tNot / tNotCount - expected, 2.0) * (nMat.size - 1) / nMat.size
         // Averaged the corrected IJ and J estimates
-        0.5 * (varJ + varIJ - Math.E * correction)
+        0.5 * (varJ + varIJ - math.E * correction)
       } else {
         // We can't compute the Jackknife after bootstrap estimate, so just correct the IJ estimate
         varIJ - correction
@@ -187,7 +187,7 @@ case class MultiPredictionBaggedResult(
     if (disableBootstrap) {
       None
     } else {
-      Some(varObs.map { v => Math.sqrt(v) })
+      Some(varObs.map { v => math.sqrt(v) })
     }
   }
 
@@ -196,7 +196,7 @@ case class MultiPredictionBaggedResult(
       // If bootstrap is disabled, rescale is unity and treeVariance is our only option for UQ.
       // Since it's not recalibrated, it's best considered to be a confidence interval of the underlying weak learner.
       assert(rescaleRatio == 1.0)
-      Some(varObs.map { v => Math.sqrt(v) })
+      Some(varObs.map { v => math.sqrt(v) })
     } else {
       Some(stdDevMean)
     }
@@ -250,20 +250,20 @@ case class MultiPredictionBaggedResult(
 
   /* This represents the variance of the estimate of the mean. */
   lazy val stdDevMean: Seq[Double] =
-    variance(expected.toVector, expectedMatrix, NibJMat, NibIJMat).map { Math.sqrt }
+    variance(expected.toVector, expectedMatrix, NibJMat, NibIJMat).map { math.sqrt }
 
   /* This estimates the variance of predictive distribution. */
   lazy val varObs: Seq[Double] = expectedMatrix.zip(expected).map {
     case (b, y) =>
       assert(Nib.size > 1, "Bootstrap variance undefined for fewer than 2 bootstrap samples.")
-      b.map { x => rescaleRatio * rescaleRatio * Math.pow(x - y, 2.0) }.sum / (b.size - 1)
+      b.map { x => rescaleRatio * rescaleRatio * math.pow(x - y, 2.0) }.sum / (b.size - 1)
   }
 
   /* Compute the scores one prediction at a time */
   lazy val scores: Seq[Vector[Double]] = scores(expected.toVector, expectedMatrix, NibJMat, NibIJMat)
     // make sure the variance is non-negative after the stochastic correction
     .map(BaggedResult.rectifyImportanceScores)
-    .map(_.map(Math.sqrt))
+    .map(_.map(math.sqrt))
 
   /**
     * Compute the variance of a prediction as the average of bias corrected IJ and J variance estimates
@@ -310,15 +310,15 @@ case class MultiPredictionBaggedResult(
     val arg = IJMat2 + JMat2
 
     /* Avoid division in the loop, calculate (n - 1) / (n * B^2) */
-    val prefactor = 1.0 / Math.pow(modelPredictions.head.size, 2.0) * (Nib.size - 1) / Nib.size
+    val prefactor = 1.0 / math.pow(modelPredictions.head.size, 2.0) * (Nib.size - 1) / Nib.size
 
     modelPredictions.indices
       .map { i =>
         /* Compute the first order bias correction for the variance estimators */
-        val correction = prefactor * Math.pow(norm(predMat(::, i) - meanPrediction(i)), 2)
+        val correction = prefactor * math.pow(norm(predMat(::, i) - meanPrediction(i)), 2)
 
         /* The correction is prediction dependent, so we need to operate on vectors */
-        0.5 * (arg(::, i) - Math.E * correction)
+        0.5 * (arg(::, i) - math.E * correction)
       }
       .map(_.toScalaVector)
   }
@@ -358,16 +358,29 @@ case class MultiPredictionBaggedResult(
 
         /* The correction is prediction dependent, so we need to operate on vectors */
         val influencePerRow: DenseVector[Double] =
-          Math.signum(actualPrediction(i) - meanPrediction(i)) * 0.5 * (arg(::, i) - Math.E * correction)
+          math.signum(actualPrediction(i) - meanPrediction(i)) * 0.5 * (arg(::, i) - math.E * correction)
 
         /* Impose a floor in case any of the variances are negative (hacked to work in breeze) */
-        // val floor: Double = Math.min(0, -min(variancePerRow))
+        // val floor: Double = math.min(0, -min(variancePerRow))
         // val rezero: DenseVector[Double] = variancePerRow - floor
         // 0.5 * (rezero + abs(rezero)) + floor
         influencePerRow
       }
       .map(_.toScalaVector)
   }
+}
+
+case class BaggedClassificationResult(predictions: Seq[PredictionResult[Any]]) extends BaggedResult[Any] {
+  lazy val expectedMatrix: Seq[Seq[Any]] = predictions.map(p => p.getExpected()).transpose
+  lazy val expected: Seq[Any] = expectedMatrix.map(ps => ps.groupBy(identity).maxBy(_._2.size)._1)
+  lazy val uncertainty: Seq[Map[Any, Double]] =
+    expectedMatrix.map(ps => ps.groupBy(identity).view.mapValues(_.size.toDouble / ps.size).toMap)
+
+  override def numPredictions: Int = expectedMatrix.length
+
+  override def getExpected(): Seq[Any] = expected
+
+  override def getUncertainty(includeNoise: Boolean = true): Option[Seq[Map[Any, Double]]] = Some(uncertainty)
 }
 
 object BaggedResult {
@@ -454,7 +467,7 @@ object BaggedResult {
       logger.warn(
         s"All scores were negative; using the magnitude of the smallest score as an estimate for the variance.  It is highly recommended to increase the ensemble size."
       )
-      -scores.min // equivalent to Math.abs(scores.min)
+      -scores.min // equivalent to math.abs(scores.min)
     }
   } ensuring (_ >= 0.0)
 
@@ -473,24 +486,10 @@ object BaggedResult {
     */
   def rectifyImportanceScores(scores: Vector[Double]): Vector[Double] = {
     // this is a lower-bound on the noise level; note that it is strictly smaller than the correction
-    val floor = Math.abs(scores.min)
-
+    val floor = math.abs(scores.min)
     if (floor < 0.0) {
       logger.warn(s"Some importance scores were negative; rectifying.  Please consider increasing the ensemble size.")
     }
-    scores.map(Math.max(floor, _))
+    scores.map(math.max(floor, _))
   } ensuring (vec => vec.forall(_ >= 0.0))
-}
-
-case class BaggedClassificationResult(predictions: Seq[PredictionResult[Any]]) extends BaggedResult[Any] {
-  lazy val expectedMatrix: Seq[Seq[Any]] = predictions.map(p => p.getExpected()).transpose
-  lazy val expected: Seq[Any] = expectedMatrix.map(ps => ps.groupBy(identity).maxBy(_._2.size)._1)
-  lazy val uncertainty: Seq[Map[Any, Double]] =
-    expectedMatrix.map(ps => ps.groupBy(identity).view.mapValues(_.size.toDouble / ps.size).toMap)
-
-  override def numPredictions: Int = expectedMatrix.length
-
-  override def getExpected(): Seq[Any] = expected
-
-  override def getUncertainty(includeNoise: Boolean = true): Option[Seq[Map[Any, Double]]] = Some(uncertainty)
 }
