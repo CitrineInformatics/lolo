@@ -1,8 +1,17 @@
 package io.citrine.lolo.bags
 
 import breeze.stats.distributions.Poisson
-import io.citrine.lolo.stats.StatsUtils.breezeRandBasis
-import io.citrine.lolo.{Learner, Model, MultiTaskLearner, MultiTaskModel, MultiTaskTrainingResult}
+import io.citrine.lolo.stats.StatsUtils
+import io.citrine.lolo.{
+  Learner,
+  Model,
+  MultiTaskLearner,
+  MultiTaskModel,
+  MultiTaskModelPredictionResult,
+  MultiTaskTrainingResult,
+  ParallelModelsPredictionResult,
+  PredictionResult
+}
 import io.citrine.random.Random
 import io.citrine.lolo.stats.metrics.{ClassificationMetrics, RegressionMetrics}
 
@@ -10,20 +19,20 @@ import scala.collection.parallel.immutable.ParSeq
 import scala.collection.parallel.CollectionConverters.IterableIsParallelizable
 
 /**
-  * Create an ensemble of multi-task models
+  * Create an ensemble of multi-task models.
   *
   * @param method                 learner to train each model in the ensemble
   * @param numBags                number of models in the ensemble
   * @param useJackknife           whether to enable jackknife uncertainty estimate
-  * @param biasLearner            learner to use for estimating bias
   * @param uncertaintyCalibration whether to empirically recalibrate the predicted uncertainties
+  * @param biasLearner            learner to use for estimating bias
   */
 case class MultiTaskBagger(
     method: MultiTaskLearner,
     numBags: Int = -1,
     useJackknife: Boolean = true,
-    biasLearner: Option[Learner[Double]] = None,
-    uncertaintyCalibration: Boolean = true
+    uncertaintyCalibration: Boolean = true,
+    biasLearner: Option[Learner[Double]] = None
 ) extends MultiTaskLearner {
 
   override def train(
@@ -53,7 +62,7 @@ case class MultiTaskBagger(
     val actualBags = if (numBags > 0) numBags else trainingData.size
 
     // Compute the number of instances of each training row in each training sample
-    val randBasis = breezeRandBasis(rng)
+    val randBasis = StatsUtils.breezeRandBasis(rng)
     val dist = new Poisson(1.0)(randBasis)
     val Nib: Vector[Vector[Int]] = Iterator
       .continually(Vector.fill(trainingData.size)(dist.draw()))
@@ -69,7 +78,7 @@ case class MultiTaskBagger(
     val weightsActual = weights.getOrElse(Seq.fill(trainingData.size)(1.0))
 
     val indices = Nib.indices.toVector
-    val (models: ParSeq[MultiTaskModel], importances: ParSeq[Option[Vector[Double]]]) =
+    val (models, importances) =
       rng
         .zip(indices)
         .par
@@ -278,4 +287,74 @@ class MultiTaskBaggedModel(
   override def getRealLabels: Seq[Boolean] = models.head.getRealLabels
 
   override def getModels: Seq[BaggedModel[Any]] = groupedModels
+}
+
+/**
+  * Container with model-wise predictions for each label and the machinery to compute (co)variance.
+  *
+  * @param baggedPredictions  bagged prediction results for each label
+  * @param realLabels         a boolean sequence indicating which labels are real-valued
+  * @param NibIn              the sampling matrix as (# bags) x (# training)
+  */
+case class MultiTaskBaggedResult(
+    baggedPredictions: Vector[BaggedResult[Any]],
+    realLabels: Seq[Boolean],
+    NibIn: Vector[Vector[Int]]
+) extends BaggedResult[Seq[Any]]
+    with MultiTaskModelPredictionResult {
+
+  /* transpose to be (# training) x (# models) */
+  lazy val Nib: Vector[Vector[Int]] = NibIn.transpose
+
+  override def numPredictions: Int = baggedPredictions.head.numPredictions
+
+  override def getExpected(): Seq[Vector[Any]] = baggedPredictions.map(_.getExpected()).transpose
+
+  override def predictions: Seq[PredictionResult[Seq[Any]]] =
+    baggedPredictions
+      .map(_.predictions.map(_.getExpected()))
+      .transpose
+      .map(x => new ParallelModelsPredictionResult(x.transpose))
+
+  // For each prediction, the uncertainty is a sequence of entries for each label. Missing uncertainty values are reported as NaN
+  override def getUncertainty(observational: Boolean = true): Option[Seq[Seq[Any]]] = {
+    Some(baggedPredictions.map { predictionResult =>
+      predictionResult.getUncertainty(observational) match {
+        case Some(value) => value
+        case None        => Seq.fill(numPredictions)(Double.NaN)
+      }
+    }.transpose)
+  }
+
+  override def getUncertaintyCorrelation(i: Int, j: Int, observational: Boolean = true): Option[Seq[Double]] = {
+    (realLabels(i), realLabels(j)) match {
+      case (true, true) if i == j => Some(Seq.fill(numPredictions)(1.0))
+      case (true, true) =>
+        if (observational) {
+          Some(uncertaintyCorrelationObservational(i, j))
+        } else {
+          Some(uncertaintyCorrelationMean)
+        }
+      case _: Any => None
+    }
+  }
+
+  /** The uncertainty correlation of the observational distribution is the correlation coefficient calculated over the bootstrap ensemble predictions. */
+  private def uncertaintyCorrelationObservational(i: Int, j: Int): Seq[Double] = {
+    // make (# predictions) x (# bags) prediction matrices for each label
+    val baggedPredictionsI =
+      baggedPredictions(i).predictions.map(_.getExpected()).transpose.asInstanceOf[Seq[Seq[Double]]]
+    val baggedPredictionsJ =
+      baggedPredictions(j).predictions.map(_.getExpected()).transpose.asInstanceOf[Seq[Seq[Double]]]
+    baggedPredictionsI.zip(baggedPredictionsJ).map {
+      case (bagsI, bagsJ) =>
+        StatsUtils.correlation(bagsI, bagsJ)
+    }
+  }
+
+  /**
+    * The uncertainty correlation of the mean distribution is 0.0. In theory it should be estimated using the jackknife,
+    * but in practice the jackknife performs poorly when estimating covariance, so we default to the trivial implementation for now.
+    */
+  private def uncertaintyCorrelationMean: Seq[Double] = Seq.fill(numPredictions)(0.0)
 }
