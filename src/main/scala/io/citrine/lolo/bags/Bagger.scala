@@ -41,9 +41,23 @@ sealed trait Bagger[T] extends Learner[T] {
   ): BaggedEnsemble[T] = {
     // Make sure the training data is the same size
     assert(trainingData.forall(trainingData.head._1.length == _._1.length))
+    require(
+      trainingData.length >= Bagger.minimumTrainingSize,
+      s"We need to have at least ${Bagger.minimumTrainingSize} rows, only ${trainingData.length} given."
+    )
 
-    // Check size requirements and determine usable number of bags
-    val actualBags = getActualBags(trainingData.length)
+    // Set default number of bags
+    val actualBags = if (numBags > 0) numBags else trainingData.length
+
+    // We need enough bags such that the probability that the poisson draw is "valid" is at least 50%
+    // Valid here means that for each training point, there is at least one tree that doesn't include it
+    // The probability that the weights are valid is:
+    // (1 - [(1 - 1/e)^{number of trees}])^{number of training points}
+    val minBags = math.log(1 - math.pow(2, -1.0 / trainingData.length)) / math.log((Math.E - 1) / math.E)
+    require(
+      !useJackknife || actualBags >= minBags,
+      s"Jackknife requires $minBags bags for ${trainingData.length} training rows, but only $actualBags given."
+    )
 
     // Use unit weights if none are specified
     val weightsActual = weights.getOrElse(Seq.fill(trainingData.length)(1.0))
@@ -68,32 +82,6 @@ sealed trait Bagger[T] extends Learner[T] {
     val averageImportance = importances.reduce(Bagger.combineImportance).map(_.map(_ / importances.size))
 
     BaggedEnsemble(Nib, models, averageImportance)
-  }
-
-  /**
-    * Determine the actual number of bags to use for a given training size
-    * while asserting size requirements of the ensemble and training data.
-    */
-  private def getActualBags(trainingSize: Int): Int = {
-    require(
-      trainingSize >= Bagger.minimumTrainingSize,
-      s"We need to have at least ${Bagger.minimumTrainingSize} rows, only $trainingSize given."
-    )
-
-    // Set default number of bags
-    val actualBags = if (numBags > 0) numBags else trainingSize
-
-    // We need enough bags such that the probability that the poisson draw is "valid" is at least 50%
-    // Valid here means that for each training point, there is at least one tree that doesn't include it
-    // The probability that the weights are valid is:
-    // (1 - [(1 - 1/e)^{number of trees}])^{number of training points}
-    val minBags = math.log(1 - math.pow(2, -1.0 / trainingSize)) / math.log((Math.E - 1) / math.E)
-    require(
-      !useJackknife || actualBags >= minBags,
-      s"Jackknife requires $minBags bags for $trainingSize training rows, but only $actualBags given."
-    )
-
-    actualBags
   }
 
   /** Compute the number of instances of each training row in each training sample. */
