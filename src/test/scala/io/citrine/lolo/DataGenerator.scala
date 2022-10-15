@@ -10,6 +10,7 @@ object DataGenerator {
   /** Sequence of inputs and labels generated for training a learner. */
   case class TrainingData[I, L](data: Seq[(Vector[I], L)])
 
+  // An implicit class is used to restrict binning to when the inputs are of type Double
   implicit class TrainingInputBinner[L](trainingData: TrainingData[Double, L]) {
     def withBinnedInputs(bins: Seq[(Int, Int)]): TrainingData[Any, L] = {
       val (baseInputs, baseLabels) = trainingData.data.unzip
@@ -28,6 +29,7 @@ object DataGenerator {
     }
   }
 
+  // An implicit class is used to restrict binning to when the labels are of type Double
   implicit class TrainingLabelBinner[I](trainingData: TrainingData[I, Double]) {
     def withBinnedLabels(bins: Int): TrainingData[I, String] = {
       val (baseInputs, baseLabels) = trainingData.data.unzip

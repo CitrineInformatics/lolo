@@ -1,5 +1,6 @@
 package io.citrine.lolo
 
+import io.citrine.lolo.DataGenerator.TrainingData
 import io.citrine.lolo.bags.{Bagger, MultiTaskBagger}
 import io.citrine.lolo.trees.classification.ClassificationTreeLearner
 import io.citrine.lolo.trees.multitask.MultiTaskTreeLearner
@@ -136,8 +137,8 @@ class PerformanceTest extends SeedRandomMixIn {
     (trainMulti, trainSingle)
   }
 
-  val regressionData: DataGenerator.TrainingData[Double, Double] = DataGenerator.generate(2048, 37, rng = rng)
-  val classificationData: DataGenerator.TrainingData[Double, String] = regressionData.withBinnedLabels(bins = 8)
+  val regressionData: TrainingData[Double, Double] = DataGenerator.generate(2048, 37, rng = rng)
+  val classificationData: TrainingData[Double, String] = regressionData.withBinnedLabels(bins = 8)
 }
 
 object PerformanceTest {
