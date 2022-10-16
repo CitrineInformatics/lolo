@@ -171,19 +171,20 @@ case class RegressionBagger(
   * @param numBags number of base models to aggregate (default of -1 sets the number of models to the number of training rows)
   * @param useJackknife whether to enable jackknife uncertainty estimate
   * @param disableBootstrap whether to disable bootstrap (useful when `method` implements its own randomization)
+  * @tparam T the type of label data
   */
-case class ClassificationBagger(
-    baseLearner: Learner[Any],
+case class ClassificationBagger[T](
+    baseLearner: Learner[T],
     numBags: Int = -1,
     useJackknife: Boolean = true,
     disableBootstrap: Boolean = false
-) extends Bagger[Any] {
+) extends Bagger[T] {
 
   override def train(
-      trainingData: Seq[(Vector[Any], Any)],
+      trainingData: Seq[(Vector[Any], T)],
       weights: Option[Seq[Double]],
       rng: Random
-  ): ClassificationBaggerTrainingResult = {
+  ): ClassificationBaggerTrainingResult[T] = {
     // Train the ensemble of models from the data
     val ensemble = trainEnsemble(trainingData, weights, rng)
 

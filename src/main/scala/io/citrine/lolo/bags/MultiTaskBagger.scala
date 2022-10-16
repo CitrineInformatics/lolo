@@ -283,10 +283,10 @@ class MultiTaskBaggedModel(
   * @param NibIn              the sampling matrix as (# bags) x (# training)
   */
 case class MultiTaskBaggedResult(
-    baggedPredictions: Vector[BaggedResult[Any]],
-    realLabels: Seq[Boolean],
-    NibIn: Vector[Vector[Int]]
-) extends BaggedResult[Vector[Any]]
+                                  baggedPredictions: Vector[BaggedPrediction[Any]],
+                                  realLabels: Seq[Boolean],
+                                  NibIn: Vector[Vector[Int]]
+) extends BaggedPrediction[Vector[Any]]
     with MultiTaskModelPredictionResult {
 
   /* transpose to be (# training) x (# models) */

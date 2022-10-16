@@ -12,6 +12,13 @@ trait StandardizerTrainingResult[+T] extends TrainingResult[T] {
   override def getFeatureImportance(): Option[Vector[Double]] = baseTrainingResult.getFeatureImportance()
 }
 
+/**
+  * Training result wrapping the input & output transformations for a regression learner.
+  *
+  * @param baseTrainingResult result of training on the standardized inputs and output
+  * @param outputTrans transformation (rescale, offset) of output label
+  * @param inputTrans sequence of optional transformations (rescale, offset) of inputs
+  */
 case class RegressionStandardizerTrainingResult(
     baseTrainingResult: TrainingResult[Double],
     outputTrans: Standardization,
@@ -31,6 +38,12 @@ case class RegressionStandardizerTrainingResult(
   }
 }
 
+/**
+  * Training result wrapping the input transformations for a classification learner.
+  *
+  * @param baseTrainingResult result of training on the standardized inputs and output
+  * @param inputTrans sequence of optional transformations (rescale, offset) of inputs
+  */
 case class ClassificationStandardizerTrainingResult[T](
     baseTrainingResult: TrainingResult[T],
     inputTrans: Seq[Option[Standardization]]

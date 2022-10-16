@@ -4,6 +4,7 @@ import io.citrine.lolo.Model
 
 trait StandardizerModel[+T] extends Model[T] {
 
+  /** The base model trained on standardized data. */
   def baseModel: Model[T]
 
   /** Standardize the inputs and apply the base model. */

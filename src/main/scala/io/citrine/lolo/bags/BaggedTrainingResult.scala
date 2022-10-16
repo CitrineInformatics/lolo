@@ -56,17 +56,17 @@ class RegressionBaggerTrainingResult(
   }
 }
 
-class ClassificationBaggerTrainingResult(
-    models: ParSeq[Model[Any]],
+class ClassificationBaggerTrainingResult[T](
+    models: ParSeq[Model[T]],
     Nib: Vector[Vector[Int]],
-    trainingData: Seq[(Vector[Any], Any)],
+    trainingData: Seq[(Vector[Any], T)],
     featureImportance: Option[Vector[Double]],
     disableBootstrap: Boolean = false
-) extends BaggedTrainingResult[Any] {
+) extends BaggedTrainingResult[T] {
 
   lazy val NibT: Seq[Vector[Int]] = Nib.transpose
-  lazy val model = new BaggedClassificationModel(models, Nib, disableBootstrap)
-  lazy val predictedVsActual: Seq[(Vector[Any], Any, Any)] = trainingData.zip(NibT).flatMap {
+  lazy val model = new BaggedClassificationModel(models, Nib)
+  lazy val predictedVsActual: Seq[(Vector[Any], T, T)] = trainingData.zip(NibT).flatMap {
     case ((f, l), nb) =>
       val oob = if (disableBootstrap) {
         models.zip(nb)
@@ -86,9 +86,9 @@ class ClassificationBaggerTrainingResult(
 
   override def getFeatureImportance(): Option[Vector[Double]] = featureImportance
 
-  override def getModel(): BaggedClassificationModel = model
+  override def getModel(): BaggedClassificationModel[T] = model
 
-  override def getPredictedVsActual(): Option[Seq[(Vector[Any], Any, Any)]] = Some(predictedVsActual)
+  override def getPredictedVsActual(): Option[Seq[(Vector[Any], T, T)]] = Some(predictedVsActual)
 
   override def getLoss(): Option[Double] = {
     if (predictedVsActual.nonEmpty) {

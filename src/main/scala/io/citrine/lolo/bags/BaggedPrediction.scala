@@ -13,7 +13,7 @@ import org.slf4j.{Logger, LoggerFactory}
   * For background on the uncertainty calculation, see Wager, S.; Hastie, T and Efron, B. Confidence Intervals for
   * Random Forests: The Jackknife and Infinitesimal Jackknife. Journal of Machine Learning Research 15 (2014).
   */
-trait BaggedResult[+T] extends PredictionResult[T] {
+trait BaggedPrediction[+T] extends PredictionResult[T] {
 
   /** The number of input rows that have been predicted on (NOT the number of bagged models). */
   def numPredictions: Int
@@ -40,26 +40,26 @@ trait BaggedResult[+T] extends PredictionResult[T] {
   }
 }
 
-/** Interface for [[BaggedResult]]s for regression tasks with task-specific methods. */
-sealed trait BaggedRegressionResult extends BaggedResult[Double] with RegressionResult
+/** Interface for [[BaggedPrediction]]s for regression tasks with task-specific methods. */
+sealed trait BaggedRegressionPrediction extends BaggedPrediction[Double] with RegressionResult
 
 /**
   * Container with model-wise predictions at a single input point.
   *
   * Assuming a single input allows for performance optimizations and more readable code.
-  * See [[MultiPredictionBaggedResult]] for a generic implementation.
+  * See [[MultiPointBaggedPrediction]] for a generic implementation.
   *
   * @param predictions for each constituent model
   * @param NibIn       the sample matrix as (N_models x N_training)
   * @param bias        model to use for estimating bias
   */
-case class SinglePredictionBaggedResult(
+case class SinglePointBaggedPrediction(
     predictions: Seq[PredictionResult[Double]],
     NibIn: Vector[Vector[Int]],
     bias: Option[Double] = None,
     rescaleRatio: Double = 1.0,
     disableBootstrap: Boolean = false
-) extends BaggedRegressionResult {
+) extends BaggedRegressionPrediction {
 
   override def numPredictions: Int = 1
 
@@ -110,7 +110,7 @@ case class SinglePredictionBaggedResult(
     treePredictions.map(x => math.pow(x - expected, 2.0)).sum / (treePredictions.length - 1)
   }
 
-  private lazy val stdDevMean: Double = math.sqrt(BaggedResult.rectifyEstimatedVariance(singleScores))
+  private lazy val stdDevMean: Double = math.sqrt(BaggedPrediction.rectifyEstimatedVariance(singleScores))
 
   private lazy val stdDevObs: Double = {
     rescaleRatio * math.sqrt(treeVariance)
@@ -168,19 +168,19 @@ case class SinglePredictionBaggedResult(
   *
   * These calculations are implemented using matrix arithmetic to make them more performant when the number
   * of predictions is large.  This obfuscates the algorithm significantly, however.  To see what is being computed,
-  * look at [[SinglePredictionBaggedResult]], which is more clear.  These two implementations are tested for consistency.
+  * look at [[SinglePointBaggedPrediction]], which is more clear.  These two implementations are tested for consistency.
   *
   * @param predictions for each constituent model
   * @param NibIn       the sample matrix as (N_models x N_training)
   * @param bias        model to use for estimating bias
   */
-case class MultiPredictionBaggedResult(
+case class MultiPointBaggedPrediction(
     predictions: Seq[PredictionResult[Double]],
     NibIn: Vector[Vector[Int]],
     bias: Option[Seq[Double]] = None,
     rescaleRatio: Double = 1.0,
     disableBootstrap: Boolean = false
-) extends BaggedRegressionResult {
+) extends BaggedRegressionPrediction {
 
   override def getExpected(): Seq[Double] = expected.zip(biasCorrection).map(x => x._1 + x._2)
 
@@ -245,9 +245,9 @@ case class MultiPredictionBaggedResult(
   lazy val biasCorrection: Seq[Double] = bias.getOrElse(Seq.fill(expectedMatrix.length)(0))
   lazy val expected: Seq[Double] = expectedMatrix.map(ps => ps.sum / ps.size)
 
-  lazy val NibJMat: DenseMatrix[Double] = BaggedResult.getJackknifeAfterBootstrapMatrix(Nib)
+  lazy val NibJMat: DenseMatrix[Double] = BaggedPrediction.getJackknifeAfterBootstrapMatrix(Nib)
 
-  lazy val NibIJMat: DenseMatrix[Double] = BaggedResult.getInfinitesimalJackknifeMatrix(Nib)
+  lazy val NibIJMat: DenseMatrix[Double] = BaggedPrediction.getInfinitesimalJackknifeMatrix(Nib)
 
   /* This represents the variance of the estimate of the mean. */
   lazy val stdDevMean: Seq[Double] =
@@ -263,7 +263,7 @@ case class MultiPredictionBaggedResult(
   /* Compute the scores one prediction at a time */
   lazy val scores: Seq[Vector[Double]] = scores(expected.toVector, expectedMatrix, NibJMat, NibIJMat)
     // make sure the variance is non-negative after the stochastic correction
-    .map(BaggedResult.rectifyImportanceScores)
+    .map(BaggedPrediction.rectifyImportanceScores)
     .map(_.map(math.sqrt))
 
   /**
@@ -281,7 +281,7 @@ case class MultiPredictionBaggedResult(
       NibJ: DenseMatrix[Double],
       NibIJ: DenseMatrix[Double]
   ): Seq[Double] = {
-    scores(meanPrediction, modelPredictions, NibJ, NibIJ).map { BaggedResult.rectifyEstimatedVariance }
+    scores(meanPrediction, modelPredictions, NibJ, NibIJ).map { BaggedPrediction.rectifyEstimatedVariance }
   }
 
   /**
@@ -371,38 +371,22 @@ case class MultiPredictionBaggedResult(
   }
 }
 
-case class BaggedClassificationResult(predictions: Seq[PredictionResult[Any]]) extends BaggedResult[Any] {
-  lazy val expectedMatrix: Seq[Seq[Any]] = predictions.map(p => p.getExpected()).transpose
-  lazy val expected: Seq[Any] = expectedMatrix.map(ps => ps.groupBy(identity).maxBy(_._2.size)._1)
-  lazy val uncertainty: Seq[Map[Any, Double]] =
+case class BaggedClassificationPrediction[T](predictions: Seq[PredictionResult[T]]) extends BaggedPrediction[T] {
+  lazy val expectedMatrix: Seq[Seq[T]] = predictions.map(p => p.getExpected()).transpose
+  lazy val expected: Seq[T] = expectedMatrix.map(ps => ps.groupBy(identity).maxBy(_._2.size)._1)
+  lazy val uncertainty: Seq[Map[T, Double]] =
     expectedMatrix.map(ps => ps.groupBy(identity).view.mapValues(_.size.toDouble / ps.size).toMap)
 
   override def numPredictions: Int = expectedMatrix.length
 
-  override def getExpected(): Seq[Any] = expected
+  override def getExpected(): Seq[T] = expected
 
-  override def getUncertainty(includeNoise: Boolean = true): Option[Seq[Map[Any, Double]]] = Some(uncertainty)
+  override def getUncertainty(includeNoise: Boolean = true): Option[Seq[Map[T, Double]]] = Some(uncertainty)
 }
 
-object BaggedResult {
+object BaggedPrediction {
 
   val logger: Logger = LoggerFactory.getLogger(getClass)
-
-  /**
-    * Accumulate the gradient from a sequence of predictions made by a bagged model.
-    * If the underlying model has no gradient, return None.
-    */
-  def accumulateGradient(predictions: Seq[PredictionResult[Any]]): Option[Seq[Vector[Double]]] = {
-    if (predictions.head.getGradient().nonEmpty) {
-      val gradientsByPrediction: Seq[Seq[Vector[Double]]] = predictions.map(_.getGradient().get)
-      val gradientsByInput: Seq[Seq[Vector[Double]]] = gradientsByPrediction.transpose
-      Some(
-        gradientsByInput.map { r => r.toVector.transpose.map(_.sum / predictions.size) }
-      )
-    } else {
-      None
-    }
-  }
 
   /**
     * Generate a matrix that is useful for computing (co)variance via jackknife after bootstrap (JaB).
