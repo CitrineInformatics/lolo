@@ -389,6 +389,22 @@ object BaggedResult {
   val logger: Logger = LoggerFactory.getLogger(getClass)
 
   /**
+    * Accumulate the gradient from a sequence of predictions made by a bagged model.
+    * If the underlying model has no gradient, return None.
+    */
+  def accumulateGradient(predictions: Seq[PredictionResult[Any]]): Option[Seq[Vector[Double]]] = {
+    if (predictions.head.getGradient().nonEmpty) {
+      val gradientsByPrediction: Seq[Seq[Vector[Double]]] = predictions.map(_.getGradient().get)
+      val gradientsByInput: Seq[Seq[Vector[Double]]] = gradientsByPrediction.transpose
+      Some(
+        gradientsByInput.map { r => r.toVector.transpose.map(_.sum / predictions.size) }
+      )
+    } else {
+      None
+    }
+  }
+
+  /**
     * Generate a matrix that is useful for computing (co)variance via jackknife after bootstrap (JaB).
     * The central term of the JaB calculation (Wager et. al. 2014, equation 6) is the difference between the
     * out-of-bag prediction on a point and the mean prediction on that point. If this is written as a single sum over bags,

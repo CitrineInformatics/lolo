@@ -1,4 +1,4 @@
-package io.citrine.lolo.transformers.standardization
+package io.citrine.lolo.transformers.standardizer
 
 import io.citrine.lolo.{Model, MultiTaskLearner, MultiTaskModel, MultiTaskTrainingResult, ParallelModels}
 import io.citrine.random.Random
@@ -32,8 +32,8 @@ case class MultiTaskStandardizer(baseLearner: MultiTaskLearner) extends MultiTas
   */
 class MultiTaskStandardizerTrainingResult(
     baseTrainingResult: MultiTaskTrainingResult,
-    outputTrans: Map[Int, Standardization],
-    inputTrans: Map[Int, Standardization]
+    outputTrans: Seq[Option[Standardization]],
+    inputTrans: Seq[Option[Standardization]]
 ) extends MultiTaskTrainingResult {
 
   override def getModel(): MultiTaskModel = new ParallelModels(getModels(), baseTrainingResult.getModel().getRealLabels)
@@ -43,7 +43,7 @@ class MultiTaskStandardizerTrainingResult(
     baseTrainingResult.getModels().zipWithIndex.map {
       case (model, idx) =>
         if (realLabels(idx)) {
-          RegressionStandardizerModel(model.asInstanceOf[Model[Double]], outputTrans(idx), inputTrans)
+          RegressionStandardizerModel(model.asInstanceOf[Model[Double]], outputTrans(idx).get, inputTrans)
         } else {
           ClassificationStandardizerModel(model, inputTrans)
         }

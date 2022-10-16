@@ -1,4 +1,4 @@
-package io.citrine.lolo.transformers.rotation
+package io.citrine.lolo.transformers.rotator
 
 import breeze.linalg.DenseMatrix
 import io.citrine.lolo.{Model, MultiTaskLearner, MultiTaskModel, MultiTaskTrainingResult, ParallelModels}

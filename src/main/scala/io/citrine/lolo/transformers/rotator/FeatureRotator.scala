@@ -1,4 +1,4 @@
-package io.citrine.lolo.transformers.rotation
+package io.citrine.lolo.transformers.rotator
 
 import io.citrine.lolo._
 import io.citrine.random.Random

@@ -1,4 +1,4 @@
-package io.citrine.lolo.transformers.standardization
+package io.citrine.lolo.transformers.standardizer
 
 /** A package of the shift/scale required to standardize values to zero mean and unit variance. */
 case class Standardization(shift: Double, scale: Double) {
@@ -38,14 +38,16 @@ object Standardization {
     * @param values sequence of vectors to be standardized
     * @return sequence of standardization, each as an option
     */
-  def buildMulti(values: Seq[Vector[Any]]): Map[Int, Standardization] = {
+  def buildMulti(values: Seq[Vector[Any]]): Seq[Option[Standardization]] = {
     val rep = values.head
     val valuesTransposed = values.transpose
-    rep.zipWithIndex.collect {
+    rep.zipWithIndex.map {
       case (_: Double, idx) =>
         val doubleValues = valuesTransposed(idx).collect { case x: Double if !x.isNaN => x }
-        idx -> Standardization.build(doubleValues)
-    }.toMap
+        Some(Standardization.build(doubleValues))
+      case _ =>
+        None
+    }
   }
 
   /**
@@ -55,10 +57,10 @@ object Standardization {
     * @param trans transformations to apply
     * @return a standardized vector
     */
-  def applyMulti(input: Vector[Any], trans: Map[Int, Standardization]): Vector[Any] = {
-    input.zipWithIndex.map {
-      case (x: Double, idx) => trans.get(idx).map(_.apply(x)).getOrElse(x)
-      case (x, _)           => x
+  def applyMulti(input: Vector[Any], trans: Seq[Option[Standardization]]): Vector[Any] = {
+    input.zip(trans).map {
+      case (x: Double, Some(t)) => t.apply(x)
+      case (x, _)               => x
     }
   }
 
@@ -69,10 +71,10 @@ object Standardization {
     * @param trans transformations to un-apply
     * @return a standardized vector of optional values
     */
-  def applyMultiOption(input: Vector[Option[Any]], trans: Map[Int, Standardization]): Vector[Option[Any]] = {
-    input.zipWithIndex.map {
-      case (Some(x: Double), idx) => Some(trans.get(idx).map(_.apply(x)).getOrElse(x))
-      case (x, _)                 => x
+  def applyMultiOption(input: Vector[Option[Any]], trans: Seq[Option[Standardization]]): Vector[Option[Any]] = {
+    input.zip(trans).map {
+      case (Some(x: Double), Some(t)) => Some(t.apply(x))
+      case (x, _)                     => x
     }
   }
 
@@ -83,10 +85,10 @@ object Standardization {
     * @param trans transformations to un-apply
     * @return a restored vector
     */
-  def invertMulti(input: Vector[Any], trans: Map[Int, Standardization]): Vector[Any] = {
-    input.zipWithIndex.map {
-      case (x: Double, idx) => trans.get(idx).map(_.invert(x)).getOrElse(x)
-      case (x, _)           => x
+  def invertMulti(input: Vector[Any], trans: Seq[Option[Standardization]]): Vector[Any] = {
+    input.zip(trans).map {
+      case (x: Double, Some(t)) => t.invert(x)
+      case (x, _)               => x
     }
   }
 
@@ -97,10 +99,10 @@ object Standardization {
     * @param trans transformations to un-apply
     * @return a restored vector of optional values
     */
-  def invertMultiOption(input: Vector[Option[Any]], trans: Map[Int, Standardization]): Vector[Option[Any]] = {
-    input.zipWithIndex.map {
-      case (Some(x: Double), idx) => Some(trans.get(idx).map(_.invert(x)).getOrElse(x))
-      case (x, _)                 => x
+  def invertMultiOption(input: Vector[Option[Any]], trans: Seq[Option[Standardization]]): Vector[Option[Any]] = {
+    input.zip(trans).map {
+      case (Some(x: Double), Some(t)) => Some(t.invert(x))
+      case (x, _)                     => x
     }
   }
 }

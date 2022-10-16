@@ -2,8 +2,8 @@ package io.citrine.lolo.learners
 
 import io.citrine.random.Random
 import io.citrine.lolo.bags.{ClassificationBagger, MultiTaskBagger, RegressionBagger}
-import io.citrine.lolo.transformers.rotation.{FeatureRotator, MultiTaskFeatureRotator}
-import io.citrine.lolo.transformers.standardization.MultiTaskStandardizer
+import io.citrine.lolo.transformers.rotator.{FeatureRotator, MultiTaskFeatureRotator}
+import io.citrine.lolo.transformers.standardizer.MultiTaskStandardizer
 import io.citrine.lolo.trees.classification.ClassificationTreeLearner
 import io.citrine.lolo.trees.multitask.MultiTaskTreeLearner
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
