@@ -6,7 +6,7 @@ import io.citrine.lolo.Model
 import scala.collection.parallel.immutable.ParSeq
 
 /**
-  * Helper class to subsume shared functionality of RegressionBagger and MultiTaskBagger.
+  * Helper class to subsume shared functionality of [[RegressionBagger]] and [[MultiTaskBagger]].
   *
   * @param models collection of trained models
   * @param trainingData on which models were trained

@@ -23,6 +23,7 @@ trait Standardizer[T] extends Learner[T] {
   ): StandardizerTrainingResult[T]
 }
 
+/** A standardizer on both inputs & outputs for regression tasks. */
 case class RegressionStandardizer(baseLearner: Learner[Double]) extends Standardizer[Double] {
 
   override def train(
@@ -43,6 +44,7 @@ case class RegressionStandardizer(baseLearner: Learner[Double]) extends Standard
   }
 }
 
+/** A standardizer on features for classification tasks. */
 case class ClassificationStandardizer[T](baseLearner: Learner[T]) extends Standardizer[T] {
 
   override def train(

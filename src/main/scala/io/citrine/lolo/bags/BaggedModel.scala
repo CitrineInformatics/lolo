@@ -8,7 +8,11 @@ import scala.collection.parallel.immutable.ParSeq
 /** A model holding a parallel sequence of models and the sample counts used to train them. */
 trait BaggedModel[+T] extends Model[T] {
 
+  /** Models in the ensemble trained on subsets of the training data. */
   def models: ParSeq[Model[T]]
+
+  /** Sample counts used to train models in the ensemble ((# bags) x (# training rows)). */
+  def Nib: Vector[Vector[Int]]
 
   override def transform(inputs: Seq[Vector[Any]]): BaggedPrediction[T]
 
@@ -31,8 +35,8 @@ trait BaggedModel[+T] extends Model[T] {
 
 class BaggedRegressionModel(
     val models: ParSeq[Model[Double]],
-    Nib: Vector[Vector[Int]],
-    rescale: Double = 1.0,
+    val Nib: Vector[Vector[Int]],
+    rescaleRatio: Double = 1.0,
     disableBootstrap: Boolean = false,
     biasModel: Option[Model[Double]] = None
 ) extends BaggedModel[Double] {
@@ -49,7 +53,7 @@ class BaggedRegressionModel(
         ensemblePredictions,
         Nib,
         bias.map(_.head),
-        rescale,
+        rescaleRatio,
         disableBootstrap
       )
     } else {
@@ -57,14 +61,14 @@ class BaggedRegressionModel(
         ensemblePredictions,
         Nib,
         bias,
-        rescale,
+        rescaleRatio,
         disableBootstrap
       )
     }
   }
 }
 
-class BaggedClassificationModel[T](val models: ParSeq[Model[T]], Nib: Vector[Vector[Int]]) extends BaggedModel[T] {
+class BaggedClassificationModel[T](val models: ParSeq[Model[T]], val Nib: Vector[Vector[Int]]) extends BaggedModel[T] {
 
   override def transform(inputs: Seq[Vector[Any]]): BaggedClassificationPrediction[T] = {
     assert(inputs.forall(_.size == inputs.head.size))

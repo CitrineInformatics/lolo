@@ -219,7 +219,7 @@ class MultiTaskBaggedTrainingResult(
           new BaggedRegressionModel(
             thisLabelModels.asInstanceOf[ParSeq[Model[Double]]],
             Nib = Nib,
-            rescale = rescaleRatios(i).get,
+            rescaleRatio = rescaleRatios(i).get,
             biasModel = biasModels(i)
           )
         } else {
@@ -259,7 +259,7 @@ class MultiTaskBaggedModel(
       new BaggedRegressionModel(
         thisLabelsModels.asInstanceOf[ParSeq[Model[Double]]],
         Nib = Nib,
-        rescale = rescaleRatios(i).get,
+        rescaleRatio = rescaleRatios(i).get,
         biasModel = biasModels(i)
       )
     } else {
@@ -283,9 +283,9 @@ class MultiTaskBaggedModel(
   * @param NibIn              the sampling matrix as (# bags) x (# training)
   */
 case class MultiTaskBaggedResult(
-                                  baggedPredictions: Vector[BaggedPrediction[Any]],
-                                  realLabels: Seq[Boolean],
-                                  NibIn: Vector[Vector[Int]]
+    baggedPredictions: Vector[BaggedPrediction[Any]],
+    realLabels: Seq[Boolean],
+    NibIn: Vector[Vector[Int]]
 ) extends BaggedPrediction[Vector[Any]]
     with MultiTaskModelPredictionResult {
 

@@ -44,7 +44,7 @@ class MultiTaskStandardizerTrainingResult(
   override def getModel(): MultiTaskModel =
     new ParallelModels(getModels(), baseTrainingResult.getModel().getRealLabels)
 
-  override def getModels(): Seq[Model[Any]] = {
+  override def getModels(): Seq[StandardizerModel[Any]] = {
     val realLabels = getModel().getRealLabels
     baseTrainingResult.getModels().zipWithIndex.map {
       case (model, idx) =>

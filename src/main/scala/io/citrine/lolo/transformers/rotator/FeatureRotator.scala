@@ -41,7 +41,7 @@ case class FeatureRotator[T](baseLearner: Learner[T]) extends Learner[T] {
 }
 
 /**
-  * Training result bundling the base learner's training result with the list of rotated features and the transformation
+  * Training result bundling the base learner's training result with the list of rotated features and transformation.
   *
   * @param baseTrainingResult training result to which to delegate prediction on rotated features
   * @param rotatedFeatures indices of features to rotate
@@ -53,11 +53,6 @@ case class RotatedFeatureTrainingResult[T](
     trans: DenseMatrix[Double]
 ) extends TrainingResult[T] {
 
-  /**
-    * Get the model contained in the training result
-    *
-    * @return the model
-    */
   override def getModel(): Model[T] = {
     RotatedFeatureModel(baseTrainingResult.getModel(), rotatedFeatures, trans)
   }
@@ -74,7 +69,7 @@ case class RotatedFeatureTrainingResult[T](
 }
 
 /**
-  * Model bundling the base learner's model with the list of rotated features and the transformation
+  * Model bundling the base learner's model with the list of rotated features and the transformation.
   *
   * @param baseModel model to which to delegate prediction on rotated features
   * @param rotatedFeatures indices of features to rotate
@@ -88,10 +83,10 @@ case class RotatedFeatureModel[T](
 ) extends Model[T] {
 
   /**
-    * Transform the inputs and then apply the base model
+    * Rotate the inputs and then apply the base model.
     *
     * @param inputs to apply the model to
-    * @return a RotatedFeaturePredictionResult which includes, at least, the expected outputs
+    * @return a RotatedFeaturePrediction which includes, at least, the expected outputs
     */
   override def transform(inputs: Seq[Vector[Any]]): RotatedFeaturePrediction[T] = {
     val rotatedInputs = FeatureRotator.applyRotation(inputs, rotatedFeatures, trans)
@@ -114,24 +109,19 @@ case class RotatedFeaturePrediction[T](
 ) extends PredictionResult[T] {
 
   /**
-    * Get the expected values for this prediction by delegating to baseResult
+    * Get the expected values for this prediction by delegating to the baseResult.
     *
     * @return expected value of each prediction
     */
   override def getExpected(): Seq[T] = baseResult.getExpected()
 
   /**
-    * Get the uncertainty of the prediction by delegating to baseResult
+    * Get the uncertainty of the prediction by delegating to baseResult.
     *
     * @return uncertainty of each prediction
     */
   override def getUncertainty(observational: Boolean): Option[Seq[Any]] = baseResult.getUncertainty(observational)
 
-  /**
-    * Get the gradient or sensitivity of each prediction
-    *
-    * @return a vector of doubles for each prediction
-    */
   override def getGradient(): Option[Seq[Vector[Double]]] = {
     baseResult.getGradient().map { g =>
       FeatureRotator.applyRotation(g, rotatedFeatures, trans.t).asInstanceOf[Seq[Vector[Double]]]

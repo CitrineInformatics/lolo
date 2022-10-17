@@ -17,12 +17,12 @@ class RegressionBaggerTrainingResult(
     trainingData: Seq[(Vector[Any], Double)],
     featureImportance: Option[Vector[Double]],
     biasModel: Option[Model[Double]] = None,
-    rescale: Double = 1.0,
+    rescaleRatio: Double = 1.0,
     disableBootstrap: Boolean = false
 ) extends BaggedTrainingResult[Double] {
 
-  lazy val NibT: Seq[Vector[Int]] = Nib.transpose
-  lazy val model = new BaggedRegressionModel(models, Nib, rescale, disableBootstrap, biasModel)
+  lazy val NibT: Vector[Vector[Int]] = Nib.transpose
+  lazy val model = new BaggedRegressionModel(models, Nib, rescaleRatio, disableBootstrap, biasModel)
   lazy val predictedVsActual: Seq[(Vector[Any], Double, Double)] = trainingData.zip(NibT).flatMap {
     case ((f, l), nb) =>
       val oob = if (disableBootstrap) {
@@ -64,7 +64,7 @@ class ClassificationBaggerTrainingResult[T](
     disableBootstrap: Boolean = false
 ) extends BaggedTrainingResult[T] {
 
-  lazy val NibT: Seq[Vector[Int]] = Nib.transpose
+  lazy val NibT: Vector[Vector[Int]] = Nib.transpose
   lazy val model = new BaggedClassificationModel(models, Nib)
   lazy val predictedVsActual: Seq[(Vector[Any], T, T)] = trainingData.zip(NibT).flatMap {
     case ((f, l), nb) =>

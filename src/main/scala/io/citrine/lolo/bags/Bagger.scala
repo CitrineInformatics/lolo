@@ -81,10 +81,14 @@ sealed trait Bagger[T] extends Learner[T] {
     // Average the feature importances
     val averageImportance = importances.reduce(Bagger.combineImportance).map(_.map(_ / importances.size))
 
-    BaggedEnsemble(Nib, models, averageImportance)
+    BaggedEnsemble(models, Nib, averageImportance)
   }
 
-  /** Compute the number of instances of each training row in each training sample. */
+  /**
+    * Compute the number of instances of each training row in each bag.
+    *
+    * @return the (# bags) x (# training rows) array of sample counts
+    */
   private def drawNib(actualBags: Int, trainingSize: Int, rng: Random = Random()): Vector[Vector[Int]] = {
     val randBasis = StatsUtils.breezeRandBasis(rng)
     val dist = new Poisson(1.0)(randBasis)
@@ -158,7 +162,7 @@ case class RegressionBagger(
       trainingData = trainingData,
       featureImportance = ensemble.averageImportance,
       biasModel = biasModel,
-      rescale = helper.rescaleRatio,
+      rescaleRatio = helper.rescaleRatio,
       disableBootstrap = disableBootstrap
     )
   }
@@ -201,9 +205,9 @@ case class ClassificationBagger[T](
 object Bagger {
 
   /** Ensemble of models derived from training a [[Bagger]]. */
-  case class BaggedEnsemble[T](
-      Nib: Vector[Vector[Int]],
+  protected[bags] case class BaggedEnsemble[+T](
       models: ParVector[Model[T]],
+      Nib: Vector[Vector[Int]],
       averageImportance: Option[Vector[Double]]
   )
 
@@ -222,11 +226,10 @@ object Bagger {
     */
   val minimumNonzeroWeightSize: Int = 4
 
-  def combineImportance(v1: Option[Vector[Double]], v2: Option[Vector[Double]]): Option[Vector[Double]] = {
-    (v1, v2) match {
-      case (None, None)                                         => None
-      case (Some(v1: Vector[Double]), Some(v2: Vector[Double])) => Some(v1.zip(v2).map(p => p._1 + p._2))
-      case _                                                    => None
+  /** Combine two optional feature importance vectors. */
+  def combineImportance(vec1: Option[Vector[Double]], vec2: Option[Vector[Double]]): Option[Vector[Double]] = {
+    vec1.zip(vec2).map {
+      case (v1, v2) => v1.zip(v2).map(p => p._1 + p._2)
     }
   }
 }
