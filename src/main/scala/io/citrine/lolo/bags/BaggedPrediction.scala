@@ -18,7 +18,7 @@ trait BaggedPrediction[+T] extends PredictionResult[T] {
   /** The number of input rows that have been predicted on (NOT the number of bagged models). */
   def numPredictions: Int
 
-  /** The predictions made by each of the bagged models. */
+  /** The predictions made by each of the bagged models in the ensemble. */
   def ensemblePredictions: Seq[PredictionResult[T]]
 
   /**

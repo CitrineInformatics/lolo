@@ -216,7 +216,7 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
     assert(predictionResult.ensemblePredictions.length == numBags)
 
     // because the uncertainty is recalibrated, the prediction result should have a rescale value that is not equal to 1.0
-    assert(predictionResult.baggedPredictions.head.asInstanceOf[MultiPointBaggedPrediction].rescaleRatio != 1.0)
+    assert(predictionResult.labelPredictions.head.asInstanceOf[MultiPointBaggedPrediction].rescaleRatio != 1.0)
 
     // The prediction made by the full model and the prediction made by just the categorical model should agree
     // and both be equal to the training label.

@@ -58,6 +58,8 @@ case class MultiTaskBagger(
       )
     }
 
+    val weightsActual = weights.getOrElse(Seq.fill(trainingData.size)(1.0))
+
     // if numBags is non-positive, set # bags = # inputs
     val actualBags = if (numBags > 0) numBags else trainingData.size
 
@@ -75,7 +77,6 @@ case class MultiTaskBagger(
       }
       .take(actualBags)
       .toVector
-    val weightsActual = weights.getOrElse(Seq.fill(trainingData.size)(1.0))
 
     val indices = Nib.indices.toVector
     val (models, importances) =
@@ -108,9 +109,9 @@ case class MultiTaskBagger(
             case learner if helper.oobErrors.nonEmpty =>
               learner.train(helper.biasTraining, rng = rng).getModel()
           }
-          (biasModel, Some(helper.rescaleRatio))
+          (biasModel, helper.rescaleRatio)
         } else {
-          (None, None)
+          (None, 1.0) // Rescale not used for classification tasks, so just set a default of 1.0
         }
       }
       .unzip
@@ -151,7 +152,7 @@ class MultiTaskBaggedTrainingResult(
     trainingData: Seq[(Vector[Any], Vector[Any])],
     featureImportance: Option[Vector[Double]],
     biasModels: Seq[Option[Model[Double]]],
-    rescaleRatios: Seq[Option[Double]]
+    rescaleRatios: Seq[Double]
 ) extends MultiTaskTrainingResult {
 
   lazy val model = new MultiTaskBaggedModel(models, Nib, biasModels, rescaleRatios)
@@ -219,7 +220,7 @@ class MultiTaskBaggedTrainingResult(
           new BaggedRegressionModel(
             thisLabelModels.asInstanceOf[ParSeq[Model[Double]]],
             Nib = Nib,
-            rescaleRatio = rescaleRatios(i).get,
+            rescaleRatio = rescaleRatios(i),
             biasModel = biasModels(i)
           )
         } else {
@@ -248,7 +249,7 @@ class MultiTaskBaggedModel(
     models: ParSeq[MultiTaskModel],
     Nib: Vector[Vector[Int]],
     biasModels: Seq[Option[Model[Double]]],
-    rescaleRatios: Seq[Option[Double]]
+    rescaleRatios: Seq[Double]
 ) extends MultiTaskModel {
 
   override val numLabels: Int = models.head.numLabels
@@ -259,7 +260,7 @@ class MultiTaskBaggedModel(
       new BaggedRegressionModel(
         thisLabelsModels.asInstanceOf[ParSeq[Model[Double]]],
         Nib = Nib,
-        rescaleRatio = rescaleRatios(i).get,
+        rescaleRatio = rescaleRatios(i),
         biasModel = biasModels(i)
       )
     } else {
@@ -268,7 +269,7 @@ class MultiTaskBaggedModel(
   }
 
   override def transform(inputs: Seq[Vector[Any]]): MultiTaskBaggedPrediction =
-    MultiTaskBaggedPrediction(groupedModels.map(_.transform(inputs)), getRealLabels, Nib)
+    MultiTaskBaggedPrediction(groupedModels.map(_.transform(inputs)), getRealLabels)
 
   override def getRealLabels: Seq[Boolean] = models.head.getRealLabels
 
@@ -278,33 +279,26 @@ class MultiTaskBaggedModel(
 /**
   * Container with model-wise predictions for each label and the machinery to compute (co)variance.
   *
-  * @param baggedPredictions  bagged prediction results for each label
-  * @param realLabels         a boolean sequence indicating which labels are real-valued
-  * @param NibIn              the sampling matrix as (# bags) x (# training)
+  * @param labelPredictions bagged prediction results for each label
+  * @param realLabels       a boolean sequence indicating which labels are real-valued
   */
-case class MultiTaskBaggedPrediction(
-    baggedPredictions: Vector[BaggedPrediction[Any]],
-    realLabels: Seq[Boolean],
-    NibIn: Vector[Vector[Int]]
-) extends BaggedPrediction[Vector[Any]]
+case class MultiTaskBaggedPrediction(labelPredictions: Vector[BaggedPrediction[Any]], realLabels: Seq[Boolean])
+    extends BaggedPrediction[Vector[Any]]
     with MultiTaskModelPredictionResult {
 
-  /* transpose to be (# training) x (# models) */
-  lazy val Nib: Vector[Vector[Int]] = NibIn.transpose
+  override def numPredictions: Int = labelPredictions.head.numPredictions
 
-  override def numPredictions: Int = baggedPredictions.head.numPredictions
-
-  override def getExpected(): Seq[Vector[Any]] = baggedPredictions.map(_.getExpected()).transpose
+  override def getExpected(): Seq[Vector[Any]] = labelPredictions.map(_.getExpected()).transpose
 
   override def ensemblePredictions: Seq[PredictionResult[Vector[Any]]] =
-    baggedPredictions
+    labelPredictions
       .map(_.ensemblePredictions.map(_.getExpected()))
       .transpose
-      .map(x => new ParallelModelsPredictionResult(x.transpose))
+      .map(x => ParallelModelsPredictionResult(x.transpose))
 
   // For each prediction, the uncertainty is a sequence of entries for each label. Missing uncertainty values are reported as NaN
   override def getUncertainty(observational: Boolean = true): Option[Seq[Seq[Any]]] = {
-    Some(baggedPredictions.map { predictionResult =>
+    Some(labelPredictions.map { predictionResult =>
       predictionResult.getUncertainty(observational) match {
         case Some(value) => value
         case None        => Seq.fill(numPredictions)(Double.NaN)
@@ -332,9 +326,9 @@ case class MultiTaskBaggedPrediction(
   private def uncertaintyCorrelationObservational(i: Int, j: Int): Seq[Double] = {
     // make (# predictions) x (# bags) prediction matrices for each label
     val baggedPredictionsI =
-      baggedPredictions(i).ensemblePredictions.map(_.getExpected()).transpose.asInstanceOf[Seq[Seq[Double]]]
+      labelPredictions(i).ensemblePredictions.map(_.getExpected()).transpose.asInstanceOf[Seq[Seq[Double]]]
     val baggedPredictionsJ =
-      baggedPredictions(j).ensemblePredictions.map(_.getExpected()).transpose.asInstanceOf[Seq[Seq[Double]]]
+      labelPredictions(j).ensemblePredictions.map(_.getExpected()).transpose.asInstanceOf[Seq[Seq[Double]]]
     baggedPredictionsI.zip(baggedPredictionsJ).map {
       case (bagsI, bagsJ) =>
         StatsUtils.correlation(bagsI, bagsJ)

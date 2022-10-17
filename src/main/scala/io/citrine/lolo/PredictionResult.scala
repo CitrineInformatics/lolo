@@ -183,6 +183,6 @@ trait MultiTaskModelPredictionResult extends PredictionResult[Vector[Any]] {
 }
 
 /** A container that holds the predictions of several parallel models for multiple labels. */
-class ParallelModelsPredictionResult(predictions: Seq[Vector[Any]]) extends MultiTaskModelPredictionResult {
+case class ParallelModelsPredictionResult(predictions: Seq[Vector[Any]]) extends MultiTaskModelPredictionResult {
   override def getExpected(): Seq[Vector[Any]] = predictions
 }
