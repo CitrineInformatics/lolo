@@ -4,7 +4,8 @@ import breeze.linalg.DenseMatrix
 import io.citrine.lolo.{DataGenerator, SeedRandomMixIn, TestUtils}
 import io.citrine.lolo.linear.{GuessTheMeanLearner, LinearRegressionLearner}
 import io.citrine.lolo.stats.functions.Friedman
-import io.citrine.lolo.transformers.{FeatureRotator, Standardizer}
+import io.citrine.lolo.transformers.rotator.FeatureRotator
+import io.citrine.lolo.transformers.standardizer.RegressionStandardizer
 import io.citrine.lolo.trees.classification.ClassificationTreeLearner
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
 import io.citrine.lolo.trees.splits.RegressionSplitter
@@ -13,9 +14,6 @@ import org.scalatest.Assertions._
 
 import java.io.{File, PrintWriter}
 
-/**
-  * Created by maxhutch on 11/29/16.
-  */
 @Test
 class BaggerTest extends SeedRandomMixIn {
 
@@ -33,8 +31,8 @@ class BaggerTest extends SeedRandomMixIn {
       .generate(rows = 256, beta0.length, noise = 0.5, function = x => linearFunction(x, beta0), rng = rng)
       .data
 
-    val baseLearner = new Standardizer(LinearRegressionLearner(regParam = Some(0.5)))
-    val baggedLearner = Bagger(baseLearner, numBags = trainingData.size)
+    val baseLearner = RegressionStandardizer(LinearRegressionLearner(regParam = Some(0.5)))
+    val baggedLearner = RegressionBagger(baseLearner, numBags = trainingData.size)
 
     val learnerMeta = baggedLearner.train(trainingData, rng = rng)
     val model = learnerMeta.getModel()
@@ -58,8 +56,7 @@ class BaggerTest extends SeedRandomMixIn {
       .data
 
     val DTLearner = RegressionTreeLearner(numFeatures = 3)
-    val baggedLearner =
-      Bagger(DTLearner, numBags = trainingData.size)
+    val baggedLearner = RegressionBagger(DTLearner, numBags = trainingData.size)
     val RFMeta = baggedLearner.train(trainingData, rng = rng)
     val RF = RFMeta.getModel()
 
@@ -88,8 +85,7 @@ class BaggerTest extends SeedRandomMixIn {
       .data
 
     val DTLearner = ClassificationTreeLearner()
-    val baggedLearner =
-      Bagger(DTLearner, numBags = trainingData.size / 2)
+    val baggedLearner = ClassificationBagger(DTLearner, numBags = trainingData.size / 2)
     val RFMeta = baggedLearner.train(trainingData, rng = rng)
     val RF = RFMeta.getModel()
 
@@ -102,9 +98,8 @@ class BaggerTest extends SeedRandomMixIn {
     assert(uncertainty.isDefined)
     assert(trainingData.map(_._2).zip(uncertainty.get).forall {
       case (a, probs) =>
-        val classProbabilities = probs.asInstanceOf[Map[Any, Double]]
-        val maxProb = classProbabilities(a)
-        maxProb > 0.5 && maxProb < 1.0 && Math.abs(classProbabilities.values.sum - 1.0) < 1.0e-6
+        val maxProb = probs(a)
+        maxProb > 0.5 && maxProb < 1.0 && Math.abs(probs.values.sum - 1.0) < 1.0e-6
     })
     assert(results.getGradient().isEmpty, "Returned a gradient when there shouldn't be one")
 
@@ -128,11 +123,7 @@ class BaggerTest extends SeedRandomMixIn {
     val trainingData = DataGenerator.generate(128, nFeatures, xscale = width, rng = rng).data
     val DTLearner = RegressionTreeLearner(numFeatures = nFeatures)
     val bias = RegressionTreeLearner(maxDepth = 4)
-    val baggedLearner = Bagger(
-      DTLearner,
-      numBags = bagsPerRow * trainingData.size,
-      biasLearner = Some(bias)
-    )
+    val baggedLearner = RegressionBagger(DTLearner, numBags = bagsPerRow * trainingData.size, biasLearner = Some(bias))
     val RFMeta = baggedLearner.train(trainingData, rng = rng)
     val RF = RFMeta.getModel()
 
@@ -167,8 +158,8 @@ class BaggerTest extends SeedRandomMixIn {
       splitter = RegressionSplitter(randomizePivotLocation = true)
     )
 
-    val bagger = new Bagger(
-      new Standardizer(DTLearner),
+    val bagger = RegressionBagger(
+      RegressionStandardizer(DTLearner),
       numBags = 64,
       useJackknife = true,
       biasLearner = Some(
@@ -204,7 +195,7 @@ class BaggerTest extends SeedRandomMixIn {
     val csv = TestUtils.readCsv("double_example.csv")
     val trainingData = csv.map(vec => (vec.init, vec.last.asInstanceOf[Double]))
     val DTLearner = RegressionTreeLearner()
-    val baggedLearner = Bagger(
+    val baggedLearner = RegressionBagger(
       DTLearner,
       numBags = trainingData.size * 16
     ) // use lots of trees to reduce noise
@@ -234,7 +225,7 @@ class BaggerTest extends SeedRandomMixIn {
 
     val DTLearner = RegressionTreeLearner(numFeatures = 3)
     val start = System.nanoTime()
-    Bagger(
+    RegressionBagger(
       DTLearner,
       numBags = trainingData.size,
       uncertaintyCalibration = false
@@ -244,7 +235,7 @@ class BaggerTest extends SeedRandomMixIn {
     val unCalibratedTime = 1.0e-9 * (System.nanoTime() - start)
 
     val startAgain = System.nanoTime()
-    Bagger(
+    RegressionBagger(
       DTLearner,
       numBags = 64,
       uncertaintyCalibration = true
@@ -279,7 +270,7 @@ class BaggerTest extends SeedRandomMixIn {
       numFeatures = 2,
       splitter = RegressionSplitter(randomizePivotLocation = true)
     )
-    val trainedModel: BaggedModel[Any] = Bagger(
+    val trainedModel = RegressionBagger(
       DTLearner,
       numBags = 16,
       useJackknife = true,
@@ -289,7 +280,7 @@ class BaggerTest extends SeedRandomMixIn {
       .getModel()
 
     try {
-      val _: BaggedModel[Any] = Bagger(
+      val _: BaggedModel[Any] = RegressionBagger(
         DTLearner,
         numBags = 16,
         useJackknife = true,
@@ -317,7 +308,7 @@ class BaggerTest extends SeedRandomMixIn {
       val trainingData =
         DataGenerator.generate(16, 5, noise = 0.0, function = Friedman.friedmanSilverman, rng = rng).data
       val DTLearner = RegressionTreeLearner(numFeatures = 2)
-      val sigma = Bagger(DTLearner, numBags = 7)
+      val sigma = RegressionBagger(DTLearner, numBags = 7)
         .train(trainingData, rng = rng)
         .getModel()
         .transform(trainingData.map(_._1))
@@ -339,7 +330,7 @@ class BaggerTest extends SeedRandomMixIn {
       val trainingData =
         DataGenerator.generate(16, 5, noise = 0.0, function = Friedman.friedmanSilverman, rng = rng).data
       val DTLearner = RegressionTreeLearner(numFeatures = 2)
-      val sigma = Bagger(
+      val sigma = RegressionBagger(
         DTLearner,
         numBags = 7,
         biasLearner = Some(GuessTheMeanLearner())
@@ -363,7 +354,7 @@ class BaggerTest extends SeedRandomMixIn {
     val trainingData =
       DataGenerator.generate(64, nCols, noise = 0.0, function = Friedman.friedmanSilverman, rng = rng).data
     val DTLearner = RegressionTreeLearner(numFeatures = nCols)
-    val model = Bagger(DTLearner).train(trainingData, rng = rng).getModel()
+    val model = RegressionBagger(DTLearner).train(trainingData, rng = rng).getModel()
     val trees = model.models
     trainingData.foreach {
       case (x, _) =>
@@ -398,7 +389,7 @@ class BaggerTest extends SeedRandomMixIn {
     val trainingData =
       DataGenerator.generate(8, nCols, noise = 0.0, function = Friedman.friedmanSilverman, rng = rng).data
     val learner = FeatureRotator(RegressionTreeLearner(numFeatures = nCols))
-    val model = Bagger(learner)
+    val model = RegressionBagger(learner)
       .train(trainingData, rng = rng)
       .getModel()
 
@@ -435,7 +426,7 @@ object BaggerTest extends SeedRandomMixIn {
             DataGenerator.generate(nRows, nCols, noise = 0.0, function = Friedman.friedmanSilverman, rng = rng).data
           val DTLearner = RegressionTreeLearner(numFeatures = nCols)
           println(s"Training model nCols=$nCols\tnRows=$nRows\trepNum=$repNum")
-          val model = Bagger(DTLearner)
+          val model = RegressionBagger(DTLearner)
             .train(trainingData, rng = rng)
             .getModel()
           println(s"Trained")

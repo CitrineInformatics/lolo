@@ -11,9 +11,6 @@ import io.citrine.lolo.trees.regression.RegressionTreeLearner
 import org.junit.Test
 import org.scalatest.Assertions._
 
-/**
-  * Created by maxhutch on 11/29/16.
-  */
 @Test
 class MultiTaskBaggerTest extends SeedRandomMixIn {
 
@@ -309,7 +306,7 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
     val realUncertainty = trainingResult.getModels().head.transform(inputs).getUncertainty().get
     assert(realUncertainty.forall(!_.asInstanceOf[Double].isNaN), s"Some uncertainty values were NaN")
 
-    val referenceModel = Bagger(ClassificationTreeLearner(), numBags = inputs.size)
+    val referenceModel = ClassificationBagger(ClassificationTreeLearner(), numBags = inputs.size)
       .train(inputs.zip(sparseCat).filterNot(_._2 == null), rng = rng)
     val reference = referenceModel
       .getModel()

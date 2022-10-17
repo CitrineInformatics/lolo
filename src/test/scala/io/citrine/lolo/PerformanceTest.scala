@@ -1,7 +1,7 @@
 package io.citrine.lolo
 
 import io.citrine.lolo.DataGenerator.TrainingData
-import io.citrine.lolo.bags.{Bagger, MultiTaskBagger}
+import io.citrine.lolo.bags.{Bagger, ClassificationBagger, MultiTaskBagger, RegressionBagger}
 import io.citrine.lolo.trees.classification.ClassificationTreeLearner
 import io.citrine.lolo.trees.multitask.MultiTaskTreeLearner
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
@@ -55,7 +55,7 @@ class PerformanceTest extends SeedRandomMixIn {
   ): (Double, Double) = {
     val data = trainingData.map(p => (p._1.take(k), p._2)).take(n)
     val baseLearner = RegressionTreeLearner(numFeatures = k / 4)
-    val bagger = new Bagger(baseLearner, numBags = b)
+    val bagger = RegressionBagger(baseLearner, numBags = b)
     timedTest(bagger, data)
   }
 
@@ -67,7 +67,7 @@ class PerformanceTest extends SeedRandomMixIn {
   ): (Double, Double) = {
     val data = trainingData.map(p => (p._1.take(k), p._2)).take(n)
     val baseLearner = ClassificationTreeLearner(numFeatures = k / 4)
-    val bagger = new Bagger(baseLearner, numBags = b)
+    val bagger = ClassificationBagger(baseLearner, numBags = b)
     timedTest(bagger, data)
   }
 
@@ -119,8 +119,8 @@ class PerformanceTest extends SeedRandomMixIn {
 
     val trainSingle: Double = Stopwatch.time(
       {
-        new Bagger(RegressionTreeLearner()).train(inputs.zip(realLabels)).getLoss()
-        new Bagger(ClassificationTreeLearner()).train(inputs.zip(catLabels)).getLoss()
+        RegressionBagger(RegressionTreeLearner()).train(inputs.zip(realLabels)).getLoss()
+        ClassificationBagger(ClassificationTreeLearner()).train(inputs.zip(catLabels)).getLoss()
       },
       minRun = 1,
       maxRun = 1
