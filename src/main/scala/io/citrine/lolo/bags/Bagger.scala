@@ -204,7 +204,14 @@ case class ClassificationBagger[T](
 
 object Bagger {
 
-  /** Ensemble of models derived from training a [[Bagger]]. */
+  /**
+    * Data class storing intermediate results from training a [[Bagger]]
+    *
+    * @param models trained from each bag in the ensemble
+    * @param Nib array of sample counts of shape (# bags) x (# training rows)
+    * @param averageImportance across models in the ensemble
+    * @tparam T type of label data for the models
+    */
   protected[bags] case class BaggedEnsemble[+T](
       models: ParVector[Model[T]],
       Nib: Vector[Vector[Int]],
