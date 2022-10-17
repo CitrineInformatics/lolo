@@ -157,7 +157,7 @@ case class RegressionBagger(
     }
 
     new RegressionBaggerTrainingResult(
-      models = ensemble.models,
+      ensembleModels = ensemble.models,
       Nib = ensemble.Nib,
       trainingData = trainingData,
       featureImportance = ensemble.averageImportance,
@@ -193,7 +193,7 @@ case class ClassificationBagger[T](
     val ensemble = trainEnsemble(trainingData, weights, rng)
 
     new ClassificationBaggerTrainingResult(
-      models = ensemble.models,
+      ensembleModels = ensemble.models,
       Nib = ensemble.Nib,
       trainingData = trainingData,
       featureImportance = ensemble.averageImportance,

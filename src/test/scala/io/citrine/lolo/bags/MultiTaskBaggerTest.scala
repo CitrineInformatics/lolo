@@ -213,7 +213,7 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
 
     val testInputs = inputs.take(numTest)
     val predictionResult = RF.getModel().transform(testInputs)
-    assert(predictionResult.predictions.length == numBags)
+    assert(predictionResult.ensemblePredictions.length == numBags)
 
     // because the uncertainty is recalibrated, the prediction result should have a rescale value that is not equal to 1.0
     assert(predictionResult.baggedPredictions.head.asInstanceOf[MultiPointBaggedPrediction].rescaleRatio != 1.0)

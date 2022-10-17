@@ -9,15 +9,12 @@ import scala.collection.parallel.immutable.ParSeq
 trait BaggedModel[+T] extends Model[T] {
 
   /** Models in the ensemble trained on subsets of the training data. */
-  def models: ParSeq[Model[T]]
-
-  /** Sample counts used to train models in the ensemble ((# bags) x (# training rows)). */
-  def Nib: Vector[Vector[Int]]
+  def ensembleModels: ParSeq[Model[T]]
 
   override def transform(inputs: Seq[Vector[Any]]): BaggedPrediction[T]
 
   override def shapley(input: Vector[Any], omitFeatures: Set[Int] = Set()): Option[DenseMatrix[Double]] = {
-    val ensembleShapley = models.map(model => model.shapley(input, omitFeatures))
+    val ensembleShapley = ensembleModels.map(model => model.shapley(input, omitFeatures))
     if (ensembleShapley.head.isEmpty) {
       None
     } else {
@@ -34,8 +31,8 @@ trait BaggedModel[+T] extends Model[T] {
 }
 
 class BaggedRegressionModel(
-    val models: ParSeq[Model[Double]],
-    val Nib: Vector[Vector[Int]],
+    val ensembleModels: ParSeq[Model[Double]],
+    Nib: Vector[Vector[Int]],
     rescaleRatio: Double = 1.0,
     disableBootstrap: Boolean = false,
     biasModel: Option[Model[Double]] = None
@@ -45,7 +42,7 @@ class BaggedRegressionModel(
     assert(inputs.forall(_.size == inputs.head.size))
 
     val bias = biasModel.map(_.transform(inputs).getExpected())
-    val ensemblePredictions = models.map(model => model.transform(inputs)).seq
+    val ensemblePredictions = ensembleModels.map(model => model.transform(inputs)).seq
 
     if (inputs.size == 1) {
       // In the special case of a single prediction on a real value, emit an optimized prediction class
@@ -68,11 +65,12 @@ class BaggedRegressionModel(
   }
 }
 
-class BaggedClassificationModel[T](val models: ParSeq[Model[T]], val Nib: Vector[Vector[Int]]) extends BaggedModel[T] {
+class BaggedClassificationModel[T](val ensembleModels: ParSeq[Model[T]], Nib: Vector[Vector[Int]])
+    extends BaggedModel[T] {
 
   override def transform(inputs: Seq[Vector[Any]]): BaggedClassificationPrediction[T] = {
     assert(inputs.forall(_.size == inputs.head.size))
-    val ensemblePredictions = models.map(model => model.transform(inputs)).seq
+    val ensemblePredictions = ensembleModels.map(model => model.transform(inputs)).seq
     BaggedClassificationPrediction(ensemblePredictions)
   }
 }

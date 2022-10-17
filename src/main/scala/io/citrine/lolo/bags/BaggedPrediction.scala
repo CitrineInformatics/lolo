@@ -19,7 +19,7 @@ trait BaggedPrediction[+T] extends PredictionResult[T] {
   def numPredictions: Int
 
   /** The predictions made by each of the bagged models. */
-  def predictions: Seq[PredictionResult[T]]
+  def ensemblePredictions: Seq[PredictionResult[T]]
 
   /**
     * Average the gradients from the models in the ensemble
@@ -28,14 +28,14 @@ trait BaggedPrediction[+T] extends PredictionResult[T] {
     */
   override def getGradient(): Option[Seq[Vector[Double]]] = gradient
 
-  private lazy val gradient = if (predictions.head.getGradient().isEmpty) {
+  private lazy val gradient = if (ensemblePredictions.head.getGradient().isEmpty) {
     /* If the underlying model has no gradient, return None */
     None
   } else {
-    val gradientsByPrediction: Seq[Seq[Vector[Double]]] = predictions.map(_.getGradient().get)
+    val gradientsByPrediction: Seq[Seq[Vector[Double]]] = ensemblePredictions.map(_.getGradient().get)
     val gradientsByInput: Seq[Seq[Vector[Double]]] = gradientsByPrediction.transpose
     Some(gradientsByInput.map { r =>
-      r.toVector.transpose.map(_.sum / predictions.size)
+      r.toVector.transpose.map(_.sum / ensemblePredictions.size)
     })
   }
 }
@@ -49,12 +49,12 @@ sealed trait BaggedRegressionPrediction extends BaggedPrediction[Double] with Re
   * Assuming a single input allows for performance optimizations and more readable code.
   * See [[MultiPointBaggedPrediction]] for a generic implementation.
   *
-  * @param predictions for each constituent model
+  * @param ensemblePredictions for each constituent model
   * @param NibIn       the sample matrix as (N_models x N_training)
   * @param bias        model to use for estimating bias
   */
 case class SinglePointBaggedPrediction(
-    predictions: Seq[PredictionResult[Double]],
+    ensemblePredictions: Seq[PredictionResult[Double]],
     NibIn: Vector[Vector[Int]],
     bias: Option[Double] = None,
     rescaleRatio: Double = 1.0,
@@ -103,7 +103,7 @@ case class SinglePointBaggedPrediction(
     */
   override def getImportanceScores(): Option[Seq[Seq[Double]]] = Some(Seq(singleScores))
 
-  private lazy val treePredictions = predictions.map(_.getExpected().head).toArray
+  private lazy val treePredictions = ensemblePredictions.map(_.getExpected().head).toArray
   private lazy val expected = treePredictions.sum / treePredictions.length
   private lazy val treeVariance = {
     assert(treePredictions.length > 1, "Bootstrap variance undefined for fewer than 2 bootstrap samples.")
@@ -170,12 +170,12 @@ case class SinglePointBaggedPrediction(
   * of predictions is large.  This obfuscates the algorithm significantly, however.  To see what is being computed,
   * look at [[SinglePointBaggedPrediction]], which is more clear.  These two implementations are tested for consistency.
   *
-  * @param predictions for each constituent model
+  * @param ensemblePredictions for each constituent model
   * @param NibIn       the sample matrix as (N_models x N_training)
   * @param bias        model to use for estimating bias
   */
 case class MultiPointBaggedPrediction(
-    predictions: Seq[PredictionResult[Double]],
+    ensemblePredictions: Seq[PredictionResult[Double]],
     NibIn: Vector[Vector[Int]],
     bias: Option[Seq[Double]] = None,
     rescaleRatio: Double = 1.0,
@@ -239,7 +239,7 @@ case class MultiPointBaggedPrediction(
   lazy val Nib: Vector[Vector[Int]] = NibIn.transpose
 
   /* Make a matrix of the tree-wise predictions */
-  lazy val expectedMatrix: Seq[Seq[Double]] = predictions.map(p => p.getExpected()).transpose
+  lazy val expectedMatrix: Seq[Seq[Double]] = ensemblePredictions.map(p => p.getExpected()).transpose
 
   /* Extract the prediction by averaging over trees and adding the bias correction. */
   lazy val biasCorrection: Seq[Double] = bias.getOrElse(Seq.fill(expectedMatrix.length)(0))
@@ -371,8 +371,9 @@ case class MultiPointBaggedPrediction(
   }
 }
 
-case class BaggedClassificationPrediction[T](predictions: Seq[PredictionResult[T]]) extends BaggedPrediction[T] {
-  lazy val expectedMatrix: Seq[Seq[T]] = predictions.map(p => p.getExpected()).transpose
+case class BaggedClassificationPrediction[T](ensemblePredictions: Seq[PredictionResult[T]])
+    extends BaggedPrediction[T] {
+  lazy val expectedMatrix: Seq[Seq[T]] = ensemblePredictions.map(p => p.getExpected()).transpose
   lazy val expected: Seq[T] = expectedMatrix.map(ps => ps.groupBy(identity).maxBy(_._2.size)._1)
   lazy val uncertainty: Seq[Map[T, Double]] =
     expectedMatrix.map(ps => ps.groupBy(identity).view.mapValues(_.size.toDouble / ps.size).toMap)

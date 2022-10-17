@@ -12,7 +12,7 @@ sealed trait BaggedTrainingResult[+T] extends TrainingResult[T] {
 }
 
 class RegressionBaggerTrainingResult(
-    models: ParSeq[Model[Double]],
+    ensembleModels: ParSeq[Model[Double]],
     Nib: Vector[Vector[Int]],
     trainingData: Seq[(Vector[Any], Double)],
     featureImportance: Option[Vector[Double]],
@@ -22,13 +22,13 @@ class RegressionBaggerTrainingResult(
 ) extends BaggedTrainingResult[Double] {
 
   lazy val NibT: Vector[Vector[Int]] = Nib.transpose
-  lazy val model = new BaggedRegressionModel(models, Nib, rescaleRatio, disableBootstrap, biasModel)
+  lazy val model = new BaggedRegressionModel(ensembleModels, Nib, rescaleRatio, disableBootstrap, biasModel)
   lazy val predictedVsActual: Seq[(Vector[Any], Double, Double)] = trainingData.zip(NibT).flatMap {
     case ((f, l), nb) =>
       val oob = if (disableBootstrap) {
-        models.zip(nb)
+        ensembleModels.zip(nb)
       } else {
-        models.zip(nb).filter(_._2 == 0)
+        ensembleModels.zip(nb).filter(_._2 == 0)
       }
 
       if (oob.isEmpty || l.isNaN) {
@@ -57,7 +57,7 @@ class RegressionBaggerTrainingResult(
 }
 
 class ClassificationBaggerTrainingResult[T](
-    models: ParSeq[Model[T]],
+    ensembleModels: ParSeq[Model[T]],
     Nib: Vector[Vector[Int]],
     trainingData: Seq[(Vector[Any], T)],
     featureImportance: Option[Vector[Double]],
@@ -65,13 +65,13 @@ class ClassificationBaggerTrainingResult[T](
 ) extends BaggedTrainingResult[T] {
 
   lazy val NibT: Vector[Vector[Int]] = Nib.transpose
-  lazy val model = new BaggedClassificationModel(models, Nib)
+  lazy val model = new BaggedClassificationModel(ensembleModels, Nib)
   lazy val predictedVsActual: Seq[(Vector[Any], T, T)] = trainingData.zip(NibT).flatMap {
     case ((f, l), nb) =>
       val oob = if (disableBootstrap) {
-        models.zip(nb)
+        ensembleModels.zip(nb)
       } else {
-        models.zip(nb).filter(_._2 == 0)
+        ensembleModels.zip(nb).filter(_._2 == 0)
       }
 
       if (oob.isEmpty || l == null) {

@@ -355,7 +355,7 @@ class BaggerTest extends SeedRandomMixIn {
       DataGenerator.generate(64, nCols, noise = 0.0, function = Friedman.friedmanSilverman, rng = rng).data
     val DTLearner = RegressionTreeLearner(numFeatures = nCols)
     val model = RegressionBagger(DTLearner).train(trainingData, rng = rng).getModel()
-    val trees = model.models
+    val trees = model.ensembleModels
     trainingData.foreach {
       case (x, _) =>
         val shapley = model.shapley(x).get

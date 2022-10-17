@@ -296,9 +296,9 @@ case class MultiTaskBaggedPrediction(
 
   override def getExpected(): Seq[Vector[Any]] = baggedPredictions.map(_.getExpected()).transpose
 
-  override def predictions: Seq[PredictionResult[Vector[Any]]] =
+  override def ensemblePredictions: Seq[PredictionResult[Vector[Any]]] =
     baggedPredictions
-      .map(_.predictions.map(_.getExpected()))
+      .map(_.ensemblePredictions.map(_.getExpected()))
       .transpose
       .map(x => new ParallelModelsPredictionResult(x.transpose))
 
@@ -332,9 +332,9 @@ case class MultiTaskBaggedPrediction(
   private def uncertaintyCorrelationObservational(i: Int, j: Int): Seq[Double] = {
     // make (# predictions) x (# bags) prediction matrices for each label
     val baggedPredictionsI =
-      baggedPredictions(i).predictions.map(_.getExpected()).transpose.asInstanceOf[Seq[Seq[Double]]]
+      baggedPredictions(i).ensemblePredictions.map(_.getExpected()).transpose.asInstanceOf[Seq[Seq[Double]]]
     val baggedPredictionsJ =
-      baggedPredictions(j).predictions.map(_.getExpected()).transpose.asInstanceOf[Seq[Seq[Double]]]
+      baggedPredictions(j).ensemblePredictions.map(_.getExpected()).transpose.asInstanceOf[Seq[Seq[Double]]]
     baggedPredictionsI.zip(baggedPredictionsJ).map {
       case (bagsI, bagsJ) =>
         StatsUtils.correlation(bagsI, bagsJ)
