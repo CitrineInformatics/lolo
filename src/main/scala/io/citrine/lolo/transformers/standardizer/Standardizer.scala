@@ -18,8 +18,8 @@ trait Standardizer[T] extends Learner[T] {
     */
   override def train(
       trainingData: Seq[(Vector[Any], T)],
-      weights: Option[Seq[Double]],
-      rng: Random
+      weights: Option[Seq[Double]] = None,
+      rng: Random = Random()
   ): StandardizerTrainingResult[T]
 }
 

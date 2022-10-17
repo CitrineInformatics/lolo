@@ -8,7 +8,7 @@ import io.citrine.lolo.trees.regression.RegressionTreeLearner
 import org.junit.Test
 import org.scalatest.Assertions._
 
-class BaggedResultTest extends SeedRandomMixIn {
+class BaggedPredictionTest extends SeedRandomMixIn {
 
   @Test
   def testSingleMultiConsistency(): Unit = {
