@@ -1,6 +1,5 @@
 package io.citrine.lolo.validation
 
-import java.util
 import io.citrine.lolo.PredictionResult
 import io.citrine.random.Random
 import org.knowm.xchart.XYChart
@@ -123,12 +122,10 @@ case object UncertaintyCorrelation extends Merit[Double] {
       actual: Seq[Double],
       rng: Random = Random()
   ): Double = {
-    val predictedUncertaintyActual: Seq[(Double, Double, Double)] = (
-      predictionResult
-        .getExpected()
-        .lazyZip(predictionResult.getUncertainty().get.asInstanceOf[Seq[Double]])
-        .lazyZip(actual)
-      )
+    val predictedUncertaintyActual: Seq[(Double, Double, Double)] = predictionResult
+      .getExpected()
+      .lazyZip(predictionResult.getUncertainty().get.asInstanceOf[Seq[Double]])
+      .lazyZip(actual)
       .toSeq
 
     val ideal = predictedUncertaintyActual.map {

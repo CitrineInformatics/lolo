@@ -1,7 +1,7 @@
 package io.citrine.lolo.bags
 
 import breeze.stats.distributions.{Beta, RandBasis}
-import io.citrine.lolo.{RegressionResult, SeedRandomMixIn, TestUtils}
+import io.citrine.lolo.{DataGenerator, RegressionResult, SeedRandomMixIn}
 import io.citrine.lolo.linear.GuessTheMeanLearner
 import io.citrine.lolo.stats.functions.Friedman
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
@@ -12,10 +12,10 @@ class BaggedResultTest extends SeedRandomMixIn {
 
   @Test
   def testSingleMultiConsistency(): Unit = {
-    val trainingData = TestUtils.binTrainingData(
-      TestUtils.generateTrainingData(512, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng),
-      inputBins = Seq((0, 8))
-    )
+    val trainingData = DataGenerator
+      .generate(512, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng)
+      .withBinnedInputs(bins = Seq((0, 8)))
+      .data
 
     val DTLearner = RegressionTreeLearner(numFeatures = 12)
     val biasLearner = RegressionTreeLearner(maxDepth = 5, leafLearner = Some(GuessTheMeanLearner()))
@@ -60,7 +60,7 @@ class BaggedResultTest extends SeedRandomMixIn {
 
             val sigmaObsAndSigmaMean: Seq[(Double, Double)] = (1 to 20).flatMap { _ =>
               val trainingDataTmp =
-                TestUtils.generateTrainingData(nRows, nCols, noise = 0.0, function = _ => 0.0, rng = rng)
+                DataGenerator.generate(nRows, nCols, noise = 0.0, function = _ => 0.0, rng = rng).data
               val trainingData = trainingDataTmp.map { x => (x._1, x._2 + noiseLevel * rng.nextDouble()) }
               val baggedLearner = Bagger(baseLearner, numBags = nBags, uncertaintyCalibration = true)
               val RFMeta = baggedLearner.train(trainingData, rng = rng)
@@ -155,13 +155,13 @@ class BaggedResultTest extends SeedRandomMixIn {
     * @param trainingData The original training data for the model
     * @param model        The trained model
     */
-  private def testConsistency(trainingData: Seq[(Vector[Any], Any)], model: BaggedModel[Any]): Unit = {
+  private def testConsistency(trainingData: Seq[(Vector[Any], Double)], model: BaggedModel[Double]): Unit = {
     val testSubset = rng.shuffle(trainingData).take(16)
     val (singleValues, singleObsUnc, singleMeanUnc) = testSubset.map {
       case (x, _) =>
         val res = model.transform(Seq(x))
         (
-          res.getExpected().head.asInstanceOf[Double],
+          res.getExpected().head,
           res.getUncertainty(true).get.head.asInstanceOf[Double],
           res.getUncertainty(false).get.head.asInstanceOf[Double]
         )
@@ -170,7 +170,7 @@ class BaggedResultTest extends SeedRandomMixIn {
     val (multiValues, multiObsUnc, multiMeanUnc) = {
       val res = model.transform(testSubset.map(_._1))
       (
-        res.getExpected().map(_.asInstanceOf[Double]),
+        res.getExpected(),
         res.getUncertainty(true).get.map(_.asInstanceOf[Double]),
         res.getUncertainty(false).get.map(_.asInstanceOf[Double])
       )

@@ -14,7 +14,7 @@ import io.citrine.lolo.stats.StatsUtils.breezeRandBasis
   * This may be useful for improving randomization in random forests,
   * especially when using random feature selection without bagging.
   */
-case class FeatureRotator(baseLearner: Learner) extends Learner {
+case class FeatureRotator[T](baseLearner: Learner[T]) extends Learner[T] {
 
   /**
     * Create linear transformations for continuous features and labels & pass data through to learner
@@ -25,10 +25,10 @@ case class FeatureRotator(baseLearner: Learner) extends Learner {
     * @return training result containing a model
     */
   override def train(
-      trainingData: Seq[(Vector[Any], Any)],
+      trainingData: Seq[(Vector[Any], T)],
       weights: Option[Seq[Double]],
       rng: Random
-  ): RotatedFeatureTrainingResult = {
+  ): RotatedFeatureTrainingResult[T] = {
     val featuresToRotate = FeatureRotator.getDoubleFeatures(trainingData.head._1)
     val trans = FeatureRotator.getRandomRotation(featuresToRotate.length, rng)
 
@@ -72,27 +72,27 @@ case class MultiTaskFeatureRotator(baseLearner: MultiTaskLearner) extends MultiT
   * @param rotatedFeatures indices of features to rotate
   * @param trans matrix to apply to features
   */
-case class RotatedFeatureTrainingResult(
-    baseTrainingResult: TrainingResult,
+case class RotatedFeatureTrainingResult[T](
+    baseTrainingResult: TrainingResult[T],
     rotatedFeatures: IndexedSeq[Int],
     trans: DenseMatrix[Double]
-) extends TrainingResult {
+) extends TrainingResult[T] {
 
   /**
     * Get the model contained in the training result
     *
     * @return the model
     */
-  override def getModel(): Model[PredictionResult[Any]] = {
+  override def getModel(): Model[T] = {
     RotatedFeatureModel(baseTrainingResult.getModel(), rotatedFeatures, trans)
   }
 
   override def getLoss(): Option[Double] = baseTrainingResult.getLoss()
 
-  override def getPredictedVsActual(): Option[Seq[(Vector[Any], Any, Any)]] = {
+  override def getPredictedVsActual(): Option[Seq[(Vector[Any], T, T)]] = {
     baseTrainingResult.getPredictedVsActual().map { x =>
       x.map {
-        case (v: Vector[Any], e: Any, a: Any) => (FeatureRotator.applyOneRotation(v, rotatedFeatures, trans), e, a)
+        case (v: Vector[Any], e, a) => (FeatureRotator.applyOneRotation(v, rotatedFeatures, trans), e, a)
       }
     }
   }
@@ -112,12 +112,12 @@ case class MultiTaskRotatedFeatureTrainingResult(
 ) extends MultiTaskTrainingResult {
   override def getModel(): MultiTaskModel = new ParallelModels(getModels(), baseTrainingResult.getModel().getRealLabels)
 
-  override def getModels(): Seq[Model[PredictionResult[Any]]] =
+  override def getModels(): Seq[Model[Any]] =
     baseTrainingResult.getModels().map { model =>
       RotatedFeatureModel(model, rotatedFeatures, trans)
     }
 
-  override def getPredictedVsActual(): Option[Seq[(Vector[Any], Seq[Option[Any]], Seq[Option[Any]])]] = {
+  override def getPredictedVsActual(): Option[Seq[(Vector[Any], Vector[Option[Any]], Vector[Option[Any]])]] = {
     baseTrainingResult.getPredictedVsActual() match {
       case None => None
       case Some(predictedVsActual) =>
@@ -138,10 +138,10 @@ case class MultiTaskRotatedFeatureTrainingResult(
   * @tparam T label type
   */
 case class RotatedFeatureModel[T](
-    baseModel: Model[PredictionResult[T]],
+    baseModel: Model[T],
     rotatedFeatures: IndexedSeq[Int],
     trans: DenseMatrix[Double]
-) extends Model[PredictionResult[T]] {
+) extends Model[T] {
 
   /**
     * Transform the inputs and then apply the base model
@@ -193,7 +193,6 @@ case class RotatedFeaturePrediction[T](
       FeatureRotator.applyRotation(g, rotatedFeatures, trans.t).asInstanceOf[Seq[Vector[Double]]]
     }
   }
-
 }
 
 /**

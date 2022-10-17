@@ -29,7 +29,7 @@ case class StatisticalValidation() {
     */
   def generativeValidation[T](
       source: Iterator[(Vector[Any], T)],
-      learner: Learner,
+      learner: Learner[T],
       nTrain: Int,
       nTest: Int,
       nRound: Int,
@@ -39,7 +39,7 @@ case class StatisticalValidation() {
       val trainingData: Seq[(Vector[Any], T)] = source.take(nTrain).toSeq
       val model = learner.train(trainingData, rng = rng).getModel()
       val testData: Seq[(Vector[Any], T)] = source.take(nTest).toSeq
-      val predictions: PredictionResult[T] = model.transform(testData.map(_._1)).asInstanceOf[PredictionResult[T]]
+      val predictions: PredictionResult[T] = model.transform(testData.map(_._1))
       (predictions, testData.map(_._2))
     }
   }
@@ -65,7 +65,7 @@ case class StatisticalValidation() {
     */
   def generativeValidation[T](
       source: Iterable[(Vector[Any], T)],
-      learner: Learner,
+      learner: Learner[T],
       nTrain: Int,
       nTest: Int,
       nRound: Int,
@@ -75,9 +75,8 @@ case class StatisticalValidation() {
       val subset = rng.shuffle(source).take(nTrain + nTest)
       val (trainingData: Seq[(Vector[Any], T)], testData: Seq[(Vector[Any], T)]) = subset.splitAt(nTrain)
       val model = learner.train(trainingData, rng = rng).getModel()
-      val predictions: PredictionResult[T] = model.transform(testData.map(_._1)).asInstanceOf[PredictionResult[T]]
+      val predictions: PredictionResult[T] = model.transform(testData.map(_._1))
       (predictions, testData.map(_._2))
     }
   }
-
 }

@@ -2,7 +2,7 @@ package io.citrine.lolo.bags
 
 import breeze.stats.distributions.Poisson
 import io.citrine.lolo.stats.StatsUtils.breezeRandBasis
-import io.citrine.lolo.{Learner, Model, MultiTaskLearner, MultiTaskModel, MultiTaskTrainingResult, PredictionResult}
+import io.citrine.lolo.{Learner, Model, MultiTaskLearner, MultiTaskModel, MultiTaskTrainingResult}
 import io.citrine.random.Random
 import io.citrine.lolo.stats.metrics.{ClassificationMetrics, RegressionMetrics}
 
@@ -22,7 +22,7 @@ case class MultiTaskBagger(
     method: MultiTaskLearner,
     numBags: Int = -1,
     useJackknife: Boolean = true,
-    biasLearner: Option[Learner] = None,
+    biasLearner: Option[Learner[Double]] = None,
     uncertaintyCalibration: Boolean = true
 ) extends MultiTaskLearner {
 
@@ -88,17 +88,12 @@ case class MultiTaskBagger(
     // Get bias model and rescale ratio for each label
     val (biasModels, ratios) = Seq
       .tabulate(numOutputs) { i =>
-        val thisLabelModels: ParSeq[Model[PredictionResult[Any]]] = models.map(_.getModels(i))
+        val thisLabelModels: ParSeq[Model[Any]] = models.map(_.getModels(i))
         val isRegression = models.head.getRealLabels(i)
         val thisTrainingData = trainingData.map { case (inputs, outputs) => (inputs, outputs(i)) }
         val helper = BaggerHelper(thisLabelModels, thisTrainingData, Nib, useJackknife, uncertaintyCalibration)
         val biasModel = if (biasLearner.isDefined && isRegression) {
-          Some(
-            biasLearner.get
-              .train(helper.biasTraining, rng = rng)
-              .getModel()
-              .asInstanceOf[Model[PredictionResult[Double]]]
-          )
+          Some(biasLearner.get.train(helper.biasTraining, rng = rng).getModel())
         } else None
         (biasModel, helper.rescaleRatio)
       }
@@ -148,9 +143,9 @@ class MultiTaskBaggedTrainingResult(
     models: ParSeq[MultiTaskModel],
     featureImportance: Option[Vector[Double]],
     Nib: Vector[Vector[Int]],
-    trainingData: Seq[(Vector[Any], Seq[Any])],
+    trainingData: Seq[(Vector[Any], Vector[Any])],
     useJackknife: Boolean,
-    biasModels: Seq[Option[Model[PredictionResult[Double]]]],
+    biasModels: Seq[Option[Model[Double]]],
     rescaleRatios: Seq[Double]
 ) extends MultiTaskTrainingResult {
 
@@ -160,7 +155,7 @@ class MultiTaskBaggedTrainingResult(
   // The labels are of type Option[Any] because a given training datum might not have a value for every single label.
   // If the actual value for a label is None, then the corresponding prediction is recorded as None. The model could generate
   // a prediction, but that's not useful in this context, since the point is to compare predictions with ground-truth values.
-  lazy val predictedVsActual: Seq[(Vector[Any], Seq[Option[Any]], Seq[Option[Any]])] =
+  lazy val predictedVsActual: Seq[(Vector[Any], Vector[Option[Any]], Vector[Option[Any]])] =
     trainingData.zip(Nib.transpose).flatMap {
       case ((features, labels), nb) =>
         // Bagged models that were not trained on this input
@@ -187,7 +182,7 @@ class MultiTaskBaggedTrainingResult(
         }
     }
 
-  lazy val loss = {
+  lazy val loss: Double = {
     val allInputs = predictedVsActual.map(_._1)
     val allPredicted: Seq[Seq[Option[Any]]] = predictedVsActual.map(_._2).transpose
     val allActual: Seq[Seq[Option[Any]]] = predictedVsActual.map(_._3).transpose
@@ -210,14 +205,14 @@ class MultiTaskBaggedTrainingResult(
 
   override def getModel(): MultiTaskBaggedModel = model
 
-  override def getModels(): Seq[Model[PredictionResult[Any]]] = {
+  override def getModels(): Seq[Model[Any]] = {
     val realLabels: Seq[Boolean] = models.head.getRealLabels
     realLabels.zipWithIndex.map {
       case (isReal: Boolean, i: Int) =>
         val thisLabelModels = models.map(_.getModels(i))
         if (isReal) {
           new BaggedModel[Double](
-            thisLabelModels.asInstanceOf[ParSeq[Model[PredictionResult[Double]]]],
+            thisLabelModels.asInstanceOf[ParSeq[Model[Double]]],
             Nib,
             useJackknife,
             biasModels(i),
@@ -225,7 +220,7 @@ class MultiTaskBaggedTrainingResult(
           )
         } else {
           new BaggedModel[Any](
-            thisLabelModels.asInstanceOf[ParSeq[Model[PredictionResult[Any]]]],
+            thisLabelModels,
             Nib,
             useJackknife,
             biasModels(i),
@@ -235,7 +230,7 @@ class MultiTaskBaggedTrainingResult(
     }
   }
 
-  override def getPredictedVsActual(): Option[Seq[(Vector[Any], Seq[Option[Any]], Seq[Option[Any]])]] =
+  override def getPredictedVsActual(): Option[Seq[(Vector[Any], Vector[Option[Any]], Vector[Option[Any]])]] =
     Some(predictedVsActual)
 
   override def getLoss(): Option[Double] = {
@@ -256,15 +251,15 @@ class MultiTaskBaggedModel(
     models: ParSeq[MultiTaskModel],
     Nib: Vector[Vector[Int]],
     useJackknife: Boolean,
-    biasModels: Seq[Option[Model[PredictionResult[Double]]]],
+    biasModels: Seq[Option[Model[Double]]],
     rescaleRatios: Seq[Double]
 ) extends MultiTaskModel {
 
-  lazy val groupedModels: Seq[BaggedModel[Any]] = Seq.tabulate(numLabels) { i =>
+  lazy val groupedModels: Vector[BaggedModel[Any]] = Vector.tabulate(numLabels) { i =>
     val thisLabelsModels = models.map(_.getModels(i))
     if (getRealLabels(i)) {
       new BaggedModel[Double](
-        thisLabelsModels.asInstanceOf[ParSeq[Model[PredictionResult[Double]]]],
+        thisLabelsModels.asInstanceOf[ParSeq[Model[Double]]],
         Nib,
         useJackknife,
         biasModels(i),
@@ -275,7 +270,7 @@ class MultiTaskBaggedModel(
     }
   }
 
-  override def transform(inputs: Seq[Vector[Any]]) =
+  override def transform(inputs: Seq[Vector[Any]]): MultiTaskBaggedResult =
     MultiTaskBaggedResult(groupedModels.map(_.transform(inputs)), getRealLabels, Nib)
 
   override val numLabels: Int = models.head.numLabels

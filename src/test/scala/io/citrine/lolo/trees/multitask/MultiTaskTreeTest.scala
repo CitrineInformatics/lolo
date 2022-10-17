@@ -1,6 +1,6 @@
 package io.citrine.lolo.trees.multitask
 
-import io.citrine.lolo.{SeedRandomMixIn, TestUtils}
+import io.citrine.lolo.{DataGenerator, SeedRandomMixIn}
 import io.citrine.lolo.stats.functions.Friedman
 import io.citrine.lolo.stats.metrics.ClassificationMetrics
 import io.citrine.lolo.trees.classification.{ClassificationTree, ClassificationTreeLearner}
@@ -14,7 +14,7 @@ class MultiTaskTreeTest extends SeedRandomMixIn {
 
   // Set up some data.
   val raw: Seq[(Vector[Double], Double)] =
-    TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng)
+    DataGenerator.generate(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng).data
   val (inputs: Seq[Vector[Double]], realLabel: Seq[Double]) = raw.unzip
   val catLabel: Seq[Boolean] = raw.map(_._2 > realLabel.max / 2.0)
   val labels = Vector(realLabel, catLabel).transpose
@@ -102,8 +102,9 @@ class MultiTaskTreeTest extends SeedRandomMixIn {
     val combinedModel = combinedModelLearner.train(inputs.zip(labels), rng = combinedModelRng).getModel()
 
     // Generate new inputs to test equality on.
-    val testInputs = TestUtils
-      .generateTrainingData(32, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng)
+    val testInputs = DataGenerator
+      .generate(32, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng)
+      .data
       .map(_._1)
     val realResults = models.head.transform(testInputs).getExpected().asInstanceOf[Seq[Double]]
     val catResults = models.last.transform(testInputs).getExpected().asInstanceOf[Seq[Boolean]]

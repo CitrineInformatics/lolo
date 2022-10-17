@@ -2,12 +2,10 @@ package io.citrine.lolo.learners
 
 import breeze.linalg.DenseMatrix
 import breeze.stats.distributions.{Beta, RandBasis}
-import io.citrine.lolo.{SeedRandomMixIn, TestUtils}
+import io.citrine.lolo.{DataGenerator, Learner, SeedRandomMixIn}
 import io.citrine.lolo.bags.MultiTaskBaggedResult
-import io.citrine.lolo.linear.GuessTheMeanLearner
 import io.citrine.lolo.stats.functions.Friedman
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
-import io.citrine.lolo.trees.splits.RegressionSplitter
 import io.citrine.random.Random
 import org.junit.Test
 import org.scalatest.Assertions._
@@ -20,13 +18,13 @@ class RandomForestTest extends SeedRandomMixIn {
     */
   @Test
   def testRegressionForest(): Unit = {
-    val trainingData = TestUtils.binTrainingData(
-      TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng),
-      inputBins = Seq((0, 8))
-    )
+    val trainingData = DataGenerator
+      .generate(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng)
+      .withBinnedInputs(bins = Seq((0, 8)))
+      .data
 
     Seq(true, false).foreach { randomlyRotateFeatures =>
-      val RFMeta = RandomForest(randomlyRotateFeatures = randomlyRotateFeatures)
+      val RFMeta = RandomForestRegressor(randomlyRotateFeatures = randomlyRotateFeatures)
         .train(trainingData)
       val RF = RFMeta.getModel()
 
@@ -49,19 +47,18 @@ class RandomForestTest extends SeedRandomMixIn {
 
   /** Test that a random forest with multiple outputs produces a multitask bagger. */
   @Test
-  def testMultitaskForest(): Unit = {
-    val (inputs: Seq[Vector[Double]], realLabel: Seq[Double]) = TestUtils
-      .binTrainingData(
-        TestUtils
-          .generateTrainingData(256, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng),
-        inputBins = Seq((0, 8))
-      )
+  def testMultiTaskForest(): Unit = {
+    val (inputs, realLabels) = DataGenerator
+      .generate(256, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng)
+      .withBinnedInputs(bins = Seq((0, 8)))
+      .data
       .unzip
-    val catLabel: Seq[Boolean] = realLabel.map(_ > realLabel.max / 2.0)
-    val quadLabel: Seq[Double] = realLabel.map(x => x * x)
-    val labels = Vector(realLabel, catLabel, quadLabel).transpose
 
-    val RFMeta = RandomForest().train(inputs.zip(labels), rng = rng)
+    val catLabels = realLabels.map(_ > realLabels.max / 2.0)
+    val quadLabels = realLabels.map(x => x * x)
+    val allLabels = Vector(realLabels, catLabels, quadLabels).transpose
+
+    val RFMeta = MultiTaskRandomForest().train(inputs.zip(allLabels), weights = None, rng = rng)
     val model = RFMeta.getModel()
 
     val results = model.transform(inputs).asInstanceOf[MultiTaskBaggedResult]
@@ -74,16 +71,15 @@ class RandomForestTest extends SeedRandomMixIn {
     */
   @Test
   def testClassificationForest(): Unit = {
-    val trainingData = TestUtils.binTrainingData(
-      TestUtils
-        .generateTrainingData(128, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng),
-      inputBins = Seq((0, 8)),
-      responseBins = Some(8)
-    )
+    val trainingData = DataGenerator
+      .generate(128, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng)
+      .withBinnedInputs(bins = Seq((0, 8)))
+      .withBinnedLabels(bins = 8)
+      .data
 
     Seq(true, false).foreach { randomlyRotateFeatures =>
       val RFMeta =
-        RandomForest(numTrees = trainingData.size * 2, randomlyRotateFeatures = randomlyRotateFeatures)
+        RandomForestClassifier(numTrees = trainingData.size * 2, randomlyRotateFeatures = randomlyRotateFeatures)
           .train(trainingData, rng = rng)
       val RF = RFMeta.getModel()
 
@@ -106,31 +102,51 @@ class RandomForestTest extends SeedRandomMixIn {
   /** Test that the same random seed leads to identical models */
   @Test
   def testReproducibility(): Unit = {
-    val numTrain = 50
-    // Generate completely random training data
-    val (inputs: Seq[Vector[Double]], realLabel: Seq[Double]) = TestUtils
-      .generateTrainingData(rows = numTrain, cols = 12, noise = 5.0, function = _ => 0.0, rng = rng)
-      .unzip
-    val catLabel: Seq[Boolean] = Seq.fill(numTrain)(rng.nextBoolean())
-    val allLabels = Vector(realLabel, catLabel).transpose
-
-    // Generate test points
-    val numTest = 25
-    val testInputs = TestUtils.generateTrainingData(rows = numTest, cols = 12, function = _ => 0.0, rng = rng).map(_._1)
-
-    val seed = 67852103L
-    val RFMeta = RandomForest(
-      biasLearner = Some(RegressionTreeLearner(maxDepth = 5)),
-      randomizePivotLocation = true,
-      randomlyRotateFeatures = true
-    )
-    Vector(realLabel, catLabel, allLabels).foreach { labels =>
-      val model1 = RFMeta.train(inputs.zip(labels), rng = Random(seed)).getModel()
-      val model2 = RFMeta.train(inputs.zip(labels), rng = Random(seed)).getModel()
+    def checkReproducibility[T](
+        learner: Learner[T],
+        trainingData: Seq[(Vector[Any], T)],
+        testInputs: Seq[Vector[Any]],
+        seed: Long
+    ): Unit = {
+      val model1 = learner.train(trainingData, rng = Random(seed)).getModel()
+      val model2 = learner.train(trainingData, rng = Random(seed)).getModel()
       val predictions1 = model1.transform(testInputs)
       val predictions2 = model2.transform(testInputs)
       assert(predictions1.getExpected() == predictions2.getExpected())
     }
+
+    val numTrain = 50
+    // Generate completely random training data
+    val (inputs, realLabel) = DataGenerator
+      .generate(rows = numTrain, cols = 12, noise = 5.0, function = _ => 0.0, rng = rng)
+      .data
+      .unzip
+    val catLabel = Vector.fill(numTrain)(rng.nextBoolean())
+    val allLabels = Vector(realLabel, catLabel).transpose
+
+    // Generate test points
+    val numTest = 25
+    val testInputs = DataGenerator.generate(rows = numTest, cols = 12, function = _ => 0.0, rng = rng).data.map(_._1)
+
+    val seed = 67852103L
+    val rfRegressor = RandomForestRegressor(
+      biasLearner = Some(RegressionTreeLearner(maxDepth = 5)),
+      randomizePivotLocation = true,
+      randomlyRotateFeatures = true
+    )
+    checkReproducibility(rfRegressor, inputs.zip(realLabel), testInputs, seed)
+
+    val rfClassifier = RandomForestClassifier(
+      randomizePivotLocation = true,
+      randomlyRotateFeatures = true
+    )
+    checkReproducibility(rfClassifier, inputs.zip(catLabel), testInputs, seed)
+
+    val rfMultiTask = MultiTaskRandomForest(
+      randomizePivotLocation = true,
+      randomlyRotateFeatures = true
+    )
+    checkReproducibility(rfMultiTask, inputs.zip(allLabels), testInputs, seed)
   }
 
   /**
@@ -142,11 +158,11 @@ class RandomForestTest extends SeedRandomMixIn {
     val numTrials = 20
     val (winsSuffixed, winsPrefixed): (Int, Int) = (0 until numTrials)
       .map { _ =>
-        val mainTrainingData = TestUtils.binTrainingData(
-          TestUtils
-            .generateTrainingData(64, 5, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng),
-          responseBins = Some(2)
-        )
+        val mainTrainingData = DataGenerator
+          .generate(64, 5, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng)
+          .withBinnedLabels(bins = 2)
+          .data
+
         val dupeLabel = "DUPE"
         val trainingDataSuffixed = mainTrainingData ++ Seq(
           (mainTrainingData.head._1, dupeLabel)
@@ -155,8 +171,10 @@ class RandomForestTest extends SeedRandomMixIn {
           (mainTrainingData.head._1, dupeLabel)
         ) ++ mainTrainingData
 
-        val RFSuffixed = RandomForest(numTrees = trainingDataSuffixed.size * 2).train(trainingDataSuffixed, rng = rng)
-        val RFPrefixed = RandomForest(numTrees = trainingDataPrefixed.size * 2).train(trainingDataPrefixed, rng = rng)
+        val RFSuffixed =
+          RandomForestClassifier(numTrees = trainingDataSuffixed.size * 2).train(trainingDataSuffixed, rng = rng)
+        val RFPrefixed =
+          RandomForestClassifier(numTrees = trainingDataPrefixed.size * 2).train(trainingDataPrefixed, rng = rng)
         val predictedSuffixed = RFSuffixed.getModel().transform(mainTrainingData.map(_._1))
         val predictedPrefixed = RFPrefixed.getModel().transform(mainTrainingData.map(_._1))
         val extraLabelCountSuffixed = predictedSuffixed.getExpected().count { case p: String => p == dupeLabel }
@@ -195,15 +213,12 @@ class RandomForestTest extends SeedRandomMixIn {
   @Test
   def testRandomizedSplitLocations(): Unit = {
     // Generate a linear signal in one dimension: 2 * x
-    val trainingData: Seq[(Vector[Double], Double)] = TestUtils.generateTrainingData(
-      32,
-      1,
-      function = { x => x.head * 2.0 },
-      rng = rng
-    )
+    val trainingData: Seq[(Vector[Double], Double)] = DataGenerator
+      .generate(32, 1, function = { x => x.head * 2.0 }, rng = rng)
+      .data
 
     // Create a consistent set of parameters
-    val baseForest = RandomForest(numTrees = 16384, useJackknife = false)
+    val baseForest = RandomForestRegressor(numTrees = 16384, useJackknife = false)
 
     // Turn off split randomization and compute the loss (out-of-bag error)
     val lossWithoutRandomization: Double = baseForest
@@ -227,10 +242,10 @@ class RandomForestTest extends SeedRandomMixIn {
     */
   @Test
   def testWeightsWithSmallData(): Unit = {
-    val trainingData = TestUtils.generateTrainingData(8, 1, rng = rng)
+    val trainingData = DataGenerator.generate(8, 1, rng = rng).data
     // the number of trees is the number of times we generate weights
     // so this has the effect of creating lots of different sets of weights
-    val learner = RandomForest(numTrees = 16384)
+    val learner = RandomForestRegressor(numTrees = 16384)
     // the test is that this training doesn't throw an exception
     learner.train(trainingData, rng = rng).getModel()
   }
@@ -241,7 +256,7 @@ class RandomForestTest extends SeedRandomMixIn {
       expected: Vector[Double],
       rtol: Double = 0.1
   ): Unit = {
-    val actual = RandomForest().train(trainingData, rng = rng).getModel().shapley(evalLocation) match {
+    val actual = RandomForestRegressor().train(trainingData, rng = rng).getModel().shapley(evalLocation) match {
       case None => fail("Unexpected None returned by shapley.")
       case x: Option[DenseMatrix[Double]] => {
         val a = x.get
@@ -271,7 +286,7 @@ class RandomForestTest extends SeedRandomMixIn {
       (Vector(0.0, 0.0), 0.0)
     )
     val expected1 = Vector(30.0, 30.0)
-    shapleyCompare((1 to 8).map(_ => trainingData1).flatten, Vector[Any](1.0, 1.0), expected1)
+    shapleyCompare((1 to 8).flatMap(_ => trainingData1), Vector[Any](1.0, 1.0), expected1)
 
     // Second example from Lundberg paper (https://arxiv.org/pdf/1802.03888.pdf)
     val trainingData2 = Seq(
@@ -281,7 +296,7 @@ class RandomForestTest extends SeedRandomMixIn {
       (Vector(0.0, 0.0), 0.0)
     )
     val expected2 = Vector(35.0, 30.0)
-    shapleyCompare((1 to 8).map(_ => trainingData2).flatten, Vector[Any](1.0, 1.0), expected2)
+    shapleyCompare((1 to 8).flatMap(_ => trainingData2), Vector[Any](1.0, 1.0), expected2)
 
     // Example with two splits on one feature
     // Worked out with pen-and-paper from Lundberg Equation 2.
@@ -294,7 +309,7 @@ class RandomForestTest extends SeedRandomMixIn {
       (Vector(0.0, 0.0), 0.0)
     )
     val expected3 = Vector(45.8333333333333, 12.5)
-    shapleyCompare((1 to 8).map(_ => trainingData3).flatten, Vector[Any](1.0, 1.0), expected3)
+    shapleyCompare((1 to 8).flatMap(_ => trainingData3), Vector[Any](1.0, 1.0), expected3)
 
     // Example with 5 features, to exercise all the factorials in Lundberg equation 2.
     // Referenced against the shap package on a sklearn decision tree.
@@ -307,6 +322,6 @@ class RandomForestTest extends SeedRandomMixIn {
       (Vector(0.0, 0.0, 0.0, 0.0, 1.0), 32.0)
     )
     val expected4 = Vector(0.0333333333333333, 0.2, 0.8666666666666667, 3.533333333333333, 16.866666666666667)
-    shapleyCompare((1 to 8).map { _ => trainingData4 }.flatten, Vector.fill[Any](5)(1.0), expected4)
+    shapleyCompare((1 to 8).flatMap { _ => trainingData4 }, Vector.fill[Any](5)(1.0), expected4)
   }
 }

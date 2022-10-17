@@ -20,7 +20,7 @@ case class Standardization(shift: Double, scale: Double) {
   *
   * Created by maxhutch on 2/19/17.
   */
-case class Standardizer(baseLearner: Learner) extends Learner {
+case class Standardizer[T](baseLearner: Learner[T]) extends Learner[T] {
 
   /**
     * Create affine transformations for continuous features and labels; pass data through to learner
@@ -31,21 +31,22 @@ case class Standardizer(baseLearner: Learner) extends Learner {
     * @return training result containing a model
     */
   override def train(
-      trainingData: Seq[(Vector[Any], Any)],
+      trainingData: Seq[(Vector[Any], T)],
       weights: Option[Seq[Double]],
       rng: Random
-  ): StandardizerTrainingResult = {
+  ): StandardizerTrainingResult[T] = {
     val inputTrans = Standardizer.getMultiStandardization(trainingData.map(_._1))
     val outputTrans = trainingData.head._2 match {
       case _: Double => Some(Standardizer.getStandardization(trainingData.map(_._2.asInstanceOf[Double])))
-      case _: Any    => None
+      case _         => None
     }
 
     val (inputs, labels) = trainingData.unzip
-    val standardTrainingData =
-      Standardizer.applyStandardization(inputs, inputTrans).zip(Standardizer.applyStandardization(labels, outputTrans))
-    val baseTrainingResult = baseLearner.train(standardTrainingData, weights, rng)
+    val standardInputs = Standardizer.applyStandardization(inputs, inputTrans)
+    val standardLabels = Standardizer.applyStandardization(labels, outputTrans)
+    val standardTrainingData = standardInputs.zip(standardLabels)
 
+    val baseTrainingResult = baseLearner.train(standardTrainingData, weights, rng)
     new StandardizerTrainingResult(baseTrainingResult, outputTrans, inputTrans)
   }
 }
@@ -98,23 +99,23 @@ class MultiTaskStandardizer(baseLearner: MultiTaskLearner) extends MultiTaskLear
   * @param outputTrans optional transformation (rescale, offset) of output label
   * @param inputTrans sequence of optional transformations (rescale, offset) of inputs
   */
-class StandardizerTrainingResult(
-    baseTrainingResult: TrainingResult,
+class StandardizerTrainingResult[T](
+    baseTrainingResult: TrainingResult[T],
     outputTrans: Option[Standardization],
     inputTrans: Seq[Option[Standardization]]
-) extends TrainingResult {
+) extends TrainingResult[T] {
 
   /**
     * Get the model contained in the training result
     *
     * @return the model
     */
-  override def getModel(): Model[PredictionResult[Any]] =
+  override def getModel(): Model[T] =
     new StandardizerModel(baseTrainingResult.getModel(), outputTrans, inputTrans)
 
   override def getFeatureImportance(): Option[Vector[Double]] = baseTrainingResult.getFeatureImportance()
 
-  override def getPredictedVsActual(): Option[Seq[(Vector[Any], Any, Any)]] = {
+  override def getPredictedVsActual(): Option[Seq[(Vector[Any], T, T)]] = {
     baseTrainingResult.getPredictedVsActual() match {
       case None => None
       case Some(predictedVsActual) =>
@@ -141,9 +142,10 @@ class MultiTaskStandardizerTrainingResult(
     outputTrans: Seq[Option[Standardization]],
     inputTrans: Seq[Option[Standardization]]
 ) extends MultiTaskTrainingResult {
+
   override def getModel(): MultiTaskModel = new ParallelModels(getModels(), baseTrainingResult.getModel().getRealLabels)
 
-  override def getModels(): Seq[Model[PredictionResult[Any]]] =
+  override def getModels(): Seq[Model[Any]] =
     baseTrainingResult.getModels().zipWithIndex.map {
       case (model, i) =>
         new StandardizerModel(model, outputTrans(i), inputTrans)
@@ -151,7 +153,7 @@ class MultiTaskStandardizerTrainingResult(
 
   override def getFeatureImportance(): Option[Vector[Double]] = baseTrainingResult.getFeatureImportance()
 
-  override def getPredictedVsActual(): Option[Seq[(Vector[Any], Seq[Option[Any]], Seq[Option[Any]])]] = {
+  override def getPredictedVsActual(): Option[Seq[(Vector[Any], Vector[Option[Any]], Vector[Option[Any]])]] = {
     baseTrainingResult.getPredictedVsActual() match {
       case None => None
       case Some(predictedVsActual) =>
@@ -175,10 +177,10 @@ class MultiTaskStandardizerTrainingResult(
   * @tparam T type of prediction
   */
 class StandardizerModel[T](
-    baseModel: Model[PredictionResult[T]],
+    baseModel: Model[T],
     outputTrans: Option[Standardization],
     inputTrans: Seq[Option[Standardization]]
-) extends Model[PredictionResult[T]] {
+) extends Model[T] {
 
   /**
     * Standardize the inputs and then apply the base model
@@ -261,7 +263,7 @@ class StandardizerPrediction[T](
     }
   }
 
-  val outputRescale = outputTrans.map(_.scale).getOrElse(1.0)
+  val outputRescale: Double = outputTrans.map(_.scale).getOrElse(1.0)
 }
 
 /**
@@ -306,6 +308,42 @@ object Standardizer {
   }
 
   /**
+    * Apply the standardization to a sequence of values, which should result in output with zero mean and unit variance
+    *
+    * @param input to standardize
+    * @param trans transformation to apply
+    * @return sequence of standardized values
+    */
+  def applyStandardization[T](input: Seq[T], trans: Option[Standardization]): Seq[T] = {
+    trans
+      .map { t =>
+        input.map {
+          case x: Double => t.apply(x).asInstanceOf[T]
+          case x         => x
+        }
+      }
+      .getOrElse(input)
+  }
+
+  /**
+    * Invert the standardization on a sequence of values
+    *
+    * @param input to invert the standardization
+    * @param trans transformation to un-apply
+    * @return sequence of restored values
+    */
+  def invertStandardization[T](input: Seq[T], trans: Option[Standardization]): Seq[T] = {
+    trans
+      .map { t =>
+        input.map {
+          case x: Double => t.invert(x).asInstanceOf[T]
+          case x         => x
+        }
+      }
+      .getOrElse(input)
+  }
+
+  /**
     * Apply the standardizations to vectors, which should result in an output with zero mean and unit variance
     *
     * @param input to standardize
@@ -345,9 +383,9 @@ object Standardizer {
     * @return       sequence of restored vectors
     */
   def invertStandardizationOption(
-      input: Seq[Seq[Option[Any]]],
+      input: Seq[Vector[Option[Any]]],
       trans: Seq[Option[Standardization]]
-  ): Seq[Seq[Option[Any]]] = {
+  ): Seq[Vector[Option[Any]]] = {
     input.map { r =>
       r.zip(trans).map {
         case (Some(x: Double), Some(t)) => Some(t.invert(x))
@@ -355,29 +393,4 @@ object Standardizer {
       }
     }
   }
-
-  /**
-    * Apply the standardization to a sequence of values, which should result in output with zero mean and unit variance
-    *
-    * @param input to standardize
-    * @param trans transformation to apply
-    * @return sequence of standardized values
-    */
-  def applyStandardization(input: Seq[Any], trans: Option[Standardization]): Seq[Any] = {
-    if (trans.isEmpty) return input
-    input.asInstanceOf[Seq[Double]].map(trans.get.apply)
-  }
-
-  /**
-    * Invert the standardization on a sequence of values
-    *
-    * @param input  to invert the standardization
-    * @param trans  transformation to un-apply
-    * @return       sequence of restored values
-    */
-  def invertStandardization(input: Seq[Any], trans: Option[Standardization]): Seq[Any] = {
-    if (trans.isEmpty) return input
-    input.asInstanceOf[Seq[Double]].map(trans.get.invert)
-  }
-
 }

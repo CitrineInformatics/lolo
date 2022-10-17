@@ -8,16 +8,15 @@ import org.slf4j.LoggerFactory
 import scala.util.{Failure, Success, Try}
 
 /**
-  * Linear and ridge regression learner
+  * Linear ridge regression learner.
   *
-  * Created by maxhutch on 12/6/16.
-  *
+  * @param regParam regularization to use for the ridge model
   * @param fitIntercept whether to fit an intercept or not
   */
 case class LinearRegressionLearner(
     regParam: Option[Double] = None,
     fitIntercept: Boolean = true
-) extends Learner {
+) extends Learner[Double] {
 
   /**
     * Train a linear model via direct inversion.
@@ -28,7 +27,7 @@ case class LinearRegressionLearner(
     * @return a model
     */
   override def train(
-      trainingData: Seq[(Vector[Any], Any)],
+      trainingData: Seq[(Vector[Any], Double)],
       weights: Option[Seq[Double]],
       rng: Random
   ): LinearRegressionTrainingResult = {
@@ -61,7 +60,7 @@ case class LinearRegressionLearner(
       new DenseMatrix(numFeatures, numSamples, featureArray)
     }
     val X = Xt.t
-    val y = new DenseVector(labels.map(_.asInstanceOf[Double]).toArray)
+    val y = new DenseVector(labels.toArray)
 
     /* Rescale data by weight matrix */
     val weightsMatrix = weights.map(w => diag(new DenseVector(w.toArray)))
@@ -119,7 +118,7 @@ case class LinearRegressionLearner(
   *
   * @param model contained
   */
-class LinearRegressionTrainingResult(model: LinearRegressionModel) extends TrainingResult {
+class LinearRegressionTrainingResult(model: LinearRegressionModel) extends TrainingResult[Double] {
 
   override def getModel(): LinearRegressionModel = model
 
@@ -146,17 +145,17 @@ class LinearRegressionModel(
     beta: DenseVector[Double],
     intercept: Double,
     indices: Option[(Vector[Int], Int)] = None
-) extends Model[LinearRegressionResult] {
+) extends Model[Double] {
 
   /**
     * Apply the model to a seq of inputs
     *
     * @param inputs to apply the model to
-    * @return a predictionresult which includes, at least, the expected outputs
+    * @return a prediction result which includes, at least, the expected outputs
     */
   override def transform(inputs: Seq[Vector[Any]]): LinearRegressionResult = {
     val filteredInputs = indices
-      .map { case (ind, size) => inputs.map(inp => ind.map(inp(_))) }
+      .map { case (ind, _) => inputs.map(inp => ind.map(inp(_))) }
       .getOrElse(inputs)
       .flatten
       .asInstanceOf[Seq[Double]]

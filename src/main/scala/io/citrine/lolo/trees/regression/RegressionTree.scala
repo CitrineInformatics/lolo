@@ -8,6 +8,8 @@ import io.citrine.lolo.trees.splits.{RegressionSplitter, Splitter}
 import io.citrine.lolo.trees.{ModelNode, TrainingNode, TreeMeta}
 import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
 
+import scala.collection.mutable
+
 /**
   * Learner for regression trees
   *
@@ -21,9 +23,9 @@ case class RegressionTreeLearner(
     numFeatures: Int = -1,
     maxDepth: Int = 30,
     minLeafInstances: Int = 1,
-    leafLearner: Option[Learner] = None,
+    leafLearner: Option[Learner[Double]] = None,
     splitter: Splitter[Double] = RegressionSplitter()
-) extends Learner {
+) extends Learner[Double] {
 
   /** Learner to use for training the leaves */
   @transient private lazy val myLeafLearner = leafLearner.getOrElse(GuessTheMeanLearner())
@@ -37,19 +39,14 @@ case class RegressionTreeLearner(
     * @return a RegressionTree
     */
   override def train(
-      trainingData: Seq[(Vector[Any], Any)],
+      trainingData: Seq[(Vector[Any], Double)],
       weights: Option[Seq[Double]],
       rng: Random
   ): RegressionTreeTrainingResult = {
     require(trainingData.nonEmpty, s"The input training data was empty")
-    if (!trainingData.head._2.isInstanceOf[Double]) {
-      throw new IllegalArgumentException(
-        s"Tried to train regression on non-double labels, e.g.: ${trainingData.head._2}"
-      )
-    }
-    val repInput = trainingData.head._1
 
     /* Create encoders for any categorical features */
+    val repInput = trainingData.head._1
     val encoders: Seq[Option[CategoricalEncoder[Any]]] = repInput.zipWithIndex.map {
       case (v, i) =>
         if (v.isInstanceOf[Double]) {
@@ -65,10 +62,7 @@ case class RegressionTreeLearner(
     // Add the weights to the (features, label) tuples and remove any with zero weight.
     val finalTraining = encodedTraining
       .zip(weights.getOrElse(Seq.fill(trainingData.size)(1.0)))
-      .map {
-        case ((f, l), w) =>
-          (f, l.asInstanceOf[Double], w)
-      }
+      .map { case ((f, l), w) => (f, l, w) }
       .filter(_._3 > 0)
       .toVector
 
@@ -103,9 +97,9 @@ case class RegressionTreeLearner(
 class RegressionTreeTrainingResult(
     rootTrainingNode: TrainingNode[Double],
     encoders: Seq[Option[CategoricalEncoder[Any]]]
-) extends TrainingResult {
+) extends TrainingResult[Double] {
   lazy val model = new RegressionTree(rootTrainingNode.modelNode, encoders)
-  lazy val importance = rootTrainingNode.featureImportance
+  lazy val importance: mutable.ArraySeq[Double] = rootTrainingNode.featureImportance
   private lazy val importanceNormalized = {
     if (Math.abs(importance.sum) > 0) {
       importance.map(_ / importance.sum)
@@ -131,9 +125,9 @@ class RegressionTreeTrainingResult(
   * @param encoders for categorical variables
   */
 class RegressionTree(
-    root: ModelNode[PredictionResult[Double]],
+    root: ModelNode[Double],
     encoders: Seq[Option[CategoricalEncoder[Any]]]
-) extends Model[RegressionTreeResult] {
+) extends Model[Double] {
 
   /**
     * Apply the model by calling predict and wrapping the results
@@ -182,7 +176,7 @@ class RegressionTreeResult(predictions: Seq[(PredictionResult[Double], TreeMeta)
     * @return a vector of doubles for each prediction
     */
   override def getGradient(): Option[Seq[Vector[Double]]] = {
-    if (!predictions.head._1.getGradient().isDefined) {
+    if (predictions.head._1.getGradient().isEmpty) {
       return None
     }
     Some(predictions.map(_._1.getGradient().get.head))

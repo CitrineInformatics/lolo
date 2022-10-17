@@ -3,7 +3,7 @@ package io.citrine.lolo.validation
 import io.citrine.lolo.bags.Bagger
 import io.citrine.lolo.stats.functions.{Friedman, Linear}
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
-import io.citrine.lolo.{PredictionResult, SeedRandomMixIn, TestUtils}
+import io.citrine.lolo.{DataGenerator, PredictionResult, SeedRandomMixIn, TestUtils}
 import org.apache.commons.math3.distribution.CauchyDistribution
 import org.knowm.xchart.BitmapEncoder.BitmapFormat
 import org.knowm.xchart.{BitmapEncoder, CategoryChart, CategoryChartBuilder}
@@ -54,7 +54,7 @@ object CalibrationStudy extends SeedRandomMixIn {
       ratios: Seq[Int] = Seq(1, 2, 4)
   ): Unit = {
     val nFeature = 8
-    val data = TestUtils.iterateTrainingData(nFeature, Friedman.friedmanSilverman, rng = rng)
+    val data = DataGenerator.iterate(nFeature, Friedman.friedmanSilverman, rng = rng)
 
     ratios.foreach { ratio =>
       val chart = Merit.plotMeritScan(
@@ -92,7 +92,7 @@ object CalibrationStudy extends SeedRandomMixIn {
       calibrated: Boolean = false
   ): Unit = {
     val nFeature = 8
-    val data = TestUtils.iterateTrainingData(nFeature, Friedman.friedmanSilverman, rng = rng)
+    val data = DataGenerator.iterate(nFeature, Friedman.friedmanSilverman, rng = rng)
     sizes.foreach { nTrain =>
       val chart = Merit.plotMeritScan(
         "Number of trees",
@@ -135,7 +135,7 @@ object CalibrationStudy extends SeedRandomMixIn {
       funcName: String = "fs"
   ): Unit = {
     val nFeature = 8
-    val data = TestUtils.iterateTrainingData(nFeature, func, rng = rng)
+    val data = DataGenerator.iterate(nFeature, func, rng = rng)
     sizes.foreach { nTree =>
       val chart = Merit.plotMeritScan(
         "Number of training points",
@@ -181,8 +181,8 @@ object CalibrationStudy extends SeedRandomMixIn {
       ignoreDims: Int = 0
   ): Map[String, (Double, Double)] = {
 
-    val data = TestUtils
-      .iterateTrainingData(nFeature, func, rng = rng)
+    val data = DataGenerator
+      .iterate(nFeature, func, rng = rng)
       .map { case (x, y) => (x.drop(ignoreDims), y) }
     val learner = Bagger(
       RegressionTreeLearner(

@@ -2,7 +2,8 @@ package io.citrine.lolo
 
 /**
   * Container for prediction results; must include expected values
-  * Created by maxhutch on 11/29/16.
+  *
+  * @tparam T the type of label variables being predicted
   */
 trait PredictionResult[+T] {
 
@@ -164,7 +165,7 @@ trait RegressionResult extends PredictionResult[Double] {
 }
 
 /** Container for predictions made on multiple labels simultaneously. */
-trait MultiTaskModelPredictionResult extends PredictionResult[Seq[Any]] {
+trait MultiTaskModelPredictionResult extends PredictionResult[Vector[Any]] {
 
   override def getUncertainty(observational: Boolean = true): Option[Seq[Seq[Any]]] = None
 
@@ -182,6 +183,6 @@ trait MultiTaskModelPredictionResult extends PredictionResult[Seq[Any]] {
 }
 
 /** A container that holds the predictions of several parallel models for multiple labels. */
-class ParallelModelsPredictionResult(predictions: Seq[Seq[Any]]) extends MultiTaskModelPredictionResult {
-  override def getExpected(): Seq[Seq[Any]] = predictions
+class ParallelModelsPredictionResult(predictions: Seq[Vector[Any]]) extends MultiTaskModelPredictionResult {
+  override def getExpected(): Seq[Vector[Any]] = predictions
 }

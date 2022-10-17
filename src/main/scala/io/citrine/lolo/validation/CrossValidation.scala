@@ -22,7 +22,7 @@ case object CrossValidation {
     */
   def kFoldCrossvalidation[T](
       trainingData: Seq[(Vector[Any], T)],
-      learner: Learner,
+      learner: Learner[T],
       metrics: Map[String, Merit[T]],
       k: Int = 8,
       nTrial: Int = 1,
@@ -47,7 +47,7 @@ case object CrossValidation {
     */
   def kFoldPvA[T](
       trainingData: Seq[(Vector[Any], T)],
-      learner: Learner,
+      learner: Learner[T],
       k: Int = 8,
       nTrial: Int = 1,
       rng: Random = Random()
@@ -61,10 +61,9 @@ case object CrossValidation {
         val testData = testFolds.flatMap(_._1)
         val trainData = trainFolds.flatMap(_._1)
         val model = learner.train(trainData, rng = rng).getModel()
-        val predictions: PredictionResult[T] = model.transform(testData.map(_._1)).asInstanceOf[PredictionResult[T]]
+        val predictions: PredictionResult[T] = model.transform(testData.map(_._1))
         (predictions, testData.map(_._2))
       }
     }
   }
-
 }

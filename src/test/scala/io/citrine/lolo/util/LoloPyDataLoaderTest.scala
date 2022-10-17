@@ -1,7 +1,6 @@
 package io.citrine.lolo.util
-import io.citrine.lolo.{PredictionResult, TestUtils}
-import io.citrine.lolo.learners.RandomForest
-import io.citrine.lolo.stats.functions.Friedman
+import io.citrine.lolo.PredictionResult
+import io.citrine.lolo.learners.RandomForestRegressor
 import org.junit.Test
 
 class LoloPyDataLoaderTest {
@@ -119,9 +118,9 @@ class LoloPyDataLoaderTest {
 
   @Test
   def testSerialization(): Unit = {
-    val model = new RandomForest(numTrees = 256)
+    val model = new RandomForestRegressor(numTrees = 256)
     val bytes = LoloPyDataLoader.serializeObject(model, 9)
-    val model2 = LoloPyDataLoader.deserializeObject(bytes).asInstanceOf[RandomForest]
+    val model2 = LoloPyDataLoader.deserializeObject(bytes).asInstanceOf[RandomForestRegressor]
     assert(model.numTrees == model2.numTrees)
   }
 }

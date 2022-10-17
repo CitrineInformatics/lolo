@@ -1,38 +1,13 @@
 package io.citrine.lolo.trees
 
 import breeze.linalg.DenseMatrix
+import io.citrine.lolo.{Model, PredictionResult}
 import io.citrine.lolo.trees.splits.Split
-import io.citrine.lolo.{Model, PredictionResult, TrainingResult}
 
-import scala.collection.mutable
+trait ModelNode[+T] extends Serializable {
 
-/**
-  * Trait to provide getNode interface for internal and leaf training nodes
-  *
-  * @tparam T type of the model output
-  */
-trait TrainingNode[+T] extends Serializable {
-
-  // TODO (PLA-10433): make this a structured type
-  def trainingData: Seq[(Vector[AnyVal], T, Double)]
-
-  /**
-    * Get the lightweight prediction node for the output tree
-    *
-    * @return lightweight prediction node
-    */
-  def modelNode: ModelNode[PredictionResult[T]]
-
-  /**
-    * Get the feature importance of the subtree below this node
-    *
-    * @return feature importance as a vector
-    */
-  def featureImportance: mutable.ArraySeq[Double]
-}
-
-trait ModelNode[+T <: PredictionResult[Any]] extends Serializable {
-  def transform(input: Vector[AnyVal]): (T, TreeMeta)
+  /** Transform the inputs, returning a prediction result and meta information regarding the tree depth. */
+  def transform(input: Vector[AnyVal]): (PredictionResult[T], TreeMeta)
 
   /**
     * Compute Shapley feature attributions for a given input in this node's subtree
@@ -70,7 +45,7 @@ trait ModelNode[+T <: PredictionResult[Any]] extends Serializable {
     *
     * @return total weight of training weight in subtree
     */
-  private[lolo] def getTrainingWeight(): Double
+  private[lolo] def trainingWeight: Double
 }
 
 /**
@@ -84,7 +59,7 @@ trait ModelNode[+T <: PredictionResult[Any]] extends Serializable {
   * @param trainingWeight  weight of training data in subtree (i.e. size of unweighted training set)
   * @tparam T type of the output
   */
-case class InternalModelNode[T <: PredictionResult[Any]](
+case class InternalModelNode[+T](
     split: Split,
     left: ModelNode[T],
     right: ModelNode[T],
@@ -98,7 +73,7 @@ case class InternalModelNode[T <: PredictionResult[Any]](
     * @param input to predict for
     * @return prediction
     */
-  override def transform(input: Vector[AnyVal]): (T, TreeMeta) = {
+  override def transform(input: Vector[AnyVal]): (PredictionResult[T], TreeMeta) = {
     if (split.turnLeft(input)) {
       left.transform(input)
     } else {
@@ -135,8 +110,8 @@ case class InternalModelNode[T <: PredictionResult[Any]](
 
     // If the feature is omitted or unknown, then the weight assigned to each child is taken
     // as the share of the training data that got split into each child
-    val hotPortion = hot.getTrainingWeight() / trainingWeight
-    val coldPortion = cold.getTrainingWeight() / trainingWeight
+    val hotPortion = hot.trainingWeight / trainingWeight
+    val coldPortion = cold.trainingWeight / trainingWeight
 
     if (omitFeatures.contains(featureIndex)) {
       // Don't add the feature to the featureWeights
@@ -173,28 +148,12 @@ case class InternalModelNode[T <: PredictionResult[Any]](
       coldContrib + hotContrib
     }
   }
-
-  override def getTrainingWeight(): Double = trainingWeight
 }
 
-/** A leaf defined by a training result. */
-trait TrainingLeaf[T] extends TrainingNode[T] {
+case class ModelLeaf[+T](model: Model[T], depth: Int, trainingWeight: Double) extends ModelNode[T] {
 
-  def trainingResult: TrainingResult
-
-  def depth: Int
-
-  def modelNode: ModelNode[PredictionResult[T]] =
-    ModelLeaf(model, depth, trainingData.map(_._3).sum)
-
-  def model: Model[PredictionResult[T]] = trainingResult.getModel().asInstanceOf[Model[PredictionResult[T]]]
-}
-
-case class ModelLeaf[T](model: Model[PredictionResult[T]], depth: Int, trainingWeight: Double)
-    extends ModelNode[PredictionResult[T]] {
-  override def transform(input: Vector[AnyVal]): (PredictionResult[T], TreeMeta) = {
+  override def transform(input: Vector[AnyVal]): (PredictionResult[T], TreeMeta) =
     (model.transform(Seq(input)), TreeMeta(depth))
-  }
 
   /**
     * Compute the contribution to SHAP in the leaf based on the features that were encountered between the root node
@@ -231,8 +190,6 @@ case class ModelLeaf[T](model: Model[PredictionResult[T]], depth: Int, trainingW
     }
     shapValues
   }
-
-  override def getTrainingWeight(): Double = trainingWeight
 
   override def shapley(input: Vector[AnyVal], omitFeatures: Set[Int] = Set()): Option[DenseMatrix[Double]] = None
 }

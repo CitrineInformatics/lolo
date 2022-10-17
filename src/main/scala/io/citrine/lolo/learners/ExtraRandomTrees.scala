@@ -9,7 +9,7 @@ import io.citrine.lolo.trees.splits.{ExtraRandomClassificationSplitter, ExtraRan
 import io.citrine.lolo.{Learner, TrainingResult}
 
 /**
-  * Extremely randomized tree ensemble
+  * Extremely randomized tree ensemble for regression.
   *
   * This is based on Geurts, P., Ernst, D. & Wehenkel, L. Extremely randomized trees. Mach Learn 63, 3–42 (2006).
   * https://doi.org/10.1007/s10994-006-6226-1.
@@ -26,71 +26,93 @@ import io.citrine.lolo.{Learner, TrainingResult}
   * @param disableBootstrap whether to disable bootstrap (default: true)
   * @param randomlyRotateFeatures whether to randomly rotate real features for each tree in the forest (default: false)
   */
-case class ExtraRandomTrees(
+case class ExtraRandomTreesRegressor(
     numTrees: Int = -1,
     useJackknife: Boolean = false,
-    biasLearner: Option[Learner] = None,
-    leafLearner: Option[Learner] = None,
+    biasLearner: Option[Learner[Double]] = None,
+    leafLearner: Option[Learner[Double]] = None,
     subsetStrategy: Any = "auto",
     minLeafInstances: Int = 1,
     maxDepth: Int = Integer.MAX_VALUE,
     uncertaintyCalibration: Boolean = false,
     disableBootstrap: Boolean = true,
     randomlyRotateFeatures: Boolean = false
-) extends Learner {
+) extends Learner[Double] {
 
-  /**
-    * Train an extremely randomized tree ensemble model
-    *
-    * @param trainingData to train on
-    * @param weights      for the training rows, if applicable
-    * @param rng          random number generator for reproducibility
-    * @return training result containing a model
-    */
+  override def train(
+      trainingData: Seq[(Vector[Any], Double)],
+      weights: Option[Seq[Double]],
+      rng: Random
+  ): TrainingResult[Double] = {
+    val numFeatures = RandomForest.getNumFeatures(subsetStrategy, trainingData.head._1.size, isRegression = true)
+
+    val DTLearner = RegressionTreeLearner(
+      leafLearner = leafLearner,
+      numFeatures = numFeatures,
+      minLeafInstances = minLeafInstances,
+      maxDepth = maxDepth,
+      splitter = ExtraRandomRegressionSplitter()
+    )
+    val bagger = Bagger(
+      if (randomlyRotateFeatures) FeatureRotator(DTLearner) else DTLearner,
+      numBags = numTrees,
+      useJackknife = useJackknife,
+      biasLearner = biasLearner,
+      uncertaintyCalibration = uncertaintyCalibration,
+      disableBootstrap = disableBootstrap
+    )
+    bagger.train(trainingData, weights, rng)
+  }
+}
+
+/**
+  * Extremely randomized tree ensemble for classification.
+  *
+  * This is based on Geurts, P., Ernst, D. & Wehenkel, L. Extremely randomized trees. Mach Learn 63, 3–42 (2006).
+  * https://doi.org/10.1007/s10994-006-6226-1.
+  *
+  * @param numTrees         number of trees to use (-1 => number of training instances)
+  * @param useJackknife     whether to use jackknife based variance estimates
+  * @param leafLearner      learner to use at the leaves of the trees
+  * @param subsetStrategy   for random feature selection at each split
+  *                         (auto => all features for regression)
+  * @param minLeafInstances minimum number of instances per leave in each tree
+  * @param maxDepth         maximum depth of each tree in the forest (default: unlimited)
+  * @param disableBootstrap whether to disable bootstrap (default: true)
+  * @param randomlyRotateFeatures whether to randomly rotate real features for each tree in the forest (default: false)
+  */
+case class ExtraRandomTreesClassifier(
+    numTrees: Int = -1,
+    useJackknife: Boolean = false,
+    leafLearner: Option[Learner[Char]] = None,
+    subsetStrategy: Any = "auto",
+    minLeafInstances: Int = 1,
+    maxDepth: Int = Integer.MAX_VALUE,
+    disableBootstrap: Boolean = true,
+    randomlyRotateFeatures: Boolean = false
+) extends Learner[Any] {
+
   override def train(
       trainingData: Seq[(Vector[Any], Any)],
       weights: Option[Seq[Double]],
       rng: Random
-  ): TrainingResult = {
-    val repOutput = trainingData.head._2
-    val isRegression = repOutput.isInstanceOf[Double]
-    val numFeatures: Int = RandomForest.getNumFeatures(subsetStrategy, trainingData.head._1.size, isRegression)
+  ): TrainingResult[Any] = {
+    val numFeatures = RandomForest.getNumFeatures(subsetStrategy, trainingData.head._1.size, isRegression = false)
 
-    repOutput match {
-      case _: Double =>
-        val DTLearner = RegressionTreeLearner(
-          leafLearner = leafLearner,
-          numFeatures = numFeatures,
-          minLeafInstances = minLeafInstances,
-          maxDepth = maxDepth,
-          splitter = ExtraRandomRegressionSplitter()
-        )
-        val bagger = Bagger(
-          if (randomlyRotateFeatures) FeatureRotator(DTLearner) else DTLearner,
-          numBags = numTrees,
-          useJackknife = useJackknife,
-          biasLearner = biasLearner,
-          uncertaintyCalibration = uncertaintyCalibration,
-          disableBootstrap = disableBootstrap
-        )
-        bagger.train(trainingData, weights, rng)
-      case _: Any =>
-        val DTLearner = ClassificationTreeLearner(
-          leafLearner = leafLearner,
-          numFeatures = numFeatures,
-          minLeafInstances = minLeafInstances,
-          maxDepth = maxDepth,
-          splitter = ExtraRandomClassificationSplitter()
-        )
-        val bagger = Bagger(
-          if (randomlyRotateFeatures) FeatureRotator(DTLearner) else DTLearner,
-          numBags = numTrees,
-          useJackknife = useJackknife,
-          biasLearner = biasLearner,
-          uncertaintyCalibration = uncertaintyCalibration,
-          disableBootstrap = disableBootstrap
-        )
-        bagger.train(trainingData, weights, rng)
-    }
+    val DTLearner = ClassificationTreeLearner(
+      leafLearner = leafLearner,
+      numFeatures = numFeatures,
+      minLeafInstances = minLeafInstances,
+      maxDepth = maxDepth,
+      splitter = ExtraRandomClassificationSplitter()
+    )
+    val bagger = Bagger(
+      if (randomlyRotateFeatures) FeatureRotator(DTLearner) else DTLearner,
+      numBags = numTrees,
+      useJackknife = useJackknife,
+      disableBootstrap = disableBootstrap,
+      uncertaintyCalibration = false
+    )
+    bagger.train(trainingData, weights, rng)
   }
 }

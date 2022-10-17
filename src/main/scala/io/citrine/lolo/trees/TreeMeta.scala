@@ -1,6 +1,4 @@
 package io.citrine.lolo.trees
 
-/**
-  * Created by maxhutch on 12/21/16.
-  */
+/** Meta-information about the current depth within a tree. */
 case class TreeMeta(depth: Int)

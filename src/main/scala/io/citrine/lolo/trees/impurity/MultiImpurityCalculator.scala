@@ -19,10 +19,12 @@ class MultiImpurityCalculator(
   def add(value: Seq[AnyVal], weight: Double): Double = {
     value.zip(calculators).map {
       case (v, calc) =>
-        if (v.isInstanceOf[Double]) {
-          calc.asInstanceOf[ImpurityCalculator[Double]].add(v.asInstanceOf[Double], weight)
-        } else if (v.isInstanceOf[Char]) {
-          calc.asInstanceOf[ImpurityCalculator[Char]].add(v.asInstanceOf[Char], weight)
+        v match {
+          case d: Double =>
+            calc.asInstanceOf[ImpurityCalculator[Double]].add(d, weight)
+          case c: Char =>
+            calc.asInstanceOf[ImpurityCalculator[Char]].add(c, weight)
+          case _ =>
         }
     }
 
@@ -39,10 +41,12 @@ class MultiImpurityCalculator(
   def remove(value: Seq[AnyVal], weight: Double): Double = {
     value.zip(calculators).map {
       case (v, calc) =>
-        if (v.isInstanceOf[Double]) {
-          calc.asInstanceOf[ImpurityCalculator[Double]].remove(v.asInstanceOf[Double], weight)
-        } else if (v.isInstanceOf[Char]) {
-          calc.asInstanceOf[ImpurityCalculator[Char]].remove(v.asInstanceOf[Char], weight)
+        v match {
+          case d: Double =>
+            calc.asInstanceOf[ImpurityCalculator[Double]].remove(d, weight)
+          case c: Char =>
+            calc.asInstanceOf[ImpurityCalculator[Char]].remove(c, weight)
+          case _ =>
         }
     }
 

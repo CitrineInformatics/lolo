@@ -7,7 +7,6 @@ import io.citrine.random.Random
   * Base class for hyperparameter optimizers
   *
   * They take a range of hypers as a Map[(String, Seq[Any])] and output the best map and loss
-  * Created by maxhutch on 12/8/16.
   */
 abstract class HyperOptimizer() {
 
@@ -33,10 +32,10 @@ abstract class HyperOptimizer() {
     * @param numIterations to take before terminating
     * @return the best hyper map found in give iterations and the corresponding loss
     */
-  def optimize(
-      trainingData: Seq[(Vector[Any], Any)],
+  def optimize[T](
+      trainingData: Seq[(Vector[Any], T)],
       numIterations: Int = 8,
-      builder: Map[String, Any] => Learner,
+      builder: Map[String, Any] => Learner[T],
       rng: Random = Random()
   ): (Map[String, Any], Double)
 }

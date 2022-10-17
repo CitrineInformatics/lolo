@@ -9,7 +9,7 @@ import scala.collection.mutable
 /** Training leaf node for regression trees. */
 case class RegressionTrainingLeaf(
     trainingData: Seq[(Vector[AnyVal], Double, Double)],
-    trainingResult: TrainingResult,
+    trainingResult: TrainingResult[Double],
     depth: Int
 ) extends TrainingLeaf[Double] {
 
@@ -18,7 +18,7 @@ case class RegressionTrainingLeaf(
     *
     * @return feature importance as a vector
     */
-  override def featureImportance: scala.collection.mutable.ArraySeq[Double] = {
+  override def featureImportance: mutable.ArraySeq[Double] = {
     trainingResult.getFeatureImportance() match {
       case Some(x) =>
         // Compute the weighted sum of the label, the square label, and the weights
@@ -48,7 +48,7 @@ object RegressionTrainingLeaf {
     */
   def build(
       trainingData: Seq[(Vector[AnyVal], Double, Double)],
-      leafLearner: Learner,
+      leafLearner: Learner[Double],
       depth: Int,
       rng: Random
   ): RegressionTrainingLeaf =

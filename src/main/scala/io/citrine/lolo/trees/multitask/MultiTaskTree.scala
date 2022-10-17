@@ -6,7 +6,7 @@ import io.citrine.lolo.trees.ModelNode
 import io.citrine.lolo.trees.classification.ClassificationTree
 import io.citrine.lolo.trees.regression.RegressionTree
 import io.citrine.lolo.trees.splits.MultiTaskSplitter
-import io.citrine.lolo.{Model, MultiTaskLearner, MultiTaskTrainingResult, ParallelModels, PredictionResult}
+import io.citrine.lolo.{Model, MultiTaskLearner, MultiTaskTrainingResult, ParallelModels}
 
 /**
   * A tree learner that operates on multiple labels.
@@ -95,12 +95,12 @@ case class MultiTaskTreeLearner(
     val models = labelIndices.map { i =>
       if (repOutput(i).isInstanceOf[Double]) {
         new RegressionTree(
-          nodes(i).asInstanceOf[ModelNode[PredictionResult[Double]]],
+          nodes(i).asInstanceOf[ModelNode[Double]],
           inputEncoders
         )
       } else {
         new ClassificationTree(
-          nodes(i).asInstanceOf[ModelNode[PredictionResult[Char]]],
+          nodes(i).asInstanceOf[ModelNode[Char]],
           inputEncoders,
           outputEncoders(i).get
         )
@@ -119,7 +119,7 @@ case class MultiTaskTreeLearner(
 }
 
 class MultiTaskTreeTrainingResult(
-    models: Seq[Model[PredictionResult[Any]]],
+    models: Seq[Model[Any]],
     featureImportance: Vector[Double]
 ) extends MultiTaskTrainingResult {
   val model = new ParallelModels(models, models.map(_.isInstanceOf[RegressionTree]))
@@ -133,8 +133,7 @@ class MultiTaskTreeTrainingResult(
 
   override def getModel(): ParallelModels = model
 
-  override def getModels(): Seq[Model[PredictionResult[Any]]] = models
+  override def getModels(): Seq[Model[Any]] = models
 
   override def getFeatureImportance(): Option[Vector[Double]] = Some(importanceNormalized)
-
 }

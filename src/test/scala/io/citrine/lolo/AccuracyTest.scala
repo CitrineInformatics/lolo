@@ -17,15 +17,11 @@ class AccuracyTest extends SeedRandomMixIn {
   val nScal: Int = 2
   val minInstances: Int = 1
 
-  val trainingData: Seq[(Vector[Any], Double)] = TestUtils
-    .binTrainingData(
-      TestUtils.generateTrainingData(nRow, nFeat, noise = noiseLevel, rng = rng),
-      inputBins = Seq((4, 32))
-    )
-    .asInstanceOf[Seq[(Vector[Any], Double)]] // binTrainingData isn't binning the labels
+  val trainingData: Seq[(Vector[Any], Double)] =
+    DataGenerator.generate(nRow, nFeat, noise = noiseLevel, rng = rng).withBinnedInputs(bins = Seq((4, 32))).data
 
   // Get the out-of-bag RMSE
-  private def computeMetrics(learner: Learner, rng: Random): Double = {
+  private def computeMetrics(learner: Learner[Double], rng: Random): Double = {
     learner.train(trainingData, rng = rng).getLoss().get
   }
 
@@ -78,16 +74,11 @@ class AccuracyTest extends SeedRandomMixIn {
   * Driver code to study the performance vs temperature
   *
   * This isn't cast as a test, but can be used to try to understand the behavior of Boltzmann trees on some simple problems.
-  * TODO: turn this into a demo or otherwise relocate it before the Boltzmann tree release
   */
 object AccuracyTest extends SeedRandomMixIn {
 
-  val trainingDataFull: Seq[(Vector[Any], Double)] = TestUtils
-    .binTrainingData(
-      TestUtils.generateTrainingData(2048, 48, rng = rng),
-      inputBins = Seq((2, 32)) // bin the 3rd feature into a categorical
-    )
-    .asInstanceOf[Seq[(Vector[Any], Double)]]
+  val trainingDataFull: Seq[(Vector[Any], Double)] =
+    DataGenerator.generate(2048, 48, rng = rng).withBinnedInputs(bins = Seq((2, 32))).data
 
   /**
     * Compute the RMSE and standard residual for a Boltzmann tree with the given temperature
@@ -122,12 +113,12 @@ object AccuracyTest extends SeedRandomMixIn {
     val model = learner.train(trainingData, rng = rng).getModel()
     val (features, labels) = trainingData.unzip
     val predictions = model.transform(features)
-    val expected = predictions.getExpected().asInstanceOf[Seq[Double]]
+    val expected = predictions.getExpected()
     val sigma = predictions.getUncertainty().get.asInstanceOf[Seq[Double]]
     val pva: Seq[(Double, Double, Double)] = labels.indices.map { i =>
       (labels(i), expected(i), sigma(i))
     }
-    val rmse = Math.sqrt(pva.map { case (x, y, s) => Math.pow(x - y, 2) }.sum / pva.size)
+    val rmse = Math.sqrt(pva.map { case (x, y, _) => Math.pow(x - y, 2) }.sum / pva.size)
     val stdres = Math.sqrt(pva.map { case (x, y, s) => Math.pow((x - y) / s, 2) }.sum / pva.size)
     (rmse, stdres)
   }

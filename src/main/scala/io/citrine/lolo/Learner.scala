@@ -2,10 +2,17 @@ package io.citrine.lolo
 
 import io.citrine.random.Random
 
-trait Learner extends Serializable {
+/**
+  * Base trait for a supervised learner that produces a model.
+  *
+  * @tparam T the label type of the data the learner is trained on
+  */
+trait Learner[T] extends Serializable {
 
   /**
-    * Train a model
+    * Train a model on the provided training data.
+    *
+    * TODO(PLA-10433): Add a concrete type for training rows
     *
     * @param trainingData to train on
     * @param weights      for the training rows, if applicable
@@ -13,38 +20,20 @@ trait Learner extends Serializable {
     * @return training result containing a model
     */
   def train(
-      trainingData: Seq[(Vector[Any], Any)],
+      trainingData: Seq[(Vector[Any], T)],
       weights: Option[Seq[Double]] = None,
       rng: Random = Random()
-  ): TrainingResult
+  ): TrainingResult[T]
 
-  /**
-    * Train a model with weights
-    *
-    * @param trainingData with weights in the form (features, label, weight)
-    * @param rng          random number generator for reproducibility
-    * @return training result containing a model
-    */
-  def train(trainingData: Seq[(Vector[Any], Any, Double)], rng: Random): TrainingResult = {
+  def train(trainingData: Seq[(Vector[Any], T, Double)], rng: Random): TrainingResult[T] = {
     train(trainingData.map(r => (r._1, r._2)), Some(trainingData.map(_._3)), rng)
   }
-
 }
 
-/**
-  * A learner that trains on multiple labels, outputting a single model that makes predictions for all labels.
-  */
-trait MultiTaskLearner extends Serializable {
+/** A learner that trains on multiple labels, outputting a single model that makes predictions for all labels. */
+trait MultiTaskLearner extends Learner[Vector[Any]] {
 
-  /**
-    * Train a model
-    *
-    * @param trainingData  to train on. Each entry is a tuple (vector of inputs, vector of labels)
-    * @param weights for the training rows, if applicable
-    * @param rng          random number generator for reproducibility
-    * @return A training result that encompasses model(s) for all labels.
-    */
-  def train(
+  override def train(
       trainingData: Seq[(Vector[Any], Vector[Any])],
       weights: Option[Seq[Double]] = None,
       rng: Random = Random()

@@ -1,6 +1,6 @@
 package io.citrine.lolo.trees.splits
 
-import io.citrine.lolo.{SeedRandomMixIn, TestUtils}
+import io.citrine.lolo.{DataGenerator, SeedRandomMixIn}
 import io.citrine.lolo.encoders.CategoricalEncoder
 import io.citrine.theta.Stopwatch
 
@@ -16,10 +16,7 @@ class ClassificationSplitterTest extends SeedRandomMixIn {
   val nLabel = 4096
   val nSubset = 4
 
-  val testData: Seq[(Vector[Any], Any)] = TestUtils.binTrainingData(
-    TestUtils.generateTrainingData(nRow, 12, rng = rng),
-    responseBins = Some(nLabel)
-  )
+  val testData: Seq[(Vector[Any], Any)] = DataGenerator.generate(nRow, 12, rng = rng).withBinnedLabels(nLabel).data
 
   val encoder: CategoricalEncoder[Any] = CategoricalEncoder.buildEncoder(testData.map(_._2))
   val encodedData: Seq[(Vector[AnyVal], Char, Double)] = testData.map {

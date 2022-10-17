@@ -1,7 +1,7 @@
 package io.citrine.lolo.transformers
 
 import breeze.linalg.{det, DenseMatrix}
-import io.citrine.lolo.{SeedRandomMixIn, TestUtils}
+import io.citrine.lolo.{DataGenerator, SeedRandomMixIn, TestUtils}
 import io.citrine.lolo.linear.{GuessTheMeanLearner, LinearRegressionLearner}
 import io.citrine.lolo.stats.functions.Friedman
 import io.citrine.lolo.stats.metrics.ClassificationMetrics
@@ -16,10 +16,10 @@ import org.junit.Test
 @Test
 class FeatureRotatorTest extends SeedRandomMixIn {
 
-  val data: Seq[(Vector[Any], Any)] = TestUtils.binTrainingData(
-    TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng),
-    inputBins = Seq((0, 8))
-  )
+  val data: Seq[(Vector[Any], Double)] = DataGenerator
+    .generate(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng)
+    .withBinnedInputs(bins = Seq((0, 8)))
+    .data
   val weights: Vector[Double] = Vector.fill(data.size)(if (rng.nextBoolean()) rng.nextDouble() else 0.0)
 
   @Test
@@ -219,10 +219,10 @@ class FeatureRotatorTest extends SeedRandomMixIn {
     */
   @Test
   def testRotatedClassificationTree(): Unit = {
-    val classificationData = TestUtils.binTrainingData(
-      TestUtils.generateTrainingData(2048, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng),
-      responseBins = Some(2)
-    )
+    val classificationData = DataGenerator
+      .generate(2048, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng)
+      .withBinnedLabels(bins = 2)
+      .data
 
     val learner = ClassificationTreeLearner()
     val model = learner.train(classificationData, rng = rng).getModel()
@@ -259,12 +259,13 @@ class FeatureRotatorTest extends SeedRandomMixIn {
     */
   @Test
   def testMultiTaskRotator(): Unit = {
-    val data: Vector[(Vector[Double], Double)] =
-      TestUtils.generateTrainingData(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng)
+    val data = DataGenerator
+      .generate(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng)
+      .data
 
     // Generate multi-task training data
     val (inputs, doubleLabel) = data.unzip
-    val catLabel = inputs.map(x => Friedman.friedmanGrosseSilverman(x) > 15.0)
+    val catLabel = inputs.map(x => Friedman.friedmanGrosseSilverman(x.asInstanceOf[Seq[Double]]) > 15.0)
 
     // Sparsify the categorical labels
     val sparseCatLabel = catLabel.map(x => if (rng.nextBoolean()) x else null)
@@ -274,10 +275,10 @@ class FeatureRotatorTest extends SeedRandomMixIn {
     val baseLearner = MultiTaskTreeLearner()
     val rotatedLearner = MultiTaskFeatureRotator(MultiTaskTreeLearner())
 
-    val baseTrainingResult = baseLearner.train(inputs.zip(labels), rng = rng)
+    val baseTrainingResult = baseLearner.train(inputs.zip(labels), weights = None, rng = rng)
     val baseDoubleModel = baseTrainingResult.getModels().head
     val baseCatModel = baseTrainingResult.getModels().last
-    val rotatedTrainingResult = rotatedLearner.train(inputs.zip(labels))
+    val rotatedTrainingResult = rotatedLearner.train(inputs.zip(labels), weights = None, rng = rng)
     val rotatedDoubleModel = rotatedTrainingResult.getModels().head.asInstanceOf[RotatedFeatureModel[Double]]
     val rotatedCatModel = rotatedTrainingResult.getModels().last.asInstanceOf[RotatedFeatureModel[Boolean]]
 
