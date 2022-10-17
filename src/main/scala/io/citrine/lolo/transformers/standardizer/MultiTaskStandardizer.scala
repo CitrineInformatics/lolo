@@ -24,7 +24,7 @@ case class MultiTaskStandardizer(baseLearner: MultiTaskLearner) extends MultiTas
     val standardLabels = labels.map { label => Standardization.applyMulti(label, outputTrans) }
 
     val baseTrainingResult = baseLearner.train(standardInputs.zip(standardLabels), weights, rng)
-    new MultiTaskStandardizerTrainingResult(baseTrainingResult, outputTrans, inputTrans)
+    MultiTaskStandardizerTrainingResult(baseTrainingResult, outputTrans, inputTrans)
   }
 }
 
@@ -35,7 +35,7 @@ case class MultiTaskStandardizer(baseLearner: MultiTaskLearner) extends MultiTas
   * @param outputTrans sequence of optional transformation (rescale, offset) of output labels
   * @param inputTrans sequence of optional transformations (rescale, offset) of inputs
   */
-class MultiTaskStandardizerTrainingResult(
+case class MultiTaskStandardizerTrainingResult(
     baseTrainingResult: MultiTaskTrainingResult,
     outputTrans: Seq[Option[Standardization]],
     inputTrans: Seq[Option[Standardization]]
@@ -45,7 +45,7 @@ class MultiTaskStandardizerTrainingResult(
     new ParallelModels(getModels(), baseTrainingResult.getModel().getRealLabels)
 
   override def getModels(): Seq[StandardizerModel[Any]] = {
-    val realLabels = getModel().getRealLabels
+    val realLabels = baseTrainingResult.getModel().getRealLabels
     baseTrainingResult.getModels().zipWithIndex.map {
       case (model, idx) =>
         if (realLabels(idx)) {
