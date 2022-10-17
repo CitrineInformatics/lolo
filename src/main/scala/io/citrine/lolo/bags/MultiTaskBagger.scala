@@ -267,8 +267,8 @@ class MultiTaskBaggedModel(
     }
   }
 
-  override def transform(inputs: Seq[Vector[Any]]): MultiTaskBaggedResult =
-    MultiTaskBaggedResult(groupedModels.map(_.transform(inputs)), getRealLabels, Nib)
+  override def transform(inputs: Seq[Vector[Any]]): MultiTaskBaggedPrediction =
+    MultiTaskBaggedPrediction(groupedModels.map(_.transform(inputs)), getRealLabels, Nib)
 
   override def getRealLabels: Seq[Boolean] = models.head.getRealLabels
 
@@ -282,7 +282,7 @@ class MultiTaskBaggedModel(
   * @param realLabels         a boolean sequence indicating which labels are real-valued
   * @param NibIn              the sampling matrix as (# bags) x (# training)
   */
-case class MultiTaskBaggedResult(
+case class MultiTaskBaggedPrediction(
     baggedPredictions: Vector[BaggedPrediction[Any]],
     realLabels: Seq[Boolean],
     NibIn: Vector[Vector[Int]]
