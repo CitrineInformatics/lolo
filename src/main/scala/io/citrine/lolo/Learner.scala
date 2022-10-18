@@ -20,8 +20,8 @@ trait Learner[T] extends Serializable {
 
   def train(
       trainingData: Seq[(Vector[Any], T)],
-      weights: Option[Seq[Double]] = None,
-      rng: Random = Random()
+      weights: Option[Seq[Double]],
+      rng: Random
   ): TrainingResult[T] = {
     val actualWeights = weights.getOrElse(Seq.fill(trainingData.length)(1.0))
     val trainingRows = trainingData.zip(actualWeights).map {

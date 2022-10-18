@@ -58,7 +58,7 @@ case class LinearRegressionLearner(
     val y = new DenseVector(labels.toArray)
 
     /* Rescale data by weight matrix */
-    val W = new DenseVector(weights.toArray)
+    val W = diag(new DenseVector(weights.toArray))
     val Xw = W * X
     val yw = W * y
 

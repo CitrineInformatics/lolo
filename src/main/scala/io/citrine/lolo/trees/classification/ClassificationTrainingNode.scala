@@ -64,7 +64,7 @@ object ClassificationTrainingNode {
       case _: NoSplit =>
         ClassificationTrainingLeaf.build(trainingData, leafLearner, maxDepth - remainingDepth, rng)
       case split: Split =>
-        val (leftTrain, rightTrain) = trainingData.partition(r => split.turnLeft(r._1))
+        val (leftTrain, rightTrain) = trainingData.partition(r => split.turnLeft(r.inputs))
         val leftNode = ClassificationTrainingNode.build(
           trainingData = leftTrain,
           leafLearner = leafLearner,

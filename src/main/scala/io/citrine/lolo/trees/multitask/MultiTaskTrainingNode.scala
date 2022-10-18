@@ -1,6 +1,6 @@
 package io.citrine.lolo.trees.multitask
 
-import io.citrine.lolo.PredictionResult
+import io.citrine.lolo.{PredictionResult, TrainingRow}
 import io.citrine.lolo.linear.{GuessTheMeanLearner, GuessTheModeLearner}
 import io.citrine.lolo.trees.classification.ClassificationTrainingLeaf
 import io.citrine.lolo.trees.regression.RegressionTrainingLeaf
@@ -11,7 +11,7 @@ import io.citrine.random.Random
 import scala.collection.mutable
 
 case class MultiTaskTrainingNode(
-    trainingData: Seq[(Vector[AnyVal], Vector[AnyVal], Double)],
+    trainingData: Seq[TrainingRow[Vector[AnyVal]]],
     labelWiseInstructions: Seq[MultiTaskLabelInstruction],
     deltaImpurity: Double
 ) {
@@ -38,13 +38,13 @@ case class MultiTaskTrainingNode(
       case Stop(leaf)             => leaf.modelNode
       case FollowChild(childNode) => childNode.modelNodeByLabelIndex(index)
       case DoSplit(split, leftNode, rightNode) =>
-        if (trainingData.head._2(index).isInstanceOf[Double]) {
+        if (trainingData.head.label(index).isInstanceOf[Double]) {
           new InternalModelNode[PredictionResult[Double]](
             split = split,
             left = leftNode.modelNodeByLabelIndex(index).asInstanceOf[ModelNode[PredictionResult[Double]]],
             right = rightNode.modelNodeByLabelIndex(index).asInstanceOf[ModelNode[PredictionResult[Double]]],
             outputDimension = 0, // Shapley is not implemented for multi-task nodes
-            trainingWeight = trainingData.map(_._3).sum
+            trainingWeight = trainingData.map(_.weight).sum
           )
         } else {
           new InternalModelNode[PredictionResult[Char]](
@@ -52,7 +52,7 @@ case class MultiTaskTrainingNode(
             left = leftNode.modelNodeByLabelIndex(index).asInstanceOf[ModelNode[PredictionResult[Char]]],
             right = rightNode.modelNodeByLabelIndex(index).asInstanceOf[ModelNode[PredictionResult[Char]]],
             outputDimension = 0,
-            trainingWeight = trainingData.map(_._3).sum
+            trainingWeight = trainingData.map(_.weight).sum
           )
         }
       case Inaccessible() => throw new RuntimeException(s"No valid training data present for label $index")
@@ -75,7 +75,7 @@ object MultiTaskTrainingNode {
     * @return
     */
   def build(
-      trainingData: Seq[(Vector[AnyVal], Vector[AnyVal], Double)],
+      trainingData: Seq[TrainingRow[Vector[AnyVal]]],
       numFeatures: Int,
       remainingDepth: Int,
       maxDepth: Int,
@@ -86,7 +86,7 @@ object MultiTaskTrainingNode {
     // Determine the overall split.
     val sufficientData = trainingData.size >= 2 * minInstances &&
       remainingDepth > 0 &&
-      trainingData.exists(row => row._2 != trainingData.head._2)
+      trainingData.exists(row => row.label != trainingData.head.label)
     val (split: Split, deltaImpurity: Double) = if (sufficientData) {
       splitter.getBestSplit(
         trainingData,
@@ -101,7 +101,7 @@ object MultiTaskTrainingNode {
     val nodesOpt: Option[(MultiTaskTrainingNode, MultiTaskTrainingNode)] = split match {
       case _: NoSplit => None
       case split: Split =>
-        val (leftTrain, rightTrain) = trainingData.partition(r => split.turnLeft(r._1))
+        val (leftTrain, rightTrain) = trainingData.partition(r => split.turnLeft(r.inputs))
         val leftNode = MultiTaskTrainingNode.build(
           trainingData = leftTrain,
           numFeatures = numFeatures,
@@ -124,13 +124,13 @@ object MultiTaskTrainingNode {
     }
     // Determine what to do for each label (evaluate a model, evaluate the split, go left, or go right).
     val exampleRow = trainingData.head
-    val labelWiseInstructions = exampleRow._2.indices.map { index =>
+    val labelWiseInstructions = exampleRow.label.indices.map { index =>
       // Determine how much data *with this label* goes down each branch
-      val exampleLabel = exampleRow._2(index)
+      val exampleLabel = exampleRow.label(index)
       val reducedData = if (exampleLabel.isInstanceOf[Double]) {
-        trainingData.map(x => (x._1, x._2(index).asInstanceOf[Double], x._3)).filterNot(_._2.isNaN)
+        trainingData.map(x => (x.inputs, x.label(index).asInstanceOf[Double], x.weight)).filterNot(_._2.isNaN)
       } else {
-        trainingData.map(x => (x._1, x._2(index).asInstanceOf[Char], x._3)).filter(_._2 > 0)
+        trainingData.map(x => (x.inputs, x.label(index).asInstanceOf[Char], x.weight)).filter(_._2 > 0)
       }
       val (left, right) = reducedData.partition(r => split.turnLeft(r._1))
 
@@ -141,7 +141,7 @@ object MultiTaskTrainingNode {
         val trainingLeaf: TrainingNode[AnyVal] = if (exampleLabel.isInstanceOf[Double]) {
           RegressionTrainingLeaf
             .build(
-              reducedData.asInstanceOf[Seq[(Vector[AnyVal], Double, Double)]],
+              reducedData.asInstanceOf[Seq[TrainingRow[Double]]],
               GuessTheMeanLearner(),
               maxDepth - remainingDepth,
               rng
@@ -149,7 +149,7 @@ object MultiTaskTrainingNode {
         } else {
           ClassificationTrainingLeaf
             .build(
-              reducedData.asInstanceOf[Seq[(Vector[AnyVal], Char, Double)]],
+              reducedData.asInstanceOf[Seq[TrainingRow[Char]]],
               GuessTheModeLearner(),
               maxDepth - remainingDepth,
               rng

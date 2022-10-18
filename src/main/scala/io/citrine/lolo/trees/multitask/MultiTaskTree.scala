@@ -6,7 +6,7 @@ import io.citrine.lolo.trees.ModelNode
 import io.citrine.lolo.trees.classification.ClassificationTree
 import io.citrine.lolo.trees.regression.RegressionTree
 import io.citrine.lolo.trees.splits.MultiTaskSplitter
-import io.citrine.lolo.{Model, MultiTaskLearner, MultiTaskTrainingResult, ParallelModels}
+import io.citrine.lolo.{Model, MultiTaskLearner, MultiTaskTrainingResult, ParallelModels, TrainingRow}
 
 /**
   * A tree learner that operates on multiple labels.
@@ -27,16 +27,11 @@ case class MultiTaskTreeLearner(
     * Construct one regression or classification tree for each label.
     *
     * @param trainingData to train on
-    * @param weights      for the training rows, if applicable
     * @param rng          random number generator for reproducibility
     * @return             sequence of models, one for each label
     */
-  override def train(
-      trainingData: Seq[(Vector[Any], Vector[Any])],
-      weights: Option[Seq[Double]],
-      rng: Random
-  ): MultiTaskTreeTrainingResult = {
-    val (inputs, labels) = trainingData.unzip
+  override def train(trainingData: Seq[TrainingRow[Vector[Any]]], rng: Random): MultiTaskTreeTrainingResult = {
+    val (inputs, labels, weights) = trainingData.map(_.asTuple).unzip3
     val repInput = inputs.head
     val repOutput = labels.head
     val labelIndices = repOutput.indices
@@ -65,16 +60,14 @@ case class MultiTaskTreeLearner(
 
     // Encode the inputs, outputs, and filter out zero weight rows
     val collectedData = inputs.indices
-      .map { i =>
-        (encodedInputs(i), encodedLabels(i), weights.map(_(i)).getOrElse(1.0))
-      }
-      .filter(_._3 > 0.0)
+      .map { i => TrainingRow(encodedInputs(i), encodedLabels(i), weights(i)) }
+      .filter(_.weight > 0.0)
 
     /* If the number of features isn't specified, use all of them */
     val numFeaturesActual = if (numFeatures > 0) {
       numFeatures
     } else {
-      collectedData.head._1.size
+      collectedData.head.inputs.size
     }
 
     // Construct the training tree

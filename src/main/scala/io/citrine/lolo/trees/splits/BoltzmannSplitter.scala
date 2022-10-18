@@ -1,5 +1,6 @@
 package io.citrine.lolo.trees.splits
 
+import io.citrine.lolo.TrainingRow
 import io.citrine.random.Random
 import io.citrine.lolo.trees.impurity.VarianceCalculator
 import io.citrine.lolo.trees.splits.BoltzmannSplitter.SplitterResult
@@ -47,13 +48,13 @@ case class BoltzmannSplitter(temperature: Double) extends Splitter[Double] {
     * @return a split object that optimally divides data
     */
   def getBestSplit(
-      data: Seq[(Vector[AnyVal], Double, Double)],
+      data: Seq[TrainingRow[Double]],
       numFeatures: Int,
       minInstances: Int,
       rng: Random
   ): (Split, Double) = {
     /* Pre-compute these for the variance calculation */
-    val calculator = VarianceCalculator.build(data.map(_._2), data.map(_._3))
+    val calculator = VarianceCalculator.build(data.map(_.label), data.map(_.weight))
     val initialVariance = calculator.getImpurity
 
     // Don't split if there is no impurity to reduce
@@ -65,11 +66,11 @@ case class BoltzmannSplitter(temperature: Double) extends Splitter[Double] {
     val rep = data.head
 
     /* Try every feature index */
-    val featureIndices: Seq[Int] = rep._1.indices
+    val featureIndices: Seq[Int] = rep.inputs.indices
 
     val possibleSplits: Seq[SplitterResult] = rng.shuffle(featureIndices).take(numFeatures).flatMap { index =>
-      /* Use different spliters for each type */
-      rep._1(index) match {
+      /* Use different splitters for each type */
+      rep.inputs(index) match {
         case _: Double => BoltzmannSplitter.getBestRealSplit(data, calculator, index, minInstances, beta, rng)
         case _: Char   => BoltzmannSplitter.getBestCategoricalSplit(data, calculator, index, minInstances, beta, rng)
         case _: Any    => throw new IllegalArgumentException("Trying to split unknown feature type")
@@ -131,7 +132,7 @@ object BoltzmannSplitter {
     * @return the best split of this feature, along with its score, base, and result variance
     */
   def getBestRealSplit(
-      data: Seq[(Vector[AnyVal], Double, Double)],
+      data: Seq[TrainingRow[Double]],
       calculator: VarianceCalculator,
       index: Int,
       minCount: Int,
@@ -139,7 +140,7 @@ object BoltzmannSplitter {
       rng: Random
   ): Option[SplitterResult] = {
     /* Pull out the feature that's considered here and sort by it */
-    val thinData = data.map(dat => (dat._1(index).asInstanceOf[Double], dat._2, dat._3)).sortBy(_._1)
+    val thinData = data.map(dat => (dat.inputs(index).asInstanceOf[Double], dat.label, dat.weight)).sortBy(_._1)
 
     /* Move the data from the right to the left partition one value at a time */
     calculator.reset()
@@ -192,7 +193,7 @@ object BoltzmannSplitter {
     * @return the best split of this feature, along with its score, base, and result variance
     */
   def getBestCategoricalSplit(
-      data: Seq[(Vector[AnyVal], Double, Double)],
+      data: Seq[TrainingRow[Double]],
       calculator: VarianceCalculator,
       index: Int,
       minCount: Int,
@@ -200,7 +201,7 @@ object BoltzmannSplitter {
       rng: Random
   ): Option[SplitterResult] = {
     /* Extract the features at the index */
-    val thinData = data.map(dat => (dat._1(index).asInstanceOf[Char], dat._2, dat._3))
+    val thinData = data.map(dat => (dat.inputs(index).asInstanceOf[Char], dat.label, dat.weight))
     val totalWeight = thinData.map(_._3).sum
 
     /* Group the data by categorical feature and compute the weighted sum and sum of the weights for each */

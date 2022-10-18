@@ -13,7 +13,7 @@ sealed trait Split extends Serializable {
     * @param input vector of any type
     * @return true if input takes the left split
     */
-  def turnLeft(input: Vector[AnyVal]): Boolean
+  def turnLeft(input: Vector[Any]): Boolean
 
   /**
     * Get the index of the input vector that is used to pick this split
@@ -34,7 +34,7 @@ case class NoSplit() extends Split {
     * @param input vector of any type
     * @return true if input takes the left split
     */
-  override def turnLeft(input: Vector[AnyVal]): Boolean = false
+  override def turnLeft(input: Vector[Any]): Boolean = false
 
   /**
     * Get the index of the input vector that is used to pick this split
@@ -58,7 +58,7 @@ case class RealSplit(index: Int, pivot: Double) extends Split {
     * @param input vector of any type
     * @return true if input takes the left split
     */
-  override def turnLeft(input: Vector[AnyVal]): Boolean = {
+  override def turnLeft(input: Vector[Any]): Boolean = {
     if (pivot.isNaN) {
       // the normal sort order for scala puts NaN >> any other double
       // so if the pivot is NaN and the value is not, then it is 'less than' the pivot
@@ -90,7 +90,7 @@ case class CategoricalSplit(index: Int, includeSet: BitSet) extends Split {
     * @param input vector of any type
     * @return true if input takes the left split
     */
-  override def turnLeft(input: Vector[AnyVal]): Boolean = {
+  override def turnLeft(input: Vector[Any]): Boolean = {
     includeSet.contains(input(index).asInstanceOf[Char].toInt)
   }
 }

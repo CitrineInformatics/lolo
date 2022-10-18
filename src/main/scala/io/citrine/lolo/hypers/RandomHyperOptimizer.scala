@@ -1,6 +1,6 @@
 package io.citrine.lolo.hypers
 
-import io.citrine.lolo.Learner
+import io.citrine.lolo.{Learner, TrainingRow}
 import io.citrine.random.Random
 
 /**
@@ -25,7 +25,7 @@ class RandomHyperOptimizer() extends HyperOptimizer {
     * @return the best hyper map found in give iterations and the corresponding loss
     */
   override def optimize[T](
-      trainingData: Seq[(Vector[Any], T)],
+      trainingData: Seq[TrainingRow[T]],
       numIterations: Int,
       builder: Map[String, Any] => Learner[T],
       rng: Random

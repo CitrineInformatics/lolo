@@ -1,6 +1,6 @@
 package io.citrine.lolo.hypers
 
-import io.citrine.lolo.Learner
+import io.citrine.lolo.{Learner, TrainingRow}
 import io.citrine.random.Random
 
 /** Brute force search over the grid of hypers. */
@@ -14,7 +14,7 @@ case class GridHyperOptimizer() extends HyperOptimizer {
     * @return the best hyper map found in the search space
     */
   override def optimize[T](
-      trainingData: Seq[(Vector[Any], T)],
+      trainingData: Seq[TrainingRow[T]],
       numIterations: Int = 1,
       builder: Map[String, Any] => Learner[T],
       rng: Random
