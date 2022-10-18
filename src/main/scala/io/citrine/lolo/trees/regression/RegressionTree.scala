@@ -54,7 +54,7 @@ case class RegressionTreeLearner(
     // Encode the training data.
     val encodedTraining = trainingData.map { row =>
       val encodedInputs = CategoricalEncoder.encodeInput(row.inputs, encoders)
-      row.withInputs(encodedInputs)
+      row.copy(inputs = encodedInputs)
     }
 
     // Add the weights to the (features, label) tuples and remove any with zero weight.

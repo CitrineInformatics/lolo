@@ -8,33 +8,32 @@ import io.citrine.random.Random
 object DataGenerator {
 
   /** Sequence of inputs and labels generated for training a learner. */
-  case class TrainingData[I, L](data: Seq[(Vector[I], L)])
-
-  // An implicit class is used to restrict binning to when the inputs are of type Double
-  implicit class TrainingInputBinner[L](trainingData: TrainingData[Double, L]) {
-    def withBinnedInputs(bins: Seq[(Int, Int)]): TrainingData[Any, L] = {
-      val (baseInputs, baseLabels) = trainingData.data.unzip
+  case class TrainingData[T](data: Seq[TrainingRow[T]]) {
+    def withBinnedInputs(bins: Seq[(Int, Int)]): TrainingData[T] = {
+      val baseInputs = data.map(_.inputs)
       val indexToBins = bins.toMap
       val transposedInputs = baseInputs.transpose
       val binnedInputs = Vector
         .tabulate(transposedInputs.length) { index =>
-          val indexData = transposedInputs(index)
+          val indexData = transposedInputs(index).asInstanceOf[Seq[Double]]
           indexToBins
             .get(index)
             .map { nBins => binData(indexData, nBins) }
             .getOrElse(indexData)
         }
         .transpose
-      TrainingData(binnedInputs.zip(baseLabels))
+      val binnedData = data.zip(binnedInputs).map { case (row, inputs) => row.copy(inputs = inputs) }
+      TrainingData(binnedData)
     }
   }
 
   // An implicit class is used to restrict binning to when the labels are of type Double
-  implicit class TrainingLabelBinner[I](trainingData: TrainingData[I, Double]) {
-    def withBinnedLabels(bins: Int): TrainingData[I, String] = {
-      val (baseInputs, baseLabels) = trainingData.data.unzip
+  implicit class TrainingLabelBinner(trainingData: TrainingData[Double]) {
+    def withBinnedLabels(bins: Int): TrainingData[String] = {
+      val baseLabels = trainingData.data.map(_.label)
       val binnedLabels = binData(baseLabels, bins)
-      TrainingData(baseInputs.zip(binnedLabels))
+      val binnedData = trainingData.data.zip(binnedLabels).map { case (row, label) => row.copy(label = label) }
+      TrainingData(binnedData)
     }
   }
 
@@ -52,10 +51,10 @@ object DataGenerator {
       xoff: Double = 0.0,
       noise: Double = 0.0,
       rng: Random = Random()
-  ): TrainingData[Double, Double] = {
+  ): TrainingData[Double] = {
     val data = Vector.fill(rows) {
       val input = Vector.fill(cols)(xscale * rng.nextDouble() + xoff)
-      (input, function(input) + noise * rng.nextGaussian())
+      TrainingRow(input, function(input) + noise * rng.nextGaussian(), 1.0)
     }
     TrainingData(data)
   }
@@ -67,10 +66,10 @@ object DataGenerator {
       xoff: Double = 0.0,
       noise: Double = 0.0,
       rng: Random = Random()
-  ): Iterator[(Vector[Double], Double)] = {
+  ): Iterator[TrainingRow[Double]] = {
     Iterator.continually {
       val input = Vector.fill(cols)(xscale * rng.nextDouble() + xoff)
-      (input, function(input) + noise * rng.nextGaussian())
+      TrainingRow(input, function(input) + noise * rng.nextGaussian(), 1.0)
     }
   }
 
@@ -105,7 +104,7 @@ object DataGenerator {
     require(rho >= -1.0 && rho <= 1.0, "correlation coefficient must be between -1.0 and 1.0")
     val Y = Seq.fill(X.length)(rng.nextGaussian())
     val linearLearner = LinearRegressionLearner()
-    val linearModel = linearLearner.train(X.zip(Y).map { case (x, y) => (Vector(x), y) }).getModel()
+    val linearModel = linearLearner.train(X.zip(Y).map { case (x, y) => TrainingRow(Vector(x), y, 1.0) }).getModel()
     val yPred = linearModel.transform(X.map(Vector(_))).getExpected()
     val residuals = Y.zip(yPred).map { case (actual, predicted) => actual - predicted }
     val stdX = math.sqrt(variance(X))

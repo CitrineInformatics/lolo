@@ -83,7 +83,7 @@ case class MultiTaskBagger(
         .map {
           case (thisRng, i) =>
             val weightedTrainingData = Nib(i).zip(trainingData).map {
-              case (count, row) => row.withWeight(count.toDouble * row.weight)
+              case (count, row) => row.copy(weight = count.toDouble * row.weight)
             }
             val meta = method.train(weightedTrainingData, thisRng)
             (meta.getModel(), meta.getFeatureImportance())

@@ -2,11 +2,11 @@ package io.citrine.lolo
 
 case class TrainingRow[+T](inputs: Vector[Any], label: T, weight: Double) {
 
+  /** Cast the training row as a tuple of (inputs, label, weight). */
   def asTuple: (Vector[Any], T, Double) = (inputs, label, weight)
 
-  def withInputs(inputs: Vector[Any]): TrainingRow[T] = copy(inputs = inputs)
-
-  def withWeight(weight: Double): TrainingRow[T] = copy(weight = weight)
+  /** Return a new row holding up to the first `n` features from the input vector. */
+  def takeInputs(n: Int): TrainingRow[T] = copy(inputs = inputs.take(n))
 }
 
 object TrainingRow {

@@ -23,7 +23,7 @@ case class MultiTaskFeatureRotator(baseLearner: MultiTaskLearner) extends MultiT
 
     val rotatedFeatures = FeatureRotator.applyRotation(inputs, featuresToRotate, trans)
     val rotatedTrainingData = trainingData.zip(rotatedFeatures).map {
-      case (row, inputs) => row.withInputs(inputs)
+      case (row, inputs) => row.copy(inputs = inputs)
     }
 
     val baseTrainingResult = baseLearner.train(rotatedTrainingData, rng)
