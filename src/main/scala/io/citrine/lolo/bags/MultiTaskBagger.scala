@@ -38,11 +38,11 @@ case class MultiTaskBagger(
 
   override def train(trainingData: Seq[TrainingRow[Vector[Any]]], rng: Random): MultiTaskBaggedTrainingResult = {
     val numInputs = trainingData.head.inputs.length
-    val numLabels = trainingData.head.labels.length
+    val numLabels = trainingData.head.label.length
     /* Make sure the training data are the same size */
     assert(
       trainingData.forall { row =>
-        row.inputs.length == numInputs && row.labels.length == numLabels
+        row.inputs.length == numInputs && row.label.length == numLabels
       }
     )
     assert(
@@ -50,7 +50,7 @@ case class MultiTaskBagger(
       s"We need to have at least ${Bagger.minimumTrainingSize} rows, only ${trainingData.size} given"
     )
     (0 until numLabels).foreach { i =>
-      val numOutputValues = trainingData.count(row => validOutput(row.labels(i)))
+      val numOutputValues = trainingData.count(row => validOutput(row.label(i)))
       assert(
         numOutputValues >= Bagger.minimumOutputCount,
         s"There must be at least ${Bagger.minimumOutputCount} data points for each output, but output $i only had $numOutputValues values."
@@ -67,7 +67,7 @@ case class MultiTaskBagger(
       .continually(Vector.fill(trainingData.size)(dist.draw()))
       .filter { suggestedCounts =>
         val allOutputsRepresented = (0 until numLabels).forall { i =>
-          trainingData.zip(suggestedCounts).exists { case (row, count) => validOutput(row.labels(i)) && count > 0 }
+          trainingData.zip(suggestedCounts).exists { case (row, count) => validOutput(row.label(i)) && count > 0 }
         }
         val minNonzeroWeights = suggestedCounts.count(_ > 0) >= Bagger.minimumNonzeroWeightSize
         allOutputsRepresented && minNonzeroWeights

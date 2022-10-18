@@ -131,7 +131,7 @@ case class MultiTaskRandomForest(
 ) extends MultiTaskLearner {
 
   override def train(trainingData: Seq[TrainingRow[Vector[Any]]], rng: Random): MultiTaskTrainingResult = {
-    val rep = trainingData.head.labels
+    val rep = trainingData.head.label
     val hasRegression = rep.exists(_.isInstanceOf[Double])
     val numFeatures = RandomForest.getNumFeatures(subsetStrategy, trainingData.head.inputs.length, hasRegression)
 

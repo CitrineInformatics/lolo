@@ -28,13 +28,13 @@ protected[bags] case class BaggerHelper(
     */
   lazy val oobErrors: Seq[(Vector[Any], Double, Double)] = trainingData.indices.flatMap { idx =>
     val oobModels = models.zip(Nib.map(_(idx))).filter(_._2 == 0).map(_._1)
-    val label = trainingData(idx).labels
+    val label = trainingData(idx).label
     if (oobModels.size < 2 || label.isNaN) {
       None
     } else {
       val model = new BaggedRegressionModel(oobModels, Nib.filter { _(idx) == 0 })
       val predicted = model.transform(Seq(trainingData(idx).inputs))
-      val error = predicted.getExpected().head - trainingData(idx).labels
+      val error = predicted.getExpected().head - trainingData(idx).label
       val uncertainty = predicted.getStdDevObs().get.head
       Some(trainingData(idx).inputs, error, uncertainty)
     }

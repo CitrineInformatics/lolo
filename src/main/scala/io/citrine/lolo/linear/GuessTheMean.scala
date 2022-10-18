@@ -1,17 +1,13 @@
 package io.citrine.lolo.linear
 
 import io.citrine.random.Random
-import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
+import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult, TrainingRow}
 
 case class GuessTheMeanLearner() extends Learner[Double] {
 
-  override def train(
-      trainingData: Seq[(Vector[Any], Double)],
-      weights: Option[Seq[Double]],
-      rng: Random
-  ): GuessTheMeanTrainingResult = {
-    val data = trainingData.map(_._2).zip(weights.getOrElse(Seq.fill(trainingData.size)(1.0)))
-    val mean = data.map(p => p._1 * p._2).sum / data.map(_._2).sum
+  override def train(trainingData: Seq[TrainingRow[Double]], rng: Random): GuessTheMeanTrainingResult = {
+    val totalWeight = trainingData.map(_.weight).sum
+    val mean = trainingData.map { case TrainingRow(_, label, weight) => label * weight }.sum / totalWeight
     GuessTheMeanTrainingResult(new GuessTheMeanModel(mean))
   }
 }
