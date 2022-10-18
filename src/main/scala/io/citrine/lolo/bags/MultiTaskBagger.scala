@@ -10,7 +10,8 @@ import io.citrine.lolo.{
   MultiTaskModelPredictionResult,
   MultiTaskTrainingResult,
   ParallelModelsPredictionResult,
-  PredictionResult
+  PredictionResult,
+  TrainingRow
 }
 import io.citrine.random.Random
 import io.citrine.lolo.stats.metrics.{ClassificationMetrics, RegressionMetrics}
@@ -35,30 +36,26 @@ case class MultiTaskBagger(
     biasLearner: Option[Learner[Double]] = None
 ) extends MultiTaskLearner {
 
-  override def train(
-      trainingData: Seq[(Vector[Any], Vector[Any])],
-      weights: Option[Seq[Double]],
-      rng: Random
-  ): MultiTaskBaggedTrainingResult = {
-    val (inputs, labels) = trainingData.unzip
-    val numInputs = inputs.head.length
-    val numOutputs = labels.head.length
+  override def train(trainingData: Seq[TrainingRow[Vector[Any]]], rng: Random): MultiTaskBaggedTrainingResult = {
+    val numInputs = trainingData.head.inputs.length
+    val numLabels = trainingData.head.labels.length
     /* Make sure the training data are the same size */
-    assert(inputs.forall(numInputs == _.size))
-    assert(labels.forall(numOutputs == _.size))
+    assert(
+      trainingData.forall { row =>
+        row.inputs.length == numInputs && row.labels.length == numLabels
+      }
+    )
     assert(
       trainingData.size >= Bagger.minimumTrainingSize,
       s"We need to have at least ${Bagger.minimumTrainingSize} rows, only ${trainingData.size} given"
     )
-    (0 until numOutputs).foreach { i =>
-      val numOutputValues = labels.count(row => validOutput(row(i)))
+    (0 until numLabels).foreach { i =>
+      val numOutputValues = trainingData.count(row => validOutput(row.labels(i)))
       assert(
         numOutputValues >= Bagger.minimumOutputCount,
         s"There must be at least ${Bagger.minimumOutputCount} data points for each output, but output $i only had $numOutputValues values."
       )
     }
-
-    val weightsActual = weights.getOrElse(Seq.fill(trainingData.size)(1.0))
 
     // if numBags is non-positive, set # bags = # inputs
     val actualBags = if (numBags > 0) numBags else trainingData.size
@@ -69,9 +66,9 @@ case class MultiTaskBagger(
     val Nib: Vector[Vector[Int]] = Iterator
       .continually(Vector.fill(trainingData.size)(dist.draw()))
       .filter { suggestedCounts =>
-        val allOutputsRepresented = (0 until numOutputs).forall(i =>
-          labels.zip(suggestedCounts).exists { case (row, count) => validOutput(row(i)) && count > 0 }
-        )
+        val allOutputsRepresented = (0 until numLabels).forall { i =>
+          trainingData.zip(suggestedCounts).exists { case (row, count) => validOutput(row.labels(i)) && count > 0 }
+        }
         val minNonzeroWeights = suggestedCounts.count(_ > 0) >= Bagger.minimumNonzeroWeightSize
         allOutputsRepresented && minNonzeroWeights
       }
@@ -85,8 +82,10 @@ case class MultiTaskBagger(
         .par
         .map {
           case (thisRng, i) =>
-            val sampleWeights = Nib(i).zip(weightsActual).map(p => p._1.toDouble * p._2)
-            val meta = method.train(trainingData, Some(sampleWeights), thisRng)
+            val weightedTrainingData = Nib(i).zip(trainingData).map {
+              case (count, row) => row.withWeight(count.toDouble * row.weight)
+            }
+            val meta = method.train(weightedTrainingData, thisRng)
             (meta.getModel(), meta.getFeatureImportance())
         }
         .unzip
@@ -97,13 +96,11 @@ case class MultiTaskBagger(
 
     // Get bias model and rescale ratio for each label
     val (biasModels, rescaleRatios) = Seq
-      .tabulate(numOutputs) { i =>
+      .tabulate(numLabels) { i =>
         val isRegression = models.head.getRealLabels(i)
         if (isRegression) {
           val thisLabelModels = models.map(_.getModels(i).asInstanceOf[Model[Double]])
-          val thisTrainingData = trainingData.map {
-            case (inputs, outputs) => (inputs, outputs(i).asInstanceOf[Double])
-          }
+          val thisTrainingData = trainingData.map { row => TrainingRow.extractLabel[Double](row, i) }
           val helper = BaggerHelper(thisLabelModels, thisTrainingData, Nib, useJackknife, uncertaintyCalibration)
           val biasModel = biasLearner.collect {
             case learner if helper.oobErrors.nonEmpty =>
@@ -149,7 +146,7 @@ case class MultiTaskBagger(
 class MultiTaskBaggedTrainingResult(
     models: ParSeq[MultiTaskModel],
     Nib: Vector[Vector[Int]],
-    trainingData: Seq[(Vector[Any], Vector[Any])],
+    trainingData: Seq[TrainingRow[Vector[Any]]],
     featureImportance: Option[Vector[Double]],
     biasModels: Seq[Option[Model[Double]]],
     rescaleRatios: Seq[Double]
@@ -163,7 +160,7 @@ class MultiTaskBaggedTrainingResult(
   // a prediction, but that's not useful in this context, since the point is to compare predictions with ground-truth values.
   lazy val predictedVsActual: Seq[(Vector[Any], Vector[Option[Any]], Vector[Option[Any]])] =
     trainingData.zip(Nib.transpose).flatMap {
-      case ((features, labels), nb) =>
+      case (TrainingRow(features, labels, _), nb) =>
         // Bagged models that were not trained on this input
         val oob = models.zip(nb).filter(_._2 == 0).map(_._1)
         if (oob.isEmpty) {

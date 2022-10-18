@@ -2,7 +2,7 @@ package io.citrine.lolo.bags
 
 import breeze.stats.distributions.Poisson
 import io.citrine.lolo.bags.Bagger.BaggedEnsemble
-import io.citrine.lolo.{Learner, Model}
+import io.citrine.lolo.{Learner, Model, TrainingRow}
 import io.citrine.lolo.stats.StatsUtils
 import io.citrine.random.Random
 
@@ -23,24 +23,15 @@ sealed trait Bagger[T] extends Learner[T] {
     * Draw with replacement from the training data for each model.
     *
     * @param trainingData to train on
-    * @param weights      for the training rows, if applicable
     * @param rng          random number generator for reproducibility
     * @return a training result containing the bagged model
     */
-  override def train(
-      trainingData: Seq[(Vector[Any], T)],
-      weights: Option[Seq[Double]] = None,
-      rng: Random = Random()
-  ): BaggedTrainingResult[T]
+  override def train(trainingData: Seq[TrainingRow[T]], rng: Random = Random()): BaggedTrainingResult[T]
 
   /** Bootstrap the training data to train an ensemble of models from the base learner. */
-  protected def trainEnsemble(
-      trainingData: Seq[(Vector[Any], T)],
-      weights: Option[Seq[Double]],
-      rng: Random
-  ): BaggedEnsemble[T] = {
+  protected def trainEnsemble(trainingData: Seq[TrainingRow[T]], rng: Random): BaggedEnsemble[T] = {
     // Make sure the training data is the same size
-    assert(trainingData.forall(trainingData.head._1.length == _._1.length))
+    assert(trainingData.forall(trainingData.head.inputs.length == _.inputs.length))
     require(
       trainingData.length >= Bagger.minimumTrainingSize,
       s"We need to have at least ${Bagger.minimumTrainingSize} rows, only ${trainingData.length} given."
@@ -59,9 +50,6 @@ sealed trait Bagger[T] extends Learner[T] {
       s"Jackknife requires $minBags bags for ${trainingData.length} training rows, but only $actualBags given."
     )
 
-    // Use unit weights if none are specified
-    val weightsActual = weights.getOrElse(Seq.fill(trainingData.length)(1.0))
-
     // Compute the number of instances of each training row in each training sample
     val Nib = drawNib(actualBags, trainingData.length, rng)
 
@@ -72,13 +60,15 @@ sealed trait Bagger[T] extends Learner[T] {
       .par
       .map {
         case (thisRng, i) =>
-          val sampleWeights = Nib(i).zip(weightsActual).map(p => p._1.toDouble * p._2)
-          val meta = baseLearner.train(trainingData, Some(sampleWeights), thisRng)
+          val weightedTrainingData = Nib(i).zip(trainingData).map {
+            case (count, row) => row.withWeight(count.toDouble * row.weight)
+          }
+          val meta = baseLearner.train(weightedTrainingData, thisRng)
           (meta.getModel(), meta.getFeatureImportance())
       }
       .unzip
 
-    // Average the feature importances
+    // Average the feature importance
     val averageImportance = importances.reduce(Bagger.combineImportance).map(_.map(_ / importances.size))
 
     BaggedEnsemble(models, Nib, averageImportance)
@@ -141,13 +131,9 @@ case class RegressionBagger(
     "Options uncertaintyCalibration and disableBootstrap are incompatible. At most one may be set true."
   )
 
-  override def train(
-      trainingData: Seq[(Vector[Any], Double)],
-      weights: Option[Seq[Double]],
-      rng: Random
-  ): RegressionBaggerTrainingResult = {
+  override def train(trainingData: Seq[TrainingRow[Double]], rng: Random): RegressionBaggerTrainingResult = {
     // Train the ensemble of models from the data
-    val ensemble = trainEnsemble(trainingData, weights, rng)
+    val ensemble = trainEnsemble(trainingData, rng)
 
     // Compute uncertainty rescales and train the bias model (if present)
     val helper = BaggerHelper(ensemble.models, trainingData, ensemble.Nib, useJackknife, uncertaintyCalibration)
@@ -184,13 +170,9 @@ case class ClassificationBagger[T](
     disableBootstrap: Boolean = false
 ) extends Bagger[T] {
 
-  override def train(
-      trainingData: Seq[(Vector[Any], T)],
-      weights: Option[Seq[Double]],
-      rng: Random
-  ): ClassificationBaggerTrainingResult[T] = {
+  override def train(trainingData: Seq[TrainingRow[T]], rng: Random): ClassificationBaggerTrainingResult[T] = {
     // Train the ensemble of models from the data
-    val ensemble = trainEnsemble(trainingData, weights, rng)
+    val ensemble = trainEnsemble(trainingData, rng)
 
     new ClassificationBaggerTrainingResult(
       ensembleModels = ensemble.models,

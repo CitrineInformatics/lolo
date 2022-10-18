@@ -12,30 +12,27 @@ trait Learner[T] extends Serializable {
   /**
     * Train a model on the provided training data.
     *
-    * TODO(PLA-10433): Add a concrete type for training rows
-    *
     * @param trainingData to train on
-    * @param weights      for the training rows, if applicable
     * @param rng          random number generator for reproducibility
     * @return training result containing a model
     */
+  def train(trainingData: Seq[TrainingRow[T]], rng: Random = Random()): TrainingResult[T]
+
   def train(
       trainingData: Seq[(Vector[Any], T)],
       weights: Option[Seq[Double]] = None,
       rng: Random = Random()
-  ): TrainingResult[T]
-
-  def train(trainingData: Seq[(Vector[Any], T, Double)], rng: Random): TrainingResult[T] = {
-    train(trainingData.map(r => (r._1, r._2)), Some(trainingData.map(_._3)), rng)
+  ): TrainingResult[T] = {
+    val actualWeights = weights.getOrElse(Seq.fill(trainingData.length)(1.0))
+    val trainingRows = trainingData.zip(actualWeights).map {
+      case ((i, l), w) => TrainingRow(i, l, w)
+    }
+    train(trainingRows, rng)
   }
 }
 
 /** A learner that trains on multiple labels, outputting a single model that makes predictions for all labels. */
 trait MultiTaskLearner extends Learner[Vector[Any]] {
 
-  override def train(
-      trainingData: Seq[(Vector[Any], Vector[Any])],
-      weights: Option[Seq[Double]] = None,
-      rng: Random = Random()
-  ): MultiTaskTrainingResult
+  def train(trainingData: Seq[TrainingRow[Vector[Any]]], rng: Random = Random()): MultiTaskTrainingResult
 }
