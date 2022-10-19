@@ -32,7 +32,7 @@ protected[bags] case class BaggerHelper(
     if (oobModels.size < 2 || label.isNaN) {
       None
     } else {
-      val model = new BaggedRegressionModel(oobModels, Nib.filter { _(idx) == 0 })
+      val model = BaggedRegressionModel(oobModels, Nib.filter { _(idx) == 0 })
       val predicted = model.transform(Seq(trainingData(idx).inputs))
       val error = predicted.getExpected().head - trainingData(idx).label
       val uncertainty = predicted.getStdDevObs().get.head
@@ -56,7 +56,7 @@ protected[bags] case class BaggerHelper(
       // Math.E is only statistically correct.  It should be actualBags / Nib.transpose(i).count(_ == 0)
       // Or, better yet, filter the bags that don't include the training example
       val bias = Math.E * Math.max(Math.abs(e) - u * rescaleRatio, 0)
-      TrainingRow(f, bias, 1.0)
+      TrainingRow(f, bias)
   }
 }
 

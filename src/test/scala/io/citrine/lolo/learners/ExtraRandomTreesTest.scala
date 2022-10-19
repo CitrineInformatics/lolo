@@ -65,7 +65,7 @@ class ExtraRandomTreesTest extends SeedRandomMixIn {
 
     /* Generate small perturbations from the training data */
     val testData = trainingData
-      .map { row => row.withInputs(row.inputs.map(_.asInstanceOf[Double] + rng.nextGaussian())) }
+      .map(_.mapInputs(inputs => inputs.map(_.asInstanceOf[Double] + 0.05 * rng.nextGaussian())))
       .take(nTest)
 
     Seq(true, false).foreach { randomlyRotateFeatures =>

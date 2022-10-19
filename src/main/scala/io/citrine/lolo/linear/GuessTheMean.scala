@@ -8,7 +8,7 @@ case class GuessTheMeanLearner() extends Learner[Double] {
   override def train(trainingData: Seq[TrainingRow[Double]], rng: Random): GuessTheMeanTrainingResult = {
     val totalWeight = trainingData.map(_.weight).sum
     val mean = trainingData.map { case TrainingRow(_, label, weight) => label * weight }.sum / totalWeight
-    GuessTheMeanTrainingResult(new GuessTheMeanModel(mean))
+    GuessTheMeanTrainingResult(GuessTheMeanModel(mean))
   }
 }
 
@@ -16,14 +16,14 @@ case class GuessTheMeanTrainingResult(model: GuessTheMeanModel) extends Training
   override def getModel(): GuessTheMeanModel = model
 }
 
-class GuessTheMeanModel(mean: Double) extends Model[Double] {
+case class GuessTheMeanModel(mean: Double) extends Model[Double] {
 
   def transform(inputs: Seq[Vector[Any]]): GuessTheMeanResult = {
-    new GuessTheMeanResult(Seq.fill(inputs.size)(mean))
+    GuessTheMeanResult(Seq.fill(inputs.size)(mean))
   }
 }
 
-class GuessTheMeanResult(result: Seq[Double]) extends PredictionResult[Double] {
+case class GuessTheMeanResult(result: Seq[Double]) extends PredictionResult[Double] {
 
   /**
     * Get the expected values for this prediction

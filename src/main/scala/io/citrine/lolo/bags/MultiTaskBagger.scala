@@ -100,7 +100,7 @@ case class MultiTaskBagger(
         val isRegression = models.head.getRealLabels(i)
         if (isRegression) {
           val thisLabelModels = models.map(_.getModels(i).asInstanceOf[Model[Double]])
-          val thisTrainingData = trainingData.map { row => TrainingRow.extractLabel[Double](row, i) }
+          val thisTrainingData = trainingData.map(_.mapLabel(vec => vec(i).asInstanceOf[Double]))
           val helper = BaggerHelper(thisLabelModels, thisTrainingData, Nib, useJackknife, uncertaintyCalibration)
           val biasModel = biasLearner.collect {
             case learner if helper.oobErrors.nonEmpty =>
@@ -221,7 +221,7 @@ case class MultiTaskBaggedTrainingResult(
             biasModel = biasModels(i)
           )
         } else {
-          BaggedClassificationModel(thisLabelModels, Nib)
+          BaggedClassificationModel(thisLabelModels)
         }
     }
   }
@@ -261,7 +261,7 @@ case class MultiTaskBaggedModel(
         biasModel = biasModels(i)
       )
     } else {
-      BaggedClassificationModel(thisLabelsModels, Nib)
+      BaggedClassificationModel(thisLabelsModels)
     }
   }
 

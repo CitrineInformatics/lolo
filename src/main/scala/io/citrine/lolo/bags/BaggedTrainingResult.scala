@@ -66,7 +66,7 @@ case class ClassificationBaggerTrainingResult[T](
 ) extends BaggedTrainingResult[T] {
 
   lazy val NibT: Vector[Vector[Int]] = Nib.transpose
-  lazy val model: BaggedClassificationModel[T] = BaggedClassificationModel(ensembleModels, Nib)
+  lazy val model: BaggedClassificationModel[T] = BaggedClassificationModel(ensembleModels)
   lazy val predictedVsActual: Seq[(Vector[Any], T, T)] = trainingData.zip(NibT).flatMap {
     case (TrainingRow(f, l, _), nb) =>
       val oob = if (disableBootstrap) {
