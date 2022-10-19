@@ -236,8 +236,7 @@ object CalibrationStudy extends SeedRandomMixIn {
   ): CategoryChart = {
     val data: Seq[(Double, Double, Double)] = source.flatMap {
       case (predictions, actual) =>
-        predictions
-          .expected
+        predictions.expected
           .lazyZip(predictions.uncertainty().get.asInstanceOf[Seq[Double]])
           .lazyZip(actual)
           .toSeq

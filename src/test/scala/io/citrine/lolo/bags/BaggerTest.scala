@@ -452,8 +452,7 @@ object BaggerTest extends SeedRandomMixIn {
     val pva = testSet
       .map(_._2)
       .zip(
-        predictions
-          .expected
+        predictions.expected
           .asInstanceOf[Seq[Double]]
           .zip(
             predictions.uncertainty().get.asInstanceOf[Seq[Double]]

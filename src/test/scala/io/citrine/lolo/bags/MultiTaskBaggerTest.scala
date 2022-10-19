@@ -319,8 +319,7 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
     val referenceRows = TrainingRow.build(inputs.zip(sparseCat)).filterNot(_.label == null)
     val referenceModel = ClassificationBagger(ClassificationTreeLearner(), numBags = inputs.size)
       .train(referenceRows, rng = rng)
-    val reference = referenceModel
-      .model
+    val reference = referenceModel.model
       .transform(inputs)
       .expected
 

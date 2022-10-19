@@ -43,8 +43,7 @@ case object RootMeanSquareError extends Merit[Double] {
       rng: Random = Random()
   ): Double = {
     Math.sqrt(
-      predictionResult
-        .expected
+      predictionResult.expected
         .zip(actual)
         .map {
           case (x, y) => Math.pow(x - y, 2)
@@ -122,8 +121,7 @@ case object UncertaintyCorrelation extends Merit[Double] {
       actual: Seq[Double],
       rng: Random = Random()
   ): Double = {
-    val predictedUncertaintyActual: Seq[(Double, Double, Double)] = predictionResult
-      .expected
+    val predictedUncertaintyActual: Seq[(Double, Double, Double)] = predictionResult.expected
       .lazyZip(predictionResult.uncertainty().get.asInstanceOf[Seq[Double]])
       .lazyZip(actual)
       .toSeq

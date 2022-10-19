@@ -39,8 +39,7 @@ case class StandardResidualHistogram(
   override def visualize(data: Iterable[(PredictionResult[Double], Seq[Double])]): CategoryChart = {
     val pua: Seq[(Double, Double, Double)] = data.flatMap {
       case (predictions, actual) =>
-        predictions
-          .expected
+        predictions.expected
           .lazyZip(predictions.uncertainty().get.asInstanceOf[Seq[Double]])
           .lazyZip(actual)
           .toSeq
