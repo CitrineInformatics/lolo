@@ -92,9 +92,12 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
         assert weights_java.length() == len(X), "Weights copy failed"
 
         # Train the model
+        train_rows = self.gateway.jvm.io.citrine.lolo.TrainingRow.build(
+            train_data, self.gateway.jvm.scala.Some(weights_java)
+        )
         rng = self.gateway.jvm.io.citrine.lolo.util.LoloPyRandom.getRng(random_seed) if random_seed \
             else self.gateway.jvm.io.citrine.lolo.util.LoloPyRandom.getRng()
-        result = learner.train(train_data, self.gateway.jvm.scala.Some(weights_java), rng)
+        result = learner.train(train_rows, rng)
 
         # Unlink the training data, which is no longer needed (to save memory)
         self.gateway.detach(train_data)
