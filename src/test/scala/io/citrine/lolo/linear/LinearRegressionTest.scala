@@ -30,7 +30,7 @@ class LinearRegressionTest extends SeedRandomMixIn {
     val result = data * beta0
 
     val trainingData = (0 until n).map { i =>
-      TrainingRow(data.t(::, i).toDenseVector.toArray.toVector, result(i), 1.0)
+      TrainingRow(data.t(::, i).toDenseVector.toArray.toVector, result(i))
     }
 
     val lr = LinearRegressionLearner(fitIntercept = false)
@@ -53,7 +53,7 @@ class LinearRegressionTest extends SeedRandomMixIn {
     val result = data * beta0 + int0
 
     val trainingData = (0 until n).map { i =>
-      TrainingRow(data.t(::, i).toDenseVector.toArray.toVector, result(i), 1.0)
+      TrainingRow(data.t(::, i).toDenseVector.toArray.toVector, result(i))
     }
 
     val lr = LinearRegressionLearner()
@@ -110,7 +110,7 @@ class LinearRegressionTest extends SeedRandomMixIn {
     val result = data * beta0
 
     val trainingData = (0 until n).map { i =>
-      TrainingRow(data.t(::, i).toDenseVector.toArray.toVector, result(i), 1.0)
+      TrainingRow(data.t(::, i).toDenseVector.toArray.toVector, result(i))
     }
 
     val lr = LinearRegressionLearner(fitIntercept = false)
@@ -133,7 +133,7 @@ class LinearRegressionTest extends SeedRandomMixIn {
 
     val trainingData = (0 until n).map { i =>
       val inputs = "Foo" +: data.t(::, i).toDenseVector.toArray.toVector.asInstanceOf[Vector[Any]] :+ "Bar"
-      TrainingRow(inputs, result(i), 1.0)
+      TrainingRow(inputs, result(i))
     }
 
     val lr = LinearRegressionLearner()

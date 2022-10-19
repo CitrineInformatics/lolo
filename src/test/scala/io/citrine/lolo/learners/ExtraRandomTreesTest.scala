@@ -65,9 +65,7 @@ class ExtraRandomTreesTest extends SeedRandomMixIn {
 
     /* Generate small perturbations from the training data */
     val testData = trainingData
-      .map { row =>
-        row.copy(inputs = row.inputs.map(_.asInstanceOf[Double] + rng.nextGaussian()))
-      }
+      .map { row => row.withInputs(row.inputs.map(_.asInstanceOf[Double] + rng.nextGaussian())) }
       .take(nTest)
 
     Seq(true, false).foreach { randomlyRotateFeatures =>
@@ -141,10 +139,10 @@ class ExtraRandomTreesTest extends SeedRandomMixIn {
         }
         val dupeLabel = "DUPE"
         val trainingDataSuffixed = mainTrainingData ++ Seq(
-          TrainingRow(mainTrainingData.head.inputs, dupeLabel, 1.0)
+          TrainingRow(mainTrainingData.head.inputs, dupeLabel)
         )
         val trainingDataPrefixed = Seq(
-          TrainingRow(mainTrainingData.head.inputs, dupeLabel, 1.0)
+          TrainingRow(mainTrainingData.head.inputs, dupeLabel)
         ) ++ mainTrainingData
 
         val RFSuffixed =
@@ -201,9 +199,7 @@ class ExtraRandomTreesTest extends SeedRandomMixIn {
     val numTrain = 50
     // Generate completely random training data
     val realRows = DataGenerator.generate(rows = numTrain, cols = 12, noise = 5.0, function = _ => 0.0, rng = rng).data
-    val catRows = realRows.map { row =>
-      row.copy(label = rng.nextBoolean())
-    }
+    val catRows = realRows.map(_.withLabel(rng.nextBoolean()))
 
     // Generate test points
     val numTest = 25

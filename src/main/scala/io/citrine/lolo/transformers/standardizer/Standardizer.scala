@@ -50,7 +50,7 @@ case class ClassificationStandardizer[T](baseLearner: Learner[T]) extends Standa
 
     val standardInputs = inputs.map { input => Standardization.applyMulti(input, inputTrans) }
     val standardTrainingData = trainingData.zip(standardInputs).map {
-      case (row, inputs) => row.copy(inputs = inputs)
+      case (row, inputs) => row.withInputs(inputs)
     }
 
     val baseTrainingResult = baseLearner.train(standardTrainingData, rng)

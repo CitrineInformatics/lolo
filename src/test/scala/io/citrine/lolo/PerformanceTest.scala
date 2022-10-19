@@ -116,10 +116,10 @@ class PerformanceTest extends SeedRandomMixIn {
     val avgReal = realRows.map(_.label).sum / realRows.length
 
     val catLabels = realRows.map(_.label > avgReal)
-    val catRows = realRows.zip(catLabels).map { case (row, cat) => row.copy(label = cat) }
+    val catRows = realRows.zip(catLabels).map { case (row, cat) => row.withLabel(cat) }
 
     val multiRows = realRows.zip(catRows).map {
-      case (real, cat) => real.copy(label = Vector(real.label, cat.label))
+      case (real, cat) => real.withLabel(Vector(real.label, cat.label))
     }
 
     val trainSingle: Double = Stopwatch.time(

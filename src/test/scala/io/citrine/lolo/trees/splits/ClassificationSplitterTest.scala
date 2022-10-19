@@ -20,7 +20,7 @@ class ClassificationSplitterTest extends SeedRandomMixIn {
 
   val encoder: CategoricalEncoder[Any] = CategoricalEncoder.buildEncoder(testData.map(_.label))
   val encodedData: Seq[TrainingRow[Char]] = testData.map { row =>
-    row.copy(label = encoder.encode(row.getClass))
+    row.withLabel(encoder.encode(row.getClass))
   }
   val subset: Seq[TrainingRow[Char]] = encodedData.take(nSubset)
 

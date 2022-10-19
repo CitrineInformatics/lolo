@@ -19,8 +19,7 @@ class FeatureRotatorTest extends SeedRandomMixIn {
     .withBinnedInputs(bins = Seq((0, 8)))
     .data
   val weightedData: Seq[TrainingRow[Double]] = data.map { row =>
-    val weight = if (rng.nextBoolean()) rng.nextDouble() else 0.0
-    row.copy(weight = weight)
+    row.withWeight(if (rng.nextBoolean()) rng.nextDouble() else 0.0)
   }
 
   @Test

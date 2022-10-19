@@ -24,7 +24,7 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
       .withBinnedInputs(bins = Seq((0, 8)))
       .data
 
-    val reshapedTrainingData = trainingData.map(row => row.copy(label = Vector(row.label)))
+    val reshapedTrainingData = trainingData.map(_.mapLabel(Vector(_)))
     val DTLearner = MultiTaskTreeLearner()
     val baggedLearner = MultiTaskBagger(
       DTLearner,
@@ -64,10 +64,9 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
 
             val sigmaObsAndSigmaMean: Seq[(Double, Double)] = (1 to 20).flatMap { _ =>
               val trainingDataTmp = DataGenerator.generate(nRows, nCols, function = _ => 0.0, rng = rng).data
-              val trainingData = trainingDataTmp.map { row =>
-                row.copy(label = row.label * noiseLevel * rng.nextDouble())
-              }
-              val reshapedTrainingData = trainingData.map { row => row.copy(label = Vector(row.label)) }
+              val trainingData = trainingDataTmp.map(_.mapLabel(_ + noiseLevel * rng.nextDouble()))
+
+              val reshapedTrainingData = trainingData.map(_.mapLabel(Vector(_)))
               val baggedLearner = MultiTaskBagger(
                 baseLearner,
                 numBags = nBags,
@@ -168,7 +167,7 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
       .withBinnedLabels(bins = 8)
       .data
 
-    val reshapedTrainingData = trainingData.map { row => row.copy(label = Vector(row.label)) }
+    val reshapedTrainingData = trainingData.map(_.mapLabel(Vector(_)))
     val DTLearner = MultiTaskTreeLearner()
     val baggedLearner =
       MultiTaskBagger(DTLearner, numBags = trainingData.size)
@@ -206,9 +205,7 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
     val (inputs, realLabel) = rawRows.map(row => (row.inputs, row.label)).unzip
     val catLabel = realLabel.map(_ > realLabel.max / 2.0)
     val labels = Vector(realLabel, catLabel).transpose
-    val multiTaskRows = rawRows.zip(labels).map {
-      case (row, label) => row.copy(label = label)
-    }
+    val multiTaskRows = TrainingRow.build(inputs.zip(labels))
 
     val learner = MultiTaskTreeLearner()
     val baggedLearner = MultiTaskBagger(
@@ -251,9 +248,7 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
     val catLabel = realLabel.map(_ > realLabel.max / 2.0)
     val correlatedLabel = DataGenerator.makeLinearlyCorrelatedData(realLabel, trainingRho, rng = rng)
     val labels = Vector(realLabel, catLabel, correlatedLabel).transpose
-    val multiTaskRows = rawRows.zip(labels).map {
-      case (row, label) => row.copy(label = label)
-    }
+    val multiTaskRows = TrainingRow.build(inputs.zip(labels))
 
     val learner = MultiTaskTreeLearner()
     val baggedLearner = MultiTaskBagger(
@@ -306,9 +301,7 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
       }
     )
     val labels = Vector(sparseReal, sparseCat).transpose
-    val multiTaskRows = rawRows.zip(labels).map {
-      case (row, label) => row.copy(label = label)
-    }
+    val multiTaskRows = TrainingRow.build(inputs.zip(labels))
 
     val DTLearner = MultiTaskTreeLearner()
     val baggedLearner = MultiTaskBagger(
@@ -323,7 +316,7 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
     val realUncertainty = trainingResult.getModels().head.transform(inputs).getUncertainty().get
     assert(realUncertainty.forall(!_.asInstanceOf[Double].isNaN), s"Some uncertainty values were NaN")
 
-    val referenceRows = multiTaskRows.map(row => TrainingRow.extractLabel[Any](row, 1)).filterNot(_.label == null)
+    val referenceRows = TrainingRow.build(inputs.zip(sparseCat)).filterNot(_.label == null)
     val referenceModel = ClassificationBagger(ClassificationTreeLearner(), numBags = inputs.size)
       .train(referenceRows, rng = rng)
     val reference = referenceModel
@@ -364,9 +357,7 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
           if (idx >= cutoffIndex) Double.NaN else x
       }
       val labels = Vector(sparseReal, sparseCat).transpose
-      val multiTaskRows = rawRows.zip(labels).map {
-        case (row, label) => row.copy(label = label)
-      }
+      val multiTaskRows = TrainingRow.build(inputs.zip(labels))
 
       val baggedLearner = MultiTaskBagger(
         MultiTaskTreeLearner(),

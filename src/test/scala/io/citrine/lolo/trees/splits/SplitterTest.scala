@@ -4,9 +4,6 @@ import io.citrine.lolo.{SeedRandomMixIn, TrainingRow}
 import io.citrine.lolo.trees.impurity.VarianceCalculator
 import org.junit.Test
 
-/**
-  * Created by maxhutch on 12/1/16.
-  */
 @Test
 class SplitterTest extends SeedRandomMixIn {
 
@@ -59,7 +56,7 @@ class SplitterTest extends SeedRandomMixIn {
   def testLargeDuplicates(): Unit = {
     val base: Double = 3.0e9
     val trainingData = Seq.fill(8) {
-      TrainingRow(Vector(base + rng.nextDouble()), rng.nextDouble(), 1.0)
+      TrainingRow(Vector(base + rng.nextDouble()), rng.nextDouble())
     }
 
     val calculator = new VarianceCalculator(0.0, 0.0, 8.0)

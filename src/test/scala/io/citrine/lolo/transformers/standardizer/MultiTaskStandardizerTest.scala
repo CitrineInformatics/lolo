@@ -3,12 +3,12 @@ package io.citrine.lolo.transformers.standardizer
 import io.citrine.lolo.stats.functions.Friedman
 import io.citrine.lolo.stats.metrics.ClassificationMetrics
 import io.citrine.lolo.trees.multitask.MultiTaskTreeLearner
-import io.citrine.lolo.{DataGenerator, SeedRandomMixIn}
+import io.citrine.lolo.{DataGenerator, SeedRandomMixIn, TrainingRow}
 import org.junit.Test
 
 class MultiTaskStandardizerTest extends SeedRandomMixIn {
 
-  val data: Seq[(Vector[Double], Double)] =
+  val data: Seq[TrainingRow[Double]] =
     DataGenerator.generate(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng).data
 
   /**
@@ -17,22 +17,28 @@ class MultiTaskStandardizerTest extends SeedRandomMixIn {
   @Test
   def testMultiTaskStandardizer(): Unit = {
     // Generate multi-task training data
-    val (inputs, doubleLabel) = data.unzip
-    val catLabel = inputs.map(x => Friedman.friedmanGrosseSilverman(x) > 15.0)
+    val (inputs, doubleLabel) = data.map(row => (row.inputs, row.label)).unzip
+    val catLabel = inputs.map(x => Friedman.friedmanGrosseSilverman(x.asInstanceOf[Seq[Double]]) > 15.0)
 
     // Sparsify the categorical labels
     val sparseCatLabel = catLabel.map(x => if (rng.nextBoolean()) x else null)
     val labels = Vector(doubleLabel, sparseCatLabel).transpose
+    val baseRows = data.zip(labels).map {
+      case (row, label) => row.withLabel(label)
+    }
 
     // Screw up the scale of the double labels
     val scale = 10000.0
     val rescaledLabel = doubleLabel.map(_ * scale)
     val rescaledLabels = rescaledLabel.zip(sparseCatLabel).map { case (r, c) => Vector(r, c) }
+    val rescaledRows = data.zip(rescaledLabels).map {
+      case (row, label) => row.withLabel(label)
+    }
 
     // Train and evaluate standard models on original and rescaled labels
     val standardizer = MultiTaskStandardizer(MultiTaskTreeLearner())
-    val baseRes = standardizer.train(inputs.zip(labels)).getModels().last.transform(inputs).getExpected()
-    val standardRes = standardizer.train(inputs.zip(rescaledLabels)).getModels().last.transform(inputs).getExpected()
+    val baseRes = standardizer.train(baseRows).getModels().last.transform(inputs).getExpected()
+    val standardRes = standardizer.train(rescaledRows).getModels().last.transform(inputs).getExpected()
     // Train and evaluate unstandardized model on rescaled labels
 
     // Compute metrics for each of the models

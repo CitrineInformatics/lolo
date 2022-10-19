@@ -22,7 +22,7 @@ object DataGenerator {
             .getOrElse(indexData)
         }
         .transpose
-      val binnedData = data.zip(binnedInputs).map { case (row, inputs) => row.copy(inputs = inputs) }
+      val binnedData = data.zip(binnedInputs).map { case (row, inputs) => row.withInputs(inputs) }
       TrainingData(binnedData)
     }
   }
@@ -32,7 +32,7 @@ object DataGenerator {
     def withBinnedLabels(bins: Int): TrainingData[String] = {
       val baseLabels = trainingData.data.map(_.label)
       val binnedLabels = binData(baseLabels, bins)
-      val binnedData = trainingData.data.zip(binnedLabels).map { case (row, label) => row.copy(label = label) }
+      val binnedData = trainingData.data.zip(binnedLabels).map { case (row, label) => row.withLabel(label) }
       TrainingData(binnedData)
     }
   }
@@ -54,7 +54,7 @@ object DataGenerator {
   ): TrainingData[Double] = {
     val data = Vector.fill(rows) {
       val input = Vector.fill(cols)(xscale * rng.nextDouble() + xoff)
-      TrainingRow(input, function(input) + noise * rng.nextGaussian(), 1.0)
+      TrainingRow(input, function(input) + noise * rng.nextGaussian())
     }
     TrainingData(data)
   }
@@ -69,7 +69,7 @@ object DataGenerator {
   ): Iterator[TrainingRow[Double]] = {
     Iterator.continually {
       val input = Vector.fill(cols)(xscale * rng.nextDouble() + xoff)
-      TrainingRow(input, function(input) + noise * rng.nextGaussian(), 1.0)
+      TrainingRow(input, function(input) + noise * rng.nextGaussian())
     }
   }
 
@@ -104,7 +104,7 @@ object DataGenerator {
     require(rho >= -1.0 && rho <= 1.0, "correlation coefficient must be between -1.0 and 1.0")
     val Y = Seq.fill(X.length)(rng.nextGaussian())
     val linearLearner = LinearRegressionLearner()
-    val linearModel = linearLearner.train(X.zip(Y).map { case (x, y) => TrainingRow(Vector(x), y, 1.0) }).getModel()
+    val linearModel = linearLearner.train(X.zip(Y).map { case (x, y) => TrainingRow(Vector(x), y) }).getModel()
     val yPred = linearModel.transform(X.map(Vector(_))).getExpected()
     val residuals = Y.zip(yPred).map { case (actual, predicted) => actual - predicted }
     val stdX = math.sqrt(variance(X))

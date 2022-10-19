@@ -13,26 +13,28 @@ class MultiTaskFeatureRotatorTest extends SeedRandomMixIn {
     */
   @Test
   def testMultiTaskRotator(): Unit = {
-    val data = DataGenerator
+    val rawData = DataGenerator
       .generate(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng)
       .data
 
     // Generate multi-task training data
-    val (inputs, doubleLabel) = data.unzip
+    val inputs = rawData.map(_.inputs)
+    val doubleLabel = rawData.map(_.label)
     val catLabel = inputs.map(x => Friedman.friedmanGrosseSilverman(x.asInstanceOf[Seq[Double]]) > 15.0)
 
     // Sparsify the categorical labels
     val sparseCatLabel = catLabel.map(x => if (rng.nextBoolean()) x else null)
     val labels = Vector(doubleLabel, sparseCatLabel).transpose
+    val multiTaskData = rawData.zip(labels).map { case (row, label) => row.withLabel(label) }
 
     // Train and evaluate rotated models on original and rotated features
     val baseLearner = MultiTaskTreeLearner()
     val rotatedLearner = MultiTaskFeatureRotator(MultiTaskTreeLearner())
 
-    val baseTrainingResult = baseLearner.train(inputs.zip(labels), weights = None, rng = rng)
+    val baseTrainingResult = baseLearner.train(multiTaskData, rng = rng)
     val baseDoubleModel = baseTrainingResult.getModels().head
     val baseCatModel = baseTrainingResult.getModels().last
-    val rotatedTrainingResult = rotatedLearner.train(inputs.zip(labels), weights = None, rng = rng)
+    val rotatedTrainingResult = rotatedLearner.train(multiTaskData, rng = rng)
     val rotatedDoubleModel = rotatedTrainingResult.getModels().head.asInstanceOf[RotatedFeatureModel[Double]]
     val rotatedCatModel = rotatedTrainingResult.getModels().last.asInstanceOf[RotatedFeatureModel[Boolean]]
 
@@ -58,7 +60,7 @@ class MultiTaskFeatureRotatorTest extends SeedRandomMixIn {
     assert(U == rotatedCatModel.trans)
     assert(rotatedFeatures == rotatedCatModel.rotatedFeatures)
 
-    val rotatedInputs = FeatureRotator.applyRotation(data.map(_._1), rotatedFeatures, U)
+    val rotatedInputs = FeatureRotator.applyRotation(inputs, rotatedFeatures, U)
     assert(
       rotatedDoubleModel.baseModel.transform(rotatedInputs).getExpected().zip(rotatedDoubleResult).count {
         case (a: Double, b: Double) => Math.abs(a - b) > 1e-9

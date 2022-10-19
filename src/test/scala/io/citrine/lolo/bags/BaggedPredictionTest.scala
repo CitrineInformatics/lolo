@@ -74,7 +74,7 @@ class BaggedPredictionTest extends SeedRandomMixIn {
               val trainingDataTmp =
                 DataGenerator.generate(nRows, nCols, noise = 0.0, function = _ => 0.0, rng = rng).data
               val trainingData = trainingDataTmp.map { row =>
-                row.copy(label = row.label + noiseLevel * rng.nextDouble())
+                row.withLabel(row.label + noiseLevel * rng.nextDouble())
               }
               val baggedLearner = RegressionBagger(baseLearner, numBags = nBags, uncertaintyCalibration = true)
               val RFMeta = baggedLearner.train(trainingData, rng = rng)

@@ -17,18 +17,6 @@ trait Learner[T] extends Serializable {
     * @return training result containing a model
     */
   def train(trainingData: Seq[TrainingRow[T]], rng: Random = Random()): TrainingResult[T]
-
-  def train(
-      trainingData: Seq[(Vector[Any], T)],
-      weights: Option[Seq[Double]],
-      rng: Random
-  ): TrainingResult[T] = {
-    val actualWeights = weights.getOrElse(Seq.fill(trainingData.length)(1.0))
-    val trainingRows = trainingData.zip(actualWeights).map {
-      case ((i, l), w) => TrainingRow(i, l, w)
-    }
-    train(trainingRows, rng)
-  }
 }
 
 /** A learner that trains on multiple labels, outputting a single model that makes predictions for all labels. */

@@ -1,6 +1,6 @@
 package io.citrine.lolo.trees.multitask
 
-import io.citrine.lolo.{DataGenerator, SeedRandomMixIn}
+import io.citrine.lolo.{DataGenerator, SeedRandomMixIn, TrainingRow}
 import io.citrine.lolo.stats.functions.Friedman
 import io.citrine.lolo.stats.metrics.ClassificationMetrics
 import io.citrine.lolo.trees.classification.{ClassificationTree, ClassificationTreeLearner}
@@ -13,11 +13,12 @@ import org.scalatest.Assertions._
 class MultiTaskTreeTest extends SeedRandomMixIn {
 
   // Set up some data.
-  val raw: Seq[(Vector[Double], Double)] =
+  val realRows: Seq[TrainingRow[Double]] =
     DataGenerator.generate(1024, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng).data
-  val (inputs: Seq[Vector[Double]], realLabel: Seq[Double]) = raw.unzip
-  val catLabel: Seq[Boolean] = raw.map(_._2 > realLabel.max / 2.0)
-  val labels = Vector(realLabel, catLabel).transpose
+  val (inputs: Seq[Vector[Double]], realLabel: Seq[Double]) = realRows.map(row => (row.inputs, row.label)).unzip
+  val catLabel: Seq[Boolean] = realRows.map(_.label > realLabel.max / 2.0)
+  val labels: Seq[Vector[Any]] = Vector(realLabel, catLabel).transpose
+  val multiRows: Seq[TrainingRow[Vector[Any]]] = realRows.zip(labels).map { case (row, label) => row.withLabel(label) }
 
   /**
     * Test that the tree memorizes the data when it is complete
@@ -25,7 +26,7 @@ class MultiTaskTreeTest extends SeedRandomMixIn {
   @Test
   def testTwoLabels(): Unit = {
     val learner = MultiTaskTreeLearner()
-    val models = learner.train(inputs.zip(labels), rng = rng).getModels()
+    val models = learner.train(multiRows, rng = rng).getModels()
     assert(models.size == 2)
     assert(models.head.isInstanceOf[RegressionTree])
     assert(models.last.isInstanceOf[ClassificationTree])
@@ -49,9 +50,10 @@ class MultiTaskTreeTest extends SeedRandomMixIn {
       }
     )
     val sparseLabels = Vector(realLabel, sparseCat).transpose
+    val sparseRows = TrainingRow.build(inputs.zip(sparseLabels))
 
     val learner = MultiTaskTreeLearner()
-    val models = learner.train(inputs.zip(sparseLabels)).getModels()
+    val models = learner.train(sparseRows).getModels()
     val realResults = models.head.transform(inputs).getExpected().asInstanceOf[Seq[Double]]
     val catResults = models.last.transform(inputs).getExpected().asInstanceOf[Seq[Boolean]]
 
@@ -73,12 +75,15 @@ class MultiTaskTreeTest extends SeedRandomMixIn {
     )
     val sparseLabels = Vector(realLabel, sparseCat).transpose
 
+    val sparseCatRows = TrainingRow.build(inputs.zip(sparseCat))
+    val sparseMultiRows = TrainingRow.build(inputs.zip(sparseLabels)).filterNot(_.label == null)
+
     val learner = MultiTaskTreeLearner()
-    val models = learner.train(inputs.zip(sparseLabels), rng = rng).getModels()
+    val models = learner.train(sparseMultiRows, rng = rng).getModels()
     val catResults = models.last.transform(inputs).getExpected().asInstanceOf[Seq[Boolean]]
 
     val reference = ClassificationTreeLearner()
-      .train(inputs.zip(sparseCat).filterNot(_._2 == null), rng = rng)
+      .train(sparseCatRows, rng = rng)
       .getModel()
       .transform(inputs)
       .getExpected()
@@ -98,14 +103,15 @@ class MultiTaskTreeTest extends SeedRandomMixIn {
     val combinedModelRng = Random(seed)
     val learner = MultiTaskTreeLearner()
     val combinedModelLearner = MultiTaskTreeLearner()
-    val models = learner.train(inputs.zip(labels), rng = trainRng).getModels()
-    val combinedModel = combinedModelLearner.train(inputs.zip(labels), rng = combinedModelRng).getModel()
+    val models = learner.train(TrainingRow.build(inputs.zip(labels)), rng = trainRng).getModels()
+    val combinedModel =
+      combinedModelLearner.train(TrainingRow.build(inputs.zip(labels)), rng = combinedModelRng).getModel()
 
     // Generate new inputs to test equality on.
     val testInputs = DataGenerator
       .generate(32, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng)
       .data
-      .map(_._1)
+      .map(_.inputs)
     val realResults = models.head.transform(testInputs).getExpected().asInstanceOf[Seq[Double]]
     val catResults = models.last.transform(testInputs).getExpected().asInstanceOf[Seq[Boolean]]
     val allResults = combinedModel.transform(testInputs).getExpected().asInstanceOf[Seq[Seq[Any]]]
@@ -116,9 +122,8 @@ class MultiTaskTreeTest extends SeedRandomMixIn {
   @Test
   def testFeatureImportance(): Unit = {
     val multiTaskLearner = MultiTaskTreeLearner()
-    val multiTaskTrainingResult = multiTaskLearner.train(inputs.zip(labels), rng = rng)
+    val multiTaskTrainingResult = multiTaskLearner.train(TrainingRow.build(inputs.zip(labels)), rng = rng)
     val importances = multiTaskTrainingResult.getFeatureImportance().get
     assert(importances(1) == importances.max)
   }
-
 }

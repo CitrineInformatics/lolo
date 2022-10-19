@@ -127,12 +127,12 @@ object MultiTaskTrainingNode {
     val labelWiseInstructions = exampleRow.label.indices.map { index =>
       // Determine how much data *with this label* goes down each branch
       val exampleLabel = exampleRow.label(index)
-      val reducedData = if (exampleLabel.isInstanceOf[Double]) {
-        trainingData.map(x => (x.inputs, x.label(index).asInstanceOf[Double], x.weight)).filterNot(_._2.isNaN)
+      val reducedData: Seq[TrainingRow[Any]] = if (exampleLabel.isInstanceOf[Double]) {
+        trainingData.map(_.mapLabel(labels => labels(index).asInstanceOf[Double])).filterNot(_.label.isNaN)
       } else {
-        trainingData.map(x => (x.inputs, x.label(index).asInstanceOf[Char], x.weight)).filter(_._2 > 0)
+        trainingData.map(_.mapLabel(labels => labels(index).asInstanceOf[Char])).filter(_.label > 0)
       }
-      val (left, right) = reducedData.partition(r => split.turnLeft(r._1))
+      val (left, right) = reducedData.partition(r => split.turnLeft(r.inputs))
 
       if (reducedData.isEmpty) {
         Inaccessible()

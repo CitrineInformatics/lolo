@@ -19,7 +19,7 @@ class RegressionTreeTest extends SeedRandomMixIn {
   def testFeatureImportanceNaN(): Unit = {
     val X = Vector.fill(100) {
       val input = Vector.fill(10)(1.0)
-      TrainingRow(input, 2.0, 1.0)
+      TrainingRow(input, 2.0)
     }
 
     val DTLearner = RegressionTreeLearner()
@@ -33,7 +33,7 @@ class RegressionTreeTest extends SeedRandomMixIn {
   @Test
   def testSimpleTree(): Unit = {
     val csv = TestUtils.readCsv("double_example.csv")
-    val trainingData = csv.map(vec => TrainingRow(vec.init, vec.last.asInstanceOf[Double], 1.0))
+    val trainingData = csv.map(vec => TrainingRow(vec.init, vec.last.asInstanceOf[Double]))
     val DTLearner = RegressionTreeLearner()
     val DT = DTLearner.train(trainingData).getModel()
 
@@ -213,7 +213,7 @@ class RegressionTreeTest extends SeedRandomMixIn {
   def testWeights(): Unit = {
     val trainingData =
       DataGenerator.generate(32, 12, noise = 100.0, function = Friedman.friedmanSilverman, rng = rng).data
-    val weightedData = trainingData.map { row => row.copy(weight = rng.nextInt(8)) }
+    val weightedData = trainingData.map(_.withWeight(rng.nextInt(8).toDouble))
 
     val linearLearner = LinearRegressionLearner(regParam = Some(1.0))
     val DTLearner = RegressionTreeLearner(leafLearner = Some(linearLearner), maxDepth = 1)
@@ -283,20 +283,20 @@ class RegressionTreeTest extends SeedRandomMixIn {
   def testShapley(): Unit = {
     // Example from Lundberg paper (https://arxiv.org/pdf/1802.03888.pdf)
     val trainingData1 = Seq(
-      TrainingRow(Vector(1.0, 1.0), 80.0, 1.0),
-      TrainingRow(Vector(1.0, 0.0), 0.0, 1.0),
-      TrainingRow(Vector(0.0, 1.0), 0.0, 1.0),
-      TrainingRow(Vector(0.0, 0.0), 0.0, 1.0)
+      TrainingRow(Vector(1.0, 1.0), 80.0),
+      TrainingRow(Vector(1.0, 0.0), 0.0),
+      TrainingRow(Vector(0.0, 1.0), 0.0),
+      TrainingRow(Vector(0.0, 0.0), 0.0)
     )
     val expected1 = Vector(30.0, 30.0)
     shapleyCompare(trainingData1, Vector[Any](1.0, 1.0), expected1)
 
     // Second example from Lundberg paper (https://arxiv.org/pdf/1802.03888.pdf)
     val trainingData2 = Seq(
-      TrainingRow(Vector(1.0, 1.0), 90.0, 1.0),
-      TrainingRow(Vector(1.0, 0.0), 10.0, 1.0),
-      TrainingRow(Vector(0.0, 1.0), 0.0, 1.0),
-      TrainingRow(Vector(0.0, 0.0), 0.0, 1.0)
+      TrainingRow(Vector(1.0, 1.0), 90.0),
+      TrainingRow(Vector(1.0, 0.0), 10.0),
+      TrainingRow(Vector(0.0, 1.0), 0.0),
+      TrainingRow(Vector(0.0, 0.0), 0.0)
     )
     val expected2 = Vector(35.0, 30.0)
     shapleyCompare(trainingData2, Vector[Any](1.0, 1.0), expected2)
@@ -304,12 +304,12 @@ class RegressionTreeTest extends SeedRandomMixIn {
     // Example with two splits on one feature
     // Worked out with pen-and-paper from Lundberg Equation 2.
     val trainingData3 = Seq(
-      TrainingRow(Vector(1.0, 1.0), 100.0, 1.0),
-      TrainingRow(Vector(1.0, 0.0), 80.0, 1.0),
-      TrainingRow(Vector(1.0, 0.2), 70.0, 1.0),
-      TrainingRow(Vector(0.0, 1.0), 0.0, 1.0),
-      TrainingRow(Vector(0.0, 0.2), 0.0, 1.0),
-      TrainingRow(Vector(0.0, 0.0), 0.0, 1.0)
+      TrainingRow(Vector(1.0, 1.0), 100.0),
+      TrainingRow(Vector(1.0, 0.0), 80.0),
+      TrainingRow(Vector(1.0, 0.2), 70.0),
+      TrainingRow(Vector(0.0, 1.0), 0.0),
+      TrainingRow(Vector(0.0, 0.2), 0.0),
+      TrainingRow(Vector(0.0, 0.0), 0.0)
     )
     val expected3 = Vector(45.8333333333333, 12.5)
     shapleyCompare(trainingData3, Vector[Any](1.0, 1.0), expected3)
@@ -317,12 +317,12 @@ class RegressionTreeTest extends SeedRandomMixIn {
     // Example with 5 features, to exercise all the factorials in Lundberg equation 2.
     // Referenced against the shap package on a sklearn decision tree.
     val trainingData4 = Seq(
-      TrainingRow(Vector(0.0, 0.0, 0.0, 0.0, 0.0), 1.0, 1.0),
-      TrainingRow(Vector(1.0, 0.0, 0.0, 0.0, 0.0), 2.0, 1.0),
-      TrainingRow(Vector(0.0, 1.0, 0.0, 0.0, 0.0), 4.0, 1.0),
-      TrainingRow(Vector(0.0, 0.0, 1.0, 0.0, 0.0), 8.0, 1.0),
-      TrainingRow(Vector(0.0, 0.0, 0.0, 1.0, 0.0), 16.0, 1.0),
-      TrainingRow(Vector(0.0, 0.0, 0.0, 0.0, 1.0), 32.0, 1.0)
+      TrainingRow(Vector(0.0, 0.0, 0.0, 0.0, 0.0), 1.0),
+      TrainingRow(Vector(1.0, 0.0, 0.0, 0.0, 0.0), 2.0),
+      TrainingRow(Vector(0.0, 1.0, 0.0, 0.0, 0.0), 4.0),
+      TrainingRow(Vector(0.0, 0.0, 1.0, 0.0, 0.0), 8.0),
+      TrainingRow(Vector(0.0, 0.0, 0.0, 1.0, 0.0), 16.0),
+      TrainingRow(Vector(0.0, 0.0, 0.0, 0.0, 1.0), 32.0)
     )
     val expected4 = Vector(0.0333333333333333, 0.2, 0.8666666666666667, 3.533333333333333, 16.866666666666667)
     shapleyCompare(trainingData4, Vector.fill[Any](5)(1.0), expected4)

@@ -48,20 +48,17 @@ class RandomForestTest extends SeedRandomMixIn {
   /** Test that a random forest with multiple outputs produces a multitask bagger. */
   @Test
   def testMultiTaskForest(): Unit = {
-    val rawRows = DataGenerator
+    val realRows = DataGenerator
       .generate(256, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng)
       .withBinnedInputs(bins = Seq((0, 8)))
       .data
 
-    val inputs = rawRows.map(_.inputs)
-    val realLabels = rawRows.map(_.label)
+    val inputs = realRows.map(_.inputs)
+    val realLabels = realRows.map(_.label)
     val catLabels = realLabels.map(_ > realLabels.max / 2.0)
     val quadLabels = realLabels.map(x => x * x)
     val allLabels = Vector(realLabels, catLabels, quadLabels).transpose
-
-    val multiTaskRows = rawRows.zip(allLabels).map {
-      case (row, label) => row.copy(label = label)
-    }
+    val multiTaskRows = TrainingRow.build(inputs.zip(allLabels))
 
     val RFMeta = MultiTaskRandomForest().train(multiTaskRows, rng = rng)
     val model = RFMeta.getModel()
@@ -125,11 +122,9 @@ class RandomForestTest extends SeedRandomMixIn {
     val realRows = DataGenerator
       .generate(rows = numTrain, cols = 12, noise = 5.0, function = _ => 0.0, rng = rng)
       .data
-    val catRows = realRows.map { row =>
-      row.copy(label = rng.nextBoolean())
-    }
+    val catRows = realRows.map(_.withLabel(rng.nextBoolean()))
     val multiTaskRows = realRows.zip(catRows).map {
-      case (r, c) => r.copy(label = Vector(r.label, c.label))
+      case (r, c) => r.withLabel(Vector(r.label, c.label))
     }
 
     // Generate test points
@@ -174,10 +169,10 @@ class RandomForestTest extends SeedRandomMixIn {
 
         val dupeLabel = "DUPE"
         val trainingDataSuffixed = mainTrainingData ++ Seq(
-          TrainingRow(mainTrainingData.head.inputs, dupeLabel, 1.0)
+          TrainingRow(mainTrainingData.head.inputs, dupeLabel)
         )
         val trainingDataPrefixed = Seq(
-          TrainingRow(mainTrainingData.head.inputs, dupeLabel, 1.0)
+          TrainingRow(mainTrainingData.head.inputs, dupeLabel)
         ) ++ mainTrainingData
 
         val RFSuffixed =
@@ -289,20 +284,20 @@ class RandomForestTest extends SeedRandomMixIn {
 
     // Example from Lundberg paper (https://arxiv.org/pdf/1802.03888.pdf)
     val trainingData1 = Seq(
-      TrainingRow(Vector(1.0, 1.0), 80.0, 1.0),
-      TrainingRow(Vector(1.0, 0.0), 0.0, 1.0),
-      TrainingRow(Vector(0.0, 1.0), 0.0, 1.0),
-      TrainingRow(Vector(0.0, 0.0), 0.0, 1.0)
+      TrainingRow(Vector(1.0, 1.0), 80.0),
+      TrainingRow(Vector(1.0, 0.0), 0.0),
+      TrainingRow(Vector(0.0, 1.0), 0.0),
+      TrainingRow(Vector(0.0, 0.0), 0.0)
     )
     val expected1 = Vector(30.0, 30.0)
     shapleyCompare((1 to 8).flatMap(_ => trainingData1), Vector[Any](1.0, 1.0), expected1)
 
     // Second example from Lundberg paper (https://arxiv.org/pdf/1802.03888.pdf)
     val trainingData2 = Seq(
-      TrainingRow(Vector(1.0, 1.0), 90.0, 1.0),
-      TrainingRow(Vector(1.0, 0.0), 10.0, 1.0),
-      TrainingRow(Vector(0.0, 1.0), 0.0, 1.0),
-      TrainingRow(Vector(0.0, 0.0), 0.0, 1.0)
+      TrainingRow(Vector(1.0, 1.0), 90.0),
+      TrainingRow(Vector(1.0, 0.0), 10.0),
+      TrainingRow(Vector(0.0, 1.0), 0.0),
+      TrainingRow(Vector(0.0, 0.0), 0.0)
     )
     val expected2 = Vector(35.0, 30.0)
     shapleyCompare((1 to 8).flatMap(_ => trainingData2), Vector[Any](1.0, 1.0), expected2)
@@ -310,12 +305,12 @@ class RandomForestTest extends SeedRandomMixIn {
     // Example with two splits on one feature
     // Worked out with pen-and-paper from Lundberg Equation 2.
     val trainingData3 = Seq(
-      TrainingRow(Vector(1.0, 1.0), 100.0, 1),
-      TrainingRow(Vector(1.0, 0.0), 80.0, 1),
-      TrainingRow(Vector(1.0, 0.2), 70.0, 1),
-      TrainingRow(Vector(0.0, 1.0), 0.0, 1),
-      TrainingRow(Vector(0.0, 0.2), 0.0, 1),
-      TrainingRow(Vector(0.0, 0.0), 0.0, 1)
+      TrainingRow(Vector(1.0, 1.0), 100.0),
+      TrainingRow(Vector(1.0, 0.0), 80.0),
+      TrainingRow(Vector(1.0, 0.2), 70.0),
+      TrainingRow(Vector(0.0, 1.0), 0.0),
+      TrainingRow(Vector(0.0, 0.2), 0.0),
+      TrainingRow(Vector(0.0, 0.0), 0.0)
     )
     val expected3 = Vector(45.8333333333333, 12.5)
     shapleyCompare((1 to 8).flatMap(_ => trainingData3), Vector[Any](1.0, 1.0), expected3)
@@ -323,12 +318,12 @@ class RandomForestTest extends SeedRandomMixIn {
     // Example with 5 features, to exercise all the factorials in Lundberg equation 2.
     // Referenced against the shap package on a sklearn decision tree.
     val trainingData4 = Seq(
-      TrainingRow(Vector(0.0, 0.0, 0.0, 0.0, 0.0), 1.0, 1),
-      TrainingRow(Vector(1.0, 0.0, 0.0, 0.0, 0.0), 2.0, 1),
-      TrainingRow(Vector(0.0, 1.0, 0.0, 0.0, 0.0), 4.0, 1),
-      TrainingRow(Vector(0.0, 0.0, 1.0, 0.0, 0.0), 8.0, 1),
-      TrainingRow(Vector(0.0, 0.0, 0.0, 1.0, 0.0), 16.0, 1),
-      TrainingRow(Vector(0.0, 0.0, 0.0, 0.0, 1.0), 32.0, 1)
+      TrainingRow(Vector(0.0, 0.0, 0.0, 0.0, 0.0), 1.0),
+      TrainingRow(Vector(1.0, 0.0, 0.0, 0.0, 0.0), 2.0),
+      TrainingRow(Vector(0.0, 1.0, 0.0, 0.0, 0.0), 4.0),
+      TrainingRow(Vector(0.0, 0.0, 1.0, 0.0, 0.0), 8.0),
+      TrainingRow(Vector(0.0, 0.0, 0.0, 1.0, 0.0), 16.0),
+      TrainingRow(Vector(0.0, 0.0, 0.0, 0.0, 1.0), 32.0)
     )
     val expected4 = Vector(0.0333333333333333, 0.2, 0.8666666666666667, 3.533333333333333, 16.866666666666667)
     shapleyCompare((1 to 8).flatMap { _ => trainingData4 }, Vector.fill[Any](5)(1.0), expected4)

@@ -3,7 +3,7 @@ package io.citrine.lolo.validation
 import io.citrine.lolo.bags.{Bagger, RegressionBagger}
 import io.citrine.lolo.stats.functions.{Friedman, Linear}
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
-import io.citrine.lolo.{DataGenerator, PredictionResult, SeedRandomMixIn, TestUtils}
+import io.citrine.lolo.{DataGenerator, PredictionResult, SeedRandomMixIn, TestUtils, TrainingRow}
 import org.apache.commons.math3.distribution.CauchyDistribution
 import org.knowm.xchart.BitmapEncoder.BitmapFormat
 import org.knowm.xchart.{BitmapEncoder, CategoryChart, CategoryChartBuilder}
@@ -177,7 +177,7 @@ object CalibrationStudy extends SeedRandomMixIn {
 
     val data = DataGenerator
       .iterate(nFeature, func, rng = rng)
-      .map { case (x, y) => (x.drop(ignoreDims), y) }
+      .map { row => row.mapInputs(_.drop(ignoreDims)) }
     val learner = RegressionBagger(
       RegressionTreeLearner(numFeatures = nFeature),
       numBags = nTree,
@@ -294,7 +294,7 @@ object CalibrationStudy extends SeedRandomMixIn {
       calibrated: Boolean = false
   ): Unit = {
     val csv = TestUtils.readCsv("hcep.csv")
-    val trainingData = csv.tail.map(vec => (vec.init, vec.last.asInstanceOf[Double]))
+    val trainingData = csv.tail.map(vec => TrainingRow(vec.init, vec.last.asInstanceOf[Double]))
     val nFeature = 8
     sizes.foreach { nTree =>
       val chart = Merit.plotMeritScan(
@@ -344,7 +344,7 @@ object CalibrationStudy extends SeedRandomMixIn {
   ): Map[String, (Double, Double)] = {
 
     val csv = TestUtils.readCsv("hcep.csv")
-    val trainingData = csv.tail.map(vec => (vec.init, vec.last.asInstanceOf[Double]))
+    val trainingData = csv.tail.map(vec => TrainingRow(vec.init, vec.last.asInstanceOf[Double]))
 
     val learner = RegressionBagger(
       RegressionTreeLearner(numFeatures = nFeature / 3),

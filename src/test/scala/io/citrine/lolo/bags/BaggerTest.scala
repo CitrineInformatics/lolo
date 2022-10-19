@@ -150,9 +150,7 @@ class BaggerTest extends SeedRandomMixIn {
   def testUncertaintyCalibrationWithConstantResponse(): Unit = {
     // setup some training data with constant labels
     val nFeatures = 5
-    val constantData = DataGenerator.generate(128, nFeatures, xscale = 0.5, rng = rng).data.map { row =>
-      row.copy(label = 0.0)
-    }
+    val constantData = DataGenerator.generate(128, nFeatures, xscale = 0.5, rng = rng).data.map(_.withLabel(0.0))
 
     // setup a relatively complicated random forest (turn a bunch of stuff on)
     val DTLearner = RegressionTreeLearner(
@@ -197,7 +195,7 @@ class BaggerTest extends SeedRandomMixIn {
   @Test
   def testScores(): Unit = {
     val csv = TestUtils.readCsv("double_example.csv")
-    val trainingData = csv.map(vec => TrainingRow(vec.init, vec.last.asInstanceOf[Double], 1.0))
+    val trainingData = csv.map(vec => TrainingRow(vec.init, vec.last.asInstanceOf[Double]))
     val DTLearner = RegressionTreeLearner()
     val baggedLearner = RegressionBagger(
       DTLearner,
