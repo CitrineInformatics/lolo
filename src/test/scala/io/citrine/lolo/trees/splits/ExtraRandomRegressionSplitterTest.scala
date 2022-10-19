@@ -98,7 +98,7 @@ class ExtraRandomRegressionSplitterTest extends SeedRandomMixIn {
             // Compute the sum of variances across partitions of each possible cut.
             val varianceSums = featureIndices.map { k =>
               trainingTuples
-                .groupBy { v => v._1(k).asInstanceOf[Double] < cutPoints(k) }
+                .groupBy { v => v._1(k) < cutPoints(k) }
                 .flatMap {
                   case (_, subset) =>
                     val mean = subset.map(_._2).sum / subset.length
