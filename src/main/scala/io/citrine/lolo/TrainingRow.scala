@@ -20,8 +20,8 @@ case class TrainingRow[+T](inputs: Vector[Any], label: T, weight: Double = 1.0) 
   /** Return a new row with the function applied to the original label. */
   def mapLabel[T2](f: T => T2): TrainingRow[T2] = copy(label = f(label))
 
-  /** Return a new row holding up to the first `n` features from the input vector. */
-  def takeInputs(n: Int): TrainingRow[T] = copy(inputs = inputs.take(n))
+  /** Return a new row with the function applied to the original weight. */
+  def mapWeight(f: Double => Double): TrainingRow[T] = copy(weight = f(weight))
 }
 
 object TrainingRow {

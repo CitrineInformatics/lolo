@@ -199,10 +199,10 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
     val numBags = 64
     val numTest = 32
 
-    val rawRows = DataGenerator
+    val realRows = DataGenerator
       .generate(numTrain, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng)
       .data
-    val (inputs, realLabel) = rawRows.map(row => (row.inputs, row.label)).unzip
+    val (inputs, realLabel) = realRows.map(row => (row.inputs, row.label)).unzip
     val catLabel = realLabel.map(_ > realLabel.max / 2.0)
     val labels = Vector(realLabel, catLabel).transpose
     val multiTaskRows = TrainingRow.build(inputs.zip(labels))
@@ -241,10 +241,10 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
     val numTest = 32
     val trainingRho = 0.45 // desired correlation between two real-valued training labels
 
-    val rawRows = DataGenerator
+    val realRows = DataGenerator
       .generate(numTrain, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng)
       .data
-    val (inputs, realLabel) = rawRows.map(row => (row.inputs, row.label)).unzip
+    val (inputs, realLabel) = realRows.map(row => (row.inputs, row.label)).unzip
     val catLabel = realLabel.map(_ > realLabel.max / 2.0)
     val correlatedLabel = DataGenerator.makeLinearlyCorrelatedData(realLabel, trainingRho, rng = rng)
     val labels = Vector(realLabel, catLabel, correlatedLabel).transpose
@@ -282,10 +282,10 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
   @Test
   def testSparseMixedBagged(): Unit = {
     /* Setup some data */
-    val rawRows = DataGenerator.generate(256, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng).data
-    val inputs = rawRows.map(_.inputs)
-    val realLabel: Seq[Double] = rawRows.map(_.label)
-    val catLabel: Seq[Boolean] = rawRows.map(_.label > realLabel.max / 2.0)
+    val realRows = DataGenerator.generate(256, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng).data
+    val inputs = realRows.map(_.inputs)
+    val realLabel: Seq[Double] = realRows.map(_.label)
+    val catLabel: Seq[Boolean] = realRows.map(_.label > realLabel.max / 2.0)
     val sparseCat = catLabel.map(x =>
       if (rng.nextDouble() > 0.125) {
         null
@@ -341,10 +341,10 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
   @Test
   def testFullSparsity(): Unit = {
     /* Setup some data */
-    val rawRows = DataGenerator.generate(256, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng).data
-    val inputs = rawRows.map(_.inputs)
-    val realLabel: Seq[Double] = rawRows.map(_.label)
-    val catLabel: Seq[Boolean] = rawRows.map(_.label > realLabel.max / 2.0)
+    val realRows = DataGenerator.generate(256, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng).data
+    val inputs = realRows.map(_.inputs)
+    val realLabel: Seq[Double] = realRows.map(_.label)
+    val catLabel: Seq[Boolean] = realRows.map(_.label > realLabel.max / 2.0)
 
     // Test 2 real outputs, 2 categorical outputs, and an even split
     Seq(2, 128, 254).foreach { cutoffIndex =>

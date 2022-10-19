@@ -128,9 +128,9 @@ object MultiTaskTrainingNode {
       // Determine how much data *with this label* goes down each branch
       val exampleLabel = exampleRow.label(index)
       val reducedData: Seq[TrainingRow[Any]] = if (exampleLabel.isInstanceOf[Double]) {
-        trainingData.map(_.mapLabel(labels => labels(index).asInstanceOf[Double])).filterNot(_.label.isNaN)
+        trainingData.map(_.mapLabel(labelVec => labelVec(index).asInstanceOf[Double])).filterNot(_.label.isNaN)
       } else {
-        trainingData.map(_.mapLabel(labels => labels(index).asInstanceOf[Char])).filter(_.label > 0)
+        trainingData.map(_.mapLabel(labelVec => labelVec(index).asInstanceOf[Char])).filter(_.label > 0)
       }
       val (left, right) = reducedData.partition(r => split.turnLeft(r.inputs))
 

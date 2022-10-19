@@ -17,13 +17,13 @@ case class MultiTaskFeatureRotator(baseLearner: MultiTaskLearner) extends MultiT
       trainingData: Seq[TrainingRow[Vector[Any]]],
       rng: Random
   ): MultiTaskRotatedFeatureTrainingResult = {
-    val inputs = trainingData.map(_.inputs)
-    val featuresToRotate = FeatureRotator.getDoubleFeatures(inputs.head)
-    val trans = FeatureRotator.getRandomRotation(inputs.head.length, rng)
+    val baseInputs = trainingData.map(_.inputs)
+    val featuresToRotate = FeatureRotator.getDoubleFeatures(baseInputs.head)
+    val trans = FeatureRotator.getRandomRotation(baseInputs.head.length, rng)
 
-    val rotatedFeatures = FeatureRotator.applyRotation(inputs, featuresToRotate, trans)
-    val rotatedTrainingData = trainingData.zip(rotatedFeatures).map {
-      case (row, inputs) => row.withInputs(inputs)
+    val rotatedInputs = FeatureRotator.applyRotation(baseInputs, featuresToRotate, trans)
+    val rotatedTrainingData = trainingData.zip(rotatedInputs).map {
+      case (row, rotated) => row.withInputs(rotated)
     }
 
     val baseTrainingResult = baseLearner.train(rotatedTrainingData, rng)

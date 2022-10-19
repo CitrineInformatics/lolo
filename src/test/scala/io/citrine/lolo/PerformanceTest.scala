@@ -53,7 +53,7 @@ class PerformanceTest extends SeedRandomMixIn {
       k: Int,
       b: Int
   ): (Double, Double) = {
-    val data = trainingData.map(_.takeInputs(k)).take(n)
+    val data = trainingData.map(_.mapInputs(inputs => inputs.take(k))).take(n)
     val baseLearner = RegressionTreeLearner(numFeatures = k / 4)
     val bagger = RegressionBagger(baseLearner, numBags = b)
     timedTest(bagger, data)
@@ -65,7 +65,7 @@ class PerformanceTest extends SeedRandomMixIn {
       k: Int,
       b: Int
   ): (Double, Double) = {
-    val data = trainingData.map(_.takeInputs(k)).take(n)
+    val data = trainingData.map(_.mapInputs(inputs => inputs.take(k))).take(n)
     val baseLearner = ClassificationTreeLearner(numFeatures = k / 4)
     val bagger = ClassificationBagger(baseLearner, numBags = b)
     timedTest(bagger, data)

@@ -38,18 +38,18 @@ case class MultiTaskBagger(
 
   override def train(trainingData: Seq[TrainingRow[Vector[Any]]], rng: Random): MultiTaskBaggedTrainingResult = {
     val numInputs = trainingData.head.inputs.length
-    val numLabels = trainingData.head.label.length
+    val numOutputs = trainingData.head.label.length
     /* Make sure the training data are the same size */
     assert(
       trainingData.forall { row =>
-        row.inputs.length == numInputs && row.label.length == numLabels
+        row.inputs.length == numInputs && row.label.length == numOutputs
       }
     )
     assert(
       trainingData.size >= Bagger.minimumTrainingSize,
       s"We need to have at least ${Bagger.minimumTrainingSize} rows, only ${trainingData.size} given"
     )
-    (0 until numLabels).foreach { i =>
+    (0 until numOutputs).foreach { i =>
       val numOutputValues = trainingData.count(row => validOutput(row.label(i)))
       assert(
         numOutputValues >= Bagger.minimumOutputCount,
@@ -66,7 +66,7 @@ case class MultiTaskBagger(
     val Nib: Vector[Vector[Int]] = Iterator
       .continually(Vector.fill(trainingData.size)(dist.draw()))
       .filter { suggestedCounts =>
-        val allOutputsRepresented = (0 until numLabels).forall { i =>
+        val allOutputsRepresented = (0 until numOutputs).forall { i =>
           trainingData.zip(suggestedCounts).exists { case (row, count) => validOutput(row.label(i)) && count > 0 }
         }
         val minNonzeroWeights = suggestedCounts.count(_ > 0) >= Bagger.minimumNonzeroWeightSize
@@ -83,7 +83,7 @@ case class MultiTaskBagger(
         .map {
           case (thisRng, i) =>
             val weightedTrainingData = Nib(i).zip(trainingData).map {
-              case (count, row) => row.withWeight(count.toDouble * row.weight)
+              case (count, row) => row.mapWeight(_ * count.toDouble)
             }
             val meta = method.train(weightedTrainingData, thisRng)
             (meta.getModel(), meta.getFeatureImportance())
@@ -96,7 +96,7 @@ case class MultiTaskBagger(
 
     // Get bias model and rescale ratio for each label
     val (biasModels, rescaleRatios) = Seq
-      .tabulate(numLabels) { i =>
+      .tabulate(numOutputs) { i =>
         val isRegression = models.head.getRealLabels(i)
         if (isRegression) {
           val thisLabelModels = models.map(_.getModels(i).asInstanceOf[Model[Double]])

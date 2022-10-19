@@ -96,7 +96,7 @@ object AccuracyTest extends SeedRandomMixIn {
       minInstances: Int,
       temperature: Double
   ): (Double, Double) = {
-    val trainingData = trainingDataFull.take(nRow).map(_.takeInputs(nFeat))
+    val trainingData = trainingDataFull.take(nRow).map(_.mapInputs(inputs => inputs.take(nFeat)))
     val splitter = if (temperature > 0) {
       BoltzmannSplitter(temperature = temperature)
     } else {

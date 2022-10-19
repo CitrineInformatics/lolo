@@ -61,7 +61,7 @@ sealed trait Bagger[T] extends Learner[T] {
       .map {
         case (thisRng, i) =>
           val weightedTrainingData = Nib(i).zip(trainingData).map {
-            case (count, row) => row.withWeight(count.toDouble * row.weight)
+            case (count, row) => row.mapWeight(_ * count.toDouble)
           }
           val meta = baseLearner.train(weightedTrainingData, thisRng)
           (meta.getModel(), meta.getFeatureImportance())

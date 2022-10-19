@@ -27,10 +27,10 @@ case class FeatureRotator[T](baseLearner: Learner[T]) extends Learner[T] {
     val featuresToRotate = FeatureRotator.getDoubleFeatures(trainingData.head.inputs)
     val trans = FeatureRotator.getRandomRotation(featuresToRotate.length, rng)
 
-    val inputs = trainingData.map(_.inputs)
-    val rotatedInputs = FeatureRotator.applyRotation(inputs, featuresToRotate, trans)
+    val baseInputs = trainingData.map(_.inputs)
+    val rotatedInputs = FeatureRotator.applyRotation(baseInputs, featuresToRotate, trans)
     val rotatedTrainingData = trainingData.zip(rotatedInputs).map {
-      case (row, inputs) => row.withInputs(inputs)
+      case (row, rotated) => row.withInputs(rotated)
     }
 
     val baseTrainingResult = baseLearner.train(rotatedTrainingData, rng)
