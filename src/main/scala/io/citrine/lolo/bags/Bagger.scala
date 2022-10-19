@@ -64,7 +64,7 @@ sealed trait Bagger[T] extends Learner[T] {
             case (count, row) => row.mapWeight(_ * count.toDouble)
           }
           val meta = baseLearner.train(weightedTrainingData, thisRng)
-          (meta.getModel(), meta.getFeatureImportance())
+          (meta.model, meta.featureImportance)
       }
       .unzip
 
@@ -139,7 +139,7 @@ case class RegressionBagger(
     val helper = BaggerHelper(ensemble.models, trainingData, ensemble.Nib, useJackknife, uncertaintyCalibration)
     val biasModel = biasLearner.collect {
       case learner if helper.oobErrors.nonEmpty =>
-        learner.train(helper.biasTraining, rng = rng).getModel()
+        learner.train(helper.biasTraining, rng = rng).model
     }
 
     RegressionBaggerTrainingResult(

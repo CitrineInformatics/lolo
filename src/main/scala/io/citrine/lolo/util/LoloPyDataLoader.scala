@@ -76,7 +76,7 @@ object LoloPyDataLoader {
     * @return Byte array of doubles in native system order
     */
   def getRegressionExpected(predictionResult: PredictionResult[Any]): Array[Byte] = {
-    val predResults: Seq[Double] = predictionResult.getExpected().asInstanceOf[Seq[Double]]
+    val predResults: Seq[Double] = predictionResult.expected.asInstanceOf[Seq[Double]]
     send1DArray(predResults)
   }
 
@@ -86,7 +86,7 @@ object LoloPyDataLoader {
     * @return Byte array of doubles in native system order (the caller must then reshape the result into a 2d array)
     */
   def getMultiRegressionExpected(predictionResult: MultiTaskModelPredictionResult): Array[Byte] = {
-    val predResults = predictionResult.getExpected().asInstanceOf[Seq[Seq[Double]]].flatten
+    val predResults = predictionResult.expected.asInstanceOf[Seq[Seq[Double]]].flatten
     send1DArray(predResults)
   }
 
@@ -96,7 +96,7 @@ object LoloPyDataLoader {
     * @return Byte of array of doubles in native system order
     */
   def getImportanceScores(predictionResult: PredictionResult[Any]): Array[Byte] = {
-    send1DArray(predictionResult.getImportanceScores().get.flatten)
+    send1DArray(predictionResult.importanceScores.get.flatten)
   }
 
   /**
@@ -105,7 +105,7 @@ object LoloPyDataLoader {
     * @return Byte array of doubles in native system order
     */
   def getRegressionUncertainty(predictionResult: PredictionResult[Any]): Array[Byte] = {
-    val predResults: Seq[Double] = predictionResult.getUncertainty().get.asInstanceOf[Seq[Double]]
+    val predResults: Seq[Double] = predictionResult.uncertainty().get.asInstanceOf[Seq[Double]]
     send1DArray(predResults)
   }
 
@@ -115,7 +115,7 @@ object LoloPyDataLoader {
     * @return Byte array of doubles in native system order (the caller must then reshape the result into a 2d array)
     */
   def getMultiRegressionUncertainty(predictionResult: MultiTaskModelPredictionResult): Array[Byte] = {
-    val uncertaintyResults = predictionResult.getUncertainty().get.asInstanceOf[Seq[Seq[Double]]].flatten
+    val uncertaintyResults = predictionResult.uncertainty().get.asInstanceOf[Seq[Seq[Double]]].flatten
     send1DArray(uncertaintyResults)
   }
 
@@ -130,7 +130,7 @@ object LoloPyDataLoader {
     * @return Byte array of doubles in native system order
     */
   def getRegressionCorrelation(predictionResult: MultiTaskModelPredictionResult, i: Int, j: Int): Array[Byte] = {
-    val correlationResults = predictionResult.getUncertaintyCorrelation(i, j).get
+    val correlationResults = predictionResult.uncertaintyCorrelation(i, j).get
     send1DArray(correlationResults)
   }
 
@@ -154,7 +154,7 @@ object LoloPyDataLoader {
     * @return Bytes of a integer array of the predicted class labels
     */
   def getClassifierExpected(predictionResult: PredictionResult[Any]): Array[Byte] = {
-    val expect = predictionResult.getExpected().asInstanceOf[Seq[Int]]
+    val expect = predictionResult.expected.asInstanceOf[Seq[Int]]
     val buffer = ByteBuffer.allocate(expect.length * 4).order(ByteOrder.nativeOrder())
     expect.foreach(buffer.putInt)
     buffer.array
@@ -173,7 +173,7 @@ object LoloPyDataLoader {
     // Get an iterator over the number of classes
     val classes = 0 until nClasses
     val probs = predictionResult
-      .getUncertainty()
+      .uncertainty()
       .get
       .asInstanceOf[Seq[Map[Int, Double]]]
       .map(x => classes.map(i => x.getOrElse(i, 0.0)))
@@ -223,8 +223,8 @@ object LoloPyDataLoader {
     */
   def makeRegressionPredictionResult(expected: Seq[Double], uncertainty: Seq[Double]): PredictionResult[Double] = {
     new PredictionResult[Double] {
-      override def getExpected(): Seq[Double] = expected
-      override def getUncertainty(includeNoise: Boolean = true): Option[Seq[Any]] = Some(uncertainty)
+      override def expected: Seq[Double] = expected
+      override def uncertainty(includeNoise: Boolean = true): Option[Seq[Any]] = Some(uncertainty)
     }
   }
 }

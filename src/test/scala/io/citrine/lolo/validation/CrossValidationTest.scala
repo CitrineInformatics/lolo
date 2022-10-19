@@ -24,12 +24,12 @@ class CrossValidationTest extends SeedRandomMixIn {
     val trainingResult = learner.train(data)
     val rmseFromPVA = Math.sqrt(
       trainingResult
-        .getPredictedVsActual()
+        .predictedVsActual
         .get
         .map {
           case (_, p: Double, a: Double) => Math.pow(p - a, 2.0)
         }
-        .sum / trainingResult.getPredictedVsActual().get.size
+        .sum / trainingResult.predictedVsActual.get.size
     )
 
     // These have a false negative rate less than 1/100 at the time of original authorship

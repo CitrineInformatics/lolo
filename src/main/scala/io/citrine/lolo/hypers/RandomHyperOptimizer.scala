@@ -38,10 +38,10 @@ class RandomHyperOptimizer() extends HyperOptimizer {
       }
       val testLearner = builder(testHypers)
       val res = testLearner.train(trainingData, rng = rng)
-      if (res.getLoss().isEmpty) {
+      if (res.loss.isEmpty) {
         throw new IllegalArgumentException("Trying to optimize hyper-paramters for a learner without getLoss")
       }
-      val thisLoss = res.getLoss().get
+      val thisLoss = res.loss.get
       /* Keep track of the best */
       if (thisLoss < loss) {
         best = testHypers

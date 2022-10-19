@@ -54,9 +54,9 @@ class MeritTest extends SeedRandomMixIn {
         (y + error, uncertainty, y)
       }
       val predictionResult = new PredictionResult[Double] {
-        override def getExpected(): Seq[Double] = pua.map(_._1)
+        override def expected: Seq[Double] = pua.map(_._1)
 
-        override def getUncertainty(includeNoise: Boolean = true): Option[Seq[Any]] = Some(pua.map(_._2))
+        override def uncertainty(includeNoise: Boolean = true): Option[Seq[Any]] = Some(pua.map(_._2))
       }
       (predictionResult, pua.map(_._3))
     }

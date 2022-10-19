@@ -34,8 +34,8 @@ protected[bags] case class BaggerHelper(
     } else {
       val model = BaggedRegressionModel(oobModels, Nib.filter { _(idx) == 0 })
       val predicted = model.transform(Seq(trainingData(idx).inputs))
-      val error = predicted.getExpected().head - trainingData(idx).label
-      val uncertainty = predicted.getStdDevObs().get.head
+      val error = predicted.expected.head - trainingData(idx).label
+      val uncertainty = predicted.stdDevObs.get.head
       Some(trainingData(idx).inputs, error, uncertainty)
     }
   }

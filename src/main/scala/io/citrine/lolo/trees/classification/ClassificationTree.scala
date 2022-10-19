@@ -100,14 +100,14 @@ class ClassificationTrainingResult(
     }
   }
 
-  override def getModel(): ClassificationTree = model
+  override def model: ClassificationTree = model
 
   /**
     * Get a measure of the importance of the model features
     *
     * @return feature influences as an array of doubles
     */
-  override def getFeatureImportance(): Option[Vector[Double]] = Some(importanceNormalized.toVector)
+  override def featureImportance: Option[Vector[Double]] = Some(importanceNormalized.toVector)
 }
 
 /**
@@ -146,7 +146,7 @@ class ClassificationResult(
     *
     * @return expected value of each prediction
     */
-  override def getExpected(): Seq[Any] = predictions.map(p => outputEncoder.decode(p._1.getExpected().head))
+  override def expected: Seq[Any] = predictions.map(p => outputEncoder.decode(p._1.expected.head))
 
   def getDepth(): Seq[Int] = {
     predictions.map(_._2.depth)

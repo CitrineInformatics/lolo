@@ -114,14 +114,14 @@ case class LinearRegressionLearner(
   */
 case class LinearRegressionTrainingResult(model: LinearRegressionModel) extends TrainingResult[Double] {
 
-  override def getModel(): LinearRegressionModel = model
+  override def model: LinearRegressionModel = model
 
   /**
     * Get a measure of the importance of the model features
     *
     * @return feature influences as an array of doubles
     */
-  override def getFeatureImportance(): Option[Vector[Double]] = {
+  override def featureImportance: Option[Vector[Double]] = {
     val beta: Vector[Double] = model.getBeta().map(Math.abs)
     val renorm: Double = 1.0 / beta.sum
     Some(beta.map(_ * renorm))
@@ -190,12 +190,12 @@ case class LinearRegressionResult(values: Seq[Double], grad: Vector[Double]) ext
     *
     * @return expected value of each prediction
     */
-  override def getExpected(): Seq[Double] = values
+  override def expected: Seq[Double] = values
 
   /**
     * Get the gradient, which is uniform
     *
     * @return a vector of doubles for each prediction
     */
-  override def getGradient(): Option[Seq[Vector[Double]]] = Some(Seq.fill(values.size)(grad))
+  override def gradient: Option[Seq[Vector[Double]]] = Some(Seq.fill(values.size)(grad))
 }

@@ -44,15 +44,13 @@ case class MultiTaskRotatedFeatureTrainingResult(
     trans: DenseMatrix[Double]
 ) extends MultiTaskTrainingResult {
 
-  override def getModel(): MultiTaskModel = new ParallelModels(getModels(), baseTrainingResult.getModel().getRealLabels)
+  override def model: MultiTaskModel = ParallelModels(models, baseTrainingResult.model.realLabels)
 
-  override def getModels(): Seq[Model[Any]] =
-    baseTrainingResult.getModels().map { model =>
-      RotatedFeatureModel(model, rotatedFeatures, trans)
-    }
+  override def models: Seq[Model[Any]] =
+    baseTrainingResult.models.map { model => RotatedFeatureModel(model, rotatedFeatures, trans) }
 
-  override def getPredictedVsActual(): Option[Seq[(Vector[Any], Vector[Option[Any]], Vector[Option[Any]])]] = {
-    baseTrainingResult.getPredictedVsActual().map { pva =>
+  override def predictedVsActual: Option[Seq[(Vector[Any], Vector[Option[Any]], Vector[Option[Any]])]] = {
+    baseTrainingResult.predictedVsActual.map { pva =>
       pva.map {
         case (inputs, predicted, actual) =>
           (FeatureRotator.applyOneRotation(inputs, rotatedFeatures, trans), predicted, actual)

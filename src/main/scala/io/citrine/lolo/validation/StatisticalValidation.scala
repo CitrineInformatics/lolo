@@ -37,7 +37,7 @@ case class StatisticalValidation() {
   ): Iterator[(PredictionResult[T], Seq[T])] = {
     Iterator.tabulate(nRound) { _ =>
       val trainingData = source.take(nTrain).toSeq
-      val model = learner.train(trainingData, rng = rng).getModel()
+      val model = learner.train(trainingData, rng = rng).model
       val testData = source.take(nTest).toSeq
       val predictions: PredictionResult[T] = model.transform(testData.map(_.inputs))
       (predictions, testData.map(_.label))
@@ -74,7 +74,7 @@ case class StatisticalValidation() {
     Iterator.tabulate(nRound) { _ =>
       val subset = rng.shuffle(source).take(nTrain + nTest)
       val (trainingData, testData) = subset.toVector.splitAt(nTrain)
-      val model = learner.train(trainingData, rng = rng).getModel()
+      val model = learner.train(trainingData, rng = rng).model
       val predictions: PredictionResult[T] = model.transform(testData.map(_.inputs))
       (predictions, testData.map(_.label))
     }

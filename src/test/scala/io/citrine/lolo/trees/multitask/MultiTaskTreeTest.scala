@@ -26,12 +26,12 @@ class MultiTaskTreeTest extends SeedRandomMixIn {
   @Test
   def testTwoLabels(): Unit = {
     val learner = MultiTaskTreeLearner()
-    val models = learner.train(multiRows, rng = rng).getModels()
+    val models = learner.train(multiRows, rng = rng).models
     assert(models.size == 2)
     assert(models.head.isInstanceOf[RegressionTree])
     assert(models.last.isInstanceOf[ClassificationTree])
-    val realResults = models.head.transform(inputs).getExpected().asInstanceOf[Seq[Double]]
-    val catResults = models.last.transform(inputs).getExpected().asInstanceOf[Seq[Boolean]]
+    val realResults = models.head.transform(inputs).expected.asInstanceOf[Seq[Double]]
+    val catResults = models.last.transform(inputs).expected.asInstanceOf[Seq[Boolean]]
 
     assert(realLabel.zip(realResults).forall(p => p._1 == p._2))
     assert(catLabel.zip(catResults).forall(p => p._1 == p._2))
@@ -53,9 +53,9 @@ class MultiTaskTreeTest extends SeedRandomMixIn {
     val sparseRows = TrainingRow.build(inputs.zip(sparseLabels))
 
     val learner = MultiTaskTreeLearner()
-    val models = learner.train(sparseRows).getModels()
-    val realResults = models.head.transform(inputs).getExpected().asInstanceOf[Seq[Double]]
-    val catResults = models.last.transform(inputs).getExpected().asInstanceOf[Seq[Boolean]]
+    val models = learner.train(sparseRows).models
+    val realResults = models.head.transform(inputs).expected.asInstanceOf[Seq[Double]]
+    val catResults = models.last.transform(inputs).expected.asInstanceOf[Seq[Boolean]]
 
     assert(realLabel.zip(realResults).forall(p => p._1 == p._2))
     assert(sparseCat.zip(catResults).forall(p => p._1 == null || p._1 == p._2))
@@ -79,14 +79,14 @@ class MultiTaskTreeTest extends SeedRandomMixIn {
     val sparseMultiRows = TrainingRow.build(inputs.zip(sparseLabels)).filterNot(_.label == null)
 
     val learner = MultiTaskTreeLearner()
-    val models = learner.train(sparseMultiRows, rng = rng).getModels()
-    val catResults = models.last.transform(inputs).getExpected().asInstanceOf[Seq[Boolean]]
+    val models = learner.train(sparseMultiRows, rng = rng).models
+    val catResults = models.last.transform(inputs).expected.asInstanceOf[Seq[Boolean]]
 
     val reference = ClassificationTreeLearner()
       .train(sparseCatRows, rng = rng)
-      .getModel()
+      .model
       .transform(inputs)
-      .getExpected()
+      .expected
 
     val singleF1 = ClassificationMetrics.f1scores(reference, catLabel)
     val multiF1 = ClassificationMetrics.f1scores(catResults, catLabel)
@@ -103,18 +103,18 @@ class MultiTaskTreeTest extends SeedRandomMixIn {
     val combinedModelRng = Random(seed)
     val learner = MultiTaskTreeLearner()
     val combinedModelLearner = MultiTaskTreeLearner()
-    val models = learner.train(TrainingRow.build(inputs.zip(labels)), rng = trainRng).getModels()
+    val models = learner.train(TrainingRow.build(inputs.zip(labels)), rng = trainRng).models
     val combinedModel =
-      combinedModelLearner.train(TrainingRow.build(inputs.zip(labels)), rng = combinedModelRng).getModel()
+      combinedModelLearner.train(TrainingRow.build(inputs.zip(labels)), rng = combinedModelRng).model
 
     // Generate new inputs to test equality on.
     val testInputs = DataGenerator
       .generate(32, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng)
       .data
       .map(_.inputs)
-    val realResults = models.head.transform(testInputs).getExpected().asInstanceOf[Seq[Double]]
-    val catResults = models.last.transform(testInputs).getExpected().asInstanceOf[Seq[Boolean]]
-    val allResults = combinedModel.transform(testInputs).getExpected().asInstanceOf[Seq[Seq[Any]]]
+    val realResults = models.head.transform(testInputs).expected.asInstanceOf[Seq[Double]]
+    val catResults = models.last.transform(testInputs).expected.asInstanceOf[Seq[Boolean]]
+    val allResults = combinedModel.transform(testInputs).expected.asInstanceOf[Seq[Seq[Any]]]
     assert(Seq(realResults, catResults).transpose == allResults)
   }
 
@@ -123,7 +123,7 @@ class MultiTaskTreeTest extends SeedRandomMixIn {
   def testFeatureImportance(): Unit = {
     val multiTaskLearner = MultiTaskTreeLearner()
     val multiTaskTrainingResult = multiTaskLearner.train(TrainingRow.build(inputs.zip(labels)), rng = rng)
-    val importances = multiTaskTrainingResult.getFeatureImportance().get
+    val importances = multiTaskTrainingResult.featureImportance.get
     assert(importances(1) == importances.max)
   }
 }

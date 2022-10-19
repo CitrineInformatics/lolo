@@ -51,12 +51,12 @@ class StandardizerTest extends SeedRandomMixIn {
   @Test
   def testStandardGTM(): Unit = {
     val learner = GuessTheMeanLearner()
-    val model = learner.train(data, rng = rng).getModel()
-    val result = model.transform(data.map(_.inputs)).getExpected()
+    val model = learner.train(data, rng = rng).model
+    val result = model.transform(data.map(_.inputs)).expected
 
     val standardLearner = RegressionStandardizer(GuessTheMeanLearner())
-    val standardModel = standardLearner.train(data, rng = rng).getModel()
-    val standardResult = standardModel.transform(data.map(_.inputs)).getExpected()
+    val standardModel = standardLearner.train(data, rng = rng).model
+    val standardResult = standardModel.transform(data.map(_.inputs)).expected
 
     result.zip(standardResult).foreach {
       case (free: Double, standard: Double) =>
@@ -70,16 +70,16 @@ class StandardizerTest extends SeedRandomMixIn {
   @Test
   def testStandardLinear(): Unit = {
     val learner = LinearRegressionLearner()
-    val model = learner.train(weightedData).getModel()
+    val model = learner.train(weightedData).model
     val result = model.transform(data.map(_.inputs))
-    val expected = result.getExpected()
-    val gradient = result.getGradient()
+    val expected = result.expected
+    val gradient = result.gradient
 
     val standardLearner = RegressionStandardizer(learner)
-    val standardModel = standardLearner.train(weightedData).getModel()
+    val standardModel = standardLearner.train(weightedData).model
     val standardResult = standardModel.transform(data.map(_.inputs))
-    val standardExpected = standardResult.getExpected()
-    val standardGradient = standardResult.getGradient()
+    val standardExpected = standardResult.expected
+    val standardGradient = standardResult.gradient
 
     expected.zip(standardExpected).foreach {
       case (free: Double, standard: Double) =>
@@ -101,16 +101,16 @@ class StandardizerTest extends SeedRandomMixIn {
   @Test
   def testStandardWithConstantFeature(): Unit = {
     val learner = LinearRegressionLearner()
-    val model = learner.train(weightedDataWithConstant).getModel()
+    val model = learner.train(weightedDataWithConstant).model
     val result = model.transform(dataWithConstant.map(_.inputs))
-    val expected = result.getExpected()
-    val gradient = result.getGradient()
+    val expected = result.expected
+    val gradient = result.gradient
 
     val standardLearner = RegressionStandardizer(learner)
-    val standardModel = standardLearner.train(weightedDataWithConstant).getModel()
+    val standardModel = standardLearner.train(weightedDataWithConstant).model
     val standardResult = standardModel.transform(dataWithConstant.map(_.inputs))
-    val standardExpected = standardResult.getExpected()
-    val standardGradient = standardResult.getGradient()
+    val standardExpected = standardResult.expected
+    val standardGradient = standardResult.gradient
 
     gradient.get.toList.flatten.zip(standardGradient.get.toList.flatten).foreach {
       case (free: Double, standard: Double) =>
@@ -143,12 +143,12 @@ class StandardizerTest extends SeedRandomMixIn {
   @Test
   def testStandardRidge(): Unit = {
     val learner = LinearRegressionLearner(regParam = Some(1.0))
-    val model = learner.train(data).getModel()
-    val result = model.transform(data.map(_.inputs)).getExpected()
+    val model = learner.train(data).model
+    val result = model.transform(data.map(_.inputs)).expected
 
     val standardLearner = RegressionStandardizer(learner)
-    val standardModel = standardLearner.train(data).getModel()
-    val standardResult = standardModel.transform(data.map(_.inputs)).getExpected()
+    val standardModel = standardLearner.train(data).model
+    val standardResult = standardModel.transform(data.map(_.inputs)).expected
 
     result.zip(standardResult).foreach {
       case (free: Double, standard: Double) =>
@@ -164,12 +164,12 @@ class StandardizerTest extends SeedRandomMixIn {
       .data
 
     val learner = ClassificationTreeLearner()
-    val model = learner.train(trainingData).getModel()
-    val result = model.transform(trainingData.map(_.inputs)).getExpected()
+    val model = learner.train(trainingData).model
+    val result = model.transform(trainingData.map(_.inputs)).expected
 
     val standardLearner = ClassificationStandardizer(learner)
-    val standardModel = standardLearner.train(trainingData).getModel()
-    val standardResult = standardModel.transform(trainingData.map(_.inputs)).getExpected()
+    val standardModel = standardLearner.train(trainingData).model
+    val standardResult = standardModel.transform(trainingData.map(_.inputs)).expected
     result.zip(standardResult).foreach {
       case (free: String, standard: String) =>
         assert(free == standard, s"Standard classification tree should be the same")

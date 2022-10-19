@@ -22,7 +22,7 @@ class AccuracyTest extends SeedRandomMixIn {
 
   // Get the out-of-bag RMSE
   private def computeMetrics(learner: Learner[Double], rng: Random): Double = {
-    learner.train(trainingData, rng = rng).getLoss().get
+    learner.train(trainingData, rng = rng).loss.get
   }
 
   /**
@@ -108,11 +108,11 @@ object AccuracyTest extends SeedRandomMixIn {
       minLeafInstances = minInstances
     )
     val learner = RegressionBagger(baseLearner, numBags = nRow * nScal, biasLearner = None)
-    val model = learner.train(trainingData, rng = rng).getModel()
+    val model = learner.train(trainingData, rng = rng).model
     val (features, labels) = trainingData.map(row => (row.inputs, row.label)).unzip
     val predictions = model.transform(features)
-    val expected = predictions.getExpected()
-    val sigma = predictions.getUncertainty().get.asInstanceOf[Seq[Double]]
+    val expected = predictions.expected
+    val sigma = predictions.uncertainty().get.asInstanceOf[Seq[Double]]
     val pva: Seq[(Double, Double, Double)] = labels.indices.map { i =>
       (labels(i), expected(i), sigma(i))
     }

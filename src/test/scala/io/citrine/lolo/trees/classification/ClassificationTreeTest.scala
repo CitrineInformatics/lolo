@@ -20,7 +20,7 @@ class ClassificationTreeTest extends SeedRandomMixIn {
 
     val DTLearner = ClassificationTreeLearner()
     val DTMeta = DTLearner.train(X)
-    assert(DTMeta.getFeatureImportance().get.forall(v => !v.isNaN))
+    assert(DTMeta.featureImportance.get.forall(v => !v.isNaN))
   }
 
   @Test
@@ -32,19 +32,19 @@ class ClassificationTreeTest extends SeedRandomMixIn {
 
     val DTLearner = ClassificationTreeLearner()
     val DTMeta = DTLearner.train(trainingData)
-    val DT = DTMeta.getModel()
+    val DT = DTMeta.model
 
     /* We should be able to memorize the inputs */
     val output = DT.transform(trainingData.map(_.inputs))
-    trainingData.zip(output.getExpected()).foreach {
+    trainingData.zip(output.expected).foreach {
       case (row, p) =>
         assert(row.label == p, s"${row.label} != $p for ${row.inputs}")
     }
-    assert(output.getGradient().isEmpty)
+    assert(output.gradient.isEmpty)
     output.getDepth().foreach(d => assert(d > 0))
 
     /* The first features should be the most important */
-    val importances = DTMeta.getFeatureImportance().get
+    val importances = DTMeta.featureImportance.get
     assert(importances.slice(0, 5).min > importances.slice(5, importances.size).max)
   }
 
@@ -62,7 +62,7 @@ class ClassificationTreeTest extends SeedRandomMixIn {
     val N = 100
     val start = System.nanoTime()
     val DTMeta = DTLearner.train(trainingData)
-    val DT = DTMeta.getModel()
+    val DT = DTMeta.model
     (0 until N).map(i => DTLearner.train(trainingData))
     val duration = (System.nanoTime() - start) / 1.0e9
 
@@ -70,14 +70,14 @@ class ClassificationTreeTest extends SeedRandomMixIn {
 
     /* We should be able to memorize the inputs */
     val output = DT.transform(trainingData.map(_.inputs))
-    trainingData.zip(output.getExpected()).foreach {
+    trainingData.zip(output.expected).foreach {
       case (row, p) => assert(row.label == p, s"${row.label} != $p for ${row.inputs}")
     }
-    assert(output.getGradient().isEmpty)
+    assert(output.gradient.isEmpty)
     output.getDepth().foreach(d => assert(d > 4 && d < 17, s"Depth is ${d}"))
 
     /* The first feature should be the most important */
-    val importances = DTMeta.getFeatureImportance().get
+    val importances = DTMeta.featureImportance.get
     assert(importances.slice(0, 5).min > importances.slice(5, importances.size).max)
   }
 
@@ -95,7 +95,7 @@ class ClassificationTreeTest extends SeedRandomMixIn {
     val DTLearner = ClassificationTreeLearner()
     val N = 100
     val start = System.nanoTime()
-    val DT = DTLearner.train(trainingData).getModel()
+    val DT = DTLearner.train(trainingData).model
     (0 until N).map(i => DTLearner.train(trainingData))
     val duration = (System.nanoTime() - start) / 1.0e9
 
@@ -103,11 +103,11 @@ class ClassificationTreeTest extends SeedRandomMixIn {
 
     /* We should be able to memorize the inputs */
     val output = DT.transform(trainingData.map(_.inputs))
-    trainingData.zip(output.getExpected()).foreach {
+    trainingData.zip(output.expected).foreach {
       case (row, p) =>
         assert(row.label == p)
     }
-    assert(output.getGradient().isEmpty)
+    assert(output.gradient.isEmpty)
     output.getDepth().foreach(d => assert(d > 3 && d < 18, s"Depth is ${d}"))
   }
 }

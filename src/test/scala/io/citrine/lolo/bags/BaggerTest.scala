@@ -35,14 +35,14 @@ class BaggerTest extends SeedRandomMixIn {
     val baggedLearner = RegressionBagger(baseLearner, numBags = trainingData.size)
 
     val learnerMeta = baggedLearner.train(trainingData, rng = rng)
-    val model = learnerMeta.getModel()
+    val model = learnerMeta.model
 
-    assert(learnerMeta.getLoss().get < 1.0, "Loss of bagger is larger than expected")
+    assert(learnerMeta.loss.get < 1.0, "Loss of bagger is larger than expected")
 
     val prediction = model.transform(trainingData.take(1).map(_.inputs))
-    val sigma = prediction.getUncertainty().get.map(_.asInstanceOf[Double])
+    val sigma = prediction.uncertainty().get.map(_.asInstanceOf[Double])
     assert(sigma.forall(_ > 0.0))
-    assert(prediction.getGradient().isDefined, "No gradient returned for linear ensemble.")
+    assert(prediction.gradient.isDefined, "No gradient returned for linear ensemble.")
   }
 
   /**
@@ -58,18 +58,18 @@ class BaggerTest extends SeedRandomMixIn {
     val DTLearner = RegressionTreeLearner(numFeatures = 3)
     val baggedLearner = RegressionBagger(DTLearner, numBags = trainingData.size)
     val RFMeta = baggedLearner.train(trainingData, rng = rng)
-    val RF = RFMeta.getModel()
+    val RF = RFMeta.model
 
-    assert(RFMeta.getLoss().get < 1.0, "Loss of bagger is larger than expected")
+    assert(RFMeta.loss.get < 1.0, "Loss of bagger is larger than expected")
 
     val results = RF.transform(trainingData.map(_.inputs))
-    val sigma: Seq[Double] = results.getUncertainty().get.asInstanceOf[Seq[Double]]
+    val sigma: Seq[Double] = results.uncertainty().get.asInstanceOf[Seq[Double]]
     assert(sigma.forall(_ > 0.0))
 
-    assert(results.getGradient().isEmpty, "Returned a gradient when there shouldn't be one")
+    assert(results.gradient.isEmpty, "Returned a gradient when there shouldn't be one")
 
     /* The first feature should be the most important */
-    val importances = RFMeta.getFeatureImportance().get
+    val importances = RFMeta.featureImportance.get
     assert(importances(1) == importances.max)
   }
 
@@ -87,24 +87,24 @@ class BaggerTest extends SeedRandomMixIn {
     val DTLearner = ClassificationTreeLearner()
     val baggedLearner = ClassificationBagger(DTLearner, numBags = trainingData.size / 2)
     val RFMeta = baggedLearner.train(trainingData, rng = rng)
-    val RF = RFMeta.getModel()
+    val RF = RFMeta.model
 
     /* Inspect the results */
     val results = RF.transform(trainingData.map(_.inputs))
-    val means = results.getExpected()
+    val means = results.expected
     assert(trainingData.map(_.label).zip(means).forall { case (a, p) => a == p })
 
-    val uncertainty = results.getUncertainty()
+    val uncertainty = results.uncertainty()
     assert(uncertainty.isDefined)
     assert(trainingData.map(_.label).zip(uncertainty.get).forall {
       case (a, probs) =>
         val maxProb = probs(a)
         maxProb > 0.5 && maxProb < 1.0 && Math.abs(probs.values.sum - 1.0) < 1.0e-6
     })
-    assert(results.getGradient().isEmpty, "Returned a gradient when there shouldn't be one")
+    assert(results.gradient.isEmpty, "Returned a gradient when there shouldn't be one")
 
     /* The first feature should be the most important */
-    val importances = RFMeta.getFeatureImportance().get
+    val importances = RFMeta.featureImportance.get
     assert(importances.slice(0, 5).min > importances.slice(5, importances.size).max)
   }
 
@@ -125,7 +125,7 @@ class BaggerTest extends SeedRandomMixIn {
     val bias = RegressionTreeLearner(maxDepth = 4)
     val baggedLearner = RegressionBagger(DTLearner, numBags = bagsPerRow * trainingData.size, biasLearner = Some(bias))
     val RFMeta = baggedLearner.train(trainingData, rng = rng)
-    val RF = RFMeta.getModel()
+    val RF = RFMeta.model
 
     val interiorTestSet = DataGenerator
       .generate(128, nFeatures, xscale = width / 2.0, xoff = width / 4.0, rng = rng)
@@ -175,13 +175,13 @@ class BaggerTest extends SeedRandomMixIn {
     )
 
     // Make sure the model trains
-    val model = bagger.train(constantData, rng = rng).getModel()
+    val model = bagger.train(constantData, rng = rng).model
 
     // Generate a new test set and make sure the predictions are 0 +/- 0
     val testX = DataGenerator.generate(128, nFeatures, xscale = 0.5, rng = rng).data.map(_.inputs)
     val predictions = model.transform(testX)
-    assert(predictions.getExpected().forall(_ == 0.0))
-    assert(predictions.getUncertainty().get.forall(_ == 0.0))
+    assert(predictions.expected.forall(_ == 0.0))
+    assert(predictions.uncertainty().get.forall(_ == 0.0))
   }
 
   /**
@@ -201,11 +201,11 @@ class BaggerTest extends SeedRandomMixIn {
       DTLearner,
       numBags = trainingData.size * 16
     ) // use lots of trees to reduce noise
-    val RF = baggedLearner.train(trainingData, rng = rng).getModel()
+    val RF = baggedLearner.train(trainingData, rng = rng).model
 
     /* Call transform on the training data */
     val results = RF.transform(trainingData.map(_.inputs))
-    val scores = results.getImportanceScores().get
+    val scores = results.importanceScores.get
     val corners = Seq(0, 7, 56, 63)
     corners.foreach { i =>
       assert(
@@ -233,7 +233,7 @@ class BaggerTest extends SeedRandomMixIn {
       uncertaintyCalibration = false
     )
       .train(trainingData, rng = rng)
-      .getModel()
+      .model
     val unCalibratedTime = 1.0e-9 * (System.nanoTime() - start)
 
     val startAgain = System.nanoTime()
@@ -243,7 +243,7 @@ class BaggerTest extends SeedRandomMixIn {
       uncertaintyCalibration = true
     )
       .train(trainingData, rng = rng)
-      .getModel()
+      .model
     val calibratedTime = 1.0e-9 * (System.nanoTime() - startAgain)
 
     assert(calibratedTime < unCalibratedTime, s"The calibration scheme has experienced a dramatic slowdown")
@@ -279,7 +279,7 @@ class BaggerTest extends SeedRandomMixIn {
       uncertaintyCalibration = true
     )
       .train(trainingData, rng = rng)
-      .getModel()
+      .model
 
     try {
       val _: BaggedModel[Any] = RegressionBagger(
@@ -290,7 +290,7 @@ class BaggerTest extends SeedRandomMixIn {
         disableBootstrap = true
       )
         .train(trainingData, rng = rng)
-        .getModel()
+        .model()
       fail("Setting both uncertaintyCalibration and disableBootstrap should throw an exception.")
     } catch {
       case _: Throwable =>
@@ -312,7 +312,7 @@ class BaggerTest extends SeedRandomMixIn {
       val DTLearner = RegressionTreeLearner(numFeatures = 2)
       val sigma = RegressionBagger(DTLearner, numBags = 7)
         .train(trainingData, rng = rng)
-        .getModel()
+        .model()
         .transform(trainingData.map(_.inputs))
         .getUncertainty()
         .get
@@ -338,7 +338,7 @@ class BaggerTest extends SeedRandomMixIn {
         biasLearner = Some(GuessTheMeanLearner())
       )
         .train(trainingData, rng = rng)
-        .getModel()
+        .model()
         .transform(trainingData.map(_.inputs))
         .getUncertainty()
         .get
@@ -356,7 +356,7 @@ class BaggerTest extends SeedRandomMixIn {
     val trainingData =
       DataGenerator.generate(64, nCols, noise = 0.0, function = Friedman.friedmanSilverman, rng = rng).data
     val DTLearner = RegressionTreeLearner(numFeatures = nCols)
-    val model = RegressionBagger(DTLearner).train(trainingData, rng = rng).getModel()
+    val model = RegressionBagger(DTLearner).train(trainingData, rng = rng).model()
     val trees = model.ensembleModels
     trainingData.foreach {
       case TrainingRow(x, _, _) =>
@@ -393,7 +393,7 @@ class BaggerTest extends SeedRandomMixIn {
     val learner = FeatureRotator(RegressionTreeLearner(numFeatures = nCols))
     val model = RegressionBagger(learner)
       .train(trainingData, rng = rng)
-      .getModel()
+      .model()
 
     val x = trainingData.head.inputs
     assert(model.shapley(x).isEmpty)
@@ -430,7 +430,7 @@ object BaggerTest extends SeedRandomMixIn {
           println(s"Training model nCols=$nCols\tnRows=$nRows\trepNum=$repNum")
           val model = RegressionBagger(DTLearner)
             .train(trainingData, rng = rng)
-            .getModel()
+            .model()
           println(s"Trained")
 
           rng.shuffle(trainingData).take(16).zipWithIndex.foreach {
@@ -453,10 +453,10 @@ object BaggerTest extends SeedRandomMixIn {
       .map(_._2)
       .zip(
         predictions
-          .getExpected()
+          .expected
           .asInstanceOf[Seq[Double]]
           .zip(
-            predictions.getUncertainty().get.asInstanceOf[Seq[Double]]
+            predictions.uncertainty().get.asInstanceOf[Seq[Double]]
           )
       )
     val standardError = pva.map {

@@ -28,13 +28,13 @@ trait Model[+T] extends Serializable {
 trait MultiTaskModel extends Model[Vector[Any]] {
 
   /** The number of labels. Every prediction must have this length. */
-  val numLabels: Int
+  def numLabels: Int
 
   /** A boolean sequence indicating which labels are real-valued. Its length must be equal to `numLabels`. */
-  def getRealLabels: Seq[Boolean]
+  def realLabels: Seq[Boolean]
 
   /** Individual models corresponding to each label */
-  def getModels: Seq[Model[Any]]
+  def models: Seq[Model[Any]]
 
   override def transform(inputs: Seq[Vector[Any]]): MultiTaskModelPredictionResult
 
@@ -46,15 +46,11 @@ trait MultiTaskModel extends Model[Vector[Any]] {
   * @param models     sequence of models, one for each label
   * @param realLabels boolean sequence indicating which labels are real-valued
   */
-class ParallelModels(models: Seq[Model[Any]], realLabels: Seq[Boolean]) extends MultiTaskModel {
-  override val numLabels: Int = models.length
-
-  override def getRealLabels: Seq[Boolean] = realLabels
-
-  override def getModels: Seq[Model[Any]] = models
+case class ParallelModels(models: Seq[Model[Any]], realLabels: Seq[Boolean]) extends MultiTaskModel {
+  override def numLabels: Int = models.length
 
   override def transform(inputs: Seq[Vector[Any]]): ParallelModelsPredictionResult = {
-    val predictions = models.map(_.transform(inputs).getExpected()).toVector.transpose
-    new ParallelModelsPredictionResult(predictions)
+    val predictions = models.map(_.transform(inputs).expected).toVector.transpose
+    ParallelModelsPredictionResult(predictions)
   }
 }

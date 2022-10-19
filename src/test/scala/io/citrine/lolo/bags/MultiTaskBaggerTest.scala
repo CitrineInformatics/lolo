@@ -32,18 +32,18 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
       uncertaintyCalibration = true
     )
     val RFMeta = baggedLearner.train(reshapedTrainingData, rng = rng)
-    val RF = RFMeta.getModels().head
+    val RF = RFMeta.models.head
 
     val results = RF.transform(trainingData.map(_.inputs))
-    val means = results.getExpected()
-    val sigma: Seq[Double] = results.getUncertainty().get.asInstanceOf[Seq[Double]]
+    val means = results.expected
+    val sigma: Seq[Double] = results.uncertainty().get.asInstanceOf[Seq[Double]]
     assert(sigma.forall(_ >= 0.0))
     assert(
       results.asInstanceOf[MultiPointBaggedPrediction].rescaleRatio != 1.0,
       "uncertainty calibration ratio was not included in prediction result"
     )
-    assert(results.getGradient().isEmpty, "Returned a gradient when there shouldn't be one")
-    assert(RFMeta.getLoss().get < 1.0, "Loss of bagger is larger than expected")
+    assert(results.gradient.isEmpty, "Returned a gradient when there shouldn't be one")
+    assert(RFMeta.loss.get < 1.0, "Loss of bagger is larger than expected")
   }
 
   /**
@@ -73,17 +73,17 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
                 uncertaintyCalibration = true
               )
               val RFMeta = baggedLearner.train(reshapedTrainingData, rng = rng)
-              val RF = RFMeta.getModels().head
+              val RF = RFMeta.models.head
               val results = RF.transform(trainingData.take(4).map(_.inputs))
 
-              val sigmaMean: Seq[Double] = results.getUncertainty(observational = false).get.asInstanceOf[Seq[Double]]
-              sigmaMean.zip(results.asInstanceOf[MultiPointBaggedPrediction].getStdDevMean().get).foreach {
+              val sigmaMean: Seq[Double] = results.uncertainty(observational = false).get.asInstanceOf[Seq[Double]]
+              sigmaMean.zip(results.asInstanceOf[MultiPointBaggedPrediction].stdDevMean.get).foreach {
                 case (a, b) =>
                   assert(a == b, s"Expected getUncertainty(observational=false)=getStdDevMean() for $configDescription")
               }
 
-              val sigmaObs: Seq[Double] = results.getUncertainty().get.asInstanceOf[Seq[Double]]
-              sigmaObs.zip(results.asInstanceOf[MultiPointBaggedPrediction].getStdDevObs().get).foreach {
+              val sigmaObs: Seq[Double] = results.uncertainty().get.asInstanceOf[Seq[Double]]
+              sigmaObs.zip(results.asInstanceOf[MultiPointBaggedPrediction].stdDevObs.get).foreach {
                 case (a, b) =>
                   assert(a == b, s"Expected getUncertainty()=getStdDevObs() for $configDescription")
               }
@@ -172,14 +172,14 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
     val baggedLearner =
       MultiTaskBagger(DTLearner, numBags = trainingData.size)
     val RFMeta = baggedLearner.train(reshapedTrainingData, rng = rng)
-    val RF = RFMeta.getModels().head
+    val RF = RFMeta.models.head
 
     /* Inspect the results */
     val results = RF.transform(trainingData.map(_.inputs))
-    val means = results.getExpected()
+    val means = results.expected
     assert(trainingData.map(_.label).zip(means).forall { case (a, p) => a == p })
 
-    val uncertainty = results.getUncertainty()
+    val uncertainty = results.uncertainty()
     assert(uncertainty.isDefined)
     trainingData.map(_.label).zip(uncertainty.get).foreach {
       case (a, probs) =>
@@ -189,7 +189,7 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
         assert(maxProb < 1.0)
         assert(Math.abs(classProbabilities.values.sum - 1.0) < 1.0e-6)
     }
-    assert(results.getGradient().isEmpty, "Returned a gradient when there shouldn't be one")
+    assert(results.gradient.isEmpty, "Returned a gradient when there shouldn't be one")
   }
 
   /** Test that a multi-task bagged model properly stores and transposes individual trees, and remembers labels. */
@@ -217,7 +217,7 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
     val RF = baggedLearner.train(multiTaskRows, rng = rng)
 
     val testInputs = inputs.take(numTest)
-    val predictionResult = RF.getModel().transform(testInputs)
+    val predictionResult = RF.model.transform(testInputs)
     assert(predictionResult.ensemblePredictions.length == numBags)
 
     // because the uncertainty is recalibrated, the prediction result should have a rescale value that is not equal to 1.0
@@ -225,8 +225,8 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
 
     // The prediction made by the full model and the prediction made by just the categorical model should agree
     // and both be equal to the training label.
-    val expected = predictionResult.getExpected()
-    val expectedCat = RF.getModels()(1).transform(testInputs).getExpected()
+    val expected = predictionResult.expected
+    val expectedCat = RF.models(1).transform(testInputs).expected
     (0 until numTest).foreach { i =>
       assert(expected(i)(1) == catLabel(i))
       assert(catLabel(i) == expectedCat(i))
@@ -256,7 +256,7 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
       numBags = numBags,
       biasLearner = Some(RegressionTreeLearner(maxDepth = 2))
     )
-    val RF = baggedLearner.train(multiTaskRows, rng = rng).getModel()
+    val RF = baggedLearner.train(multiTaskRows, rng = rng).model
 
     val testInputs =
       DataGenerator.generate(numTest, 12, function = Friedman.friedmanSilverman, rng = rng).data.map(_.inputs)
@@ -264,11 +264,11 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
 
     Seq(true, false).foreach { observational =>
       // All real-valued predictions should be perfectly correlated with themselves
-      assert(predictionResult.getUncertaintyCorrelation(0, 0, observational).get == Seq.fill(numTest)(1.0))
+      assert(predictionResult.uncertaintyCorrelation(0, 0, observational).get == Seq.fill(numTest)(1.0))
       // Correlation with a non-real-valued label should be empty
-      assert(predictionResult.getUncertaintyCorrelation(0, 1, observational).isEmpty)
+      assert(predictionResult.uncertaintyCorrelation(0, 1, observational).isEmpty)
       // Otherwise, all we can assert is that -1.0 <= rho <= 1.0
-      predictionResult.getUncertaintyCorrelation(0, 2, observational).get.foreach { calcRho =>
+      predictionResult.uncertaintyCorrelation(0, 2, observational).get.foreach { calcRho =>
         assert(calcRho >= -1.0 && calcRho <= 1.0)
       }
     }
@@ -310,26 +310,26 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
       biasLearner = Some(GuessTheMeanLearner())
     )
     val trainingResult = baggedLearner.train(multiTaskRows, rng = rng)
-    val RF = trainingResult.getModels().last
+    val RF = trainingResult.models.last
 
-    val catResults = RF.transform(inputs).getExpected()
-    val realUncertainty = trainingResult.getModels().head.transform(inputs).getUncertainty().get
+    val catResults = RF.transform(inputs).expected
+    val realUncertainty = trainingResult.models.head.transform(inputs).uncertainty().get
     assert(realUncertainty.forall(!_.asInstanceOf[Double].isNaN), s"Some uncertainty values were NaN")
 
     val referenceRows = TrainingRow.build(inputs.zip(sparseCat)).filterNot(_.label == null)
     val referenceModel = ClassificationBagger(ClassificationTreeLearner(), numBags = inputs.size)
       .train(referenceRows, rng = rng)
     val reference = referenceModel
-      .getModel()
+      .model
       .transform(inputs)
-      .getExpected()
+      .expected
 
     val singleF1 = ClassificationMetrics.f1scores(reference, catLabel)
     val multiF1 = ClassificationMetrics.f1scores(catResults, catLabel)
 
     // Make sure we can grab the loss without issue
-    assert(!referenceModel.getLoss().get.isNaN, "Single task classification loss was NaN")
-    assert(!trainingResult.getLoss().get.isNaN, "Sparse multitask loss was NaN")
+    assert(!referenceModel.loss.get.isNaN, "Single task classification loss was NaN")
+    assert(!trainingResult.loss.get.isNaN, "Sparse multitask loss was NaN")
 
     assert(multiF1 > singleF1, s"Multi-task is under-performing single-task")
     assert(multiF1 <= 1.0, "Multitask classification F1 score was greater than 1.0")
@@ -364,7 +364,7 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
         numBags = inputs.size,
         biasLearner = Some(GuessTheMeanLearner())
       )
-      assert(baggedLearner.train(multiTaskRows, rng = rng).getModels().size == 2)
+      assert(baggedLearner.train(multiTaskRows, rng = rng).models.size == 2)
     }
   }
 }

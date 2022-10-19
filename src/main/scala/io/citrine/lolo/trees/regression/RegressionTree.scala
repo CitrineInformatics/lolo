@@ -102,14 +102,14 @@ class RegressionTreeTrainingResult(
     }
   }
 
-  override def getModel(): RegressionTree = model
+  override def model: RegressionTree = model
 
   /**
     * Return the pre-computed influences
     *
     * @return feature influences as an array of doubles
     */
-  override def getFeatureImportance(): Option[Vector[Double]] = Some(importanceNormalized.toVector)
+  override def featureImportance: Option[Vector[Double]] = Some(importanceNormalized.toVector)
 }
 
 /**
@@ -162,18 +162,18 @@ class RegressionTreeResult(predictions: Seq[(PredictionResult[Double], TreeMeta)
     *
     * @return expected value of each prediction
     */
-  override def getExpected(): Seq[Double] = predictions.map(_._1.getExpected().head)
+  override def expected: Seq[Double] = predictions.map(_._1.expected.head)
 
   /**
     * Get the gradient or sensitivity of each prediction
     *
     * @return a vector of doubles for each prediction
     */
-  override def getGradient(): Option[Seq[Vector[Double]]] = {
-    if (predictions.head._1.getGradient().isEmpty) {
+  override def gradient: Option[Seq[Vector[Double]]] = {
+    if (predictions.head._1.gradient.isEmpty) {
       return None
     }
-    Some(predictions.map(_._1.getGradient().get.head))
+    Some(predictions.map(_._1.gradient.get.head))
   }
 
   def getDepth(): Seq[Int] = {

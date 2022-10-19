@@ -124,9 +124,9 @@ class MultiTaskTreeTrainingResult(
     }
   }
 
-  override def getModel(): ParallelModels = model
+  override def model: ParallelModels = model
 
-  override def getModels(): Seq[Model[Any]] = models
+  override def models: Seq[Model[Any]] = models
 
-  override def getFeatureImportance(): Option[Vector[Double]] = Some(importanceNormalized)
+  override def featureImportance: Option[Vector[Double]] = Some(importanceNormalized)
 }
