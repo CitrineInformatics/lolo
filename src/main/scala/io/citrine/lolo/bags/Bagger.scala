@@ -156,7 +156,7 @@ case class RegressionBagger(
         learner.train(helper.biasTraining, rng = rng).getModel()
     }
 
-    new RegressionBaggerTrainingResult(
+    RegressionBaggerTrainingResult(
       ensembleModels = ensemble.models,
       Nib = ensemble.Nib,
       trainingData = trainingData,
@@ -192,7 +192,7 @@ case class ClassificationBagger[T](
     // Train the ensemble of models from the data
     val ensemble = trainEnsemble(trainingData, weights, rng)
 
-    new ClassificationBaggerTrainingResult(
+    ClassificationBaggerTrainingResult(
       ensembleModels = ensemble.models,
       Nib = ensemble.Nib,
       trainingData = trainingData,

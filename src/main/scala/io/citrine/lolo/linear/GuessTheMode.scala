@@ -12,7 +12,7 @@ case class GuessTheModeLearner[T]() extends Learner[T] {
   ): TrainingResult[T] = {
     val data = trainingData.map(_._2).zip(weights.getOrElse(Seq.fill(trainingData.size)(1.0)))
     val mode = rng.shuffle(data.groupBy(_._1).view.mapValues(_.map(_._2).sum).toSeq).maxBy(_._2)._1
-    GuessTheModeTrainingResult(new GuessTheModeModel(mode))
+    GuessTheModeTrainingResult(GuessTheModeModel(mode))
   }
 }
 
@@ -20,14 +20,14 @@ case class GuessTheModeTrainingResult[T](model: GuessTheModeModel[T]) extends Tr
   override def getModel(): Model[T] = model
 }
 
-class GuessTheModeModel[T](mean: T) extends Model[T] {
+case class GuessTheModeModel[T](mean: T) extends Model[T] {
 
   def transform(inputs: Seq[Vector[Any]]): GuessTheModeResult[T] = {
-    new GuessTheModeResult(Seq.fill(inputs.size)(mean))
+    GuessTheModeResult(Seq.fill(inputs.size)(mean))
   }
 }
 
-class GuessTheModeResult[T](result: Seq[T]) extends PredictionResult[T] {
+case class GuessTheModeResult[T](result: Seq[T]) extends PredictionResult[T] {
 
   /**
     * Get the expected values for this prediction

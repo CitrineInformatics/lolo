@@ -116,7 +116,7 @@ case class MultiTaskBagger(
       }
       .unzip
 
-    new MultiTaskBaggedTrainingResult(
+    MultiTaskBaggedTrainingResult(
       models = models,
       Nib = Nib,
       featureImportance = averageImportance,
@@ -146,7 +146,7 @@ case class MultiTaskBagger(
   * @param biasModels        sequence of optional bias-correction models, one for each label
   * @param rescaleRatios     sequence of uncertainty calibration ratios for each label
   */
-class MultiTaskBaggedTrainingResult(
+case class MultiTaskBaggedTrainingResult(
     models: ParSeq[MultiTaskModel],
     Nib: Vector[Vector[Int]],
     trainingData: Seq[(Vector[Any], Vector[Any])],
@@ -155,7 +155,7 @@ class MultiTaskBaggedTrainingResult(
     rescaleRatios: Seq[Double]
 ) extends MultiTaskTrainingResult {
 
-  lazy val model = new MultiTaskBaggedModel(models, Nib, biasModels, rescaleRatios)
+  lazy val model: MultiTaskBaggedModel = MultiTaskBaggedModel(models, Nib, biasModels, rescaleRatios)
 
   // Each entry is a tuple, (feature vector, seq of predicted labels, seq of actual labels).
   // The labels are of type Option[Any] because a given training datum might not have a value for every single label.
@@ -217,14 +217,14 @@ class MultiTaskBaggedTrainingResult(
       case (isReal: Boolean, i: Int) =>
         val thisLabelModels = models.map(_.getModels(i))
         if (isReal) {
-          new BaggedRegressionModel(
+          BaggedRegressionModel(
             thisLabelModels.asInstanceOf[ParSeq[Model[Double]]],
             Nib = Nib,
             rescaleRatio = rescaleRatios(i),
             biasModel = biasModels(i)
           )
         } else {
-          new BaggedClassificationModel(thisLabelModels, Nib)
+          BaggedClassificationModel(thisLabelModels, Nib)
         }
     }
   }
@@ -245,7 +245,7 @@ class MultiTaskBaggedTrainingResult(
   * @param biasModels   sequence of optional bias-correction models, one for each label
   * @param rescaleRatios  sequence of uncertainty calibration ratios for each label
   */
-class MultiTaskBaggedModel(
+case class MultiTaskBaggedModel(
     models: ParSeq[MultiTaskModel],
     Nib: Vector[Vector[Int]],
     biasModels: Seq[Option[Model[Double]]],
@@ -257,14 +257,14 @@ class MultiTaskBaggedModel(
   lazy val groupedModels: Vector[BaggedModel[Any]] = Vector.tabulate(numLabels) { i =>
     val thisLabelsModels = models.map(_.getModels(i))
     if (getRealLabels(i)) {
-      new BaggedRegressionModel(
+      BaggedRegressionModel(
         thisLabelsModels.asInstanceOf[ParSeq[Model[Double]]],
         Nib = Nib,
         rescaleRatio = rescaleRatios(i),
         biasModel = biasModels(i)
       )
     } else {
-      new BaggedClassificationModel(thisLabelsModels, Nib)
+      BaggedClassificationModel(thisLabelsModels, Nib)
     }
   }
 
