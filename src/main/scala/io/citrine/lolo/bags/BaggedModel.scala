@@ -30,8 +30,8 @@ trait BaggedModel[+T] extends Model[T] {
   }
 }
 
-class BaggedRegressionModel(
-    val ensembleModels: ParSeq[Model[Double]],
+case class BaggedRegressionModel(
+    ensembleModels: ParSeq[Model[Double]],
     Nib: Vector[Vector[Int]],
     rescaleRatio: Double = 1.0,
     disableBootstrap: Boolean = false,
@@ -65,7 +65,7 @@ class BaggedRegressionModel(
   }
 }
 
-class BaggedClassificationModel[T](val ensembleModels: ParSeq[Model[T]], Nib: Vector[Vector[Int]])
+case class BaggedClassificationModel[T](ensembleModels: ParSeq[Model[T]], Nib: Vector[Vector[Int]])
     extends BaggedModel[T] {
 
   override def transform(inputs: Seq[Vector[Any]]): BaggedClassificationPrediction[T] = {

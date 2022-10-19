@@ -100,8 +100,8 @@ case class LinearRegressionLearner(
       None
     }
 
-    val model = new LinearRegressionModel(coefficients, intercept, indices = indicesToModel)
-    new LinearRegressionTrainingResult(model)
+    val model = LinearRegressionModel(coefficients, intercept, indices = indicesToModel)
+    LinearRegressionTrainingResult(model)
   }
 
   private val logger = LoggerFactory.getLogger(getClass)
@@ -112,7 +112,7 @@ case class LinearRegressionLearner(
   *
   * @param model contained
   */
-class LinearRegressionTrainingResult(model: LinearRegressionModel) extends TrainingResult[Double] {
+case class LinearRegressionTrainingResult(model: LinearRegressionModel) extends TrainingResult[Double] {
 
   override def getModel(): LinearRegressionModel = model
 
@@ -135,7 +135,7 @@ class LinearRegressionTrainingResult(model: LinearRegressionModel) extends Train
   * @param intercept intercept
   * @param indices   optional indices from which to extract real features
   */
-class LinearRegressionModel(
+case class LinearRegressionModel(
     beta: DenseVector[Double],
     intercept: Double,
     indices: Option[(Vector[Int], Int)] = None
@@ -157,7 +157,7 @@ class LinearRegressionModel(
     val resultVector = beta.t * inputMatrix + intercept
     val result = resultVector.t.toArray.toSeq
     val grad = getBeta()
-    new LinearRegressionResult(result, grad)
+    LinearRegressionResult(result, grad)
   }
 
   /**
@@ -183,7 +183,7 @@ class LinearRegressionModel(
   * @param values computed from the model
   * @param grad   gradient vector, which are just the linear coefficients
   */
-class LinearRegressionResult(values: Seq[Double], grad: Vector[Double]) extends PredictionResult[Double] {
+case class LinearRegressionResult(values: Seq[Double], grad: Vector[Double]) extends PredictionResult[Double] {
 
   /**
     * Get the expected values for this prediction
