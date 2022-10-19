@@ -102,6 +102,7 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
         # Unlink the training data, which is no longer needed (to save memory)
         self.gateway.detach(train_data)
         self.gateway.detach(weights_java)
+        self.gateway.detach(train_rows)
 
         # Get the model out
         self.model_ = result.getModel()
