@@ -1,5 +1,13 @@
 package io.citrine.lolo
 
+/**
+  * A bundle of (inputs, label, weight) used for training a [[Learner]].
+  *
+  * @param inputs vector of mixed-type input features
+  * @param label  target variable to train a model on
+  * @param weight of the training row
+  * @tparam T the type of the label data
+  */
 case class TrainingRow[+T](inputs: Vector[Any], label: T, weight: Double = 1.0) {
 
   /** Cast the training row as a tuple of (inputs, label, weight). */
