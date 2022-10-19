@@ -1,16 +1,11 @@
-package io.citrine.lolo.transformers
+package io.citrine.lolo.transformers.standardizer
 
-import io.citrine.lolo.{DataGenerator, SeedRandomMixIn}
 import io.citrine.lolo.linear.{GuessTheMeanLearner, LinearRegressionLearner}
 import io.citrine.lolo.stats.functions.Friedman
-import io.citrine.lolo.stats.metrics.ClassificationMetrics
 import io.citrine.lolo.trees.classification.ClassificationTreeLearner
-import io.citrine.lolo.trees.multitask.MultiTaskTreeLearner
+import io.citrine.lolo.{DataGenerator, SeedRandomMixIn}
 import org.junit.Test
 
-/**
-  * Created by maxhutch on 2/19/17.
-  */
 @Test
 class StandardizerTest extends SeedRandomMixIn {
 
@@ -24,9 +19,9 @@ class StandardizerTest extends SeedRandomMixIn {
   @Test
   def testStandardMeanAndVariance(): Unit = {
     val inputs = data.map(_._1)
-    val inputTransforms = Standardizer.getMultiStandardization(inputs)
+    val inputTransforms = Standardization.buildMulti(inputs)
 
-    val standardInputs = Standardizer.applyStandardization(inputs, inputTransforms)
+    val standardInputs = inputs.map(input => Standardization.applyMulti(input, inputTransforms))
     standardInputs.head.indices.foreach { i =>
       val values = standardInputs.map(_(i).asInstanceOf[Double])
       val mean = values.sum / values.size
@@ -36,9 +31,9 @@ class StandardizerTest extends SeedRandomMixIn {
       assert(Math.abs(variance - 1.0) < 1.0e-9, s"Standard input ${i} has non-unit variance ${variance}")
     }
 
-    val outputs = data.map(_._2.asInstanceOf[Double])
-    val outputTransform = Standardizer.getStandardization(outputs)
-    val standardOutputs = Standardizer.applyStandardization(outputs, Some(outputTransform)).asInstanceOf[Seq[Double]]
+    val outputs = data.map(_._2)
+    val outputTransform = Standardization.build(outputs)
+    val standardOutputs = outputs.map(outputTransform.apply)
 
     val mean = standardOutputs.sum / standardOutputs.size
     assert(mean < 1.0e-9, s"Standard output has non-zero mean ${mean}")
@@ -56,7 +51,7 @@ class StandardizerTest extends SeedRandomMixIn {
     val model = learner.train(data, rng = rng).getModel()
     val result = model.transform(data.map(_._1)).getExpected()
 
-    val standardLearner = Standardizer(GuessTheMeanLearner())
+    val standardLearner = RegressionStandardizer(GuessTheMeanLearner())
     val standardModel = standardLearner.train(data, rng = rng).getModel()
     val standardResult = standardModel.transform(data.map(_._1)).getExpected()
 
@@ -77,7 +72,7 @@ class StandardizerTest extends SeedRandomMixIn {
     val expected = result.getExpected()
     val gradient = result.getGradient()
 
-    val standardLearner = Standardizer(learner)
+    val standardLearner = RegressionStandardizer(learner)
     val standardModel = standardLearner.train(data, Some(weights)).getModel()
     val standardResult = standardModel.transform(data.map(_._1))
     val standardExpected = standardResult.getExpected()
@@ -108,7 +103,7 @@ class StandardizerTest extends SeedRandomMixIn {
     val expected = result.getExpected()
     val gradient = result.getGradient()
 
-    val standardLearner = Standardizer(learner)
+    val standardLearner = RegressionStandardizer(learner)
     val standardModel = standardLearner.train(dataWithConstant, Some(weights)).getModel()
     val standardResult = standardModel.transform(dataWithConstant.map(_._1))
     val standardExpected = standardResult.getExpected()
@@ -148,7 +143,7 @@ class StandardizerTest extends SeedRandomMixIn {
     val model = learner.train(data).getModel()
     val result = model.transform(data.map(_._1)).getExpected()
 
-    val standardLearner = new Standardizer(learner)
+    val standardLearner = RegressionStandardizer(learner)
     val standardModel = standardLearner.train(data).getModel()
     val standardResult = standardModel.transform(data.map(_._1)).getExpected()
 
@@ -169,44 +164,12 @@ class StandardizerTest extends SeedRandomMixIn {
     val model = learner.train(trainingData).getModel()
     val result = model.transform(trainingData.map(_._1)).getExpected()
 
-    val standardLearner = Standardizer(learner)
+    val standardLearner = ClassificationStandardizer(learner)
     val standardModel = standardLearner.train(trainingData).getModel()
     val standardResult = standardModel.transform(trainingData.map(_._1)).getExpected()
     result.zip(standardResult).foreach {
       case (free: String, standard: String) =>
         assert(free == standard, s"Standard classification tree should be the same")
     }
-  }
-
-  /**
-    * Test that multitask sandardization has the proper performance and invariants
-    */
-  @Test
-  def testMultiTaskStandardizer(): Unit = {
-    // Generate multi-task training data
-    val (inputs, doubleLabel) = data.unzip
-    val catLabel = inputs.map(x => Friedman.friedmanGrosseSilverman(x) > 15.0)
-
-    // Sparsify the categorical labels
-    val sparseCatLabel = catLabel.map(x => if (rng.nextBoolean()) x else null)
-    val labels = Vector(doubleLabel, sparseCatLabel).transpose
-
-    // Screw up the scale of the double labels
-    val scale = 10000.0
-    val rescaledLabel = doubleLabel.map(_ * scale)
-    val rescaledLabels = rescaledLabel.zip(sparseCatLabel).map { case (r, c) => Vector(r, c) }
-
-    // Train and evaluate standard models on original and rescaled labels
-    val standardizer = new MultiTaskStandardizer(MultiTaskTreeLearner())
-    val baseRes = standardizer.train(inputs.zip(labels)).getModels().last.transform(inputs).getExpected()
-    val standardRes = standardizer.train(inputs.zip(rescaledLabels)).getModels().last.transform(inputs).getExpected()
-    // Train and evaluate unstandardized model on rescaled labels
-
-    // Compute metrics for each of the models
-    val baseF1 = ClassificationMetrics.f1scores(baseRes, catLabel)
-    val standardF1 = ClassificationMetrics.f1scores(standardRes, catLabel)
-
-    // Assert some things
-    assert(Math.abs(baseF1 - standardF1) < 1.0e-6, s"Expected training to be invariant the scale of the labels")
   }
 }

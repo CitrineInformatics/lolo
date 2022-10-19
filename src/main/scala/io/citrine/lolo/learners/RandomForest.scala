@@ -1,8 +1,9 @@
 package io.citrine.lolo.learners
 
 import io.citrine.random.Random
-import io.citrine.lolo.bags.{Bagger, MultiTaskBagger}
-import io.citrine.lolo.transformers.{FeatureRotator, MultiTaskFeatureRotator, MultiTaskStandardizer}
+import io.citrine.lolo.bags.{ClassificationBagger, MultiTaskBagger, RegressionBagger}
+import io.citrine.lolo.transformers.rotator.{FeatureRotator, MultiTaskFeatureRotator}
+import io.citrine.lolo.transformers.standardizer.MultiTaskStandardizer
 import io.citrine.lolo.trees.classification.ClassificationTreeLearner
 import io.citrine.lolo.trees.multitask.MultiTaskTreeLearner
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
@@ -53,7 +54,7 @@ case class RandomForestRegressor(
       maxDepth = maxDepth,
       splitter = RegressionSplitter(randomizePivotLocation)
     )
-    val bagger = Bagger(
+    val bagger = RegressionBagger(
       if (randomlyRotateFeatures) FeatureRotator(DTLearner) else DTLearner,
       numBags = numTrees,
       useJackknife = useJackknife,
@@ -102,7 +103,7 @@ case class RandomForestClassifier(
       maxDepth = maxDepth,
       splitter = ClassificationSplitter(randomizePivotLocation)
     )
-    val bagger = Bagger(
+    val bagger = ClassificationBagger(
       if (randomlyRotateFeatures) FeatureRotator(DTLearner) else DTLearner,
       numBags = numTrees,
       useJackknife = useJackknife
@@ -146,7 +147,7 @@ case class MultiTaskRandomForest(
     val hasRegression = rep.exists(_.isInstanceOf[Double])
     val numFeatures = RandomForest.getNumFeatures(subsetStrategy, trainingData.head._1.size, hasRegression)
 
-    val DTLearner = new MultiTaskStandardizer(
+    val DTLearner = MultiTaskStandardizer(
       MultiTaskTreeLearner(
         numFeatures = numFeatures,
         maxDepth = maxDepth,

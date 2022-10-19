@@ -1,6 +1,6 @@
 package io.citrine.lolo.validation
 
-import io.citrine.lolo.bags.Bagger
+import io.citrine.lolo.bags.{Bagger, RegressionBagger}
 import io.citrine.lolo.stats.functions.{Friedman, Linear}
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
 import io.citrine.lolo.{DataGenerator, PredictionResult, SeedRandomMixIn, TestUtils}
@@ -72,10 +72,8 @@ object CalibrationStudy extends SeedRandomMixIn {
         rng = rng
       ) { nTrain: Double =>
         val nTree = ratio * nTrain
-        val learner = Bagger(
-          RegressionTreeLearner(
-            numFeatures = nFeature
-          ),
+        val learner = RegressionBagger(
+          RegressionTreeLearner(numFeatures = nFeature),
           numBags = nTree.toInt,
           useJackknife = true,
           uncertaintyCalibration = false
@@ -108,10 +106,8 @@ object CalibrationStudy extends SeedRandomMixIn {
         yMax = Some(1.0),
         rng = rng
       ) { nTree: Double =>
-        val learner = Bagger(
-          RegressionTreeLearner(
-            numFeatures = nFeature
-          ),
+        val learner = RegressionBagger(
+          RegressionTreeLearner(numFeatures = nFeature),
           numBags = nTree.toInt,
           useJackknife = true,
           uncertaintyCalibration = calibrated
@@ -151,10 +147,8 @@ object CalibrationStudy extends SeedRandomMixIn {
         yMax = Some(1.0),
         rng = rng
       ) { nTrain: Double =>
-        val learner = Bagger(
-          RegressionTreeLearner(
-            numFeatures = nFeature
-          ),
+        val learner = RegressionBagger(
+          RegressionTreeLearner(numFeatures = nFeature),
           numBags = nTree.toInt,
           useJackknife = true,
           uncertaintyCalibration = calibrated
@@ -184,10 +178,8 @@ object CalibrationStudy extends SeedRandomMixIn {
     val data = DataGenerator
       .iterate(nFeature, func, rng = rng)
       .map { case (x, y) => (x.drop(ignoreDims), y) }
-    val learner = Bagger(
-      RegressionTreeLearner(
-        numFeatures = nFeature
-      ),
+    val learner = RegressionBagger(
+      RegressionTreeLearner(numFeatures = nFeature),
       numBags = nTree,
       useJackknife = true,
       uncertaintyCalibration = true,
@@ -319,10 +311,8 @@ object CalibrationStudy extends SeedRandomMixIn {
         yMax = Some(1.0),
         rng = rng
       ) { nTrain: Double =>
-        val learner = Bagger(
-          RegressionTreeLearner(
-            numFeatures = nFeature
-          ),
+        val learner = RegressionBagger(
+          RegressionTreeLearner(numFeatures = nFeature),
           numBags = nTree.toInt,
           useJackknife = true,
           uncertaintyCalibration = calibrated
@@ -356,10 +346,8 @@ object CalibrationStudy extends SeedRandomMixIn {
     val csv = TestUtils.readCsv("hcep.csv")
     val trainingData = csv.tail.map(vec => (vec.init, vec.last.asInstanceOf[Double]))
 
-    val learner = Bagger(
-      RegressionTreeLearner(
-        numFeatures = nFeature / 3
-      ),
+    val learner = RegressionBagger(
+      RegressionTreeLearner(numFeatures = nFeature / 3),
       numBags = nTree,
       useJackknife = true,
       uncertaintyCalibration = false

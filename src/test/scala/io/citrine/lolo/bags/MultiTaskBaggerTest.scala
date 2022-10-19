@@ -11,9 +11,6 @@ import io.citrine.lolo.trees.regression.RegressionTreeLearner
 import org.junit.Test
 import org.scalatest.Assertions._
 
-/**
-  * Created by maxhutch on 11/29/16.
-  */
 @Test
 class MultiTaskBaggerTest extends SeedRandomMixIn {
 
@@ -42,7 +39,7 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
     val sigma: Seq[Double] = results.getUncertainty().get.asInstanceOf[Seq[Double]]
     assert(sigma.forall(_ >= 0.0))
     assert(
-      results.asInstanceOf[MultiPredictionBaggedResult].rescale != 1.0,
+      results.asInstanceOf[MultiPointBaggedPrediction].rescaleRatio != 1.0,
       "uncertainty calibration ratio was not included in prediction result"
     )
     assert(results.getGradient().isEmpty, "Returned a gradient when there shouldn't be one")
@@ -79,13 +76,13 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
               val results = RF.transform(trainingData.take(4).map(_._1))
 
               val sigmaMean: Seq[Double] = results.getUncertainty(observational = false).get.asInstanceOf[Seq[Double]]
-              sigmaMean.zip(results.asInstanceOf[MultiPredictionBaggedResult].getStdDevMean().get).foreach {
+              sigmaMean.zip(results.asInstanceOf[MultiPointBaggedPrediction].getStdDevMean().get).foreach {
                 case (a, b) =>
                   assert(a == b, s"Expected getUncertainty(observational=false)=getStdDevMean() for $configDescription")
               }
 
               val sigmaObs: Seq[Double] = results.getUncertainty().get.asInstanceOf[Seq[Double]]
-              sigmaObs.zip(results.asInstanceOf[MultiPredictionBaggedResult].getStdDevObs().get).foreach {
+              sigmaObs.zip(results.asInstanceOf[MultiPointBaggedPrediction].getStdDevObs().get).foreach {
                 case (a, b) =>
                   assert(a == b, s"Expected getUncertainty()=getStdDevObs() for $configDescription")
               }
@@ -216,10 +213,10 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
 
     val testInputs = inputs.take(numTest)
     val predictionResult = RF.getModel().transform(testInputs)
-    assert(predictionResult.predictions.length == numBags)
+    assert(predictionResult.ensemblePredictions.length == numBags)
 
     // because the uncertainty is recalibrated, the prediction result should have a rescale value that is not equal to 1.0
-    assert(predictionResult.baggedPredictions.head.asInstanceOf[MultiPredictionBaggedResult].rescale != 1.0)
+    assert(predictionResult.labelPredictions.head.asInstanceOf[MultiPointBaggedPrediction].rescaleRatio != 1.0)
 
     // The prediction made by the full model and the prediction made by just the categorical model should agree
     // and both be equal to the training label.
@@ -309,7 +306,7 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
     val realUncertainty = trainingResult.getModels().head.transform(inputs).getUncertainty().get
     assert(realUncertainty.forall(!_.asInstanceOf[Double].isNaN), s"Some uncertainty values were NaN")
 
-    val referenceModel = Bagger(ClassificationTreeLearner(), numBags = inputs.size)
+    val referenceModel = ClassificationBagger(ClassificationTreeLearner(), numBags = inputs.size)
       .train(inputs.zip(sparseCat).filterNot(_._2 == null), rng = rng)
     val reference = referenceModel
       .getModel()

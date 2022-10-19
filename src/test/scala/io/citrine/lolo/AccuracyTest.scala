@@ -1,6 +1,6 @@
 package io.citrine.lolo
 
-import io.citrine.lolo.bags.Bagger
+import io.citrine.lolo.bags.{Bagger, RegressionBagger}
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
 import io.citrine.lolo.trees.splits.{BoltzmannSplitter, RegressionSplitter}
 import io.citrine.random.Random
@@ -31,7 +31,7 @@ class AccuracyTest extends SeedRandomMixIn {
   @Test
   def testRandomForest(): Unit = {
     val baseLearner = RegressionTreeLearner(numFeatures = nFeat / 3, minLeafInstances = minInstances)
-    val learner = new Bagger(baseLearner, numBags = nRow * nScal)
+    val learner = RegressionBagger(baseLearner, numBags = nRow * nScal)
     val error = computeMetrics(learner, rng)
     assert(error > noiseLevel, s"Can't do better than noise")
     assert(error < 4.0, "Error increased, probably due to a change in configuration")
@@ -47,8 +47,7 @@ class AccuracyTest extends SeedRandomMixIn {
         numFeatures = nFeat,
         splitter = RegressionSplitter(randomizePivotLocation = true)
       )
-      val learner =
-        new Bagger(baseLearner, numBags = nRow * 16)
+      val learner = RegressionBagger(baseLearner, numBags = nRow * 16)
       // println(s"Normal train time: ${Stopwatch.time(computeMetrics(learner))}")
       computeMetrics(learner, rng)
     }
@@ -57,8 +56,7 @@ class AccuracyTest extends SeedRandomMixIn {
         numFeatures = nFeat,
         splitter = BoltzmannSplitter(temperature = Float.MinPositiveValue)
       )
-      val learner =
-        new Bagger(baseLearner, numBags = nRow * 16)
+      val learner = RegressionBagger(baseLearner, numBags = nRow * 16)
       // println(s"Annealing train time: ${Stopwatch.time(computeMetrics(learner))}")
       computeMetrics(learner, rng)
     }
@@ -109,7 +107,7 @@ object AccuracyTest extends SeedRandomMixIn {
       splitter = splitter,
       minLeafInstances = minInstances
     )
-    val learner = new Bagger(baseLearner, numBags = nRow * nScal, biasLearner = None)
+    val learner = RegressionBagger(baseLearner, numBags = nRow * nScal, biasLearner = None)
     val model = learner.train(trainingData, rng = rng).getModel()
     val (features, labels) = trainingData.unzip
     val predictions = model.transform(features)

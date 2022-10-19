@@ -8,7 +8,7 @@ import io.citrine.lolo.trees.regression.RegressionTreeLearner
 import org.junit.Test
 import org.scalatest.Assertions._
 
-class BaggedResultTest extends SeedRandomMixIn {
+class BaggedPredictionTest extends SeedRandomMixIn {
 
   @Test
   def testSingleMultiConsistency(): Unit = {
@@ -21,22 +21,34 @@ class BaggedResultTest extends SeedRandomMixIn {
     val biasLearner = RegressionTreeLearner(maxDepth = 5, leafLearner = Some(GuessTheMeanLearner()))
 
     Array(
-      Bagger(DTLearner, numBags = 64, biasLearner = None, uncertaintyCalibration = false, useJackknife = true),
-      Bagger(
+      RegressionBagger(
+        DTLearner,
+        numBags = 64,
+        biasLearner = None,
+        uncertaintyCalibration = false,
+        useJackknife = true
+      ),
+      RegressionBagger(
         DTLearner,
         numBags = 64,
         biasLearner = Some(biasLearner),
         uncertaintyCalibration = true,
         useJackknife = false
       ),
-      Bagger(
+      RegressionBagger(
         DTLearner,
         numBags = 64,
         biasLearner = Some(biasLearner),
         uncertaintyCalibration = true,
         useJackknife = true
       ),
-      Bagger(DTLearner, numBags = 64, biasLearner = None, uncertaintyCalibration = false, useJackknife = false)
+      RegressionBagger(
+        DTLearner,
+        numBags = 64,
+        biasLearner = None,
+        uncertaintyCalibration = false,
+        useJackknife = false
+      )
     ).foreach { bagger =>
       testConsistency(trainingData, bagger.train(trainingData, rng = rng).getModel())
     }
@@ -62,7 +74,7 @@ class BaggedResultTest extends SeedRandomMixIn {
               val trainingDataTmp =
                 DataGenerator.generate(nRows, nCols, noise = 0.0, function = _ => 0.0, rng = rng).data
               val trainingData = trainingDataTmp.map { x => (x._1, x._2 + noiseLevel * rng.nextDouble()) }
-              val baggedLearner = Bagger(baseLearner, numBags = nBags, uncertaintyCalibration = true)
+              val baggedLearner = RegressionBagger(baseLearner, numBags = nBags, uncertaintyCalibration = true)
               val RFMeta = baggedLearner.train(trainingData, rng = rng)
               val RF = RFMeta.getModel()
               val results = RF.transform(trainingData.take(4).map(_._1))

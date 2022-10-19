@@ -3,7 +3,7 @@ package io.citrine.lolo.learners
 import breeze.linalg.DenseMatrix
 import breeze.stats.distributions.{Beta, RandBasis}
 import io.citrine.lolo.{DataGenerator, Learner, SeedRandomMixIn}
-import io.citrine.lolo.bags.MultiTaskBaggedResult
+import io.citrine.lolo.bags.MultiTaskBaggedPrediction
 import io.citrine.lolo.stats.functions.Friedman
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
 import io.citrine.random.Random
@@ -61,7 +61,7 @@ class RandomForestTest extends SeedRandomMixIn {
     val RFMeta = MultiTaskRandomForest().train(inputs.zip(allLabels), weights = None, rng = rng)
     val model = RFMeta.getModel()
 
-    val results = model.transform(inputs).asInstanceOf[MultiTaskBaggedResult]
+    val results = model.transform(inputs).asInstanceOf[MultiTaskBaggedPrediction]
     assert(results.getUncertainty().isDefined)
     assert(results.getUncertaintyCorrelation(0, 2).isDefined)
   }

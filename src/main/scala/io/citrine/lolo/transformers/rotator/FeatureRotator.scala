@@ -1,4 +1,4 @@
-package io.citrine.lolo.transformers
+package io.citrine.lolo.transformers.rotator
 
 import io.citrine.lolo._
 import io.citrine.random.Random
@@ -9,7 +9,7 @@ import breeze.stats.distributions.Gaussian
 import io.citrine.lolo.stats.StatsUtils.breezeRandBasis
 
 /**
-  * Rotate the training data before passing along to a base learner
+  * Rotate the training data before passing along to a base learner.
   *
   * This may be useful for improving randomization in random forests,
   * especially when using random feature selection without bagging.
@@ -40,33 +40,8 @@ case class FeatureRotator[T](baseLearner: Learner[T]) extends Learner[T] {
   }
 }
 
-case class MultiTaskFeatureRotator(baseLearner: MultiTaskLearner) extends MultiTaskLearner {
-
-  /**
-    * Create linear transformations for continuous features and labels & pass data through to learner
-    *
-    * @param trainingData  to train on
-    * @param weights for the training rows, if applicable
-    * @param rng          random number generator for reproducibility
-    * @return a sequence of training results, one for each label
-    */
-  override def train(
-      trainingData: Seq[(Vector[Any], Vector[Any])],
-      weights: Option[Seq[Double]],
-      rng: Random
-  ): MultiTaskRotatedFeatureTrainingResult = {
-    val inputs = trainingData.map(_._1)
-    val labels = trainingData.map(_._2)
-    val featuresToRotate = FeatureRotator.getDoubleFeatures(inputs.head)
-    val trans = FeatureRotator.getRandomRotation(inputs.head.length, rng)
-    val rotatedFeatures = FeatureRotator.applyRotation(inputs, featuresToRotate, trans)
-    val baseTrainingResult = baseLearner.train(rotatedFeatures.zip(labels), weights, rng)
-    MultiTaskRotatedFeatureTrainingResult(baseTrainingResult, featuresToRotate, trans)
-  }
-}
-
 /**
-  * Training result bundling the base learner's training result with the list of rotated features and the transformation
+  * Training result bundling the base learner's training result with the list of rotated features and transformation.
   *
   * @param baseTrainingResult training result to which to delegate prediction on rotated features
   * @param rotatedFeatures indices of features to rotate
@@ -78,11 +53,6 @@ case class RotatedFeatureTrainingResult[T](
     trans: DenseMatrix[Double]
 ) extends TrainingResult[T] {
 
-  /**
-    * Get the model contained in the training result
-    *
-    * @return the model
-    */
   override def getModel(): Model[T] = {
     RotatedFeatureModel(baseTrainingResult.getModel(), rotatedFeatures, trans)
   }
@@ -92,45 +62,14 @@ case class RotatedFeatureTrainingResult[T](
   override def getPredictedVsActual(): Option[Seq[(Vector[Any], T, T)]] = {
     baseTrainingResult.getPredictedVsActual().map { x =>
       x.map {
-        case (v: Vector[Any], e, a) => (FeatureRotator.applyOneRotation(v, rotatedFeatures, trans), e, a)
+        case (v, e, a) => (FeatureRotator.applyOneRotation(v, rotatedFeatures, trans), e, a)
       }
     }
   }
 }
 
 /**
-  * Training result bundling the base learner's multitask training result with the list of rotated features and the transformation
-  *
-  * @param baseTrainingResult training result to which to delegate prediction on rotated features
-  * @param rotatedFeatures indices of features to rotate
-  * @param trans matrix to apply to features
-  */
-case class MultiTaskRotatedFeatureTrainingResult(
-    baseTrainingResult: MultiTaskTrainingResult,
-    rotatedFeatures: IndexedSeq[Int],
-    trans: DenseMatrix[Double]
-) extends MultiTaskTrainingResult {
-  override def getModel(): MultiTaskModel = new ParallelModels(getModels(), baseTrainingResult.getModel().getRealLabels)
-
-  override def getModels(): Seq[Model[Any]] =
-    baseTrainingResult.getModels().map { model =>
-      RotatedFeatureModel(model, rotatedFeatures, trans)
-    }
-
-  override def getPredictedVsActual(): Option[Seq[(Vector[Any], Vector[Option[Any]], Vector[Option[Any]])]] = {
-    baseTrainingResult.getPredictedVsActual() match {
-      case None => None
-      case Some(predictedVsActual) =>
-        Some(predictedVsActual.map {
-          case (inputs: Vector[Any], predicted: Seq[Option[Any]], actual: Seq[Option[Any]]) =>
-            (FeatureRotator.applyOneRotation(inputs, rotatedFeatures, trans), predicted, actual)
-        })
-    }
-  }
-}
-
-/**
-  * Model bundling the base learner's model with the list of rotated features and the transformation
+  * Model bundling the base learner's model with the list of rotated features and the transformation.
   *
   * @param baseModel model to which to delegate prediction on rotated features
   * @param rotatedFeatures indices of features to rotate
@@ -144,10 +83,10 @@ case class RotatedFeatureModel[T](
 ) extends Model[T] {
 
   /**
-    * Transform the inputs and then apply the base model
+    * Rotate the inputs and then apply the base model.
     *
     * @param inputs to apply the model to
-    * @return a RotatedFeaturePredictionResult which includes, at least, the expected outputs
+    * @return a RotatedFeaturePrediction which includes, at least, the expected outputs
     */
   override def transform(inputs: Seq[Vector[Any]]): RotatedFeaturePrediction[T] = {
     val rotatedInputs = FeatureRotator.applyRotation(inputs, rotatedFeatures, trans)
@@ -170,24 +109,19 @@ case class RotatedFeaturePrediction[T](
 ) extends PredictionResult[T] {
 
   /**
-    * Get the expected values for this prediction by delegating to baseResult
+    * Get the expected values for this prediction by delegating to the baseResult.
     *
     * @return expected value of each prediction
     */
   override def getExpected(): Seq[T] = baseResult.getExpected()
 
   /**
-    * Get the uncertainty of the prediction by delegating to baseResult
+    * Get the uncertainty of the prediction by delegating to baseResult.
     *
     * @return uncertainty of each prediction
     */
   override def getUncertainty(observational: Boolean): Option[Seq[Any]] = baseResult.getUncertainty(observational)
 
-  /**
-    * Get the gradient or sensitivity of each prediction
-    *
-    * @return a vector of doubles for each prediction
-    */
   override def getGradient(): Option[Seq[Vector[Double]]] = {
     baseResult.getGradient().map { g =>
       FeatureRotator.applyRotation(g, rotatedFeatures, trans.t).asInstanceOf[Seq[Vector[Double]]]
