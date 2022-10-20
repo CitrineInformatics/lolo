@@ -184,17 +184,17 @@ case class MultiPointBaggedPrediction(
 
   override lazy val stdDevObs: Option[Seq[Double]] = Option.when(!disableBootstrap)(varObs.map(math.sqrt))
 
-  override lazy val stdDevMean: Option[Seq[Double]] = {
-    if (disableBootstrap) {
+  override lazy val stdDevMean: Option[Seq[Double]] = Option
+    .when(disableBootstrap) {
       // If bootstrap is disabled, rescale is unity and treeVariance is our only option for UQ.
       // Since it's not recalibrated, it's best considered to be a confidence interval of the underlying weak learner.
       assert(rescaleRatio == 1.0)
-      Some(varObs.map(math.sqrt))
-    } else {
+      varObs.map(math.sqrt)
+    }
+    .orElse {
       val std = variance(rawExpected.toVector, expectedMatrix, NibJMat, NibIJMat).map(math.sqrt)
       Some(std)
     }
-  }
 
   /**
     * Return IJ scores

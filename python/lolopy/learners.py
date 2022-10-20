@@ -105,10 +105,10 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
         self.gateway.detach(train_rows)
 
         # Get the model out
-        self.model_ = result.getModel()
+        self.model_ = result.model()
 
         # Store the feature importances
-        feature_importances_java = result.getFeatureImportance().get()
+        feature_importances_java = result.featureImportance().get()
         feature_importances_bytes = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.send1DArray(feature_importances_java)
         self.feature_importances_ = np.frombuffer(feature_importances_bytes, 'float')
 

@@ -79,7 +79,7 @@ class TestRF(TestCase):
         assert np.all(y_cov.flatten() == y_std ** 2)
 
         # Make sure the detach operation functions
-        rf.clear_model
+        rf.clear_model()
         self.assertIsNone(rf.model_)
 
     def test_reproducibility(self):
@@ -276,7 +276,7 @@ class TestExtraRandomTrees(TestCase):
         self.assertGreater(np.std(y_std), 0)  # Must have a variety of values
 
         # Make sure the detach operation functions
-        rf.clear_model
+        rf.clear_model()
         self.assertIsNone(rf.model_)
 
     def test_reproducibility(self):
