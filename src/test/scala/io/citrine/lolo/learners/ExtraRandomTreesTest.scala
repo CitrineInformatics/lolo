@@ -30,7 +30,7 @@ class ExtraRandomTreesTest extends SeedRandomMixIn {
       assert(0 <= loss && loss < 1e-8, "Expected zero loss.")
 
       val results = RF.transform(trainingData.map(_.inputs))
-      // val means = results.getExpected()
+      // val means = results.expected
       val sigma: Seq[Double] = results.uncertainty(observational = false).get.asInstanceOf[Seq[Double]]
       assert(sigma.forall(_ >= 0.0))
 

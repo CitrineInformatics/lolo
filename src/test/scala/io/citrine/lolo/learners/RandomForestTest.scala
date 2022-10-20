@@ -31,7 +31,7 @@ class RandomForestTest extends SeedRandomMixIn {
       assert(RFMeta.loss.get < 1.0, "Loss of bagger is larger than expected")
 
       val results = RF.transform(trainingData.map(_.inputs))
-      // val means = results.getExpected()
+      // val means = results.expected
       val sigma: Seq[Double] = results.uncertainty().get.asInstanceOf[Seq[Double]]
       assert(sigma.forall(_ >= 0.0))
 

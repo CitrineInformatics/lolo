@@ -217,14 +217,17 @@ object LoloPyDataLoader {
 
   /**
     * Create a PredictionResult object from the mean and uncertainty
-    * @param expected Mean of the predictions of a model
-    * @param uncertainty Uncertainty of the predictions
+    * @param thisExpected    Mean of the predictions of a model
+    * @param thisUncertainty Uncertainty of the predictions
     * @return Prediction result object
     */
-  def makeRegressionPredictionResult(expected: Seq[Double], uncertainty: Seq[Double]): PredictionResult[Double] = {
+  def makeRegressionPredictionResult(
+      thisExpected: Seq[Double],
+      thisUncertainty: Seq[Double]
+  ): PredictionResult[Double] = {
     new PredictionResult[Double] {
-      override def expected: Seq[Double] = expected
-      override def uncertainty(includeNoise: Boolean = true): Option[Seq[Any]] = Some(uncertainty)
+      override def expected: Seq[Double] = thisExpected
+      override def uncertainty(includeNoise: Boolean = true): Option[Seq[Any]] = Some(thisUncertainty)
     }
   }
 }

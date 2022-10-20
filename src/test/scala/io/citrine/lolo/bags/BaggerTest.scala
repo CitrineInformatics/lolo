@@ -290,7 +290,7 @@ class BaggerTest extends SeedRandomMixIn {
         disableBootstrap = true
       )
         .train(trainingData, rng = rng)
-        .model()
+        .model
       fail("Setting both uncertaintyCalibration and disableBootstrap should throw an exception.")
     } catch {
       case _: Throwable =>
@@ -312,9 +312,9 @@ class BaggerTest extends SeedRandomMixIn {
       val DTLearner = RegressionTreeLearner(numFeatures = 2)
       val sigma = RegressionBagger(DTLearner, numBags = 7)
         .train(trainingData, rng = rng)
-        .model()
+        .model
         .transform(trainingData.map(_.inputs))
-        .getUncertainty()
+        .uncertainty()
         .get
         .asInstanceOf[Seq[Double]]
       assert(sigma.forall(_ > 0.0), s"Found an predicted uncertainty of ${sigma.min} during trial $idx")
@@ -338,9 +338,9 @@ class BaggerTest extends SeedRandomMixIn {
         biasLearner = Some(GuessTheMeanLearner())
       )
         .train(trainingData, rng = rng)
-        .model()
+        .model
         .transform(trainingData.map(_.inputs))
-        .getUncertainty()
+        .uncertainty()
         .get
         .asInstanceOf[Seq[Double]]
       assert(sigma.forall(_ > 0.0), s"Found an predicted uncertainty of ${sigma.min} during trial $idx")
@@ -356,7 +356,7 @@ class BaggerTest extends SeedRandomMixIn {
     val trainingData =
       DataGenerator.generate(64, nCols, noise = 0.0, function = Friedman.friedmanSilverman, rng = rng).data
     val DTLearner = RegressionTreeLearner(numFeatures = nCols)
-    val model = RegressionBagger(DTLearner).train(trainingData, rng = rng).model()
+    val model = RegressionBagger(DTLearner).train(trainingData, rng = rng).model
     val trees = model.ensembleModels
     trainingData.foreach {
       case TrainingRow(x, _, _) =>
@@ -393,7 +393,7 @@ class BaggerTest extends SeedRandomMixIn {
     val learner = FeatureRotator(RegressionTreeLearner(numFeatures = nCols))
     val model = RegressionBagger(learner)
       .train(trainingData, rng = rng)
-      .model()
+      .model
 
     val x = trainingData.head.inputs
     assert(model.shapley(x).isEmpty)
@@ -430,7 +430,7 @@ object BaggerTest extends SeedRandomMixIn {
           println(s"Training model nCols=$nCols\tnRows=$nRows\trepNum=$repNum")
           val model = RegressionBagger(DTLearner)
             .train(trainingData, rng = rng)
-            .model()
+            .model
           println(s"Trained")
 
           rng.shuffle(trainingData).take(16).zipWithIndex.foreach {

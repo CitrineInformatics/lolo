@@ -44,7 +44,7 @@ class RegressionTreeTest extends SeedRandomMixIn {
         assert(Math.abs(row.label - p) < 1.0e-9)
     }
     assert(output.gradient.isEmpty)
-    output.getDepth().foreach(d => assert(d > 3 && d < 9, s"Depth is $d"))
+    output.depth.foreach(d => assert(d > 3 && d < 9, s"Depth is $d"))
   }
 
   /**
@@ -65,7 +65,7 @@ class RegressionTreeTest extends SeedRandomMixIn {
         assert(Math.abs(row.label - p) < 1.0e-9)
     }
     assert(output.gradient.isEmpty)
-    output.getDepth().foreach(d => assert(d > 3 && d < 9, s"Depth is $d"))
+    output.depth.foreach(d => assert(d > 3 && d < 9, s"Depth is $d"))
   }
 
   /**
@@ -92,7 +92,7 @@ class RegressionTreeTest extends SeedRandomMixIn {
         assert(Math.abs(row.label - p) < 1.0e-9)
     }
     assert(output.gradient.isEmpty)
-    output.getDepth().foreach(d => assert(d > 4 && d < 20, s"Depth is ${d}"))
+    output.depth.foreach(d => assert(d > 4 && d < 20, s"Depth is ${d}"))
 
     /* The first feature should be the most important */
     val importances = DTMeta.featureImportance.get
@@ -130,7 +130,7 @@ class RegressionTreeTest extends SeedRandomMixIn {
         assert(Math.abs(row.label - p) < 1.0e-9)
     }
     assert(output.gradient.isEmpty)
-    output.getDepth().foreach(d => assert(d > 4 && d < 21, s"Depth is ${d}"))
+    output.depth.foreach(d => assert(d > 4 && d < 21, s"Depth is ${d}"))
 
     /* The first feature should be the most important */
     val importances = DTMeta.featureImportance.get
@@ -160,7 +160,7 @@ class RegressionTreeTest extends SeedRandomMixIn {
         assert(Math.abs(row.label - p) < 1.0e-9)
     }
     assert(output.gradient.isDefined)
-    output.getDepth().foreach(d => assert(d > 4 && d < 18, s"Depth is $d"))
+    output.depth.foreach(d => assert(d > 4 && d < 18, s"Depth is $d"))
 
     /* The first feature should be the most important */
     val importances = DTMeta.featureImportance.get
@@ -203,7 +203,7 @@ class RegressionTreeTest extends SeedRandomMixIn {
     )
 
     val result = DT.transform(trainingData.map(_.inputs))
-    assert(result.getDepth().forall(_ == 0), s"Expected all the predictions to be depth 0")
+    assert(result.depth.forall(_ == 0), s"Expected all the predictions to be depth 0")
   }
 
   /**
@@ -240,7 +240,7 @@ class RegressionTreeTest extends SeedRandomMixIn {
       case (row, p) => assert(Math.abs(row.label - p) < 1.0e-9)
     }
     assert(output.gradient.isEmpty)
-    output.getDepth().zip(output.expected).foreach {
+    output.depth.zip(output.expected).foreach {
       case (d, y) => assert(d > 3 && d < 9, s"Depth is $d at y=$y")
     }
   }
@@ -258,7 +258,7 @@ class RegressionTreeTest extends SeedRandomMixIn {
       expected: Vector[Double],
       omitFeatures: Set[Int] = Set()
   ): Unit = {
-    val actual = RegressionTreeLearner().train(trainingData).model().shapley(evalLocation, omitFeatures) match {
+    val actual = RegressionTreeLearner().train(trainingData).model.shapley(evalLocation, omitFeatures) match {
       case None => fail("Unexpected None returned by shapley.")
       case x: Option[DenseMatrix[Double]] => {
         val a = x.get
@@ -334,6 +334,6 @@ class RegressionTreeTest extends SeedRandomMixIn {
     shapleyCompare(trainingData2, Vector[Any](1.0, 1.0), expected2b, omitFeatures = Set(1))
 
     // Ensure we don't crash when restricting number of features.
-    RegressionTreeLearner(numFeatures = 1).train(trainingData4).model().shapley(Vector.fill[Any](5)(0.0), Set())
+    RegressionTreeLearner(numFeatures = 1).train(trainingData4).model.shapley(Vector.fill[Any](5)(0.0), Set())
   }
 }

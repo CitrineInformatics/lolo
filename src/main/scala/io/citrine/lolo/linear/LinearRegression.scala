@@ -114,16 +114,14 @@ case class LinearRegressionLearner(
   */
 case class LinearRegressionTrainingResult(model: LinearRegressionModel) extends TrainingResult[Double] {
 
-  override def model: LinearRegressionModel = model
-
   /**
     * Get a measure of the importance of the model features
     *
     * @return feature influences as an array of doubles
     */
   override def featureImportance: Option[Vector[Double]] = {
-    val beta: Vector[Double] = model.getBeta().map(Math.abs)
-    val renorm: Double = 1.0 / beta.sum
+    val beta = model.beta.map(math.abs)
+    val renorm = 1.0 / beta.sum
     Some(beta.map(_ * renorm))
   }
 }
@@ -131,12 +129,12 @@ case class LinearRegressionTrainingResult(model: LinearRegressionModel) extends 
 /**
   * Linear regression model as a coefficient vector and intercept
   *
-  * @param beta      coefficient vector
+  * @param denseBeta coefficient vector (only for active indices in the feature vector)
   * @param intercept intercept
   * @param indices   optional indices from which to extract real features
   */
 case class LinearRegressionModel(
-    beta: DenseVector[Double],
+    denseBeta: DenseVector[Double],
     intercept: Double,
     indices: Option[(Vector[Int], Int)] = None
 ) extends Model[Double] {
@@ -154,25 +152,24 @@ case class LinearRegressionModel(
       .flatten
       .asInstanceOf[Seq[Double]]
     val inputMatrix = new DenseMatrix(filteredInputs.size / inputs.size, inputs.size, filteredInputs.toArray)
-    val resultVector = beta.t * inputMatrix + intercept
+    val resultVector = denseBeta.t * inputMatrix + intercept
     val result = resultVector.t.toArray.toSeq
-    val grad = getBeta()
-    LinearRegressionResult(result, grad)
+    LinearRegressionResult(result, beta)
   }
 
   /**
     * Get the beta from the linear model \beta^T X = y
     * @return beta as a vector of double
     */
-  def getBeta(): Vector[Double] = {
+  lazy val beta: Vector[Double] = {
     indices
       .map {
         case (inds, size) =>
           val empty = DenseVector.zeros[Double](size)
-          inds.zipWithIndex.foreach { case (j, i) => empty(j) = beta(i) }
+          inds.zipWithIndex.foreach { case (j, i) => empty(j) = denseBeta(i) }
           empty
       }
-      .getOrElse(beta)
+      .getOrElse(denseBeta)
       .toScalaVector
   }
 }
@@ -180,22 +177,15 @@ case class LinearRegressionModel(
 /**
   * Simple container around the result and coefficient array
   *
-  * @param values computed from the model
-  * @param grad   gradient vector, which are just the linear coefficients
+  * @param expected computed from the model
+  * @param beta     gradient vector, which are just the linear coefficients
   */
-case class LinearRegressionResult(values: Seq[Double], grad: Vector[Double]) extends PredictionResult[Double] {
-
-  /**
-    * Get the expected values for this prediction
-    *
-    * @return expected value of each prediction
-    */
-  override def expected: Seq[Double] = values
+case class LinearRegressionResult(expected: Seq[Double], beta: Vector[Double]) extends PredictionResult[Double] {
 
   /**
     * Get the gradient, which is uniform
     *
     * @return a vector of doubles for each prediction
     */
-  override def gradient: Option[Seq[Vector[Double]]] = Some(Seq.fill(values.size)(grad))
+  override def gradient: Option[Seq[Vector[Double]]] = Some(Seq.fill(expected.size)(beta))
 }

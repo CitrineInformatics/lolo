@@ -92,24 +92,18 @@ class RegressionTreeTrainingResult(
     rootTrainingNode: TrainingNode[Double],
     encoders: Seq[Option[CategoricalEncoder[Any]]]
 ) extends TrainingResult[Double] {
-  lazy val model = new RegressionTree(rootTrainingNode.modelNode, encoders)
-  lazy val importance: mutable.ArraySeq[Double] = rootTrainingNode.featureImportance
-  private lazy val importanceNormalized = {
-    if (Math.abs(importance.sum) > 0) {
-      importance.map(_ / importance.sum)
+
+  override lazy val model = new RegressionTree(rootTrainingNode.modelNode, encoders)
+
+  lazy val nodeImportance: mutable.ArraySeq[Double] = rootTrainingNode.featureImportance
+
+  override lazy val featureImportance: Option[Vector[Double]] = Some(
+    if (Math.abs(nodeImportance.sum) > 0) {
+      nodeImportance.map(_ / nodeImportance.sum).toVector
     } else {
-      importance.map(_ => 1.0 / importance.size)
+      nodeImportance.map(_ => 1.0 / nodeImportance.size).toVector
     }
-  }
-
-  override def model: RegressionTree = model
-
-  /**
-    * Return the pre-computed influences
-    *
-    * @return feature influences as an array of doubles
-    */
-  override def featureImportance: Option[Vector[Double]] = Some(importanceNormalized.toVector)
+  )
 }
 
 /**
@@ -176,7 +170,5 @@ class RegressionTreeResult(predictions: Seq[(PredictionResult[Double], TreeMeta)
     Some(predictions.map(_._1.gradient.get.head))
   }
 
-  def getDepth(): Seq[Int] = {
-    predictions.map(_._2.depth)
-  }
+  def depth: Seq[Int] = predictions.map(_._2.depth)
 }

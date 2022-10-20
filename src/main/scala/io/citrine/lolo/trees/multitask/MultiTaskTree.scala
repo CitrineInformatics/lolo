@@ -112,21 +112,17 @@ case class MultiTaskTreeLearner(
 }
 
 class MultiTaskTreeTrainingResult(
-    models: Seq[Model[Any]],
-    featureImportance: Vector[Double]
+    override val models: Seq[Model[Any]],
+    nodeImportance: Vector[Double]
 ) extends MultiTaskTrainingResult {
-  val model = new ParallelModels(models, models.map(_.isInstanceOf[RegressionTree]))
-  private lazy val importanceNormalized = {
-    if (Math.abs(featureImportance.sum) > 0) {
-      featureImportance.map(_ / featureImportance.sum)
+
+  override val model: ParallelModels = ParallelModels(models, models.map(_.isInstanceOf[RegressionTree]))
+
+  override lazy val featureImportance: Option[Vector[Double]] = Some(
+    if (Math.abs(nodeImportance.sum) > 0) {
+      nodeImportance.map(_ / nodeImportance.sum)
     } else {
-      featureImportance.map(_ => 1.0 / featureImportance.size)
+      nodeImportance.map(_ => 1.0 / nodeImportance.size)
     }
-  }
-
-  override def model: ParallelModels = model
-
-  override def models: Seq[Model[Any]] = models
-
-  override def featureImportance: Option[Vector[Double]] = Some(importanceNormalized)
+  )
 }

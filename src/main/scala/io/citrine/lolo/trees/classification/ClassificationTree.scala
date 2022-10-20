@@ -87,27 +87,20 @@ class ClassificationTrainingResult(
     inputEncoders: Seq[Option[CategoricalEncoder[Any]]],
     outputEncoder: CategoricalEncoder[Any]
 ) extends TrainingResult[Any] {
+
   // Grab a prediction node. The partitioning happens here
-  lazy val model = new ClassificationTree(rootTrainingNode.modelNode, inputEncoders, outputEncoder)
+  override lazy val model = new ClassificationTree(rootTrainingNode.modelNode, inputEncoders, outputEncoder)
 
   // Grab the feature influences
-  lazy val importance: mutable.ArraySeq[Double] = rootTrainingNode.featureImportance
-  private lazy val importanceNormalized = {
-    if (Math.abs(importance.sum) > 0) {
-      importance.map(_ / importance.sum)
+  lazy val nodeImportance: mutable.ArraySeq[Double] = rootTrainingNode.featureImportance
+
+  override lazy val featureImportance: Option[Vector[Double]] = Some(
+    if (Math.abs(nodeImportance.sum) > 0) {
+      nodeImportance.map(_ / nodeImportance.sum).toVector
     } else {
-      importance.map(_ => 1.0 / importance.size)
+      nodeImportance.map(_ => 1.0 / nodeImportance.size).toVector
     }
-  }
-
-  override def model: ClassificationTree = model
-
-  /**
-    * Get a measure of the importance of the model features
-    *
-    * @return feature influences as an array of doubles
-    */
-  override def featureImportance: Option[Vector[Double]] = Some(importanceNormalized.toVector)
+  )
 }
 
 /**
@@ -148,7 +141,5 @@ class ClassificationResult(
     */
   override def expected: Seq[Any] = predictions.map(p => outputEncoder.decode(p._1.expected.head))
 
-  def getDepth(): Seq[Int] = {
-    predictions.map(_._2.depth)
-  }
+  def depth: Seq[Int] = predictions.map(_._2.depth)
 }

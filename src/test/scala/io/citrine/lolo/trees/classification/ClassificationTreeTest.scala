@@ -41,7 +41,7 @@ class ClassificationTreeTest extends SeedRandomMixIn {
         assert(row.label == p, s"${row.label} != $p for ${row.inputs}")
     }
     assert(output.gradient.isEmpty)
-    output.getDepth().foreach(d => assert(d > 0))
+    output.depth.foreach(d => assert(d > 0))
 
     /* The first features should be the most important */
     val importances = DTMeta.featureImportance.get
@@ -74,7 +74,7 @@ class ClassificationTreeTest extends SeedRandomMixIn {
       case (row, p) => assert(row.label == p, s"${row.label} != $p for ${row.inputs}")
     }
     assert(output.gradient.isEmpty)
-    output.getDepth().foreach(d => assert(d > 4 && d < 17, s"Depth is ${d}"))
+    output.depth.foreach(d => assert(d > 4 && d < 17, s"Depth is ${d}"))
 
     /* The first feature should be the most important */
     val importances = DTMeta.featureImportance.get
@@ -108,7 +108,7 @@ class ClassificationTreeTest extends SeedRandomMixIn {
         assert(row.label == p)
     }
     assert(output.gradient.isEmpty)
-    output.getDepth().foreach(d => assert(d > 3 && d < 18, s"Depth is ${d}"))
+    output.depth.foreach(d => assert(d > 3 && d < 18, s"Depth is ${d}"))
   }
 }
 
