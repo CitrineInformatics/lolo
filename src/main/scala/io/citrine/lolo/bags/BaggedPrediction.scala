@@ -73,16 +73,18 @@ case class SinglePointBaggedPrediction(
     }
   }
 
-  override lazy val stdDevMean: Option[Seq[Double]] = Option
-    .when(!disableBootstrap) {
-      Seq(math.sqrt(BaggedPrediction.rectifyEstimatedVariance(singleScores)))
-    }
-    .orElse {
+  override lazy val stdDevMean: Option[Seq[Double]] = {
+    if (disableBootstrap) {
       // If bootstrap is disabled, rescale is unity and treeVariance is our only option for UQ.
       // Since it's not recalibrated, it's best considered to be a confidence interval of the underlying weak learner.
       assert(rescaleRatio == 1.0)
       Some(Seq(math.sqrt(treeVariance)))
+    } else {
+      Some(
+        Seq(math.sqrt(BaggedPrediction.rectifyEstimatedVariance(singleScores)))
+      )
     }
+  }
 
   override lazy val stdDevObs: Option[Seq[Double]] = Option.when(!disableBootstrap) {
     val std = (rescaleRatio * math.sqrt(treeVariance)) ensuring (_ >= 0.0)
@@ -172,30 +174,25 @@ case class MultiPointBaggedPrediction(
 
   override def expected: Seq[Double] = rawExpected.zip(biasCorrection).map(x => x._1 + x._2)
 
-  override def stdDevObs: Option[Seq[Double]] = {
-    if (disableBootstrap) {
-      None
+  override def uncertainty(observational: Boolean): Option[Seq[Any]] = {
+    if (observational) {
+      stdDevObs
     } else {
-      Some(varObs.map(math.sqrt))
+      stdDevMean
     }
   }
 
-  override def stdDevMean: Option[Seq[Double]] = {
+  override lazy val stdDevObs: Option[Seq[Double]] = Option.when(!disableBootstrap)(varObs.map(math.sqrt))
+
+  override lazy val stdDevMean: Option[Seq[Double]] = {
     if (disableBootstrap) {
       // If bootstrap is disabled, rescale is unity and treeVariance is our only option for UQ.
       // Since it's not recalibrated, it's best considered to be a confidence interval of the underlying weak learner.
       assert(rescaleRatio == 1.0)
       Some(varObs.map(math.sqrt))
     } else {
-      Some(stdDevMean)
-    }
-  }
-
-  override def uncertainty(observational: Boolean): Option[Seq[Any]] = {
-    if (observational) {
-      stdDevObs
-    } else {
-      stdDevMean
+      val std = variance(rawExpected.toVector, expectedMatrix, NibJMat, NibIJMat).map(math.sqrt)
+      Some(std)
     }
   }
 
@@ -227,16 +224,12 @@ case class MultiPointBaggedPrediction(
   lazy val expectedMatrix: Seq[Seq[Double]] = ensemblePredictions.map(p => p.expected).transpose
 
   /* Extract the prediction by averaging over trees and adding the bias correction. */
-  lazy val rawExpected: Seq[Double] = expectedMatrix.map(ps => ps.sum / ps.size)
   lazy val biasCorrection: Seq[Double] = bias.getOrElse(Seq.fill(expectedMatrix.length)(0))
+  lazy val rawExpected: Seq[Double] = expectedMatrix.map(ps => ps.sum / ps.size)
 
   lazy val NibJMat: DenseMatrix[Double] = BaggedPrediction.getJackknifeAfterBootstrapMatrix(Nib)
 
   lazy val NibIJMat: DenseMatrix[Double] = BaggedPrediction.getInfinitesimalJackknifeMatrix(Nib)
-
-  /* This represents the variance of the estimate of the mean. */
-  lazy val stdDevMean: Seq[Double] =
-    variance(rawExpected.toVector, expectedMatrix, NibJMat, NibIJMat).map { math.sqrt }
 
   /* This estimates the variance of predictive distribution. */
   lazy val varObs: Seq[Double] = expectedMatrix.zip(rawExpected).map {
