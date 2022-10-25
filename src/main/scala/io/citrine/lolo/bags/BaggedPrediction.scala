@@ -49,7 +49,7 @@ sealed trait BaggedRegressionPrediction extends BaggedPrediction[Double] with Re
   *
   * @param ensemblePredictions for each constituent model
   * @param NibIn               the sample matrix as (N_models x N_training)
-  * @param pointBias           model to use for estimating bias
+  * @param pointBias           bias model prediction at the single prediction point
   */
 case class SinglePointBaggedPrediction(
     ensemblePredictions: Seq[PredictionResult[Double]],
@@ -73,6 +73,14 @@ case class SinglePointBaggedPrediction(
     }
   }
 
+  /**
+    * The importances are computed as an average of bias-corrected jackknife-after-bootstrap
+    * and infinitesimal jackknife methods
+    *
+    * @return training row scores of each prediction
+    */
+  override def importanceScores: Option[Seq[Seq[Double]]] = Some(Seq(singleScores))
+
   override lazy val stdDevMean: Option[Seq[Double]] = {
     if (disableBootstrap) {
       // If bootstrap is disabled, rescale is unity and treeVariance is our only option for UQ.
@@ -90,14 +98,6 @@ case class SinglePointBaggedPrediction(
     val std = (rescaleRatio * math.sqrt(treeVariance)) ensuring (_ >= 0.0)
     Seq(std)
   }
-
-  /**
-    * The importances are computed as an average of bias-corrected jackknife-after-bootstrap
-    * and infinitesimal jackknife methods
-    *
-    * @return training row scores of each prediction
-    */
-  override def importanceScores: Option[Seq[Seq[Double]]] = Some(Seq(singleScores))
 
   private lazy val treePredictions = ensemblePredictions.map(_.expected.head).toArray
   private lazy val rawExpected = treePredictions.sum / treePredictions.length
@@ -162,7 +162,7 @@ case class SinglePointBaggedPrediction(
   *
   * @param ensemblePredictions for each constituent model
   * @param NibIn       the sample matrix as (N_models x N_training)
-  * @param bias        model to use for estimating bias
+  * @param bias        bias model predictions at all of the prediction points
   */
 case class MultiPointBaggedPrediction(
     ensemblePredictions: Seq[PredictionResult[Double]],
@@ -171,6 +171,8 @@ case class MultiPointBaggedPrediction(
     rescaleRatio: Double = 1.0,
     disableBootstrap: Boolean = false
 ) extends BaggedRegressionPrediction {
+
+  override def numPredictions: Int = expectedMatrix.length
 
   override def expected: Seq[Double] = rawExpected.zip(biasCorrection).map(x => x._1 + x._2)
 
@@ -181,6 +183,20 @@ case class MultiPointBaggedPrediction(
       stdDevMean
     }
   }
+
+  override def influenceScores(actuals: Seq[Any]): Option[Seq[Seq[Double]]] = {
+    Some(
+      influences(
+        expected.toVector,
+        actuals.toVector.asInstanceOf[Vector[Double]],
+        expectedMatrix,
+        NibJMat,
+        NibIJMat
+      )
+    )
+  }
+
+  override def importanceScores: Option[Seq[Seq[Double]]] = Some(scores)
 
   override lazy val stdDevObs: Option[Seq[Double]] = Option.when(!disableBootstrap)(varObs.map(math.sqrt))
 
@@ -196,50 +212,29 @@ case class MultiPointBaggedPrediction(
       Some(std)
     }
 
-  /**
-    * Return IJ scores
-    *
-    * @return training row scores of each prediction
-    */
-  override def influenceScores(actuals: Seq[Any]): Option[Seq[Seq[Double]]] = {
-    Some(
-      influences(
-        expected.toVector,
-        actuals.toVector.asInstanceOf[Vector[Double]],
-        expectedMatrix,
-        NibJMat,
-        NibIJMat
-      )
-    )
-  }
-
-  override def importanceScores: Option[Seq[Seq[Double]]] = Some(scores)
-
-  override def numPredictions: Int = expectedMatrix.length
-
   /* transpose to be (# training) x (# models) */
-  lazy val Nib: Vector[Vector[Int]] = NibIn.transpose
+  private lazy val Nib: Vector[Vector[Int]] = NibIn.transpose
 
   /* Make a matrix of the tree-wise predictions */
-  lazy val expectedMatrix: Seq[Seq[Double]] = ensemblePredictions.map(p => p.expected).transpose
+  private lazy val expectedMatrix: Seq[Seq[Double]] = ensemblePredictions.map(p => p.expected).transpose
 
   /* Extract the prediction by averaging over trees and adding the bias correction. */
-  lazy val biasCorrection: Seq[Double] = bias.getOrElse(Seq.fill(expectedMatrix.length)(0))
-  lazy val rawExpected: Seq[Double] = expectedMatrix.map(ps => ps.sum / ps.size)
+  private lazy val biasCorrection: Seq[Double] = bias.getOrElse(Seq.fill(expectedMatrix.length)(0))
+  private lazy val rawExpected: Seq[Double] = expectedMatrix.map(ps => ps.sum / ps.size)
 
-  lazy val NibJMat: DenseMatrix[Double] = BaggedPrediction.getJackknifeAfterBootstrapMatrix(Nib)
+  private lazy val NibJMat: DenseMatrix[Double] = BaggedPrediction.getJackknifeAfterBootstrapMatrix(Nib)
 
-  lazy val NibIJMat: DenseMatrix[Double] = BaggedPrediction.getInfinitesimalJackknifeMatrix(Nib)
+  private lazy val NibIJMat: DenseMatrix[Double] = BaggedPrediction.getInfinitesimalJackknifeMatrix(Nib)
 
   /* This estimates the variance of predictive distribution. */
-  lazy val varObs: Seq[Double] = expectedMatrix.zip(rawExpected).map {
+  private lazy val varObs: Seq[Double] = expectedMatrix.zip(rawExpected).map {
     case (b, y) =>
       assert(Nib.size > 1, "Bootstrap variance undefined for fewer than 2 bootstrap samples.")
       b.map { x => rescaleRatio * rescaleRatio * math.pow(x - y, 2.0) }.sum / (b.size - 1)
   }
 
   /* Compute the scores one prediction at a time */
-  lazy val scores: Seq[Vector[Double]] = scores(expected.toVector, expectedMatrix, NibJMat, NibIJMat)
+  private lazy val scores: Seq[Vector[Double]] = scores(expected.toVector, expectedMatrix, NibJMat, NibIJMat)
     // make sure the variance is non-negative after the stochastic correction
     .map(BaggedPrediction.rectifyImportanceScores)
     .map(_.map(math.sqrt))
@@ -351,14 +346,17 @@ case class MultiPointBaggedPrediction(
 
 case class BaggedClassificationPrediction[T](ensemblePredictions: Seq[PredictionResult[T]])
     extends BaggedPrediction[T] {
-  lazy val expectedMatrix: Seq[Seq[T]] = ensemblePredictions.map(p => p.expected).transpose
-  lazy val expected: Seq[T] = expectedMatrix.map(ps => ps.groupBy(identity).maxBy(_._2.size)._1)
-  lazy val uncertainty: Seq[Map[T, Double]] =
-    expectedMatrix.map(ps => ps.groupBy(identity).view.mapValues(_.size.toDouble / ps.size).toMap)
 
   override def numPredictions: Int = expectedMatrix.length
 
-  override def uncertainty(includeNoise: Boolean = true): Option[Seq[Map[T, Double]]] = Some(uncertainty)
+  override def uncertainty(includeNoise: Boolean = true): Option[Seq[Map[T, Double]]] = Some(predictionUncertainties)
+
+  override lazy val expected: Seq[T] = expectedMatrix.map(ps => ps.groupBy(identity).maxBy(_._2.size)._1)
+
+  private lazy val expectedMatrix: Seq[Seq[T]] = ensemblePredictions.map(p => p.expected).transpose
+
+  private lazy val predictionUncertainties: Seq[Map[T, Double]] =
+    expectedMatrix.map(ps => ps.groupBy(identity).view.mapValues(_.size.toDouble / ps.size).toMap)
 }
 
 object BaggedPrediction {
