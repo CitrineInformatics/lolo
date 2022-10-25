@@ -1,7 +1,7 @@
 package io.citrine.lolo.validation
 
+import io.citrine.lolo.api.{Learner, PredictionResult, TrainingRow}
 import io.citrine.random.Random
-import io.citrine.lolo.{Learner, PredictionResult, TrainingRow}
 
 /**
   * Methods tha use cross-validation to calculate predicted-vs-actual data and metric estimates

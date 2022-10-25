@@ -2,10 +2,11 @@ package io.citrine.lolo.transformers.rotator
 
 import io.citrine.lolo._
 import io.citrine.random.Random
-import breeze.linalg.{diag, qr, DenseMatrix, DenseVector}
+import breeze.linalg.{DenseMatrix, DenseVector, diag, qr}
 import breeze.linalg.qr.QR
 import breeze.numerics.signum
 import breeze.stats.distributions.Gaussian
+import io.citrine.lolo.api.{Learner, Model, PredictionResult, TrainingResult, TrainingRow}
 import io.citrine.lolo.stats.StatsUtils.breezeRandBasis
 
 /**

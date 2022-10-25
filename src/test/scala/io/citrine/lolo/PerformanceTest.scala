@@ -1,6 +1,7 @@
 package io.citrine.lolo
 
 import io.citrine.lolo.DataGenerator.TrainingData
+import io.citrine.lolo.api.TrainingRow
 import io.citrine.lolo.bags.{Bagger, ClassificationBagger, MultiTaskBagger, RegressionBagger}
 import io.citrine.lolo.trees.classification.ClassificationTreeLearner
 import io.citrine.lolo.trees.multitask.MultiTaskTreeLearner

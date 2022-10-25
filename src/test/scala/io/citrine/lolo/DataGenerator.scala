@@ -1,6 +1,7 @@
 package io.citrine.lolo
 
 import breeze.stats.variance
+import io.citrine.lolo.api.TrainingRow
 import io.citrine.lolo.linear.LinearRegressionLearner
 import io.citrine.lolo.stats.functions.Friedman
 import io.citrine.random.Random

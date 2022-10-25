@@ -4,7 +4,7 @@ import java.io.{ByteArrayInputStream, ByteArrayOutputStream, ObjectInputStream, 
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.zip._
-import io.citrine.lolo.{MultiTaskModelPredictionResult, PredictionResult}
+import io.citrine.lolo.api.{MultiTaskModelPredictionResult, PredictionResult}
 
 /**
   * Tool used to transfer data from LoloPy to the JVM

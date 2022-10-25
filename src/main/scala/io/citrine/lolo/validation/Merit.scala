@@ -1,6 +1,6 @@
 package io.citrine.lolo.validation
 
-import io.citrine.lolo.PredictionResult
+import io.citrine.lolo.api.PredictionResult
 import io.citrine.random.Random
 import org.knowm.xchart.XYChart
 

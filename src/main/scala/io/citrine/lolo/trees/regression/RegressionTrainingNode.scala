@@ -2,7 +2,7 @@ package io.citrine.lolo.trees.regression
 
 import io.citrine.lolo.trees.splits.{NoSplit, Split, Splitter}
 import io.citrine.lolo.trees.{InternalModelNode, ModelNode, TrainingNode}
-import io.citrine.lolo.{Learner, TrainingRow}
+import io.citrine.lolo.api.{Learner, TrainingRow}
 import io.citrine.random.Random
 
 case class RegressionTrainingNode(

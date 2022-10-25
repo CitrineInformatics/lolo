@@ -1,6 +1,6 @@
 package io.citrine.lolo.trees
 
-import io.citrine.lolo.{Model, TrainingResult, TrainingRow}
+import io.citrine.lolo.api.{Model, TrainingResult, TrainingRow}
 
 import scala.collection.mutable
 

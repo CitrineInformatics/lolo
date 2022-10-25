@@ -1,7 +1,8 @@
 package io.citrine.lolo.validation
 
 import io.citrine.random.Random
-import io.citrine.lolo.{PredictionResult, SeedRandomMixIn}
+import io.citrine.lolo.SeedRandomMixIn
+import io.citrine.lolo.api.PredictionResult
 import org.apache.commons.math3.distribution.MultivariateNormalDistribution
 import org.apache.commons.math3.random.MersenneTwister
 import org.junit.Test

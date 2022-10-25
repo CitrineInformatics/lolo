@@ -1,7 +1,7 @@
 package io.citrine.lolo.linear
 
+import io.citrine.lolo.api.{Learner, Model, PredictionResult, TrainingResult, TrainingRow}
 import io.citrine.random.Random
-import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult, TrainingRow}
 
 case class GuessTheMeanLearner() extends Learner[Double] {
 

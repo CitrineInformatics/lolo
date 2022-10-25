@@ -1,4 +1,4 @@
-package io.citrine.lolo
+package io.citrine.lolo.api
 
 trait TrainingResult[+T] extends Serializable {
 

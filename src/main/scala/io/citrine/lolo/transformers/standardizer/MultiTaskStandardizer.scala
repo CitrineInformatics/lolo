@@ -1,6 +1,7 @@
 package io.citrine.lolo.transformers.standardizer
 
-import io.citrine.lolo.{Model, MultiTaskLearner, MultiTaskModel, MultiTaskTrainingResult, ParallelModels, TrainingRow}
+import io.citrine.lolo.api
+import io.citrine.lolo.api.{Model, MultiTaskLearner, MultiTaskModel, MultiTaskTrainingResult, ParallelModels, TrainingRow}
 import io.citrine.random.Random
 
 /**
@@ -40,7 +41,7 @@ case class MultiTaskStandardizerTrainingResult(
     inputTrans: Seq[Option[Standardization]]
 ) extends MultiTaskTrainingResult {
 
-  override def model: MultiTaskModel = ParallelModels(models, baseTrainingResult.model.realLabels)
+  override def model: MultiTaskModel = api.ParallelModels(models, baseTrainingResult.model.realLabels)
 
   override def models: Seq[StandardizerModel[Any]] = {
     val realLabels = baseTrainingResult.model.realLabels

@@ -1,7 +1,7 @@
 package io.citrine.lolo.transformers.rotator
 
 import breeze.linalg.DenseMatrix
-import io.citrine.lolo.{Model, MultiTaskLearner, MultiTaskModel, MultiTaskTrainingResult, ParallelModels, TrainingRow}
+import io.citrine.lolo.api.{Model, MultiTaskLearner, MultiTaskModel, MultiTaskTrainingResult, ParallelModels, TrainingRow}
 import io.citrine.random.Random
 
 case class MultiTaskFeatureRotator(baseLearner: MultiTaskLearner) extends MultiTaskLearner {

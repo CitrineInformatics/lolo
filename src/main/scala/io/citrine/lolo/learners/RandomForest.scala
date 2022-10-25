@@ -1,5 +1,6 @@
 package io.citrine.lolo.learners
 
+import io.citrine.lolo.api.{Learner, MultiTaskLearner, MultiTaskTrainingResult, TrainingResult, TrainingRow}
 import io.citrine.random.Random
 import io.citrine.lolo.bags.{ClassificationBagger, MultiTaskBagger, RegressionBagger}
 import io.citrine.lolo.transformers.rotator.{FeatureRotator, MultiTaskFeatureRotator}
@@ -8,7 +9,6 @@ import io.citrine.lolo.trees.classification.ClassificationTreeLearner
 import io.citrine.lolo.trees.multitask.MultiTaskTreeLearner
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
 import io.citrine.lolo.trees.splits.{ClassificationSplitter, MultiTaskSplitter, RegressionSplitter}
-import io.citrine.lolo.{Learner, MultiTaskLearner, MultiTaskTrainingResult, TrainingResult, TrainingRow}
 
 import scala.annotation.tailrec
 

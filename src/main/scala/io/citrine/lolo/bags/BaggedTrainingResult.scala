@@ -1,7 +1,7 @@
 package io.citrine.lolo.bags
 
+import io.citrine.lolo.api.{Model, TrainingResult, TrainingRow}
 import io.citrine.lolo.stats.metrics.{ClassificationMetrics, RegressionMetrics}
-import io.citrine.lolo.{Model, TrainingResult, TrainingRow}
 
 import scala.collection.parallel.immutable.ParSeq
 

@@ -1,12 +1,12 @@
 package io.citrine.lolo.learners
 
+import io.citrine.lolo.api.{Learner, TrainingResult, TrainingRow}
 import io.citrine.random.Random
 import io.citrine.lolo.bags.{ClassificationBagger, RegressionBagger}
 import io.citrine.lolo.transformers.rotator.FeatureRotator
 import io.citrine.lolo.trees.classification.ClassificationTreeLearner
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
 import io.citrine.lolo.trees.splits.{ExtraRandomClassificationSplitter, ExtraRandomRegressionSplitter}
-import io.citrine.lolo.{Learner, TrainingResult, TrainingRow}
 
 /**
   * Extremely randomized tree ensemble for regression.

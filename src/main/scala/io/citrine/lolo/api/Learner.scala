@@ -1,4 +1,4 @@
-package io.citrine.lolo
+package io.citrine.lolo.api
 
 import io.citrine.random.Random
 

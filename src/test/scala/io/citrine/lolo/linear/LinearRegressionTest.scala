@@ -1,7 +1,8 @@
 package io.citrine.lolo.linear
 
 import breeze.linalg.{norm, DenseMatrix, DenseVector}
-import io.citrine.lolo.{SeedRandomMixIn, TrainingRow}
+import io.citrine.lolo.SeedRandomMixIn
+import io.citrine.lolo.api.TrainingRow
 import org.junit.Test
 
 /**

@@ -1,6 +1,6 @@
 package io.citrine.lolo.transformers.standardizer
 
-import io.citrine.lolo.Model
+import io.citrine.lolo.api.Model
 
 trait StandardizerModel[+T] extends Model[T] {
 

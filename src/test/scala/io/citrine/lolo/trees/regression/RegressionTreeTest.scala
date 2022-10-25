@@ -2,7 +2,8 @@ package io.citrine.lolo.trees.regression
 
 import java.io.{File, FileOutputStream, ObjectOutputStream}
 import breeze.linalg.DenseMatrix
-import io.citrine.lolo.{DataGenerator, SeedRandomMixIn, TestUtils, TrainingRow}
+import io.citrine.lolo.api.TrainingRow
+import io.citrine.lolo.{DataGenerator, SeedRandomMixIn, TestUtils}
 import io.citrine.lolo.linear.LinearRegressionLearner
 import io.citrine.lolo.stats.functions.Friedman
 import io.citrine.lolo.trees.splits.{BoltzmannSplitter, RegressionSplitter}

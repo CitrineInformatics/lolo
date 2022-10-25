@@ -1,7 +1,7 @@
 package io.citrine.lolo.trees
 
 import breeze.linalg.DenseMatrix
-import io.citrine.lolo.{Model, PredictionResult}
+import io.citrine.lolo.api.{Model, PredictionResult}
 import io.citrine.lolo.trees.splits.Split
 
 trait ModelNode[+T] extends Serializable {

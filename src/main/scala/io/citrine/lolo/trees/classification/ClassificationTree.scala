@@ -1,11 +1,11 @@
 package io.citrine.lolo.trees.classification
 
+import io.citrine.lolo.api.{Learner, Model, PredictionResult, TrainingResult, TrainingRow}
 import io.citrine.random.Random
 import io.citrine.lolo.encoders.CategoricalEncoder
 import io.citrine.lolo.linear.GuessTheModeLearner
 import io.citrine.lolo.trees.splits.{ClassificationSplitter, Splitter}
 import io.citrine.lolo.trees.{ModelNode, TrainingNode, TreeMeta}
-import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult, TrainingRow}
 
 import scala.collection.mutable
 
