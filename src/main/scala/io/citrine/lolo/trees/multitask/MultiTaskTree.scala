@@ -87,12 +87,12 @@ case class MultiTaskTreeLearner(
     // Stick the model trees into RegressionTree and ClassificationTree objects
     val models = labelIndices.map { i =>
       if (repOutput(i).isInstanceOf[Double]) {
-        new RegressionTree(
+        RegressionTree(
           nodes(i).asInstanceOf[ModelNode[Double]],
           inputEncoders
         )
       } else {
-        new ClassificationTree(
+        ClassificationTree(
           nodes(i).asInstanceOf[ModelNode[Char]],
           inputEncoders,
           outputEncoders(i).get
@@ -107,11 +107,11 @@ case class MultiTaskTreeLearner(
       }
     }
 
-    new MultiTaskTreeTrainingResult(models, sumFeatureImportance)
+    MultiTaskTreeTrainingResult(models, sumFeatureImportance)
   }
 }
 
-class MultiTaskTreeTrainingResult(
+case class MultiTaskTreeTrainingResult(
     override val models: Seq[Model[Any]],
     nodeImportance: Vector[Double]
 ) extends MultiTaskTrainingResult {

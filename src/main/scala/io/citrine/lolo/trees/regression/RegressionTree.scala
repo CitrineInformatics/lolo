@@ -83,17 +83,17 @@ case class RegressionTreeLearner(
       maxDepth = maxDepth,
       rng = rng
     )
-    new RegressionTreeTrainingResult(rootTrainingNode, encoders)
+    RegressionTreeTrainingResult(rootTrainingNode, encoders)
   }
 
 }
 
-class RegressionTreeTrainingResult(
+case class RegressionTreeTrainingResult(
     rootTrainingNode: TrainingNode[Double],
     encoders: Seq[Option[CategoricalEncoder[Any]]]
 ) extends TrainingResult[Double] {
 
-  override lazy val model = new RegressionTree(rootTrainingNode.modelNode, encoders)
+  override lazy val model: RegressionTree = RegressionTree(rootTrainingNode.modelNode, encoders)
 
   lazy val nodeImportance: mutable.ArraySeq[Double] = rootTrainingNode.featureImportance
 
@@ -112,7 +112,7 @@ class RegressionTreeTrainingResult(
   * @param root     of the tree
   * @param encoders for categorical variables
   */
-class RegressionTree(
+case class RegressionTree(
     root: ModelNode[Double],
     encoders: Seq[Option[CategoricalEncoder[Any]]]
 ) extends Model[Double] {
@@ -123,8 +123,8 @@ class RegressionTree(
     * @param inputs to apply the model to
     * @return a prediction result which includes only the expected outputs
     */
-  override def transform(inputs: Seq[Vector[Any]]): RegressionTreeResult = {
-    new RegressionTreeResult(
+  override def transform(inputs: Seq[Vector[Any]]): RegressionTreePrediction = {
+    RegressionTreePrediction(
       inputs.map(inp => root.transform(CategoricalEncoder.encodeInput(inp, encoders)))
     )
   }
@@ -149,7 +149,8 @@ class RegressionTree(
   *
   * @param predictions sequence of predictions
   */
-class RegressionTreeResult(predictions: Seq[(PredictionResult[Double], TreeMeta)]) extends PredictionResult[Double] {
+case class RegressionTreePrediction(predictions: Seq[(PredictionResult[Double], TreeMeta)])
+    extends PredictionResult[Double] {
 
   /**
     * Get the predictions
