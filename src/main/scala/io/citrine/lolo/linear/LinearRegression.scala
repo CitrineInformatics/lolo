@@ -145,7 +145,7 @@ case class LinearRegressionModel(
     * @param inputs to apply the model to
     * @return a prediction result which includes, at least, the expected outputs
     */
-  override def transform(inputs: Seq[Vector[Any]]): LinearRegressionResult = {
+  override def transform(inputs: Seq[Vector[Any]]): LinearRegressionPrediction = {
     val filteredInputs = indices
       .map { case (ind, _) => inputs.map(inp => ind.map(inp(_))) }
       .getOrElse(inputs)
@@ -154,7 +154,7 @@ case class LinearRegressionModel(
     val inputMatrix = new DenseMatrix(filteredInputs.size / inputs.size, inputs.size, filteredInputs.toArray)
     val resultVector = denseBeta.t * inputMatrix + intercept
     val result = resultVector.t.toArray.toSeq
-    LinearRegressionResult(result, beta)
+    LinearRegressionPrediction(result, beta)
   }
 
   /**
@@ -180,7 +180,7 @@ case class LinearRegressionModel(
   * @param expected computed from the model
   * @param beta     gradient vector, which are just the linear coefficients
   */
-case class LinearRegressionResult(expected: Seq[Double], beta: Vector[Double]) extends PredictionResult[Double] {
+case class LinearRegressionPrediction(expected: Seq[Double], beta: Vector[Double]) extends PredictionResult[Double] {
 
   /**
     * Get the gradient, which is uniform
