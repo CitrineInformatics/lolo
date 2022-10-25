@@ -246,7 +246,7 @@ case class MultiTaskBaggedModel(
 
   override val numLabels: Int = ensembleModels.head.numLabels
 
-  lazy val groupedModels: Vector[BaggedModel[Any]] = Vector.tabulate(numLabels) { i =>
+  override lazy val models: Vector[BaggedModel[Any]] = Vector.tabulate(numLabels) { i =>
     val thisLabelsModels = ensembleModels.map(_.models(i))
     if (realLabels(i)) {
       BaggedRegressionModel(
@@ -261,11 +261,9 @@ case class MultiTaskBaggedModel(
   }
 
   override def transform(inputs: Seq[Vector[Any]]): MultiTaskBaggedPrediction =
-    MultiTaskBaggedPrediction(groupedModels.map(_.transform(inputs)), realLabels)
+    MultiTaskBaggedPrediction(models.map(_.transform(inputs)), realLabels)
 
   override def realLabels: Seq[Boolean] = ensembleModels.head.realLabels
-
-  override def models: Seq[BaggedModel[Any]] = groupedModels
 }
 
 /**

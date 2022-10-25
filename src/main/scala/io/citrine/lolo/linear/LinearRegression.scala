@@ -120,9 +120,9 @@ case class LinearRegressionTrainingResult(model: LinearRegressionModel) extends 
     * @return feature influences as an array of doubles
     */
   override def featureImportance: Option[Vector[Double]] = {
-    val beta = model.beta.map(math.abs)
-    val renorm = 1.0 / beta.sum
-    Some(beta.map(_ * renorm))
+    val importance = model.beta.map(math.abs)
+    val renorm = 1.0 / importance.sum
+    Some(importance.map(_ * renorm))
   }
 }
 
