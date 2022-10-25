@@ -1,7 +1,14 @@
 package io.citrine.lolo.transformers.standardizer
 
 import io.citrine.lolo.api
-import io.citrine.lolo.api.{Model, MultiTaskLearner, MultiTaskModel, MultiTaskTrainingResult, ParallelModels, TrainingRow}
+import io.citrine.lolo.api.{
+  Model,
+  MultiTaskLearner,
+  MultiTaskModel,
+  MultiTaskTrainingResult,
+  ParallelModels,
+  TrainingRow
+}
 import io.citrine.random.Random
 
 /**

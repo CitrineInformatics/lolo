@@ -1,7 +1,17 @@
 package io.citrine.lolo.bags
 
 import breeze.stats.distributions.Poisson
-import io.citrine.lolo.api.{Learner, Model, MultiTaskLearner, MultiTaskModel, MultiTaskModelPredictionResult, MultiTaskTrainingResult, ParallelModelsPredictionResult, PredictionResult, TrainingRow}
+import io.citrine.lolo.api.{
+  Learner,
+  Model,
+  MultiTaskLearner,
+  MultiTaskModel,
+  MultiTaskModelPredictionResult,
+  MultiTaskTrainingResult,
+  ParallelModelsPredictionResult,
+  PredictionResult,
+  TrainingRow
+}
 import io.citrine.lolo.stats.StatsUtils
 import io.citrine.random.Random
 import io.citrine.lolo.stats.metrics.{ClassificationMetrics, RegressionMetrics}
