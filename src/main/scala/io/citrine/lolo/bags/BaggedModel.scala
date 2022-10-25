@@ -65,8 +65,7 @@ case class BaggedRegressionModel(
   }
 }
 
-case class BaggedClassificationModel[T](ensembleModels: ParSeq[Model[T]], Nib: Vector[Vector[Int]])
-    extends BaggedModel[T] {
+case class BaggedClassificationModel[T](ensembleModels: ParSeq[Model[T]]) extends BaggedModel[T] {
 
   override def transform(inputs: Seq[Vector[Any]]): BaggedClassificationPrediction[T] = {
     assert(inputs.forall(_.size == inputs.head.size))

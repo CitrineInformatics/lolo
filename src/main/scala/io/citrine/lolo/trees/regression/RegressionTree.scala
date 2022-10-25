@@ -6,7 +6,7 @@ import io.citrine.lolo.encoders.CategoricalEncoder
 import io.citrine.lolo.linear.GuessTheMeanLearner
 import io.citrine.lolo.trees.splits.{RegressionSplitter, Splitter}
 import io.citrine.lolo.trees.{ModelNode, TrainingNode, TreeMeta}
-import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
+import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult, TrainingRow}
 
 import scala.collection.mutable
 
@@ -34,37 +34,31 @@ case class RegressionTreeLearner(
     * Train the tree by recursively partitioning (splitting) the training data on a single feature
     *
     * @param trainingData to train on
-    * @param weights      for the training rows, if applicable
     * @param rng          random number generator for reproducibility
     * @return a RegressionTree
     */
-  override def train(
-      trainingData: Seq[(Vector[Any], Double)],
-      weights: Option[Seq[Double]],
-      rng: Random
-  ): RegressionTreeTrainingResult = {
+  override def train(trainingData: Seq[TrainingRow[Double]], rng: Random): RegressionTreeTrainingResult = {
     require(trainingData.nonEmpty, s"The input training data was empty")
 
     /* Create encoders for any categorical features */
-    val repInput = trainingData.head._1
+    val repInput = trainingData.head.inputs
     val encoders: Seq[Option[CategoricalEncoder[Any]]] = repInput.zipWithIndex.map {
       case (v, i) =>
         if (v.isInstanceOf[Double]) {
           None
         } else {
-          Some(CategoricalEncoder.buildEncoder(trainingData.map(_._1(i))))
+          Some(CategoricalEncoder.buildEncoder(trainingData.map(_.inputs(i))))
         }
     }
 
     // Encode the training data.
-    val encodedTraining = trainingData.map(p => (CategoricalEncoder.encodeInput(p._1, encoders), p._2))
+    val encodedTraining = trainingData.map { row =>
+      val encodedInputs = CategoricalEncoder.encodeInput(row.inputs, encoders)
+      row.withInputs(encodedInputs)
+    }
 
     // Add the weights to the (features, label) tuples and remove any with zero weight.
-    val finalTraining = encodedTraining
-      .zip(weights.getOrElse(Seq.fill(trainingData.size)(1.0)))
-      .map { case ((f, l), w) => (f, l, w) }
-      .filter(_._3 > 0)
-      .toVector
+    val finalTraining = encodedTraining.filter(_.weight > 0.0).toVector
 
     require(
       finalTraining.size >= 4,
@@ -75,7 +69,7 @@ case class RegressionTreeLearner(
     val numFeaturesActual = if (numFeatures > 0) {
       numFeatures
     } else {
-      finalTraining.head._1.size
+      finalTraining.head.inputs.size
     }
 
     // Recursively build the tree via its nodes and wrap the top node in a RegressionTreeTrainingResult.

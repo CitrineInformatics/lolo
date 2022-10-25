@@ -20,9 +20,9 @@ class PerformanceTest extends SeedRandomMixIn {
 
   private def timedTest[T](
       bagger: Bagger[T],
-      trainingData: Seq[(Vector[Any], T)]
+      trainingData: Seq[TrainingRow[T]]
   ): (Double, Double) = {
-    val inputs = trainingData.map(_._1)
+    val inputs = trainingData.map(_.inputs)
     val timeTraining = Stopwatch.time(
       {
         bagger.train(trainingData).getModel()
@@ -48,24 +48,24 @@ class PerformanceTest extends SeedRandomMixIn {
   }
 
   def timeRegressor(
-      trainingData: Seq[(Vector[Any], Double)],
+      trainingData: Seq[TrainingRow[Double]],
       n: Int,
       k: Int,
       b: Int
   ): (Double, Double) = {
-    val data = trainingData.map(p => (p._1.take(k), p._2)).take(n)
+    val data = trainingData.map(_.mapInputs(inputs => inputs.take(k))).take(n)
     val baseLearner = RegressionTreeLearner(numFeatures = k / 4)
     val bagger = RegressionBagger(baseLearner, numBags = b)
     timedTest(bagger, data)
   }
 
   def timeClassifier[T](
-      trainingData: Seq[(Vector[Any], T)],
+      trainingData: Seq[TrainingRow[T]],
       n: Int,
       k: Int,
       b: Int
   ): (Double, Double) = {
-    val data = trainingData.map(p => (p._1.take(k), p._2)).take(n)
+    val data = trainingData.map(_.mapInputs(inputs => inputs.take(k))).take(n)
     val baseLearner = ClassificationTreeLearner(numFeatures = k / 4)
     val bagger = ClassificationBagger(baseLearner, numBags = b)
     timedTest(bagger, data)
@@ -112,15 +112,20 @@ class PerformanceTest extends SeedRandomMixIn {
   }
 
   def testMultitaskOverhead(N: Int): (Double, Double) = {
-    val subset = regressionData.data.take(N)
-    val (inputs, realLabels) = subset.unzip
-    val catLabels = realLabels.map(_ > realLabels.sum / realLabels.size)
-    val labels = Vector(realLabels, catLabels).transpose
+    val realRows = regressionData.data.take(N)
+    val avgReal = realRows.map(_.label).sum / realRows.length
+
+    val catLabels = realRows.map(_.label > avgReal)
+    val catRows = realRows.zip(catLabels).map { case (row, cat) => row.withLabel(cat) }
+
+    val multiRows = realRows.zip(catRows).map {
+      case (real, cat) => real.withLabel(Vector(real.label, cat.label))
+    }
 
     val trainSingle: Double = Stopwatch.time(
       {
-        RegressionBagger(RegressionTreeLearner()).train(inputs.zip(realLabels)).getLoss()
-        ClassificationBagger(ClassificationTreeLearner()).train(inputs.zip(catLabels)).getLoss()
+        RegressionBagger(RegressionTreeLearner()).train(realRows).getLoss()
+        ClassificationBagger(ClassificationTreeLearner()).train(catRows).getLoss()
       },
       minRun = 1,
       maxRun = 1
@@ -128,7 +133,7 @@ class PerformanceTest extends SeedRandomMixIn {
 
     val trainMulti: Double = Stopwatch.time(
       {
-        MultiTaskBagger(MultiTaskTreeLearner()).train(inputs.zip(labels), weights = None, rng = rng).getLoss()
+        MultiTaskBagger(MultiTaskTreeLearner()).train(multiRows, rng = rng).getLoss()
       },
       minRun = 1,
       maxRun = 1
@@ -137,8 +142,8 @@ class PerformanceTest extends SeedRandomMixIn {
     (trainMulti, trainSingle)
   }
 
-  val regressionData: TrainingData[Double, Double] = DataGenerator.generate(2048, 37, rng = rng)
-  val classificationData: TrainingData[Double, String] = regressionData.withBinnedLabels(bins = 8)
+  val regressionData: TrainingData[Double] = DataGenerator.generate(2048, 37, rng = rng)
+  val classificationData: TrainingData[String] = regressionData.withBinnedLabels(bins = 8)
 }
 
 object PerformanceTest {

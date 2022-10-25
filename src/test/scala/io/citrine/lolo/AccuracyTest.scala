@@ -17,7 +17,7 @@ class AccuracyTest extends SeedRandomMixIn {
   val nScal: Int = 2
   val minInstances: Int = 1
 
-  val trainingData: Seq[(Vector[Any], Double)] =
+  val trainingData: Seq[TrainingRow[Double]] =
     DataGenerator.generate(nRow, nFeat, noise = noiseLevel, rng = rng).withBinnedInputs(bins = Seq((4, 32))).data
 
   // Get the out-of-bag RMSE
@@ -75,7 +75,7 @@ class AccuracyTest extends SeedRandomMixIn {
   */
 object AccuracyTest extends SeedRandomMixIn {
 
-  val trainingDataFull: Seq[(Vector[Any], Double)] =
+  val trainingDataFull: Seq[TrainingRow[Double]] =
     DataGenerator.generate(2048, 48, rng = rng).withBinnedInputs(bins = Seq((2, 32))).data
 
   /**
@@ -96,7 +96,7 @@ object AccuracyTest extends SeedRandomMixIn {
       minInstances: Int,
       temperature: Double
   ): (Double, Double) = {
-    val trainingData = trainingDataFull.take(nRow).map { case (f, l) => (f.take(nFeat), l) }
+    val trainingData = trainingDataFull.take(nRow).map(_.mapInputs(inputs => inputs.take(nFeat)))
     val splitter = if (temperature > 0) {
       BoltzmannSplitter(temperature = temperature)
     } else {
@@ -109,7 +109,7 @@ object AccuracyTest extends SeedRandomMixIn {
     )
     val learner = RegressionBagger(baseLearner, numBags = nRow * nScal, biasLearner = None)
     val model = learner.train(trainingData, rng = rng).getModel()
-    val (features, labels) = trainingData.unzip
+    val (features, labels) = trainingData.map(row => (row.inputs, row.label)).unzip
     val predictions = model.transform(features)
     val expected = predictions.getExpected()
     val sigma = predictions.getUncertainty().get.asInstanceOf[Seq[Double]]

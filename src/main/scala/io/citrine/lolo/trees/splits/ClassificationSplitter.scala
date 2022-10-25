@@ -1,5 +1,6 @@
 package io.citrine.lolo.trees.splits
 
+import io.citrine.lolo.TrainingRow
 import io.citrine.random.Random
 import io.citrine.lolo.trees.impurity.GiniCalculator
 
@@ -20,7 +21,7 @@ case class ClassificationSplitter(randomizedPivotLocation: Boolean = false) exte
     * @return a split object that optimally divides data
     */
   def getBestSplit(
-      data: Seq[(Vector[AnyVal], Char, Double)],
+      data: Seq[TrainingRow[Char]],
       numFeatures: Int,
       minInstances: Int,
       rng: Random
@@ -29,19 +30,18 @@ case class ClassificationSplitter(randomizedPivotLocation: Boolean = false) exte
     var bestImpurity = Double.MaxValue
 
     /* Pre-compute these for the variance calculation */
-    val calculator = GiniCalculator.build(data.map(p => (p._2, p._3)))
+    val calculator = GiniCalculator.build(data.map(p => (p.label, p.weight)))
     val initialImpurity = calculator.getImpurity
 
     val rep = data.head
     /* Try every feature index */
-    val featureIndices: Seq[Int] = rep._1.indices
+    val featureIndices: Seq[Int] = rep.inputs.indices
     rng.shuffle(featureIndices).take(numFeatures).foreach { index =>
       /* Use different spliters for each type */
-      val (possibleSplit, possibleImpurity) = rep._1(index) match {
-        case _: Double =>
-          Splitter.getBestRealSplit[Char](data, calculator, index, minInstances, randomizedPivotLocation, rng)
-        case _: Char => getBestCategoricalSplit(data, calculator, index, minInstances)
-        case _: Any  => throw new IllegalArgumentException("Trying to split unknown feature type")
+      val (possibleSplit, possibleImpurity) = rep.inputs(index) match {
+        case _: Double => Splitter.getBestRealSplit(data, calculator, index, minInstances, randomizedPivotLocation, rng)
+        case _: Char   => getBestCategoricalSplit(data, calculator, index, minInstances)
+        case _: Any    => throw new IllegalArgumentException("Trying to split unknown feature type")
       }
 
       /* Keep track of the best split */
@@ -59,12 +59,12 @@ case class ClassificationSplitter(randomizedPivotLocation: Boolean = false) exte
   }
 
   def getBestCategoricalSplit(
-      data: Seq[(Vector[AnyVal], Char, Double)],
+      data: Seq[TrainingRow[Char]],
       calculator: GiniCalculator,
       index: Int,
       minCount: Int
   ): (CategoricalSplit, Double) = {
-    val thinData = data.map(dat => (dat._1(index).asInstanceOf[Char], dat._2, dat._3))
+    val thinData = data.map(dat => (dat.inputs(index).asInstanceOf[Char], dat.label, dat.weight))
     val groupedData = thinData.groupBy(_._1).view.mapValues { g =>
       val dict = g.groupBy(_._2).view.mapValues(v => v.map(_._3).sum)
       val impurity = dict.values.map(Math.pow(_, 2)).sum / Math.pow(dict.values.sum, 2)

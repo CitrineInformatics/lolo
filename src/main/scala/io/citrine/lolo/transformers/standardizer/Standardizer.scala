@@ -1,6 +1,6 @@
 package io.citrine.lolo.transformers.standardizer
 
-import io.citrine.lolo.Learner
+import io.citrine.lolo.{Learner, TrainingRow}
 import io.citrine.random.Random
 
 trait Standardizer[T] extends Learner[T] {
@@ -12,34 +12,31 @@ trait Standardizer[T] extends Learner[T] {
     * Create affine transformations for continuous features/labels; pass data through to the base learner.
     *
     * @param trainingData to train on
-    * @param weights      for the training rows, if applicable
     * @param rng          random number generator for reproducibility
     * @return training result containing a model
     */
-  override def train(
-      trainingData: Seq[(Vector[Any], T)],
-      weights: Option[Seq[Double]] = None,
-      rng: Random = Random()
-  ): StandardizerTrainingResult[T]
+  override def train(trainingData: Seq[TrainingRow[T]], rng: Random = Random()): StandardizerTrainingResult[T]
 }
 
 /** A standardizer on both inputs & outputs for regression tasks. */
 case class RegressionStandardizer(baseLearner: Learner[Double]) extends Standardizer[Double] {
 
   override def train(
-      trainingData: Seq[(Vector[Any], Double)],
-      weights: Option[Seq[Double]],
-      rng: Random
+      trainingData: Seq[TrainingRow[Double]],
+      rng: Random = Random()
   ): RegressionStandardizerTrainingResult = {
-    val inputTrans = Standardization.buildMulti(trainingData.map(_._1))
-    val outputTrans = Standardization.build(trainingData.map(_._2))
+    val (inputs, labels, weights) = trainingData.map(_.asTuple).unzip3
 
-    val (inputs, labels) = trainingData.unzip
+    val inputTrans = Standardization.buildMulti(inputs)
+    val outputTrans = Standardization.build(labels)
+
     val standardInputs = inputs.map { input => Standardization.applyMulti(input, inputTrans) }
     val standardLabels = labels.map(outputTrans.apply)
-    val standardTrainingData = standardInputs.zip(standardLabels)
+    val standardTrainingData = standardInputs.lazyZip(standardLabels).lazyZip(weights).map {
+      case (i, l, w) => TrainingRow(i, l, w)
+    }
 
-    val baseTrainingResult = baseLearner.train(standardTrainingData, weights, rng)
+    val baseTrainingResult = baseLearner.train(standardTrainingData, rng)
     RegressionStandardizerTrainingResult(baseTrainingResult, outputTrans, inputTrans)
   }
 }
@@ -47,18 +44,16 @@ case class RegressionStandardizer(baseLearner: Learner[Double]) extends Standard
 /** A standardizer on features for classification tasks. */
 case class ClassificationStandardizer[T](baseLearner: Learner[T]) extends Standardizer[T] {
 
-  override def train(
-      trainingData: Seq[(Vector[Any], T)],
-      weights: Option[Seq[Double]],
-      rng: Random
-  ): ClassificationStandardizerTrainingResult[T] = {
-    val inputTrans = Standardization.buildMulti(trainingData.map(_._1))
+  override def train(trainingData: Seq[TrainingRow[T]], rng: Random): ClassificationStandardizerTrainingResult[T] = {
+    val inputs = trainingData.map(_.inputs)
+    val inputTrans = Standardization.buildMulti(inputs)
 
-    val (inputs, labels) = trainingData.unzip
     val standardInputs = inputs.map { input => Standardization.applyMulti(input, inputTrans) }
-    val standardTrainingData = standardInputs.zip(labels)
+    val standardTrainingData = trainingData.zip(standardInputs).map {
+      case (row, inputs) => row.withInputs(inputs)
+    }
 
-    val baseTrainingResult = baseLearner.train(standardTrainingData, weights, rng)
+    val baseTrainingResult = baseLearner.train(standardTrainingData, rng)
     ClassificationStandardizerTrainingResult(baseTrainingResult, inputTrans)
   }
 }

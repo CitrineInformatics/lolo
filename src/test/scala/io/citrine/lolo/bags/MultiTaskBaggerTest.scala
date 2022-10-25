@@ -1,7 +1,7 @@
 package io.citrine.lolo.bags
 
 import breeze.stats.distributions.{Beta, RandBasis}
-import io.citrine.lolo.{DataGenerator, SeedRandomMixIn, TestUtils}
+import io.citrine.lolo.{DataGenerator, SeedRandomMixIn, TrainingRow}
 import io.citrine.lolo.linear.GuessTheMeanLearner
 import io.citrine.lolo.stats.functions.Friedman
 import io.citrine.lolo.stats.metrics.ClassificationMetrics
@@ -24,17 +24,17 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
       .withBinnedInputs(bins = Seq((0, 8)))
       .data
 
-    val reshapedTrainingData = trainingData.map { case (input, label) => (input, Vector(label)) }
+    val reshapedTrainingData = trainingData.map(_.mapLabel(Vector(_)))
     val DTLearner = MultiTaskTreeLearner()
     val baggedLearner = MultiTaskBagger(
       DTLearner,
       numBags = trainingData.size,
       uncertaintyCalibration = true
     )
-    val RFMeta = baggedLearner.train(reshapedTrainingData, weights = None, rng = rng)
+    val RFMeta = baggedLearner.train(reshapedTrainingData, rng = rng)
     val RF = RFMeta.getModels().head
 
-    val results = RF.transform(trainingData.map(_._1))
+    val results = RF.transform(trainingData.map(_.inputs))
     val means = results.getExpected()
     val sigma: Seq[Double] = results.getUncertainty().get.asInstanceOf[Seq[Double]]
     assert(sigma.forall(_ >= 0.0))
@@ -64,16 +64,17 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
 
             val sigmaObsAndSigmaMean: Seq[(Double, Double)] = (1 to 20).flatMap { _ =>
               val trainingDataTmp = DataGenerator.generate(nRows, nCols, function = _ => 0.0, rng = rng).data
-              val trainingData = trainingDataTmp.map { x => (x._1, x._2 + noiseLevel * rng.nextDouble()) }
-              val reshapedTrainingData = trainingData.map { case (input, label) => (input, Vector(label)) }
+              val trainingData = trainingDataTmp.map(_.mapLabel(_ + noiseLevel * rng.nextDouble()))
+
+              val reshapedTrainingData = trainingData.map(_.mapLabel(Vector(_)))
               val baggedLearner = MultiTaskBagger(
                 baseLearner,
                 numBags = nBags,
                 uncertaintyCalibration = true
               )
-              val RFMeta = baggedLearner.train(reshapedTrainingData, weights = None, rng = rng)
+              val RFMeta = baggedLearner.train(reshapedTrainingData, rng = rng)
               val RF = RFMeta.getModels().head
-              val results = RF.transform(trainingData.take(4).map(_._1))
+              val results = RF.transform(trainingData.take(4).map(_.inputs))
 
               val sigmaMean: Seq[Double] = results.getUncertainty(observational = false).get.asInstanceOf[Seq[Double]]
               sigmaMean.zip(results.asInstanceOf[MultiPointBaggedPrediction].getStdDevMean().get).foreach {
@@ -166,7 +167,7 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
       .withBinnedLabels(bins = 8)
       .data
 
-    val reshapedTrainingData = trainingData.map { case (input, label) => (input, Vector(label)) }
+    val reshapedTrainingData = trainingData.map(_.mapLabel(Vector(_)))
     val DTLearner = MultiTaskTreeLearner()
     val baggedLearner =
       MultiTaskBagger(DTLearner, numBags = trainingData.size)
@@ -174,13 +175,13 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
     val RF = RFMeta.getModels().head
 
     /* Inspect the results */
-    val results = RF.transform(trainingData.map(_._1))
+    val results = RF.transform(trainingData.map(_.inputs))
     val means = results.getExpected()
-    assert(trainingData.map(_._2).zip(means).forall { case (a, p) => a == p })
+    assert(trainingData.map(_.label).zip(means).forall { case (a, p) => a == p })
 
     val uncertainty = results.getUncertainty()
     assert(uncertainty.isDefined)
-    trainingData.map(_._2).zip(uncertainty.get).foreach {
+    trainingData.map(_.label).zip(uncertainty.get).foreach {
       case (a, probs) =>
         val classProbabilities = probs.asInstanceOf[Map[Any, Double]]
         val maxProb = classProbabilities(a)
@@ -197,10 +198,14 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
     val numTrain = 256
     val numBags = 64
     val numTest = 32
-    val raw = DataGenerator.generate(numTrain, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng).data
-    val (inputs: Seq[Vector[Double]], realLabel: Seq[Double]) = raw.unzip
-    val catLabel: Seq[Boolean] = raw.map(_._2 > realLabel.max / 2.0)
+
+    val realRows = DataGenerator
+      .generate(numTrain, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng)
+      .data
+    val (inputs, realLabel) = realRows.map(row => (row.inputs, row.label)).unzip
+    val catLabel = realLabel.map(_ > realLabel.max / 2.0)
     val labels = Vector(realLabel, catLabel).transpose
+    val multiTaskRows = TrainingRow.build(inputs.zip(labels))
 
     val learner = MultiTaskTreeLearner()
     val baggedLearner = MultiTaskBagger(
@@ -209,7 +214,7 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
       biasLearner = Some(RegressionTreeLearner(maxDepth = 2)),
       uncertaintyCalibration = true
     )
-    val RF = baggedLearner.train(inputs.zip(labels), rng = rng)
+    val RF = baggedLearner.train(multiTaskRows, rng = rng)
 
     val testInputs = inputs.take(numTest)
     val predictionResult = RF.getModel().transform(testInputs)
@@ -235,11 +240,15 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
     val numBags = 64
     val numTest = 32
     val trainingRho = 0.45 // desired correlation between two real-valued training labels
-    val raw = DataGenerator.generate(numTrain, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng).data
-    val (inputs: Seq[Vector[Double]], realLabel: Seq[Double]) = raw.unzip
-    val catLabel: Seq[Boolean] = raw.map(_._2 > realLabel.max / 2.0)
-    val correlatedLabel: Seq[Double] = DataGenerator.makeLinearlyCorrelatedData(realLabel, trainingRho, rng = rng)
+
+    val realRows = DataGenerator
+      .generate(numTrain, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng)
+      .data
+    val (inputs, realLabel) = realRows.map(row => (row.inputs, row.label)).unzip
+    val catLabel = realLabel.map(_ > realLabel.max / 2.0)
+    val correlatedLabel = DataGenerator.makeLinearlyCorrelatedData(realLabel, trainingRho, rng = rng)
     val labels = Vector(realLabel, catLabel, correlatedLabel).transpose
+    val multiTaskRows = TrainingRow.build(inputs.zip(labels))
 
     val learner = MultiTaskTreeLearner()
     val baggedLearner = MultiTaskBagger(
@@ -247,10 +256,10 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
       numBags = numBags,
       biasLearner = Some(RegressionTreeLearner(maxDepth = 2))
     )
-    val RF = baggedLearner.train(inputs.zip(labels), rng = rng).getModel()
+    val RF = baggedLearner.train(multiTaskRows, rng = rng).getModel()
 
     val testInputs =
-      DataGenerator.generate(numTest, 12, function = Friedman.friedmanSilverman, rng = rng).data.map(_._1)
+      DataGenerator.generate(numTest, 12, function = Friedman.friedmanSilverman, rng = rng).data.map(_.inputs)
     val predictionResult = RF.transform(testInputs)
 
     Seq(true, false).foreach { observational =>
@@ -273,10 +282,10 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
   @Test
   def testSparseMixedBagged(): Unit = {
     /* Setup some data */
-    val raw = DataGenerator.generate(256, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng).data
-    val inputs = raw.map(_._1)
-    val realLabel: Seq[Double] = raw.map(_._2)
-    val catLabel: Seq[Boolean] = raw.map(_._2 > realLabel.max / 2.0)
+    val realRows = DataGenerator.generate(256, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng).data
+    val inputs = realRows.map(_.inputs)
+    val realLabel: Seq[Double] = realRows.map(_.label)
+    val catLabel: Seq[Boolean] = realRows.map(_.label > realLabel.max / 2.0)
     val sparseCat = catLabel.map(x =>
       if (rng.nextDouble() > 0.125) {
         null
@@ -292,6 +301,7 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
       }
     )
     val labels = Vector(sparseReal, sparseCat).transpose
+    val multiTaskRows = TrainingRow.build(inputs.zip(labels))
 
     val DTLearner = MultiTaskTreeLearner()
     val baggedLearner = MultiTaskBagger(
@@ -299,15 +309,16 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
       numBags = inputs.size,
       biasLearner = Some(GuessTheMeanLearner())
     )
-    val trainingResult = baggedLearner.train(inputs.zip(labels), rng = rng)
+    val trainingResult = baggedLearner.train(multiTaskRows, rng = rng)
     val RF = trainingResult.getModels().last
 
     val catResults = RF.transform(inputs).getExpected()
     val realUncertainty = trainingResult.getModels().head.transform(inputs).getUncertainty().get
     assert(realUncertainty.forall(!_.asInstanceOf[Double].isNaN), s"Some uncertainty values were NaN")
 
+    val referenceRows = TrainingRow.build(inputs.zip(sparseCat)).filterNot(_.label == null)
     val referenceModel = ClassificationBagger(ClassificationTreeLearner(), numBags = inputs.size)
-      .train(inputs.zip(sparseCat).filterNot(_._2 == null), rng = rng)
+      .train(referenceRows, rng = rng)
     val reference = referenceModel
       .getModel()
       .transform(inputs)
@@ -330,10 +341,10 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
   @Test
   def testFullSparsity(): Unit = {
     /* Setup some data */
-    val raw = DataGenerator.generate(256, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng).data
-    val inputs = raw.map(_._1)
-    val realLabel: Seq[Double] = raw.map(_._2)
-    val catLabel: Seq[Boolean] = raw.map(_._2 > realLabel.max / 2.0)
+    val realRows = DataGenerator.generate(256, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng).data
+    val inputs = realRows.map(_.inputs)
+    val realLabel: Seq[Double] = realRows.map(_.label)
+    val catLabel: Seq[Boolean] = realRows.map(_.label > realLabel.max / 2.0)
 
     // Test 2 real outputs, 2 categorical outputs, and an even split
     Seq(2, 128, 254).foreach { cutoffIndex =>
@@ -346,13 +357,14 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
           if (idx >= cutoffIndex) Double.NaN else x
       }
       val labels = Vector(sparseReal, sparseCat).transpose
+      val multiTaskRows = TrainingRow.build(inputs.zip(labels))
 
       val baggedLearner = MultiTaskBagger(
         MultiTaskTreeLearner(),
         numBags = inputs.size,
         biasLearner = Some(GuessTheMeanLearner())
       )
-      assert(baggedLearner.train(inputs.zip(labels), rng = rng).getModels().size == 2)
+      assert(baggedLearner.train(multiTaskRows, rng = rng).getModels().size == 2)
     }
   }
 }

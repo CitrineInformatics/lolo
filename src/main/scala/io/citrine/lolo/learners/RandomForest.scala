@@ -8,7 +8,7 @@ import io.citrine.lolo.trees.classification.ClassificationTreeLearner
 import io.citrine.lolo.trees.multitask.MultiTaskTreeLearner
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
 import io.citrine.lolo.trees.splits.{ClassificationSplitter, MultiTaskSplitter, RegressionSplitter}
-import io.citrine.lolo.{Learner, MultiTaskLearner, MultiTaskTrainingResult, TrainingResult}
+import io.citrine.lolo.{Learner, MultiTaskLearner, MultiTaskTrainingResult, TrainingResult, TrainingRow}
 
 import scala.annotation.tailrec
 
@@ -40,12 +40,8 @@ case class RandomForestRegressor(
     randomlyRotateFeatures: Boolean = false
 ) extends Learner[Double] {
 
-  override def train(
-      trainingData: Seq[(Vector[Any], Double)],
-      weights: Option[Seq[Double]],
-      rng: Random
-  ): TrainingResult[Double] = {
-    val numFeatures = RandomForest.getNumFeatures(subsetStrategy, trainingData.head._1.size, isRegression = true)
+  override def train(trainingData: Seq[TrainingRow[Double]], rng: Random): TrainingResult[Double] = {
+    val numFeatures = RandomForest.getNumFeatures(subsetStrategy, trainingData.head.inputs.length, isRegression = true)
 
     val DTLearner = RegressionTreeLearner(
       leafLearner = leafLearner,
@@ -61,7 +57,7 @@ case class RandomForestRegressor(
       biasLearner = biasLearner,
       uncertaintyCalibration = uncertaintyCalibration
     )
-    bagger.train(trainingData, weights, rng)
+    bagger.train(trainingData, rng)
   }
 }
 
@@ -89,12 +85,8 @@ case class RandomForestClassifier(
     randomlyRotateFeatures: Boolean = false
 ) extends Learner[Any] {
 
-  override def train(
-      trainingData: Seq[(Vector[Any], Any)],
-      weights: Option[Seq[Double]],
-      rng: Random
-  ): TrainingResult[Any] = {
-    val numFeatures = RandomForest.getNumFeatures(subsetStrategy, trainingData.head._1.size, isRegression = true)
+  override def train(trainingData: Seq[TrainingRow[Any]], rng: Random): TrainingResult[Any] = {
+    val numFeatures = RandomForest.getNumFeatures(subsetStrategy, trainingData.head.inputs.length, isRegression = true)
 
     val DTLearner = ClassificationTreeLearner(
       leafLearner = leafLearner,
@@ -108,7 +100,7 @@ case class RandomForestClassifier(
       numBags = numTrees,
       useJackknife = useJackknife
     )
-    bagger.train(trainingData, weights, rng)
+    bagger.train(trainingData, rng)
   }
 }
 
@@ -138,14 +130,10 @@ case class MultiTaskRandomForest(
     randomlyRotateFeatures: Boolean = false
 ) extends MultiTaskLearner {
 
-  override def train(
-      trainingData: Seq[(Vector[Any], Vector[Any])],
-      weights: Option[Seq[Double]],
-      rng: Random
-  ): MultiTaskTrainingResult = {
-    val rep = trainingData.head._2
+  override def train(trainingData: Seq[TrainingRow[Vector[Any]]], rng: Random): MultiTaskTrainingResult = {
+    val rep = trainingData.head.label
     val hasRegression = rep.exists(_.isInstanceOf[Double])
-    val numFeatures = RandomForest.getNumFeatures(subsetStrategy, trainingData.head._1.size, hasRegression)
+    val numFeatures = RandomForest.getNumFeatures(subsetStrategy, trainingData.head.inputs.length, hasRegression)
 
     val DTLearner = MultiTaskStandardizer(
       MultiTaskTreeLearner(
@@ -162,7 +150,7 @@ case class MultiTaskRandomForest(
       biasLearner = biasLearner,
       uncertaintyCalibration = uncertaintyCalibration
     )
-    bagger.train(trainingData, weights, rng)
+    bagger.train(trainingData, rng)
   }
 }
 

@@ -20,22 +20,20 @@ case class FeatureRotator[T](baseLearner: Learner[T]) extends Learner[T] {
     * Create linear transformations for continuous features and labels & pass data through to learner
     *
     * @param trainingData to train on
-    * @param weights      for the training rows, if applicable
     * @param rng          random number generator for reproducibility
     * @return training result containing a model
     */
-  override def train(
-      trainingData: Seq[(Vector[Any], T)],
-      weights: Option[Seq[Double]],
-      rng: Random
-  ): RotatedFeatureTrainingResult[T] = {
-    val featuresToRotate = FeatureRotator.getDoubleFeatures(trainingData.head._1)
+  override def train(trainingData: Seq[TrainingRow[T]], rng: Random): RotatedFeatureTrainingResult[T] = {
+    val featuresToRotate = FeatureRotator.getDoubleFeatures(trainingData.head.inputs)
     val trans = FeatureRotator.getRandomRotation(featuresToRotate.length, rng)
 
-    val (inputs, labels) = trainingData.unzip
-    val rotatedTrainingData = FeatureRotator.applyRotation(inputs, featuresToRotate, trans).zip(labels)
-    val baseTrainingResult = baseLearner.train(rotatedTrainingData, weights, rng)
+    val baseInputs = trainingData.map(_.inputs)
+    val rotatedInputs = FeatureRotator.applyRotation(baseInputs, featuresToRotate, trans)
+    val rotatedTrainingData = trainingData.zip(rotatedInputs).map {
+      case (row, rotated) => row.withInputs(rotated)
+    }
 
+    val baseTrainingResult = baseLearner.train(rotatedTrainingData, rng)
     RotatedFeatureTrainingResult(baseTrainingResult, featuresToRotate, trans)
   }
 }

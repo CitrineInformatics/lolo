@@ -1,6 +1,6 @@
 package io.citrine.lolo.transformers.standardizer
 
-import io.citrine.lolo.{Model, MultiTaskLearner, MultiTaskModel, MultiTaskTrainingResult, ParallelModels}
+import io.citrine.lolo.{Model, MultiTaskLearner, MultiTaskModel, MultiTaskTrainingResult, ParallelModels, TrainingRow}
 import io.citrine.random.Random
 
 /**
@@ -10,20 +10,19 @@ import io.citrine.random.Random
   */
 case class MultiTaskStandardizer(baseLearner: MultiTaskLearner) extends MultiTaskLearner {
 
-  override def train(
-      trainingData: Seq[(Vector[Any], Vector[Any])],
-      weights: Option[Seq[Double]],
-      rng: Random
-  ): MultiTaskStandardizerTrainingResult = {
-    val (inputs, labels) = trainingData.unzip
+  override def train(trainingData: Seq[TrainingRow[Vector[Any]]], rng: Random): MultiTaskStandardizerTrainingResult = {
+    val (inputs, labels, weights) = trainingData.map(_.asTuple).unzip3
 
     val inputTrans = Standardization.buildMulti(inputs)
     val outputTrans = Standardization.buildMulti(labels)
 
     val standardInputs = inputs.map { input => Standardization.applyMulti(input, inputTrans) }
     val standardLabels = labels.map { label => Standardization.applyMulti(label, outputTrans) }
+    val standardTrainingData = standardInputs.lazyZip(standardLabels).lazyZip(weights).map {
+      case (i, l, w) => TrainingRow(i, l, w)
+    }
 
-    val baseTrainingResult = baseLearner.train(standardInputs.zip(standardLabels), weights, rng)
+    val baseTrainingResult = baseLearner.train(standardTrainingData, rng)
     MultiTaskStandardizerTrainingResult(baseTrainingResult, outputTrans, inputTrans)
   }
 }

@@ -1,7 +1,7 @@
 package io.citrine.lolo.bags
 
 import io.citrine.lolo.stats.metrics.{ClassificationMetrics, RegressionMetrics}
-import io.citrine.lolo.{Model, TrainingResult}
+import io.citrine.lolo.{Model, TrainingResult, TrainingRow}
 
 import scala.collection.parallel.immutable.ParSeq
 
@@ -14,7 +14,7 @@ sealed trait BaggedTrainingResult[+T] extends TrainingResult[T] {
 case class RegressionBaggerTrainingResult(
     ensembleModels: ParSeq[Model[Double]],
     Nib: Vector[Vector[Int]],
-    trainingData: Seq[(Vector[Any], Double)],
+    trainingData: Seq[TrainingRow[Double]],
     featureImportance: Option[Vector[Double]],
     biasModel: Option[Model[Double]] = None,
     rescaleRatio: Double = 1.0,
@@ -25,7 +25,7 @@ case class RegressionBaggerTrainingResult(
   lazy val model: BaggedRegressionModel =
     BaggedRegressionModel(ensembleModels, Nib, rescaleRatio, disableBootstrap, biasModel)
   lazy val predictedVsActual: Seq[(Vector[Any], Double, Double)] = trainingData.zip(NibT).flatMap {
-    case ((f, l), nb) =>
+    case (TrainingRow(f, l, _), nb) =>
       val oob = if (disableBootstrap) {
         ensembleModels.zip(nb)
       } else {
@@ -60,15 +60,15 @@ case class RegressionBaggerTrainingResult(
 case class ClassificationBaggerTrainingResult[T](
     ensembleModels: ParSeq[Model[T]],
     Nib: Vector[Vector[Int]],
-    trainingData: Seq[(Vector[Any], T)],
+    trainingData: Seq[TrainingRow[T]],
     featureImportance: Option[Vector[Double]],
     disableBootstrap: Boolean = false
 ) extends BaggedTrainingResult[T] {
 
   lazy val NibT: Vector[Vector[Int]] = Nib.transpose
-  lazy val model: BaggedClassificationModel[T] = BaggedClassificationModel(ensembleModels, Nib)
+  lazy val model: BaggedClassificationModel[T] = BaggedClassificationModel(ensembleModels)
   lazy val predictedVsActual: Seq[(Vector[Any], T, T)] = trainingData.zip(NibT).flatMap {
-    case ((f, l), nb) =>
+    case (TrainingRow(f, l, _), nb) =>
       val oob = if (disableBootstrap) {
         ensembleModels.zip(nb)
       } else {

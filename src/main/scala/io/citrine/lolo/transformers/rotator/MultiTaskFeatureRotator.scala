@@ -1,7 +1,7 @@
 package io.citrine.lolo.transformers.rotator
 
 import breeze.linalg.DenseMatrix
-import io.citrine.lolo.{Model, MultiTaskLearner, MultiTaskModel, MultiTaskTrainingResult, ParallelModels}
+import io.citrine.lolo.{Model, MultiTaskLearner, MultiTaskModel, MultiTaskTrainingResult, ParallelModels, TrainingRow}
 import io.citrine.random.Random
 
 case class MultiTaskFeatureRotator(baseLearner: MultiTaskLearner) extends MultiTaskLearner {
@@ -10,20 +10,23 @@ case class MultiTaskFeatureRotator(baseLearner: MultiTaskLearner) extends MultiT
     * Create linear transformations for continuous features and labels & pass data through to learner
     *
     * @param trainingData  to train on
-    * @param weights for the training rows, if applicable
     * @param rng          random number generator for reproducibility
     * @return a sequence of training results, one for each label
     */
   override def train(
-      trainingData: Seq[(Vector[Any], Vector[Any])],
-      weights: Option[Seq[Double]],
+      trainingData: Seq[TrainingRow[Vector[Any]]],
       rng: Random
   ): MultiTaskRotatedFeatureTrainingResult = {
-    val (inputs, labels) = trainingData.unzip
-    val featuresToRotate = FeatureRotator.getDoubleFeatures(inputs.head)
-    val trans = FeatureRotator.getRandomRotation(inputs.head.length, rng)
-    val rotatedFeatures = FeatureRotator.applyRotation(inputs, featuresToRotate, trans)
-    val baseTrainingResult = baseLearner.train(rotatedFeatures.zip(labels), weights, rng)
+    val baseInputs = trainingData.map(_.inputs)
+    val featuresToRotate = FeatureRotator.getDoubleFeatures(baseInputs.head)
+    val trans = FeatureRotator.getRandomRotation(baseInputs.head.length, rng)
+
+    val rotatedInputs = FeatureRotator.applyRotation(baseInputs, featuresToRotate, trans)
+    val rotatedTrainingData = trainingData.zip(rotatedInputs).map {
+      case (row, rotated) => row.withInputs(rotated)
+    }
+
+    val baseTrainingResult = baseLearner.train(rotatedTrainingData, rng)
     MultiTaskRotatedFeatureTrainingResult(baseTrainingResult, featuresToRotate, trans)
   }
 }

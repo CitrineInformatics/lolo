@@ -1,6 +1,6 @@
 package io.citrine.lolo.trees
 
-import io.citrine.lolo.{Model, TrainingResult}
+import io.citrine.lolo.{Model, TrainingResult, TrainingRow}
 
 import scala.collection.mutable
 
@@ -11,8 +11,7 @@ import scala.collection.mutable
   */
 trait TrainingNode[+T] extends Serializable {
 
-  // TODO (PLA-10433): make this a structured type
-  def trainingData: Seq[(Vector[AnyVal], T, Double)]
+  def trainingData: Seq[TrainingRow[T]]
 
   /**
     * Get the lightweight prediction node for the output tree
@@ -36,7 +35,7 @@ trait TrainingLeaf[+T] extends TrainingNode[T] {
 
   def trainingResult: TrainingResult[T]
 
-  def modelNode: ModelNode[T] = ModelLeaf(model, depth, trainingData.map(_._3).sum)
+  def modelNode: ModelNode[T] = ModelLeaf(model, depth, trainingData.map(_.weight).sum)
 
   def model: Model[T] = trainingResult.getModel()
 }

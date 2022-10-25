@@ -1,7 +1,7 @@
 package io.citrine.lolo.linear
 
 import breeze.linalg.{diag, sum, DenseMatrix, DenseVector}
-import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
+import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult, TrainingRow}
 import io.citrine.random.Random
 import org.slf4j.LoggerFactory
 
@@ -22,19 +22,14 @@ case class LinearRegressionLearner(
     * Train a linear model via direct inversion.
     *
     * @param trainingData to train on
-    * @param weights      for the training rows, if applicable
     * @param rng          random number generator for reproducibility
     * @return a model
     */
-  override def train(
-      trainingData: Seq[(Vector[Any], Double)],
-      weights: Option[Seq[Double]],
-      rng: Random
-  ): LinearRegressionTrainingResult = {
+  override def train(trainingData: Seq[TrainingRow[Double]], rng: Random): LinearRegressionTrainingResult = {
     val lambda = regParam.getOrElse(0.0)
     val regularized = lambda > 0.0
 
-    val (features, labels) = trainingData.unzip
+    val (features, labels, weights) = trainingData.map(_.asTuple).unzip3
     val rep = features.head
 
     /* Get the indices of the continuous features */
@@ -63,9 +58,9 @@ case class LinearRegressionLearner(
     val y = new DenseVector(labels.toArray)
 
     /* Rescale data by weight matrix */
-    val weightsMatrix = weights.map(w => diag(new DenseVector(w.toArray)))
-    val Xw = weightsMatrix.map(W => W * X).getOrElse(X)
-    val yw = weightsMatrix.map(W => W * y).getOrElse(y)
+    val W = diag(new DenseVector(weights.toArray))
+    val Xw = W * X
+    val yw = W * y
 
     val (coefficients, intercept) = Try {
       // For a regularized/overdetermined problem, the LHS operator `A` is (potentially) invertible
@@ -90,8 +85,7 @@ case class LinearRegressionLearner(
         }
       case Failure(e) =>
         logger.warn(s"Encountered an exception solving normal equations: ${e.getLocalizedMessage}")
-        val totalWeight = weights.map(_.sum).getOrElse(numSamples.toDouble)
-        val mean = sum(yw) / totalWeight // weighted mean of training labels
+        val mean = sum(yw) / weights.sum // weighted mean of training labels
         if (fitIntercept) {
           (DenseVector.zeros[Double](numFeatures - 1), mean)
         } else {

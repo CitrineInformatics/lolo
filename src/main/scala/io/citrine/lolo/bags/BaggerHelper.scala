@@ -1,7 +1,7 @@
 package io.citrine.lolo.bags
 
 import io.citrine.lolo.stats.{MathUtils, StatsUtils}
-import io.citrine.lolo.Model
+import io.citrine.lolo.{Model, TrainingRow}
 
 import scala.collection.parallel.immutable.ParSeq
 
@@ -16,7 +16,7 @@ import scala.collection.parallel.immutable.ParSeq
   */
 protected[bags] case class BaggerHelper(
     models: ParSeq[Model[Double]],
-    trainingData: Seq[(Vector[Any], Double)],
+    trainingData: Seq[TrainingRow[Double]],
     Nib: Vector[Vector[Int]],
     useJackknife: Boolean,
     uncertaintyCalibration: Boolean
@@ -28,21 +28,21 @@ protected[bags] case class BaggerHelper(
     */
   lazy val oobErrors: Seq[(Vector[Any], Double, Double)] = trainingData.indices.flatMap { idx =>
     val oobModels = models.zip(Nib.map(_(idx))).filter(_._2 == 0).map(_._1)
-    val label = trainingData(idx)._2
+    val label = trainingData(idx).label
     if (oobModels.size < 2 || label.isNaN) {
       None
     } else {
-      val model = new BaggedRegressionModel(oobModels, Nib.filter { _(idx) == 0 })
-      val predicted = model.transform(Seq(trainingData(idx)._1))
-      val error = predicted.getExpected().head - trainingData(idx)._2
+      val model = BaggedRegressionModel(oobModels, Nib.filter { _(idx) == 0 })
+      val predicted = model.transform(Seq(trainingData(idx).inputs))
+      val error = predicted.getExpected().head - trainingData(idx).label
       val uncertainty = predicted.getStdDevObs().get.head
-      Some(trainingData(idx)._1, error, uncertainty)
+      Some(trainingData(idx).inputs, error, uncertainty)
     }
   }
 
   /** Uncertainty calibration ratio based on the OOB errors. */
   val rescaleRatio: Double = if (uncertaintyCalibration && useJackknife) {
-    val trainingLabels = trainingData.collect { case (_, y) if !(y.isInfinite || y.isNaN) => y }
+    val trainingLabels = trainingData.collect { case TrainingRow(_, y, _) if !(y.isInfinite || y.isNaN) => y }
     val zeroTolerance = StatsUtils.range(trainingLabels) / 1e12
     BaggerHelper.calculateRescaleRatio(oobErrors.map { case (_, e, u) => (e, u) }, zeroTolerance = zeroTolerance)
   } else {
@@ -51,12 +51,12 @@ protected[bags] case class BaggerHelper(
   assert(!rescaleRatio.isNaN && !rescaleRatio.isInfinity, s"Uncertainty calibration ratio is not real: $rescaleRatio")
 
   /** Data on which to train a bias learner. */
-  lazy val biasTraining: Seq[(Vector[Any], Double)] = oobErrors.map {
+  lazy val biasTraining: Seq[TrainingRow[Double]] = oobErrors.map {
     case (f, e, u) =>
       // Math.E is only statistically correct.  It should be actualBags / Nib.transpose(i).count(_ == 0)
       // Or, better yet, filter the bags that don't include the training example
       val bias = Math.E * Math.max(Math.abs(e) - u * rescaleRatio, 0)
-      (f, bias)
+      TrainingRow(f, bias)
   }
 }
 

@@ -6,7 +6,7 @@ import io.citrine.lolo.transformers.rotator.FeatureRotator
 import io.citrine.lolo.trees.classification.ClassificationTreeLearner
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
 import io.citrine.lolo.trees.splits.{ExtraRandomClassificationSplitter, ExtraRandomRegressionSplitter}
-import io.citrine.lolo.{Learner, TrainingResult}
+import io.citrine.lolo.{Learner, TrainingResult, TrainingRow}
 
 /**
   * Extremely randomized tree ensemble for regression.
@@ -39,12 +39,8 @@ case class ExtraRandomTreesRegressor(
     randomlyRotateFeatures: Boolean = false
 ) extends Learner[Double] {
 
-  override def train(
-      trainingData: Seq[(Vector[Any], Double)],
-      weights: Option[Seq[Double]],
-      rng: Random
-  ): TrainingResult[Double] = {
-    val numFeatures = RandomForest.getNumFeatures(subsetStrategy, trainingData.head._1.size, isRegression = true)
+  override def train(trainingData: Seq[TrainingRow[Double]], rng: Random): TrainingResult[Double] = {
+    val numFeatures = RandomForest.getNumFeatures(subsetStrategy, trainingData.head.inputs.length, isRegression = true)
 
     val DTLearner = RegressionTreeLearner(
       leafLearner = leafLearner,
@@ -61,7 +57,7 @@ case class ExtraRandomTreesRegressor(
       uncertaintyCalibration = uncertaintyCalibration,
       disableBootstrap = disableBootstrap
     )
-    bagger.train(trainingData, weights, rng)
+    bagger.train(trainingData, rng)
   }
 }
 
@@ -92,12 +88,8 @@ case class ExtraRandomTreesClassifier(
     randomlyRotateFeatures: Boolean = false
 ) extends Learner[Any] {
 
-  override def train(
-      trainingData: Seq[(Vector[Any], Any)],
-      weights: Option[Seq[Double]],
-      rng: Random
-  ): TrainingResult[Any] = {
-    val numFeatures = RandomForest.getNumFeatures(subsetStrategy, trainingData.head._1.size, isRegression = false)
+  override def train(trainingData: Seq[TrainingRow[Any]], rng: Random): TrainingResult[Any] = {
+    val numFeatures = RandomForest.getNumFeatures(subsetStrategy, trainingData.head.inputs.length, isRegression = false)
 
     val DTLearner = ClassificationTreeLearner(
       leafLearner = leafLearner,
@@ -112,6 +104,6 @@ case class ExtraRandomTreesClassifier(
       useJackknife = useJackknife,
       disableBootstrap = disableBootstrap
     )
-    bagger.train(trainingData, weights, rng)
+    bagger.train(trainingData, rng)
   }
 }

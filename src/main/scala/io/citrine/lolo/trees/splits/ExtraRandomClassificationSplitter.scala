@@ -1,5 +1,6 @@
 package io.citrine.lolo.trees.splits
 
+import io.citrine.lolo.TrainingRow
 import io.citrine.random.Random
 import io.citrine.lolo.trees.impurity.{GiniCalculator, ImpurityCalculator}
 
@@ -21,13 +22,13 @@ case class ExtraRandomClassificationSplitter() extends Splitter[Char] {
     * @return a split object that optimally divides data
     */
   def getBestSplit(
-      data: Seq[(Vector[AnyVal], Char, Double)],
+      data: Seq[TrainingRow[Char]],
       numFeatures: Int,
       minInstances: Int,
       rng: Random
   ): (Split, Double) = {
 
-    val calculator = GiniCalculator.build(data.map { p => (p._2, p._3) })
+    val calculator = GiniCalculator.build(data.map { p => (p.label, p.weight) })
     val initialVariance = calculator.getImpurity
     var bestSplit: Split = NoSplit()
     var bestVariance = Double.MaxValue
@@ -35,10 +36,10 @@ case class ExtraRandomClassificationSplitter() extends Splitter[Char] {
     val rep = data.head
 
     /* Try every feature index */
-    val featureIndices: Seq[Int] = rep._1.indices
+    val featureIndices: Seq[Int] = rep.inputs.indices
     rng.shuffle(featureIndices.toVector).take(numFeatures).foreach { index =>
       /* Use different spliters for each type */
-      val (possibleSplit, possibleVariance) = rep._1(index) match {
+      val (possibleSplit, possibleVariance) = rep.inputs(index) match {
         case _: Double => getBestRealSplit(data, calculator.copy(), index, minInstances, rng)
         case _: Char   => getBestCategoricalSplit(data, calculator.copy(), index, minInstances, rng)
         case _: Any    => throw new IllegalArgumentException("Trying to split unknown feature type")
@@ -68,14 +69,14 @@ case class ExtraRandomClassificationSplitter() extends Splitter[Char] {
     * @return the best split of this feature
     */
   def getBestRealSplit(
-      data: Seq[(Vector[AnyVal], Char, Double)],
+      data: Seq[TrainingRow[Char]],
       calculator: ImpurityCalculator[Char],
       index: Int,
       minCount: Int,
       rng: Random
   ): (RealSplit, Double) = {
     /* Pull out the feature that's considered here and sort by it */
-    val axis: Seq[Double] = data.map(_._1(index).asInstanceOf[Double])
+    val axis: Seq[Double] = data.map(_.inputs(index).asInstanceOf[Double])
     val lowerBound = axis.min
     val upperBound = axis.max
     val pivot = lowerBound + (upperBound - lowerBound) * rng.nextDouble()
@@ -85,8 +86,8 @@ case class ExtraRandomClassificationSplitter() extends Splitter[Char] {
     /* Move the data from the right to the left partition one value at a time */
     calculator.reset()
     data.foreach { dat =>
-      if (split.turnLeft(dat._1)) {
-        calculator.add(dat._2, dat._3)
+      if (split.turnLeft(dat.inputs)) {
+        calculator.add(dat.label, dat.weight)
       }
     }
 
@@ -103,14 +104,14 @@ case class ExtraRandomClassificationSplitter() extends Splitter[Char] {
     * @return the best split of this feature
     */
   def getBestCategoricalSplit(
-      data: Seq[(Vector[AnyVal], Char, Double)],
+      data: Seq[TrainingRow[Char]],
       calculator: ImpurityCalculator[Char],
       index: Int,
       minCount: Int,
       rng: Random
   ): (Split, Double) = {
     /* Extract the features at the index */
-    val thinData = data.map(dat => (dat._1(index).asInstanceOf[Char], dat._2, dat._3))
+    val thinData = data.map(dat => (dat.inputs(index).asInstanceOf[Char], dat.label, dat.weight))
 
     // Group the data by categorical feature and compute the weighted sum and sum of the weights for each
     val groupedData = thinData.groupBy(_._1).view.mapValues(g => (g.map(v => v._2 * v._3).sum, g.map(_._3).sum, g.size))
@@ -132,8 +133,8 @@ case class ExtraRandomClassificationSplitter() extends Splitter[Char] {
     /* Move the data from the right to the left partition one value at a time */
     calculator.reset()
     data.foreach { dat =>
-      if (split.turnLeft(dat._1)) {
-        calculator.add(dat._2, dat._3)
+      if (split.turnLeft(dat.inputs)) {
+        calculator.add(dat.label, dat.weight)
       }
     }
 

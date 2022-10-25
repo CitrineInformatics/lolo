@@ -5,7 +5,7 @@ import io.citrine.lolo.encoders.CategoricalEncoder
 import io.citrine.lolo.linear.GuessTheModeLearner
 import io.citrine.lolo.trees.splits.{ClassificationSplitter, Splitter}
 import io.citrine.lolo.trees.{ModelNode, TrainingNode, TreeMeta}
-import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
+import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult, TrainingRow}
 
 import scala.collection.mutable
 
@@ -27,52 +27,43 @@ case class ClassificationTreeLearner(
   @transient private lazy val myLeafLearner: Learner[Char] = leafLearner.getOrElse(GuessTheModeLearner())
 
   /**
-    * Train classification tree
+    * Train a classification tree.
     *
     * @param trainingData to train on
-    * @param weights      for the training rows, if applicable
     * @param rng          random number generator for reproducibility
     * @return a classification tree
     */
-  override def train(
-      trainingData: Seq[(Vector[Any], Any)],
-      weights: Option[Seq[Double]],
-      rng: Random
-  ): ClassificationTrainingResult = {
+  override def train(trainingData: Seq[TrainingRow[Any]], rng: Random): ClassificationTrainingResult = {
     assert(trainingData.size > 4, s"We need to have at least 4 rows, only ${trainingData.size} given")
-    val repInput = trainingData.head._1
+    val repInput = trainingData.head.inputs
 
-    /* Create encoders for any categorical features */
+    // Create encoders for any categorical features
     val inputEncoders: Seq[Option[CategoricalEncoder[Any]]] = repInput.zipWithIndex.map {
       case (v, i) =>
         if (v.isInstanceOf[Double]) {
           None
         } else {
-          Some(CategoricalEncoder.buildEncoder(trainingData.map(_._1(i))))
+          Some(CategoricalEncoder.buildEncoder(trainingData.map(_.inputs(i))))
         }
     }
 
-    val outputEncoder = CategoricalEncoder.buildEncoder(trainingData.map(_._2))
+    val outputEncoder = CategoricalEncoder.buildEncoder(trainingData.map(_.label))
 
-    /* Encode the training data */
-    val encodedTraining =
-      trainingData.map(p => (CategoricalEncoder.encodeInput(p._1, inputEncoders), outputEncoder.encode(p._2)))
+    // Encode the training data
+    val encodedTraining = trainingData.map { row =>
+      val encodedInputs = CategoricalEncoder.encodeInput(row.inputs, inputEncoders)
+      val encodedLabels = outputEncoder.encode(row.label)
+      TrainingRow(encodedInputs, encodedLabels, row.weight)
+    }
 
     /* Add the weights to the (features, label) tuples and remove any with zero weight */
-    val finalTraining = encodedTraining
-      .zip(weights.getOrElse(Seq.fill(trainingData.size)(1.0)))
-      .map {
-        case ((f, l), w) =>
-          (f, l, w)
-      }
-      .filter(_._3 > 0)
-      .toVector
+    val finalTraining = encodedTraining.filter(_.weight > 0.0)
 
     /* If the number of features isn't specified, use all of them */
     val numFeaturesActual = if (numFeatures > 0) {
       numFeatures
     } else {
-      finalTraining.head._1.size
+      finalTraining.head.inputs.size
     }
 
     // Recursively build the tree via its nodes and wrap the top node in a ClassificationTreeTrainingResult
@@ -84,7 +75,7 @@ case class ClassificationTreeLearner(
       minLeafInstances = minLeafInstances,
       remainingDepth = maxDepth,
       maxDepth = maxDepth,
-      numClasses = trainingData.map(_._2).distinct.length,
+      numClasses = trainingData.map(_.label).distinct.length,
       rng = rng
     )
     new ClassificationTrainingResult(rootTrainingNode, inputEncoders, outputEncoder)

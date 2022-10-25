@@ -1,7 +1,7 @@
 package io.citrine.lolo.bags
 
 import breeze.stats.distributions.{Beta, RandBasis}
-import io.citrine.lolo.{DataGenerator, RegressionResult, SeedRandomMixIn}
+import io.citrine.lolo.{DataGenerator, RegressionResult, SeedRandomMixIn, TrainingRow}
 import io.citrine.lolo.linear.GuessTheMeanLearner
 import io.citrine.lolo.stats.functions.Friedman
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
@@ -73,11 +73,13 @@ class BaggedPredictionTest extends SeedRandomMixIn {
             val sigmaObsAndSigmaMean: Seq[(Double, Double)] = (1 to 20).flatMap { _ =>
               val trainingDataTmp =
                 DataGenerator.generate(nRows, nCols, noise = 0.0, function = _ => 0.0, rng = rng).data
-              val trainingData = trainingDataTmp.map { x => (x._1, x._2 + noiseLevel * rng.nextDouble()) }
+              val trainingData = trainingDataTmp.map { row =>
+                row.mapLabel(_ + noiseLevel * rng.nextDouble())
+              }
               val baggedLearner = RegressionBagger(baseLearner, numBags = nBags, uncertaintyCalibration = true)
               val RFMeta = baggedLearner.train(trainingData, rng = rng)
               val RF = RFMeta.getModel()
-              val results = RF.transform(trainingData.take(4).map(_._1))
+              val results = RF.transform(trainingData.take(4).map(_.inputs))
 
               val sigmaMean: Seq[Double] = results.getUncertainty(observational = false).get.asInstanceOf[Seq[Double]]
               sigmaMean.zip(results.asInstanceOf[RegressionResult].getStdDevMean().get).foreach {
@@ -167,10 +169,10 @@ class BaggedPredictionTest extends SeedRandomMixIn {
     * @param trainingData The original training data for the model
     * @param model        The trained model
     */
-  private def testConsistency(trainingData: Seq[(Vector[Any], Double)], model: BaggedModel[Double]): Unit = {
+  private def testConsistency(trainingData: Seq[TrainingRow[Double]], model: BaggedModel[Double]): Unit = {
     val testSubset = rng.shuffle(trainingData).take(16)
     val (singleValues, singleObsUnc, singleMeanUnc) = testSubset.map {
-      case (x, _) =>
+      case TrainingRow(x, _, _) =>
         val res = model.transform(Seq(x))
         (
           res.getExpected().head,
@@ -180,7 +182,7 @@ class BaggedPredictionTest extends SeedRandomMixIn {
     }.unzip3
 
     val (multiValues, multiObsUnc, multiMeanUnc) = {
-      val res = model.transform(testSubset.map(_._1))
+      val res = model.transform(testSubset.map(_.inputs))
       (
         res.getExpected(),
         res.getUncertainty(true).get.map(_.asInstanceOf[Double]),

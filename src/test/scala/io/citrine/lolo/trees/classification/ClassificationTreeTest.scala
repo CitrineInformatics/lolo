@@ -1,13 +1,10 @@
 package io.citrine.lolo.trees.classification
 
-import io.citrine.lolo.{DataGenerator, SeedRandomMixIn}
+import io.citrine.lolo.{DataGenerator, SeedRandomMixIn, TrainingRow}
 import io.citrine.lolo.stats.functions.Friedman
 import org.junit.Test
 import org.scalatest.Assertions._
 
-/**
-  * Created by maxhutch on 12/2/16.
-  */
 @Test
 class ClassificationTreeTest extends SeedRandomMixIn {
 
@@ -18,12 +15,11 @@ class ClassificationTreeTest extends SeedRandomMixIn {
   def testFeatureImportanceNaN(): Unit = {
     val X = Vector.fill(100) {
       val input = Vector.fill(10)(1.0)
-      (input, 2.0)
+      TrainingRow(input, 2.0)
     }
 
-    val DTLearner = new ClassificationTreeLearner()
+    val DTLearner = ClassificationTreeLearner()
     val DTMeta = DTLearner.train(X)
-    val DT = DTMeta.getModel()
     assert(DTMeta.getFeatureImportance().get.forall(v => !v.isNaN))
   }
 
@@ -39,10 +35,10 @@ class ClassificationTreeTest extends SeedRandomMixIn {
     val DT = DTMeta.getModel()
 
     /* We should be able to memorize the inputs */
-    val output = DT.transform(trainingData.map(_._1))
+    val output = DT.transform(trainingData.map(_.inputs))
     trainingData.zip(output.getExpected()).foreach {
-      case ((x, a), p) =>
-        assert(a == p, s"${a} != ${p} for ${x}")
+      case (row, p) =>
+        assert(row.label == p, s"${row.label} != $p for ${row.inputs}")
     }
     assert(output.getGradient().isEmpty)
     output.getDepth().foreach(d => assert(d > 0))
@@ -73,9 +69,9 @@ class ClassificationTreeTest extends SeedRandomMixIn {
     println(s"Training large case took ${duration / N} s")
 
     /* We should be able to memorize the inputs */
-    val output = DT.transform(trainingData.map(_._1))
+    val output = DT.transform(trainingData.map(_.inputs))
     trainingData.zip(output.getExpected()).foreach {
-      case ((x, a), p) => assert(a == p, s"${a} != ${p} for ${x}")
+      case (row, p) => assert(row.label == p, s"${row.label} != $p for ${row.inputs}")
     }
     assert(output.getGradient().isEmpty)
     output.getDepth().foreach(d => assert(d > 4 && d < 17, s"Depth is ${d}"))
@@ -106,10 +102,10 @@ class ClassificationTreeTest extends SeedRandomMixIn {
     println(s"Training large case took ${duration / N} s")
 
     /* We should be able to memorize the inputs */
-    val output = DT.transform(trainingData.map(_._1))
+    val output = DT.transform(trainingData.map(_.inputs))
     trainingData.zip(output.getExpected()).foreach {
-      case ((x, a), p) =>
-        assert(a == p)
+      case (row, p) =>
+        assert(row.label == p)
     }
     assert(output.getGradient().isEmpty)
     output.getDepth().foreach(d => assert(d > 3 && d < 18, s"Depth is ${d}"))
