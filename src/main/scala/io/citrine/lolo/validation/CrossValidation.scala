@@ -60,7 +60,7 @@ case object CrossValidation {
         val (testFolds, trainFolds) = folds.zipWithIndex.partition(_._2 == idx)
         val testData = testFolds.flatMap(_._1)
         val trainData = trainFolds.flatMap(_._1)
-        val model = learner.train(trainData, rng = rng).getModel()
+        val model = learner.train(trainData, rng = rng).model
         val predictions: PredictionResult[T] = model.transform(testData.map(_.inputs))
         (predictions, testData.map(_.label))
       }

@@ -37,5 +37,5 @@ trait TrainingLeaf[+T] extends TrainingNode[T] {
 
   def modelNode: ModelNode[T] = ModelLeaf(model, depth, trainingData.map(_.weight).sum)
 
-  def model: Model[T] = trainingResult.getModel()
+  def model: Model[T] = trainingResult.model
 }

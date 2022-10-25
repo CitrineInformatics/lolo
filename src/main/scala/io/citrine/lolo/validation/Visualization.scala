@@ -39,9 +39,8 @@ case class StandardResidualHistogram(
   override def visualize(data: Iterable[(PredictionResult[Double], Seq[Double])]): CategoryChart = {
     val pua: Seq[(Double, Double, Double)] = data.flatMap {
       case (predictions, actual) =>
-        predictions
-          .getExpected()
-          .lazyZip(predictions.getUncertainty().get.asInstanceOf[Seq[Double]])
+        predictions.expected
+          .lazyZip(predictions.uncertainty().get.asInstanceOf[Seq[Double]])
           .lazyZip(actual)
           .toSeq
     }.toSeq
@@ -90,7 +89,7 @@ case class PredictedVsActual() extends Visualization[Double] {
 
     val flattened: Iterable[(Double, Double, Double)] = data.flatMap {
       case (pred, actual: Seq[Double]) =>
-        actual.lazyZip(pred.getExpected()).lazyZip(pred.getUncertainty().get.asInstanceOf[Seq[Double]]).toSeq
+        actual.lazyZip(pred.expected).lazyZip(pred.uncertainty().get.asInstanceOf[Seq[Double]]).toSeq
     }
 
     val actual = flattened.map(_._1).toArray
@@ -123,8 +122,8 @@ case class ErrorVsUncertainty(magnitude: Boolean = true) extends Visualization[D
 
     val flattened: Iterable[(Double, Double)] = data.flatMap {
       case (pred, actual: Seq[Double]) =>
-        val sigmas = pred.getUncertainty().get.asInstanceOf[Seq[Double]]
-        val errors = actual.zip(pred.getExpected()).map {
+        val sigmas = pred.uncertainty().get.asInstanceOf[Seq[Double]]
+        val errors = actual.zip(pred.expected).map {
           case (x, y) if magnitude => Math.abs(x - y)
           case (x, y)              => y - x
         }

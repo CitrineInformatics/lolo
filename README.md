@@ -43,18 +43,18 @@ For example, you can use Random Forest with:
 import io.citrine.lolo.learners.RandomForest
 val trainingData: Seq[(Vector[Any], Any)] = features.zip(labels)
 val model = new RandomForest().train(trainingData).getModel()
-val predictions: Seq[Any] = model.transform(testInputs).getExpected()
+val predictions: Seq[Any] = model.transform(testInputs).expected
 ```
 
 # Performance
 Lolo prioritizes functionality over performance, but it is still quite fast.  In its _random forest_ use case, the complexity scales as:
 
 | Time complexity | Training rows | Features | Trees |
-|-------|--------|-------|-------|
-| `train` | O(n log n) | O(n) | O(n) |
-| `getLoss` | O(n log n) | O(n) | O(n) |
-| `getExpected` | O(log n) | O(1) | O(n) |
-| `getUncertainty` | O(n) | O(1) | O(n) |
+|-----------------|--------|-------|-------|
+| `train`         | O(n log n) | O(n) | O(n) |
+| `loss`          | O(n log n) | O(n) | O(n) |
+| `expected`      | O(log n) | O(1) | O(n) |
+| `uncertainty`   | O(n) | O(1) | O(n) |
 
 On an [Ivy Bridge](http://ark.intel.com/products/77780/Intel-Core-i7-4930K-Processor-12M-Cache-up-to-3_90-GHz) test platform, the (1024 row, 1024 tree, 8 feature) [performance test](src/test/scala/io/citrine/lolo/PerformanceTest.scala) took 1.4 sec to train and 2.3 ms per prediction with uncertainty.
 

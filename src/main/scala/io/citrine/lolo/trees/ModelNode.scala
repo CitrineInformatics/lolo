@@ -175,7 +175,7 @@ case class ModelLeaf[+T](model: Model[T], depth: Int, trainingWeight: Double) ex
     featureWeights.values.foreach { case FeatureWeightFactor(exclude, include) => set.extend(exclude, include) }
 
     // The contribution is proportional to the leaf's prediction, so grab that
-    this.model.transform(Seq(input)).getExpected().head match {
+    this.model.transform(Seq(input)).expected.head match {
       case v: Double =>
         // For each feature, compute the contribution and store it in shapValues
         featureWeights.foreach {

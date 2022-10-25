@@ -37,8 +37,8 @@ class MultiTaskStandardizerTest extends SeedRandomMixIn {
 
     // Train and evaluate standard models on original and rescaled labels
     val standardizer = MultiTaskStandardizer(MultiTaskTreeLearner())
-    val baseRes = standardizer.train(baseRows).getModels().last.transform(inputs).getExpected()
-    val standardRes = standardizer.train(rescaledRows).getModels().last.transform(inputs).getExpected()
+    val baseRes = standardizer.train(baseRows).models.last.transform(inputs).expected
+    val standardRes = standardizer.train(rescaledRows).models.last.transform(inputs).expected
     // Train and evaluate unstandardized model on rescaled labels
 
     // Compute metrics for each of the models

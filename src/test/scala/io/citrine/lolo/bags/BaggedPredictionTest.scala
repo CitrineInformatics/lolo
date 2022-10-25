@@ -50,7 +50,7 @@ class BaggedPredictionTest extends SeedRandomMixIn {
         useJackknife = false
       )
     ).foreach { bagger =>
-      testConsistency(trainingData, bagger.train(trainingData, rng = rng).getModel())
+      testConsistency(trainingData, bagger.train(trainingData, rng = rng).model)
     }
   }
 
@@ -78,17 +78,17 @@ class BaggedPredictionTest extends SeedRandomMixIn {
               }
               val baggedLearner = RegressionBagger(baseLearner, numBags = nBags, uncertaintyCalibration = true)
               val RFMeta = baggedLearner.train(trainingData, rng = rng)
-              val RF = RFMeta.getModel()
+              val RF = RFMeta.model
               val results = RF.transform(trainingData.take(4).map(_.inputs))
 
-              val sigmaMean: Seq[Double] = results.getUncertainty(observational = false).get.asInstanceOf[Seq[Double]]
-              sigmaMean.zip(results.asInstanceOf[RegressionResult].getStdDevMean().get).foreach {
+              val sigmaMean: Seq[Double] = results.uncertainty(observational = false).get.asInstanceOf[Seq[Double]]
+              sigmaMean.zip(results.asInstanceOf[RegressionResult].stdDevMean.get).foreach {
                 case (a, b) =>
                   assert(a == b, s"Expected getUncertainty(observational=false)=getStdDevMean() for $configDescription")
               }
 
-              val sigmaObs: Seq[Double] = results.getUncertainty().get.asInstanceOf[Seq[Double]]
-              sigmaObs.zip(results.asInstanceOf[RegressionResult].getStdDevObs().get).foreach {
+              val sigmaObs: Seq[Double] = results.uncertainty().get.asInstanceOf[Seq[Double]]
+              sigmaObs.zip(results.asInstanceOf[RegressionResult].stdDevObs.get).foreach {
                 case (a, b) =>
                   assert(a == b, s"Expected getUncertainty()=getStdDevObs() for $configDescription")
               }
@@ -175,18 +175,18 @@ class BaggedPredictionTest extends SeedRandomMixIn {
       case TrainingRow(x, _, _) =>
         val res = model.transform(Seq(x))
         (
-          res.getExpected().head,
-          res.getUncertainty(true).get.head.asInstanceOf[Double],
-          res.getUncertainty(false).get.head.asInstanceOf[Double]
+          res.expected.head,
+          res.uncertainty(true).get.head.asInstanceOf[Double],
+          res.uncertainty(false).get.head.asInstanceOf[Double]
         )
     }.unzip3
 
     val (multiValues, multiObsUnc, multiMeanUnc) = {
       val res = model.transform(testSubset.map(_.inputs))
       (
-        res.getExpected(),
-        res.getUncertainty(true).get.map(_.asInstanceOf[Double]),
-        res.getUncertainty(false).get.map(_.asInstanceOf[Double])
+        res.expected,
+        res.uncertainty(true).get.map(_.asInstanceOf[Double]),
+        res.uncertainty(false).get.map(_.asInstanceOf[Double])
       )
     }
 

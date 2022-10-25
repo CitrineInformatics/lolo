@@ -19,7 +19,7 @@ case class RegressionTrainingLeaf(
     * @return feature importance as a vector
     */
   override def featureImportance: mutable.ArraySeq[Double] = {
-    trainingResult.getFeatureImportance() match {
+    trainingResult.featureImportance match {
       case Some(x) =>
         // Compute the weighted sum of the label, the square label, and the weights
         val expectations: (Double, Double, Double) = trainingData

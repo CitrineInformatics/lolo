@@ -14,23 +14,12 @@ case class GuessTheModeLearner[T]() extends Learner[T] {
   }
 }
 
-case class GuessTheModeTrainingResult[T](model: GuessTheModeModel[T]) extends TrainingResult[T] {
-  override def getModel(): Model[T] = model
-}
+case class GuessTheModeTrainingResult[T](model: GuessTheModeModel[T]) extends TrainingResult[T]
 
 case class GuessTheModeModel[T](mean: T) extends Model[T] {
-
   def transform(inputs: Seq[Vector[Any]]): GuessTheModeResult[T] = {
     GuessTheModeResult(Seq.fill(inputs.size)(mean))
   }
 }
 
-case class GuessTheModeResult[T](result: Seq[T]) extends PredictionResult[T] {
-
-  /**
-    * Get the expected values for this prediction
-    *
-    * @return expected value of each prediction
-    */
-  override def getExpected(): Seq[T] = result
-}
+case class GuessTheModeResult[T](expected: Seq[T]) extends PredictionResult[T]

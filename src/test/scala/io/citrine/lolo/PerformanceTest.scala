@@ -25,18 +25,18 @@ class PerformanceTest extends SeedRandomMixIn {
     val inputs = trainingData.map(_.inputs)
     val timeTraining = Stopwatch.time(
       {
-        bagger.train(trainingData).getModel()
+        bagger.train(trainingData).model
       },
       benchmark = "None",
       minRun = 4,
       targetError = 0.1,
       maxRun = 32
     )
-    val model = bagger.train(trainingData).getModel()
+    val model = bagger.train(trainingData).model
 
     val timePredicting = Stopwatch.time(
       {
-        model.transform(inputs).getUncertainty()
+        model.transform(inputs).uncertainty()
       },
       benchmark = "None",
       minRun = 4,
@@ -124,8 +124,8 @@ class PerformanceTest extends SeedRandomMixIn {
 
     val trainSingle: Double = Stopwatch.time(
       {
-        RegressionBagger(RegressionTreeLearner()).train(realRows).getLoss()
-        ClassificationBagger(ClassificationTreeLearner()).train(catRows).getLoss()
+        RegressionBagger(RegressionTreeLearner()).train(realRows).loss
+        ClassificationBagger(ClassificationTreeLearner()).train(catRows).loss
       },
       minRun = 1,
       maxRun = 1
@@ -133,7 +133,7 @@ class PerformanceTest extends SeedRandomMixIn {
 
     val trainMulti: Double = Stopwatch.time(
       {
-        MultiTaskBagger(MultiTaskTreeLearner()).train(multiRows, rng = rng).getLoss()
+        MultiTaskBagger(MultiTaskTreeLearner()).train(multiRows, rng = rng).loss
       },
       minRun = 1,
       maxRun = 1

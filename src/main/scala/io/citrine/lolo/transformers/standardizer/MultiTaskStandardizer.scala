@@ -40,12 +40,11 @@ case class MultiTaskStandardizerTrainingResult(
     inputTrans: Seq[Option[Standardization]]
 ) extends MultiTaskTrainingResult {
 
-  override def getModel(): MultiTaskModel =
-    new ParallelModels(getModels(), baseTrainingResult.getModel().getRealLabels)
+  override def model: MultiTaskModel = ParallelModels(models, baseTrainingResult.model.realLabels)
 
-  override def getModels(): Seq[StandardizerModel[Any]] = {
-    val realLabels = baseTrainingResult.getModel().getRealLabels
-    baseTrainingResult.getModels().zipWithIndex.map {
+  override def models: Seq[StandardizerModel[Any]] = {
+    val realLabels = baseTrainingResult.model.realLabels
+    baseTrainingResult.models.zipWithIndex.map {
       case (model, idx) =>
         if (realLabels(idx)) {
           RegressionStandardizerModel(model.asInstanceOf[Model[Double]], outputTrans(idx).get, inputTrans)
@@ -55,10 +54,10 @@ case class MultiTaskStandardizerTrainingResult(
     }
   }
 
-  override def getFeatureImportance(): Option[Vector[Double]] = baseTrainingResult.getFeatureImportance()
+  override def featureImportance: Option[Vector[Double]] = baseTrainingResult.featureImportance
 
-  override def getPredictedVsActual(): Option[Seq[(Vector[Any], Vector[Option[Any]], Vector[Option[Any]])]] = {
-    baseTrainingResult.getPredictedVsActual().map { pva =>
+  override def predictedVsActual: Option[Seq[(Vector[Any], Vector[Option[Any]], Vector[Option[Any]])]] = {
+    baseTrainingResult.predictedVsActual.map { pva =>
       pva.map {
         case (inputs, predOpt, actualOpt) =>
           val invertedInputs = Standardization.invertMulti(inputs, inputTrans)

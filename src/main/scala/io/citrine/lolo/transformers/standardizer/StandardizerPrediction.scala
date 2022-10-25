@@ -14,17 +14,17 @@ case class RegressionStandardizerPrediction(
     inputTrans: Seq[Option[Standardization]]
 ) extends StandardizerPrediction[Double] {
 
-  override def getExpected(): Seq[Double] = basePrediction.getExpected().map(outputTrans.invert)
+  override def expected: Seq[Double] = basePrediction.expected.map(outputTrans.invert)
 
   // TODO: A PredictionResult[Double] should always return a Option[Seq[Double]] for uncertainty
-  override def getUncertainty(includeNoise: Boolean = true): Option[Seq[Any]] = {
-    basePrediction.getUncertainty(includeNoise).map { x =>
+  override def uncertainty(includeNoise: Boolean = true): Option[Seq[Any]] = {
+    basePrediction.uncertainty(includeNoise).map { x =>
       x.map(_.asInstanceOf[Double] * outputTrans.scale)
     }
   }
 
-  override def getGradient(): Option[Seq[Vector[Double]]] = {
-    basePrediction.getGradient().map { gradients =>
+  override def gradient: Option[Seq[Vector[Double]]] = {
+    basePrediction.gradient.map { gradients =>
       gradients.map { g =>
         g.zip(inputTrans).map {
           case (y, inputStandardization) =>
@@ -44,13 +44,13 @@ case class ClassificationStandardizerPrediction[T](
     inputTrans: Seq[Option[Standardization]]
 ) extends StandardizerPrediction[T] {
 
-  override def getExpected(): Seq[T] = basePrediction.getExpected()
+  override def expected: Seq[T] = basePrediction.expected
 
-  override def getUncertainty(includeNoise: Boolean = true): Option[Seq[Any]] =
-    basePrediction.getUncertainty(includeNoise)
+  override def uncertainty(includeNoise: Boolean = true): Option[Seq[Any]] =
+    basePrediction.uncertainty(includeNoise)
 
-  override def getGradient(): Option[Seq[Vector[Double]]] = {
-    basePrediction.getGradient().map { gradients =>
+  override def gradient: Option[Seq[Vector[Double]]] = {
+    basePrediction.gradient.map { gradients =>
       gradients.map { g =>
         g.zip(inputTrans).map {
           case (y, inputStandardization) =>

@@ -24,7 +24,7 @@ class RegressionTreeTest extends SeedRandomMixIn {
 
     val DTLearner = RegressionTreeLearner()
     val DTMeta = DTLearner.train(X)
-    assert(DTMeta.getFeatureImportance().get.forall(v => !v.isNaN))
+    assert(DTMeta.featureImportance.get.forall(v => !v.isNaN))
   }
 
   /**
@@ -35,16 +35,16 @@ class RegressionTreeTest extends SeedRandomMixIn {
     val csv = TestUtils.readCsv("double_example.csv")
     val trainingData = csv.map(vec => TrainingRow(vec.init, vec.last.asInstanceOf[Double]))
     val DTLearner = RegressionTreeLearner()
-    val DT = DTLearner.train(trainingData).getModel()
+    val DT = DTLearner.train(trainingData).model
 
     /* We should be able to memorize the inputs */
     val output = DT.transform(trainingData.map(_.inputs))
-    trainingData.zip(output.getExpected()).foreach {
+    trainingData.zip(output.expected).foreach {
       case (row, p) =>
         assert(Math.abs(row.label - p) < 1.0e-9)
     }
-    assert(output.getGradient().isEmpty)
-    output.getDepth().foreach(d => assert(d > 3 && d < 9, s"Depth is $d"))
+    assert(output.gradient.isEmpty)
+    output.depth.foreach(d => assert(d > 3 && d < 9, s"Depth is $d"))
   }
 
   /**
@@ -56,16 +56,16 @@ class RegressionTreeTest extends SeedRandomMixIn {
     val csv = TestUtils.readCsv("double_example.csv")
     val trainingData = csv.map(vec => TrainingRow(vec.init, vec.last.asInstanceOf[Double], 1.0))
     val DTLearner = RegressionTreeLearner(splitter = RegressionSplitter(randomizePivotLocation = true))
-    val DT = DTLearner.train(trainingData).getModel()
+    val DT = DTLearner.train(trainingData).model
 
     /* We should be able to memorize the inputs */
     val output = DT.transform(trainingData.map(_.inputs))
-    trainingData.zip(output.getExpected()).foreach {
+    trainingData.zip(output.expected).foreach {
       case (row, p) =>
         assert(Math.abs(row.label - p) < 1.0e-9)
     }
-    assert(output.getGradient().isEmpty)
-    output.getDepth().foreach(d => assert(d > 3 && d < 9, s"Depth is $d"))
+    assert(output.gradient.isEmpty)
+    output.depth.foreach(d => assert(d > 3 && d < 9, s"Depth is $d"))
   }
 
   /**
@@ -79,23 +79,23 @@ class RegressionTreeTest extends SeedRandomMixIn {
     val N = 100
     val start = System.nanoTime()
     val DTMeta = DTLearner.train(trainingData)
-    val DT = DTMeta.getModel()
-    (0 until N).map(i => DTLearner.train(trainingData).getModel())
+    val DT = DTMeta.model
+    (0 until N).map(i => DTLearner.train(trainingData).model)
     val duration = (System.nanoTime() - start) / 1.0e9
 
     println(s"Training large case took ${duration / N} s")
 
     /* We should be able to memorize the inputs */
     val output = DT.transform(trainingData.map(_.inputs))
-    trainingData.zip(output.getExpected()).foreach {
+    trainingData.zip(output.expected).foreach {
       case (row, p) =>
         assert(Math.abs(row.label - p) < 1.0e-9)
     }
-    assert(output.getGradient().isEmpty)
-    output.getDepth().foreach(d => assert(d > 4 && d < 20, s"Depth is ${d}"))
+    assert(output.gradient.isEmpty)
+    output.depth.foreach(d => assert(d > 4 && d < 20, s"Depth is ${d}"))
 
     /* The first feature should be the most important */
-    val importances = DTMeta.getFeatureImportance().get
+    val importances = DTMeta.featureImportance.get
     assert(importances(1) == importances.max)
 
     val tmpFile: File = File.createTempFile("tmp", ".csv")
@@ -117,23 +117,23 @@ class RegressionTreeTest extends SeedRandomMixIn {
     val N = 100
     val start = System.nanoTime()
     val DTMeta = DTLearner.train(trainingData)
-    val DT = DTMeta.getModel()
-    (0 until N).map(i => DTLearner.train(trainingData).getModel())
+    val DT = DTMeta.model
+    (0 until N).map(i => DTLearner.train(trainingData).model)
     val duration = (System.nanoTime() - start) / 1.0e9
 
     println(s"Training large case took ${duration / N} s")
 
     /* We should be able to memorize the inputs */
     val output = DT.transform(trainingData.map(_.inputs))
-    trainingData.zip(output.getExpected()).foreach {
+    trainingData.zip(output.expected).foreach {
       case (row, p) =>
         assert(Math.abs(row.label - p) < 1.0e-9)
     }
-    assert(output.getGradient().isEmpty)
-    output.getDepth().foreach(d => assert(d > 4 && d < 21, s"Depth is ${d}"))
+    assert(output.gradient.isEmpty)
+    output.depth.foreach(d => assert(d > 4 && d < 21, s"Depth is ${d}"))
 
     /* The first feature should be the most important */
-    val importances = DTMeta.getFeatureImportance().get
+    val importances = DTMeta.featureImportance.get
     assert(importances(1) == importances.max)
     val tmpFile: File = File.createTempFile("tmp", ".csv")
     val oos = new ObjectOutputStream(new FileOutputStream(tmpFile))
@@ -151,19 +151,19 @@ class RegressionTreeTest extends SeedRandomMixIn {
     val linearLearner = LinearRegressionLearner(regParam = Some(0.0))
     val DTLearner = RegressionTreeLearner(leafLearner = Some(linearLearner), minLeafInstances = 2)
     val DTMeta = DTLearner.train(trainingData)
-    val DT = DTMeta.getModel()
+    val DT = DTMeta.model
 
     /* We should be able to memorize the inputs */
     val output = DT.transform(trainingData.map(_.inputs))
-    trainingData.zip(output.getExpected()).foreach {
+    trainingData.zip(output.expected).foreach {
       case (row, p) =>
         assert(Math.abs(row.label - p) < 1.0e-9)
     }
-    assert(output.getGradient().isDefined)
-    output.getDepth().foreach(d => assert(d > 4 && d < 18, s"Depth is $d"))
+    assert(output.gradient.isDefined)
+    output.depth.foreach(d => assert(d > 4 && d < 18, s"Depth is $d"))
 
     /* The first feature should be the most important */
-    val importances = DTMeta.getFeatureImportance().get
+    val importances = DTMeta.featureImportance.get
     assert(importances(1) == importances.max)
     /* They should all be non-zero */
     assert(importances.min > 0.0)
@@ -186,11 +186,11 @@ class RegressionTreeTest extends SeedRandomMixIn {
     val linearLearner = LinearRegressionLearner(regParam = Some(1.0))
     val DTLearner = RegressionTreeLearner(leafLearner = Some(linearLearner), maxDepth = 0)
     val DTMeta = DTLearner.train(trainingData)
-    val DT = DTMeta.getModel()
+    val DT = DTMeta.model
 
-    val linearImportance = linearLearner.train(trainingData).getFeatureImportance().get
+    val linearImportance = linearLearner.train(trainingData).featureImportance.get
 
-    val importances = DTMeta.getFeatureImportance().get
+    val importances = DTMeta.featureImportance.get
 
     /* The first feature should be the most important */
     assert(importances(1) == importances.max)
@@ -203,7 +203,7 @@ class RegressionTreeTest extends SeedRandomMixIn {
     )
 
     val result = DT.transform(trainingData.map(_.inputs))
-    assert(result.getDepth().forall(_ == 0), s"Expected all the predictions to be depth 0")
+    assert(result.depth.forall(_ == 0), s"Expected all the predictions to be depth 0")
   }
 
   /**
@@ -220,7 +220,7 @@ class RegressionTreeTest extends SeedRandomMixIn {
     val DTMeta = DTLearner.train(weightedData)
 
     /* The first feature should be the most important */
-    val importances = DTMeta.getFeatureImportance().get
+    val importances = DTMeta.featureImportance.get
     assert(importances.forall(_ >= 0.0), "Found negative feature importance")
   }
 
@@ -232,15 +232,15 @@ class RegressionTreeTest extends SeedRandomMixIn {
     val csv = TestUtils.readCsv("double_example.csv")
     val trainingData = csv.map(vec => TrainingRow(vec.init, vec.last.asInstanceOf[Double], 1.0))
     val DTLearner = RegressionTreeLearner(splitter = BoltzmannSplitter(1e-4))
-    val DT = DTLearner.train(trainingData, rng = rng).getModel()
+    val DT = DTLearner.train(trainingData, rng = rng).model
 
     /* We should be able to memorize the inputs */
     val output = DT.transform(trainingData.map(_.inputs))
-    trainingData.zip(output.getExpected()).foreach {
+    trainingData.zip(output.expected).foreach {
       case (row, p) => assert(Math.abs(row.label - p) < 1.0e-9)
     }
-    assert(output.getGradient().isEmpty)
-    output.getDepth().zip(output.getExpected()).foreach {
+    assert(output.gradient.isEmpty)
+    output.depth.zip(output.expected).foreach {
       case (d, y) => assert(d > 3 && d < 9, s"Depth is $d at y=$y")
     }
   }
@@ -258,7 +258,7 @@ class RegressionTreeTest extends SeedRandomMixIn {
       expected: Vector[Double],
       omitFeatures: Set[Int] = Set()
   ): Unit = {
-    val actual = RegressionTreeLearner().train(trainingData).getModel().shapley(evalLocation, omitFeatures) match {
+    val actual = RegressionTreeLearner().train(trainingData).model.shapley(evalLocation, omitFeatures) match {
       case None => fail("Unexpected None returned by shapley.")
       case x: Option[DenseMatrix[Double]] => {
         val a = x.get
@@ -334,6 +334,6 @@ class RegressionTreeTest extends SeedRandomMixIn {
     shapleyCompare(trainingData2, Vector[Any](1.0, 1.0), expected2b, omitFeatures = Set(1))
 
     // Ensure we don't crash when restricting number of features.
-    RegressionTreeLearner(numFeatures = 1).train(trainingData4).getModel().shapley(Vector.fill[Any](5)(0.0), Set())
+    RegressionTreeLearner(numFeatures = 1).train(trainingData4).model.shapley(Vector.fill[Any](5)(0.0), Set())
   }
 }

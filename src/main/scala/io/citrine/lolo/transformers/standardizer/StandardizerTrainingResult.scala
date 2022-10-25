@@ -7,9 +7,9 @@ trait StandardizerTrainingResult[+T] extends TrainingResult[T] {
 
   def baseTrainingResult: TrainingResult[T]
 
-  override def getModel(): StandardizerModel[T]
+  override def model: StandardizerModel[T]
 
-  override def getFeatureImportance(): Option[Vector[Double]] = baseTrainingResult.getFeatureImportance()
+  override def featureImportance: Option[Vector[Double]] = baseTrainingResult.featureImportance
 }
 
 /**
@@ -25,11 +25,11 @@ case class RegressionStandardizerTrainingResult(
     inputTrans: Seq[Option[Standardization]]
 ) extends StandardizerTrainingResult[Double] {
 
-  override def getModel(): RegressionStandardizerModel =
-    RegressionStandardizerModel(baseTrainingResult.getModel(), outputTrans, inputTrans)
+  override def model: RegressionStandardizerModel =
+    RegressionStandardizerModel(baseTrainingResult.model, outputTrans, inputTrans)
 
-  override def getPredictedVsActual(): Option[Seq[(Vector[Any], Double, Double)]] = {
-    baseTrainingResult.getPredictedVsActual().map { pva =>
+  override def predictedVsActual: Option[Seq[(Vector[Any], Double, Double)]] = {
+    baseTrainingResult.predictedVsActual.map { pva =>
       pva.map {
         case (inputs, pred, actual) =>
           (Standardization.invertMulti(inputs, inputTrans), outputTrans.invert(pred), outputTrans.invert(actual))
@@ -49,11 +49,11 @@ case class ClassificationStandardizerTrainingResult[T](
     inputTrans: Seq[Option[Standardization]]
 ) extends StandardizerTrainingResult[T] {
 
-  override def getModel(): ClassificationStandardizerModel[T] =
-    ClassificationStandardizerModel(baseTrainingResult.getModel(), inputTrans)
+  override def model: ClassificationStandardizerModel[T] =
+    ClassificationStandardizerModel(baseTrainingResult.model, inputTrans)
 
-  override def getPredictedVsActual(): Option[Seq[(Vector[Any], T, T)]] = {
-    baseTrainingResult.getPredictedVsActual().map { pva =>
+  override def predictedVsActual: Option[Seq[(Vector[Any], T, T)]] = {
+    baseTrainingResult.predictedVsActual.map { pva =>
       pva.map {
         case (inputs, pred, actual) => (Standardization.invertMulti(inputs, inputTrans), pred, actual)
       }

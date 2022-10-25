@@ -32,23 +32,23 @@ class MultiTaskFeatureRotatorTest extends SeedRandomMixIn {
     val rotatedLearner = MultiTaskFeatureRotator(MultiTaskTreeLearner())
 
     val baseTrainingResult = baseLearner.train(multiTaskData, rng = rng)
-    val baseDoubleModel = baseTrainingResult.getModels().head
-    val baseCatModel = baseTrainingResult.getModels().last
+    val baseDoubleModel = baseTrainingResult.models.head
+    val baseCatModel = baseTrainingResult.models.last
     val rotatedTrainingResult = rotatedLearner.train(multiTaskData, rng = rng)
-    val rotatedDoubleModel = rotatedTrainingResult.getModels().head.asInstanceOf[RotatedFeatureModel[Double]]
-    val rotatedCatModel = rotatedTrainingResult.getModels().last.asInstanceOf[RotatedFeatureModel[Boolean]]
+    val rotatedDoubleModel = rotatedTrainingResult.models.head.asInstanceOf[RotatedFeatureModel[Double]]
+    val rotatedCatModel = rotatedTrainingResult.models.last.asInstanceOf[RotatedFeatureModel[Boolean]]
 
     // Check double labels are the same
-    val baseDoubleResult = baseDoubleModel.transform(inputs).getExpected()
-    val rotatedDoubleResult = rotatedDoubleModel.transform(inputs).getExpected()
+    val baseDoubleResult = baseDoubleModel.transform(inputs).expected
+    val rotatedDoubleResult = rotatedDoubleModel.transform(inputs).expected
     baseDoubleResult.zip(rotatedDoubleResult).foreach {
       case (br: Double, rr: Double) =>
         assert(Math.abs(br - rr) < 1e-9, "Predicted double label not the same in rotated learner.")
     }
 
     // Check categorical labels are close
-    val baseCatResult = baseCatModel.transform(inputs).getExpected()
-    val rotatedCatResult = rotatedCatModel.transform(inputs).getExpected()
+    val baseCatResult = baseCatModel.transform(inputs).expected
+    val rotatedCatResult = rotatedCatModel.transform(inputs).expected
     val baseF1 = ClassificationMetrics.f1scores(baseCatResult, catLabel)
     val rotatedF1 = ClassificationMetrics.f1scores(rotatedCatResult, catLabel)
     // rotatedF1 appears to come in substantially lower than baseF1; this is just a rough sanity check / smoketest.
@@ -62,13 +62,13 @@ class MultiTaskFeatureRotatorTest extends SeedRandomMixIn {
 
     val rotatedInputs = FeatureRotator.applyRotation(inputs, rotatedFeatures, U)
     assert(
-      rotatedDoubleModel.baseModel.transform(rotatedInputs).getExpected().zip(rotatedDoubleResult).count {
+      rotatedDoubleModel.baseModel.transform(rotatedInputs).expected.zip(rotatedDoubleResult).count {
         case (a: Double, b: Double) => Math.abs(a - b) > 1e-9
       } == 0,
       "Rotated data passed to base model should map to the same predictions."
     )
     assert(
-      rotatedDoubleModel.transform(rotatedInputs).getExpected().zip(baseDoubleResult).count {
+      rotatedDoubleModel.transform(rotatedInputs).expected.zip(baseDoubleResult).count {
         case (a: Double, b: Double) => Math.abs(a - b) > 1e-9
       } > 0,
       "Rotated data passed to rotated model should map to different predictions."
@@ -78,8 +78,8 @@ class MultiTaskFeatureRotatorTest extends SeedRandomMixIn {
     assert(
       rotatedCatModel
         .transform(rotatedInputs)
-        .getExpected()
-        .zip(baseCatModel.transform(rotatedInputs).getExpected())
+        .expected
+        .zip(baseCatModel.transform(rotatedInputs).expected)
         .count {
           case (a: Boolean, b: Boolean) => a != b
         } > 0,
@@ -89,8 +89,8 @@ class MultiTaskFeatureRotatorTest extends SeedRandomMixIn {
     assert(
       rotatedCatModel
         .transform(inputs)
-        .getExpected()
-        .zip(rotatedCatModel.baseModel.transform(rotatedInputs).getExpected())
+        .expected
+        .zip(rotatedCatModel.baseModel.transform(rotatedInputs).expected)
         .count {
           case (a: Boolean, b: Boolean) => a != b
         } == 0,

@@ -33,7 +33,7 @@ case class ClassificationTreeLearner(
     * @param rng          random number generator for reproducibility
     * @return a classification tree
     */
-  override def train(trainingData: Seq[TrainingRow[Any]], rng: Random): ClassificationTrainingResult = {
+  override def train(trainingData: Seq[TrainingRow[Any]], rng: Random): ClassificationTreeTrainingResult = {
     assert(trainingData.size > 4, s"We need to have at least 4 rows, only ${trainingData.size} given")
     val repInput = trainingData.head.inputs
 
@@ -78,42 +78,36 @@ case class ClassificationTreeLearner(
       numClasses = trainingData.map(_.label).distinct.length,
       rng = rng
     )
-    new ClassificationTrainingResult(rootTrainingNode, inputEncoders, outputEncoder)
+    ClassificationTreeTrainingResult(rootTrainingNode, inputEncoders, outputEncoder)
   }
 }
 
-class ClassificationTrainingResult(
+case class ClassificationTreeTrainingResult(
     rootTrainingNode: TrainingNode[Char],
     inputEncoders: Seq[Option[CategoricalEncoder[Any]]],
     outputEncoder: CategoricalEncoder[Any]
 ) extends TrainingResult[Any] {
+
   // Grab a prediction node. The partitioning happens here
-  lazy val model = new ClassificationTree(rootTrainingNode.modelNode, inputEncoders, outputEncoder)
+  override lazy val model: ClassificationTree =
+    ClassificationTree(rootTrainingNode.modelNode, inputEncoders, outputEncoder)
 
   // Grab the feature influences
-  lazy val importance: mutable.ArraySeq[Double] = rootTrainingNode.featureImportance
-  private lazy val importanceNormalized = {
-    if (Math.abs(importance.sum) > 0) {
-      importance.map(_ / importance.sum)
+  lazy val nodeImportance: mutable.ArraySeq[Double] = rootTrainingNode.featureImportance
+
+  override lazy val featureImportance: Option[Vector[Double]] = Some(
+    if (Math.abs(nodeImportance.sum) > 0) {
+      nodeImportance.map(_ / nodeImportance.sum).toVector
     } else {
-      importance.map(_ => 1.0 / importance.size)
+      nodeImportance.map(_ => 1.0 / nodeImportance.size).toVector
     }
-  }
-
-  override def getModel(): ClassificationTree = model
-
-  /**
-    * Get a measure of the importance of the model features
-    *
-    * @return feature influences as an array of doubles
-    */
-  override def getFeatureImportance(): Option[Vector[Double]] = Some(importanceNormalized.toVector)
+  )
 }
 
 /**
   * Classification tree
   */
-class ClassificationTree(
+case class ClassificationTree(
     rootModelNode: ModelNode[Char],
     inputEncoders: Seq[Option[CategoricalEncoder[Any]]],
     outputEncoder: CategoricalEncoder[Any]
@@ -125,8 +119,8 @@ class ClassificationTree(
     * @param inputs to apply the model to
     * @return a predictionresult which includes, at least, the expected outputs
     */
-  override def transform(inputs: Seq[Vector[Any]]): ClassificationResult = {
-    new ClassificationResult(
+  override def transform(inputs: Seq[Vector[Any]]): ClassificationTreePrediction = {
+    ClassificationTreePrediction(
       inputs.map(inp => rootModelNode.transform(CategoricalEncoder.encodeInput(inp, inputEncoders))),
       outputEncoder
     )
@@ -136,7 +130,7 @@ class ClassificationTree(
 /**
   * Classification result
   */
-class ClassificationResult(
+case class ClassificationTreePrediction(
     predictions: Seq[(PredictionResult[Char], TreeMeta)],
     outputEncoder: CategoricalEncoder[Any]
 ) extends PredictionResult[Any] {
@@ -146,9 +140,7 @@ class ClassificationResult(
     *
     * @return expected value of each prediction
     */
-  override def getExpected(): Seq[Any] = predictions.map(p => outputEncoder.decode(p._1.getExpected().head))
+  override def expected: Seq[Any] = predictions.map(p => outputEncoder.decode(p._1.expected.head))
 
-  def getDepth(): Seq[Int] = {
-    predictions.map(_._2.depth)
-  }
+  def depth: Seq[Int] = predictions.map(_._2.depth)
 }

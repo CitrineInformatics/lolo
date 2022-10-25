@@ -26,20 +26,20 @@ class RandomForestTest extends SeedRandomMixIn {
     Seq(true, false).foreach { randomlyRotateFeatures =>
       val RFMeta = RandomForestRegressor(randomlyRotateFeatures = randomlyRotateFeatures)
         .train(trainingData)
-      val RF = RFMeta.getModel()
+      val RF = RFMeta.model
 
-      assert(RFMeta.getLoss().get < 1.0, "Loss of bagger is larger than expected")
+      assert(RFMeta.loss.get < 1.0, "Loss of bagger is larger than expected")
 
       val results = RF.transform(trainingData.map(_.inputs))
-      // val means = results.getExpected()
-      val sigma: Seq[Double] = results.getUncertainty().get.asInstanceOf[Seq[Double]]
+      // val means = results.expected
+      val sigma: Seq[Double] = results.uncertainty().get.asInstanceOf[Seq[Double]]
       assert(sigma.forall(_ >= 0.0))
 
-      assert(results.getGradient().isEmpty, "Returned a gradient when there shouldn't be one")
+      assert(results.gradient.isEmpty, "Returned a gradient when there shouldn't be one")
 
       if (!randomlyRotateFeatures) {
         /* The first feature should be the most important */
-        val importances = RFMeta.getFeatureImportance().get
+        val importances = RFMeta.featureImportance.get
         assert(importances(1) == importances.max)
       }
     }
@@ -61,11 +61,11 @@ class RandomForestTest extends SeedRandomMixIn {
     val multiTaskRows = TrainingRow.build(inputs.zip(allLabels))
 
     val RFMeta = MultiTaskRandomForest().train(multiTaskRows, rng = rng)
-    val model = RFMeta.getModel()
+    val model = RFMeta.model
 
     val results = model.transform(inputs).asInstanceOf[MultiTaskBaggedPrediction]
-    assert(results.getUncertainty().isDefined)
-    assert(results.getUncertaintyCorrelation(0, 2).isDefined)
+    assert(results.uncertainty().isDefined)
+    assert(results.uncertaintyCorrelation(0, 2).isDefined)
   }
 
   /**
@@ -83,14 +83,14 @@ class RandomForestTest extends SeedRandomMixIn {
       val RFMeta =
         RandomForestClassifier(numTrees = trainingData.size * 2, randomlyRotateFeatures = randomlyRotateFeatures)
           .train(trainingData, rng = rng)
-      val RF = RFMeta.getModel()
+      val RF = RFMeta.model
 
       /* Inspect the results */
       val results = RF.transform(trainingData.map(_.inputs))
-      val means = results.getExpected()
+      val means = results.expected
       assert(trainingData.map(_.label).zip(means).forall { case (a, p) => a == p })
 
-      val uncertainty = results.getUncertainty()
+      val uncertainty = results.uncertainty()
       assert(uncertainty.isDefined)
       assert(trainingData.map(_.label).zip(uncertainty.get).forall {
         case (a, probs) =>
@@ -110,11 +110,11 @@ class RandomForestTest extends SeedRandomMixIn {
         testInputs: Seq[Vector[Any]],
         seed: Long
     ): Unit = {
-      val model1 = learner.train(trainingData, rng = Random(seed)).getModel()
-      val model2 = learner.train(trainingData, rng = Random(seed)).getModel()
+      val model1 = learner.train(trainingData, rng = Random(seed)).model
+      val model2 = learner.train(trainingData, rng = Random(seed)).model
       val predictions1 = model1.transform(testInputs)
       val predictions2 = model2.transform(testInputs)
-      assert(predictions1.getExpected() == predictions2.getExpected())
+      assert(predictions1.expected == predictions2.expected)
     }
 
     val numTrain = 50
@@ -179,10 +179,10 @@ class RandomForestTest extends SeedRandomMixIn {
           RandomForestClassifier(numTrees = trainingDataSuffixed.size * 2).train(trainingDataSuffixed, rng = rng)
         val RFPrefixed =
           RandomForestClassifier(numTrees = trainingDataPrefixed.size * 2).train(trainingDataPrefixed, rng = rng)
-        val predictedSuffixed = RFSuffixed.getModel().transform(mainTrainingData.map(_.inputs))
-        val predictedPrefixed = RFPrefixed.getModel().transform(mainTrainingData.map(_.inputs))
-        val extraLabelCountSuffixed = predictedSuffixed.getExpected().count { case p: String => p == dupeLabel }
-        val extraLabelCountPrefixed = predictedPrefixed.getExpected().count { case p: String => p == dupeLabel }
+        val predictedSuffixed = RFSuffixed.model.transform(mainTrainingData.map(_.inputs))
+        val predictedPrefixed = RFPrefixed.model.transform(mainTrainingData.map(_.inputs))
+        val extraLabelCountSuffixed = predictedSuffixed.expected.count { case p: String => p == dupeLabel }
+        val extraLabelCountPrefixed = predictedPrefixed.expected.count { case p: String => p == dupeLabel }
 
         if (extraLabelCountSuffixed > extraLabelCountPrefixed) {
           (1, 0)
@@ -228,14 +228,14 @@ class RandomForestTest extends SeedRandomMixIn {
     val lossWithoutRandomization: Double = baseForest
       .copy(randomizePivotLocation = false)
       .train(trainingData, rng = rng)
-      .getLoss()
+      .loss
       .get
 
     // Turn on split randomization and compute the loss (out-of-bag error)
     val lossWithRandomization: Double = baseForest
       .copy(randomizePivotLocation = true)
       .train(trainingData, rng = rng)
-      .getLoss()
+      .loss
       .get
 
     assert(lossWithRandomization < lossWithoutRandomization)
@@ -251,7 +251,7 @@ class RandomForestTest extends SeedRandomMixIn {
     // so this has the effect of creating lots of different sets of weights
     val learner = RandomForestRegressor(numTrees = 16384)
     // the test is that this training doesn't throw an exception
-    learner.train(trainingData, rng = rng).getModel()
+    learner.train(trainingData, rng = rng).model
   }
 
   def shapleyCompare(
@@ -260,7 +260,7 @@ class RandomForestTest extends SeedRandomMixIn {
       expected: Vector[Double],
       rtol: Double = 0.1
   ): Unit = {
-    val actual = RandomForestRegressor().train(trainingData, rng = rng).getModel().shapley(evalLocation) match {
+    val actual = RandomForestRegressor().train(trainingData, rng = rng).model.shapley(evalLocation) match {
       case None => fail("Unexpected None returned by shapley.")
       case x: Option[DenseMatrix[Double]] => {
         val a = x.get

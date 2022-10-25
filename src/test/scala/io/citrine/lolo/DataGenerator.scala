@@ -104,8 +104,8 @@ object DataGenerator {
     require(rho >= -1.0 && rho <= 1.0, "correlation coefficient must be between -1.0 and 1.0")
     val Y = Seq.fill(X.length)(rng.nextGaussian())
     val linearLearner = LinearRegressionLearner()
-    val linearModel = linearLearner.train(X.zip(Y).map { case (x, y) => TrainingRow(Vector(x), y) }).getModel()
-    val yPred = linearModel.transform(X.map(Vector(_))).getExpected()
+    val linearModel = linearLearner.train(X.zip(Y).map { case (x, y) => TrainingRow(Vector(x), y) }).model
+    val yPred = linearModel.transform(X.map(Vector(_))).expected
     val residuals = Y.zip(yPred).map { case (actual, predicted) => actual - predicted }
     val stdX = math.sqrt(variance(X))
     val stdResiduals = math.sqrt(variance(residuals))

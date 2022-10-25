@@ -51,14 +51,12 @@ case class RotatedFeatureTrainingResult[T](
     trans: DenseMatrix[Double]
 ) extends TrainingResult[T] {
 
-  override def getModel(): Model[T] = {
-    RotatedFeatureModel(baseTrainingResult.getModel(), rotatedFeatures, trans)
-  }
+  override def model: Model[T] = RotatedFeatureModel(baseTrainingResult.model, rotatedFeatures, trans)
 
-  override def getLoss(): Option[Double] = baseTrainingResult.getLoss()
+  override def loss: Option[Double] = baseTrainingResult.loss
 
-  override def getPredictedVsActual(): Option[Seq[(Vector[Any], T, T)]] = {
-    baseTrainingResult.getPredictedVsActual().map { x =>
+  override def predictedVsActual: Option[Seq[(Vector[Any], T, T)]] = {
+    baseTrainingResult.predictedVsActual.map { x =>
       x.map {
         case (v, e, a) => (FeatureRotator.applyOneRotation(v, rotatedFeatures, trans), e, a)
       }
@@ -111,17 +109,17 @@ case class RotatedFeaturePrediction[T](
     *
     * @return expected value of each prediction
     */
-  override def getExpected(): Seq[T] = baseResult.getExpected()
+  override def expected: Seq[T] = baseResult.expected
 
   /**
     * Get the uncertainty of the prediction by delegating to baseResult.
     *
     * @return uncertainty of each prediction
     */
-  override def getUncertainty(observational: Boolean): Option[Seq[Any]] = baseResult.getUncertainty(observational)
+  override def uncertainty(observational: Boolean): Option[Seq[Any]] = baseResult.uncertainty(observational)
 
-  override def getGradient(): Option[Seq[Vector[Double]]] = {
-    baseResult.getGradient().map { g =>
+  override def gradient: Option[Seq[Vector[Double]]] = {
+    baseResult.gradient.map { g =>
       FeatureRotator.applyRotation(g, rotatedFeatures, trans.t).asInstanceOf[Seq[Vector[Double]]]
     }
   }

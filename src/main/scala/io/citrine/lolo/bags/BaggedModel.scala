@@ -41,7 +41,7 @@ case class BaggedRegressionModel(
   override def transform(inputs: Seq[Vector[Any]]): BaggedRegressionPrediction = {
     assert(inputs.forall(_.size == inputs.head.size))
 
-    val bias = biasModel.map(_.transform(inputs).getExpected())
+    val bias = biasModel.map(_.transform(inputs).expected)
     val ensemblePredictions = ensembleModels.map(model => model.transform(inputs)).seq
 
     if (inputs.size == 1) {

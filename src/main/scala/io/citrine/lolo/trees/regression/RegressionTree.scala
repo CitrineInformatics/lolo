@@ -83,33 +83,27 @@ case class RegressionTreeLearner(
       maxDepth = maxDepth,
       rng = rng
     )
-    new RegressionTreeTrainingResult(rootTrainingNode, encoders)
+    RegressionTreeTrainingResult(rootTrainingNode, encoders)
   }
 
 }
 
-class RegressionTreeTrainingResult(
+case class RegressionTreeTrainingResult(
     rootTrainingNode: TrainingNode[Double],
     encoders: Seq[Option[CategoricalEncoder[Any]]]
 ) extends TrainingResult[Double] {
-  lazy val model = new RegressionTree(rootTrainingNode.modelNode, encoders)
-  lazy val importance: mutable.ArraySeq[Double] = rootTrainingNode.featureImportance
-  private lazy val importanceNormalized = {
-    if (Math.abs(importance.sum) > 0) {
-      importance.map(_ / importance.sum)
+
+  override lazy val model: RegressionTree = RegressionTree(rootTrainingNode.modelNode, encoders)
+
+  lazy val nodeImportance: mutable.ArraySeq[Double] = rootTrainingNode.featureImportance
+
+  override lazy val featureImportance: Option[Vector[Double]] = Some(
+    if (Math.abs(nodeImportance.sum) > 0) {
+      nodeImportance.map(_ / nodeImportance.sum).toVector
     } else {
-      importance.map(_ => 1.0 / importance.size)
+      nodeImportance.map(_ => 1.0 / nodeImportance.size).toVector
     }
-  }
-
-  override def getModel(): RegressionTree = model
-
-  /**
-    * Return the pre-computed influences
-    *
-    * @return feature influences as an array of doubles
-    */
-  override def getFeatureImportance(): Option[Vector[Double]] = Some(importanceNormalized.toVector)
+  )
 }
 
 /**
@@ -118,7 +112,7 @@ class RegressionTreeTrainingResult(
   * @param root     of the tree
   * @param encoders for categorical variables
   */
-class RegressionTree(
+case class RegressionTree(
     root: ModelNode[Double],
     encoders: Seq[Option[CategoricalEncoder[Any]]]
 ) extends Model[Double] {
@@ -129,8 +123,8 @@ class RegressionTree(
     * @param inputs to apply the model to
     * @return a prediction result which includes only the expected outputs
     */
-  override def transform(inputs: Seq[Vector[Any]]): RegressionTreeResult = {
-    new RegressionTreeResult(
+  override def transform(inputs: Seq[Vector[Any]]): RegressionTreePrediction = {
+    RegressionTreePrediction(
       inputs.map(inp => root.transform(CategoricalEncoder.encodeInput(inp, encoders)))
     )
   }
@@ -155,28 +149,27 @@ class RegressionTree(
   *
   * @param predictions sequence of predictions
   */
-class RegressionTreeResult(predictions: Seq[(PredictionResult[Double], TreeMeta)]) extends PredictionResult[Double] {
+case class RegressionTreePrediction(predictions: Seq[(PredictionResult[Double], TreeMeta)])
+    extends PredictionResult[Double] {
 
   /**
     * Get the predictions
     *
     * @return expected value of each prediction
     */
-  override def getExpected(): Seq[Double] = predictions.map(_._1.getExpected().head)
+  override def expected: Seq[Double] = predictions.map(_._1.expected.head)
 
   /**
     * Get the gradient or sensitivity of each prediction
     *
     * @return a vector of doubles for each prediction
     */
-  override def getGradient(): Option[Seq[Vector[Double]]] = {
-    if (predictions.head._1.getGradient().isEmpty) {
+  override def gradient: Option[Seq[Vector[Double]]] = {
+    if (predictions.head._1.gradient.isEmpty) {
       return None
     }
-    Some(predictions.map(_._1.getGradient().get.head))
+    Some(predictions.map(_._1.gradient.get.head))
   }
 
-  def getDepth(): Seq[Int] = {
-    predictions.map(_._2.depth)
-  }
+  def depth: Seq[Int] = predictions.map(_._2.depth)
 }
