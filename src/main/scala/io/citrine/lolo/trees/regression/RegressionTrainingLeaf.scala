@@ -1,7 +1,7 @@
 package io.citrine.lolo.trees.regression
 
+import io.citrine.lolo.api.{Learner, TrainingResult, TrainingRow}
 import io.citrine.lolo.trees.TrainingLeaf
-import io.citrine.lolo.{Learner, TrainingResult, TrainingRow}
 import io.citrine.random.Random
 
 import scala.collection.mutable

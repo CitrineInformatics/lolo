@@ -1,7 +1,8 @@
 package io.citrine.lolo.bags
 
 import breeze.linalg.DenseMatrix
-import io.citrine.lolo.{DataGenerator, SeedRandomMixIn, TestUtils, TrainingRow}
+import io.citrine.lolo.api.TrainingRow
+import io.citrine.lolo.{DataGenerator, SeedRandomMixIn, TestUtils}
 import io.citrine.lolo.linear.{GuessTheMeanLearner, LinearRegressionLearner}
 import io.citrine.lolo.stats.functions.Friedman
 import io.citrine.lolo.transformers.rotator.FeatureRotator

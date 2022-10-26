@@ -1,6 +1,6 @@
 package io.citrine.lolo.hypers
 
-import io.citrine.lolo.{Learner, TrainingRow}
+import io.citrine.lolo.api.{Learner, TrainingRow}
 import io.citrine.random.Random
 
 /**

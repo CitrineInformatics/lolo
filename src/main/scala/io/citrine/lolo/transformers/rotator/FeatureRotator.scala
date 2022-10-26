@@ -6,6 +6,7 @@ import breeze.linalg.{diag, qr, DenseMatrix, DenseVector}
 import breeze.linalg.qr.QR
 import breeze.numerics.signum
 import breeze.stats.distributions.Gaussian
+import io.citrine.lolo.api.{Learner, Model, PredictionResult, TrainingResult, TrainingRow}
 import io.citrine.lolo.stats.StatsUtils.breezeRandBasis
 
 /**

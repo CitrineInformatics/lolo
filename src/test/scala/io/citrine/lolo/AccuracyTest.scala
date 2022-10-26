@@ -1,5 +1,6 @@
 package io.citrine.lolo
 
+import io.citrine.lolo.api.{Learner, TrainingRow}
 import io.citrine.lolo.bags.{Bagger, RegressionBagger}
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
 import io.citrine.lolo.trees.splits.{BoltzmannSplitter, RegressionSplitter}

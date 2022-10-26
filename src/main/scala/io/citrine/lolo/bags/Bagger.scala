@@ -1,8 +1,8 @@
 package io.citrine.lolo.bags
 
 import breeze.stats.distributions.Poisson
+import io.citrine.lolo.api.{Learner, Model, TrainingRow}
 import io.citrine.lolo.bags.Bagger.BaggedEnsemble
-import io.citrine.lolo.{Learner, Model, TrainingRow}
 import io.citrine.lolo.stats.StatsUtils
 import io.citrine.random.Random
 

@@ -1,6 +1,6 @@
 package io.citrine.lolo.trees.splits
 
-import io.citrine.lolo.TrainingRow
+import io.citrine.lolo.api.TrainingRow
 import io.citrine.lolo.trees.impurity.ImpurityCalculator
 import io.citrine.random.Random
 

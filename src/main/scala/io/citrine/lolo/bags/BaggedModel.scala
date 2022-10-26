@@ -1,7 +1,7 @@
 package io.citrine.lolo.bags
 
 import breeze.linalg.DenseMatrix
-import io.citrine.lolo.Model
+import io.citrine.lolo.api.Model
 
 import scala.collection.parallel.immutable.ParSeq
 

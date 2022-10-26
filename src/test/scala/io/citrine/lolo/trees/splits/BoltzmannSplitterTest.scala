@@ -1,6 +1,7 @@
 package io.citrine.lolo.trees.splits
 
-import io.citrine.lolo.{SeedRandomMixIn, TrainingRow}
+import io.citrine.lolo.SeedRandomMixIn
+import io.citrine.lolo.api.TrainingRow
 import io.citrine.random.Random
 import org.junit.Test
 

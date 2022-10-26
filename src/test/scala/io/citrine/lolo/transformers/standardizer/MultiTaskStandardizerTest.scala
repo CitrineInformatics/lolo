@@ -1,9 +1,10 @@
 package io.citrine.lolo.transformers.standardizer
 
+import io.citrine.lolo.api.TrainingRow
 import io.citrine.lolo.stats.functions.Friedman
 import io.citrine.lolo.stats.metrics.ClassificationMetrics
 import io.citrine.lolo.trees.multitask.MultiTaskTreeLearner
-import io.citrine.lolo.{DataGenerator, SeedRandomMixIn, TrainingRow}
+import io.citrine.lolo.{DataGenerator, SeedRandomMixIn}
 import org.junit.Test
 
 class MultiTaskStandardizerTest extends SeedRandomMixIn {

@@ -1,6 +1,6 @@
 package io.citrine.lolo.validation
 
-import io.citrine.lolo.PredictionResult
+import io.citrine.lolo.api.PredictionResult
 import org.apache.commons.math3.distribution.CauchyDistribution
 import org.knowm.xchart.XYSeries.XYSeriesRenderStyle
 import org.knowm.xchart._

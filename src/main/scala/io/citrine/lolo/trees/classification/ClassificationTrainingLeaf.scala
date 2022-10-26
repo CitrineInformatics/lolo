@@ -1,6 +1,6 @@
 package io.citrine.lolo.trees.classification
 
-import io.citrine.lolo.{Learner, TrainingResult, TrainingRow}
+import io.citrine.lolo.api.{Learner, TrainingResult, TrainingRow}
 import io.citrine.lolo.trees.TrainingLeaf
 import io.citrine.random.Random
 

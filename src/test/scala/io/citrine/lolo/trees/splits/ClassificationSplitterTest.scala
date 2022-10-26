@@ -1,6 +1,7 @@
 package io.citrine.lolo.trees.splits
 
-import io.citrine.lolo.{DataGenerator, SeedRandomMixIn, TrainingRow}
+import io.citrine.lolo.api.TrainingRow
+import io.citrine.lolo.{DataGenerator, SeedRandomMixIn}
 import io.citrine.lolo.encoders.CategoricalEncoder
 import io.citrine.theta.Stopwatch
 

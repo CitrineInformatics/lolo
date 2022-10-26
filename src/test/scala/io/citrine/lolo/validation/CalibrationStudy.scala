@@ -1,9 +1,10 @@
 package io.citrine.lolo.validation
 
+import io.citrine.lolo.api.{PredictionResult, TrainingRow}
 import io.citrine.lolo.bags.{Bagger, RegressionBagger}
 import io.citrine.lolo.stats.functions.{Friedman, Linear}
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
-import io.citrine.lolo.{DataGenerator, PredictionResult, SeedRandomMixIn, TestUtils, TrainingRow}
+import io.citrine.lolo.{DataGenerator, SeedRandomMixIn, TestUtils}
 import org.apache.commons.math3.distribution.CauchyDistribution
 import org.knowm.xchart.BitmapEncoder.BitmapFormat
 import org.knowm.xchart.{BitmapEncoder, CategoryChart, CategoryChartBuilder}

@@ -1,4 +1,4 @@
-package io.citrine.lolo
+package io.citrine.lolo.api
 
 /**
   * A bundle of (inputs, label, weight) used for training a [[Learner]].

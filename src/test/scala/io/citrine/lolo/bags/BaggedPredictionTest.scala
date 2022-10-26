@@ -1,7 +1,8 @@
 package io.citrine.lolo.bags
 
 import breeze.stats.distributions.{Beta, RandBasis}
-import io.citrine.lolo.{DataGenerator, RegressionResult, SeedRandomMixIn, TrainingRow}
+import io.citrine.lolo.api.{RegressionResult, TrainingRow}
+import io.citrine.lolo.{DataGenerator, SeedRandomMixIn}
 import io.citrine.lolo.linear.GuessTheMeanLearner
 import io.citrine.lolo.stats.functions.Friedman
 import io.citrine.lolo.trees.regression.RegressionTreeLearner

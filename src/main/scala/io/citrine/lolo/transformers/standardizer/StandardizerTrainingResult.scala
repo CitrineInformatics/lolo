@@ -1,6 +1,6 @@
 package io.citrine.lolo.transformers.standardizer
 
-import io.citrine.lolo.TrainingResult
+import io.citrine.lolo.api.TrainingResult
 
 /** Training result wrapping the base learner's training result next to the transformations. */
 trait StandardizerTrainingResult[+T] extends TrainingResult[T] {

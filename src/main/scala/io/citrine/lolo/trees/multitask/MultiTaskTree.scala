@@ -1,12 +1,12 @@
 package io.citrine.lolo.trees.multitask
 
+import io.citrine.lolo.api.{Model, MultiTaskLearner, MultiTaskTrainingResult, ParallelModels, TrainingRow}
 import io.citrine.random.Random
 import io.citrine.lolo.encoders.CategoricalEncoder
 import io.citrine.lolo.trees.ModelNode
 import io.citrine.lolo.trees.classification.ClassificationTree
 import io.citrine.lolo.trees.regression.RegressionTree
 import io.citrine.lolo.trees.splits.MultiTaskSplitter
-import io.citrine.lolo.{Model, MultiTaskLearner, MultiTaskTrainingResult, ParallelModels, TrainingRow}
 
 /**
   * A tree learner that operates on multiple labels.

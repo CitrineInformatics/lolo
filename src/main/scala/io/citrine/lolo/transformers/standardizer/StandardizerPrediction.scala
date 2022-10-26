@@ -1,6 +1,6 @@
 package io.citrine.lolo.transformers.standardizer
 
-import io.citrine.lolo.PredictionResult
+import io.citrine.lolo.api.PredictionResult
 
 trait StandardizerPrediction[+T] extends PredictionResult[T] {
 

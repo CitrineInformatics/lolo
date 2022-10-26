@@ -1,7 +1,7 @@
 package io.citrine.lolo.bags
 
 import breeze.linalg.{norm, DenseMatrix, DenseVector}
-import io.citrine.lolo.{PredictionResult, RegressionResult}
+import io.citrine.lolo.api.{PredictionResult, RegressionResult}
 import org.slf4j.{Logger, LoggerFactory}
 
 /**

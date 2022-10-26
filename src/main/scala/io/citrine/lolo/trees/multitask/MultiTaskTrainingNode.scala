@@ -1,6 +1,6 @@
 package io.citrine.lolo.trees.multitask
 
-import io.citrine.lolo.{PredictionResult, TrainingRow}
+import io.citrine.lolo.api.{PredictionResult, TrainingRow}
 import io.citrine.lolo.linear.{GuessTheMeanLearner, GuessTheModeLearner}
 import io.citrine.lolo.trees.classification.ClassificationTrainingLeaf
 import io.citrine.lolo.trees.regression.RegressionTrainingLeaf
