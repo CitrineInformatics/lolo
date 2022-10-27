@@ -1,7 +1,8 @@
 package io.citrine.lolo.validation
 
 import io.citrine.random.Random
-import io.citrine.lolo.{PredictionResult, SeedRandomMixIn}
+import io.citrine.lolo.SeedRandomMixIn
+import io.citrine.lolo.api.PredictionResult
 import org.apache.commons.math3.distribution.MultivariateNormalDistribution
 import org.apache.commons.math3.random.MersenneTwister
 import org.junit.Test
@@ -54,9 +55,9 @@ class MeritTest extends SeedRandomMixIn {
         (y + error, uncertainty, y)
       }
       val predictionResult = new PredictionResult[Double] {
-        override def getExpected(): Seq[Double] = pua.map(_._1)
+        override def expected: Seq[Double] = pua.map(_._1)
 
-        override def getUncertainty(includeNoise: Boolean = true): Option[Seq[Any]] = Some(pua.map(_._2))
+        override def uncertainty(includeNoise: Boolean = true): Option[Seq[Any]] = Some(pua.map(_._2))
       }
       (predictionResult, pua.map(_._3))
     }

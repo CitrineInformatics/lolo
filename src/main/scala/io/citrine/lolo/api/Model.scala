@@ -1,8 +1,8 @@
-package io.citrine.lolo
+package io.citrine.lolo.api
 
 import breeze.linalg.DenseMatrix
 
-trait Model[+T <: PredictionResult[Any]] extends Serializable {
+trait Model[+T] extends Serializable {
 
   /**
     * Apply the model to a seq of inputs
@@ -10,7 +10,7 @@ trait Model[+T <: PredictionResult[Any]] extends Serializable {
     * @param inputs to apply the model to
     * @return a PredictionResult which includes, at least, the expected outputs
     */
-  def transform(inputs: Seq[Vector[Any]]): T
+  def transform(inputs: Seq[Vector[Any]]): PredictionResult[T]
 
   /**
     * Compute Shapley feature attributions for a given input in this node's subtree
@@ -21,24 +21,23 @@ trait Model[+T <: PredictionResult[Any]] extends Serializable {
     *         One row per feature, each of length equal to the output dimension.
     *         The output dimension is 1 for single-task regression, or equal to the number of classification categories.
     */
-  def shapley(
-      input: Vector[Any],
-      omitFeatures: Set[Int] = Set()
-  ): Option[DenseMatrix[Double]] = None
-
+  def shapley(input: Vector[Any], omitFeatures: Set[Int] = Set()): Option[DenseMatrix[Double]] = None
 }
 
 /** A model that predicts a sequence of values, corresponding to multiple labels. */
-trait MultiTaskModel extends Model[MultiTaskModelPredictionResult] {
+trait MultiTaskModel extends Model[Vector[Any]] {
 
   /** The number of labels. Every prediction must have this length. */
-  val numLabels: Int
+  def numLabels: Int
 
   /** A boolean sequence indicating which labels are real-valued. Its length must be equal to `numLabels`. */
-  def getRealLabels: Seq[Boolean]
+  def realLabels: Seq[Boolean]
 
   /** Individual models corresponding to each label */
-  def getModels: Seq[Model[PredictionResult[Any]]]
+  def models: Seq[Model[Any]]
+
+  override def transform(inputs: Seq[Vector[Any]]): MultiTaskModelPredictionResult
+
 }
 
 /**
@@ -47,17 +46,11 @@ trait MultiTaskModel extends Model[MultiTaskModelPredictionResult] {
   * @param models     sequence of models, one for each label
   * @param realLabels boolean sequence indicating which labels are real-valued
   */
-class ParallelModels(models: Seq[Model[PredictionResult[Any]]], realLabels: Seq[Boolean]) extends MultiTaskModel {
-  override val numLabels: Int = models.length
+case class ParallelModels(models: Seq[Model[Any]], realLabels: Seq[Boolean]) extends MultiTaskModel {
+  override def numLabels: Int = models.length
 
-  override def getRealLabels: Seq[Boolean] = realLabels
-
-  override def getModels: Seq[Model[PredictionResult[Any]]] = models
-
-  override def transform(inputs: Seq[Vector[Any]]) =
-    new ParallelModelsPredictionResult(
-      models.map { model =>
-        model.transform(inputs).getExpected()
-      }.transpose
-    )
+  override def transform(inputs: Seq[Vector[Any]]): ParallelModelsPredictionResult = {
+    val predictions = models.map(_.transform(inputs).expected).toVector.transpose
+    ParallelModelsPredictionResult(predictions)
+  }
 }

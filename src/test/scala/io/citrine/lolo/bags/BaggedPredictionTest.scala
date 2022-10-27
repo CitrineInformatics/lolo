@@ -1,44 +1,57 @@
 package io.citrine.lolo.bags
 
 import breeze.stats.distributions.{Beta, RandBasis}
-import io.citrine.lolo.{RegressionResult, SeedRandomMixIn, TestUtils}
+import io.citrine.lolo.api.{RegressionResult, TrainingRow}
+import io.citrine.lolo.{DataGenerator, SeedRandomMixIn}
 import io.citrine.lolo.linear.GuessTheMeanLearner
 import io.citrine.lolo.stats.functions.Friedman
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
 import org.junit.Test
 import org.scalatest.Assertions._
 
-class BaggedResultTest extends SeedRandomMixIn {
+class BaggedPredictionTest extends SeedRandomMixIn {
 
   @Test
   def testSingleMultiConsistency(): Unit = {
-    val trainingData = TestUtils.binTrainingData(
-      TestUtils.generateTrainingData(512, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng),
-      inputBins = Seq((0, 8))
-    )
+    val trainingData = DataGenerator
+      .generate(512, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng)
+      .withBinnedInputs(bins = Seq((0, 8)))
+      .data
 
     val DTLearner = RegressionTreeLearner(numFeatures = 12)
     val biasLearner = RegressionTreeLearner(maxDepth = 5, leafLearner = Some(GuessTheMeanLearner()))
 
     Array(
-      Bagger(DTLearner, numBags = 64, biasLearner = None, uncertaintyCalibration = false, useJackknife = true),
-      Bagger(
+      RegressionBagger(
+        DTLearner,
+        numBags = 64,
+        biasLearner = None,
+        uncertaintyCalibration = false,
+        useJackknife = true
+      ),
+      RegressionBagger(
         DTLearner,
         numBags = 64,
         biasLearner = Some(biasLearner),
         uncertaintyCalibration = true,
         useJackknife = false
       ),
-      Bagger(
+      RegressionBagger(
         DTLearner,
         numBags = 64,
         biasLearner = Some(biasLearner),
         uncertaintyCalibration = true,
         useJackknife = true
       ),
-      Bagger(DTLearner, numBags = 64, biasLearner = None, uncertaintyCalibration = false, useJackknife = false)
+      RegressionBagger(
+        DTLearner,
+        numBags = 64,
+        biasLearner = None,
+        uncertaintyCalibration = false,
+        useJackknife = false
+      )
     ).foreach { bagger =>
-      testConsistency(trainingData, bagger.train(trainingData, rng = rng).getModel())
+      testConsistency(trainingData, bagger.train(trainingData, rng = rng).model)
     }
   }
 
@@ -60,21 +73,23 @@ class BaggedResultTest extends SeedRandomMixIn {
 
             val sigmaObsAndSigmaMean: Seq[(Double, Double)] = (1 to 20).flatMap { _ =>
               val trainingDataTmp =
-                TestUtils.generateTrainingData(nRows, nCols, noise = 0.0, function = _ => 0.0, rng = rng)
-              val trainingData = trainingDataTmp.map { x => (x._1, x._2 + noiseLevel * rng.nextDouble()) }
-              val baggedLearner = Bagger(baseLearner, numBags = nBags, uncertaintyCalibration = true)
+                DataGenerator.generate(nRows, nCols, noise = 0.0, function = _ => 0.0, rng = rng).data
+              val trainingData = trainingDataTmp.map { row =>
+                row.mapLabel(_ + noiseLevel * rng.nextDouble())
+              }
+              val baggedLearner = RegressionBagger(baseLearner, numBags = nBags, uncertaintyCalibration = true)
               val RFMeta = baggedLearner.train(trainingData, rng = rng)
-              val RF = RFMeta.getModel()
-              val results = RF.transform(trainingData.take(4).map(_._1))
+              val RF = RFMeta.model
+              val results = RF.transform(trainingData.take(4).map(_.inputs))
 
-              val sigmaMean: Seq[Double] = results.getUncertainty(observational = false).get.asInstanceOf[Seq[Double]]
-              sigmaMean.zip(results.asInstanceOf[RegressionResult].getStdDevMean().get).foreach {
+              val sigmaMean: Seq[Double] = results.uncertainty(observational = false).get.asInstanceOf[Seq[Double]]
+              sigmaMean.zip(results.asInstanceOf[RegressionResult].stdDevMean.get).foreach {
                 case (a, b) =>
                   assert(a == b, s"Expected getUncertainty(observational=false)=getStdDevMean() for $configDescription")
               }
 
-              val sigmaObs: Seq[Double] = results.getUncertainty().get.asInstanceOf[Seq[Double]]
-              sigmaObs.zip(results.asInstanceOf[RegressionResult].getStdDevObs().get).foreach {
+              val sigmaObs: Seq[Double] = results.uncertainty().get.asInstanceOf[Seq[Double]]
+              sigmaObs.zip(results.asInstanceOf[RegressionResult].stdDevObs.get).foreach {
                 case (a, b) =>
                   assert(a == b, s"Expected getUncertainty()=getStdDevObs() for $configDescription")
               }
@@ -155,24 +170,24 @@ class BaggedResultTest extends SeedRandomMixIn {
     * @param trainingData The original training data for the model
     * @param model        The trained model
     */
-  private def testConsistency(trainingData: Seq[(Vector[Any], Any)], model: BaggedModel[Any]): Unit = {
+  private def testConsistency(trainingData: Seq[TrainingRow[Double]], model: BaggedModel[Double]): Unit = {
     val testSubset = rng.shuffle(trainingData).take(16)
     val (singleValues, singleObsUnc, singleMeanUnc) = testSubset.map {
-      case (x, _) =>
+      case TrainingRow(x, _, _) =>
         val res = model.transform(Seq(x))
         (
-          res.getExpected().head.asInstanceOf[Double],
-          res.getUncertainty(true).get.head.asInstanceOf[Double],
-          res.getUncertainty(false).get.head.asInstanceOf[Double]
+          res.expected.head,
+          res.uncertainty(true).get.head.asInstanceOf[Double],
+          res.uncertainty(false).get.head.asInstanceOf[Double]
         )
     }.unzip3
 
     val (multiValues, multiObsUnc, multiMeanUnc) = {
-      val res = model.transform(testSubset.map(_._1))
+      val res = model.transform(testSubset.map(_.inputs))
       (
-        res.getExpected().map(_.asInstanceOf[Double]),
-        res.getUncertainty(true).get.map(_.asInstanceOf[Double]),
-        res.getUncertainty(false).get.map(_.asInstanceOf[Double])
+        res.expected,
+        res.uncertainty(true).get.map(_.asInstanceOf[Double]),
+        res.uncertainty(false).get.map(_.asInstanceOf[Double])
       )
     }
 

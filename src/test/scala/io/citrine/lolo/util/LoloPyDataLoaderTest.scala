@@ -1,7 +1,7 @@
 package io.citrine.lolo.util
-import io.citrine.lolo.{PredictionResult, TestUtils}
-import io.citrine.lolo.learners.RandomForest
-import io.citrine.lolo.stats.functions.Friedman
+
+import io.citrine.lolo.api.PredictionResult
+import io.citrine.lolo.learners.RandomForestRegressor
 import org.junit.Test
 
 class LoloPyDataLoaderTest {
@@ -40,18 +40,18 @@ class LoloPyDataLoaderTest {
   @Test
   def testGetRegression(): Unit = {
     val results = new PredictionResult[Double] {
-      override def getExpected(): Seq[Double] = {
+      override def expected: Seq[Double] = {
         1.0 :: 2.0 :: 3.0 :: Nil
       }
 
-      override def getUncertainty(includeNoise: Boolean = true): Option[Seq[Any]] = {
+      override def uncertainty(includeNoise: Boolean = true): Option[Seq[Any]] = {
         Some(0.1 :: 0.2 :: 0.3 :: Nil)
       }
     }
 
     // Get the expected results
-    val means = results.getExpected()
-    val sigma = results.getUncertainty().get.asInstanceOf[Seq[Double]]
+    val means = results.expected
+    val sigma = results.uncertainty().get.asInstanceOf[Seq[Double]]
 
     // Get the results as a byte array, and convert them back
     val reproMeans = LoloPyDataLoader
@@ -70,21 +70,21 @@ class LoloPyDataLoaderTest {
   def testGetClassification(): Unit = {
     // Get the base results
     val results = new PredictionResult[Int] {
-      override def getExpected(): Seq[Int] = {
+      override def expected: Seq[Int] = {
         0 :: 1 :: 0 :: 1 :: Nil
       }
 
-      override def getUncertainty(includeNoise: Boolean = true): Option[Seq[Any]] = {
+      override def uncertainty(includeNoise: Boolean = true): Option[Seq[Any]] = {
         Some(Map(0 -> 1.0) :: Map(1 -> 0.5, 0 -> 0.2, 2 -> 0.3) :: Map(0 -> 1.0) :: Map(1 -> 1.0) :: Nil)
       }
 
-      override def getImportanceScores(): Option[Seq[Seq[Double]]] = {
+      override def importanceScores: Option[Seq[Seq[Double]]] = {
         Some((0.1 :: 0.2 :: Nil) :: (0.4 :: 0.8 :: Nil) :: (0.1 :: 0.5 :: Nil) :: (0.8 :: 0.2 :: Nil) :: Nil)
       }
     }
-    val means = results.getExpected()
+    val means = results.expected
     val probs: Seq[Double] = results
-      .getUncertainty()
+      .uncertainty()
       .get
       .asInstanceOf[Seq[Map[Int, Double]]]
       .flatMap(x => 0.until(3).map(i => x.getOrElse(i, 0.0)))
@@ -119,9 +119,9 @@ class LoloPyDataLoaderTest {
 
   @Test
   def testSerialization(): Unit = {
-    val model = new RandomForest(numTrees = 256)
+    val model = new RandomForestRegressor(numTrees = 256)
     val bytes = LoloPyDataLoader.serializeObject(model, 9)
-    val model2 = LoloPyDataLoader.deserializeObject(bytes).asInstanceOf[RandomForest]
+    val model2 = LoloPyDataLoader.deserializeObject(bytes).asInstanceOf[RandomForestRegressor]
     assert(model.numTrees == model2.numTrees)
   }
 }

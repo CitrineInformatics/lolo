@@ -1,7 +1,7 @@
 package io.citrine.lolo.validation
 
-import io.citrine.lolo.{SeedRandomMixIn, TestUtils}
-import io.citrine.lolo.learners.RandomForest
+import io.citrine.lolo.{DataGenerator, SeedRandomMixIn}
+import io.citrine.lolo.learners.RandomForestRegressor
 import io.citrine.lolo.stats.functions.Friedman
 import org.junit.Test
 
@@ -14,8 +14,8 @@ class CrossValidationTest extends SeedRandomMixIn {
     */
   @Test
   def testCompareToOutOfBag(): Unit = {
-    val learner = RandomForest()
-    val data = TestUtils.generateTrainingData(128, 8, Friedman.friedmanSilverman, rng = rng)
+    val learner = RandomForestRegressor()
+    val data = DataGenerator.generate(128, 8, Friedman.friedmanSilverman, rng = rng).data
 
     val metric = RootMeanSquareError
     val (rmseFromCV, uncertainty) =
@@ -23,13 +23,9 @@ class CrossValidationTest extends SeedRandomMixIn {
 
     val trainingResult = learner.train(data)
     val rmseFromPVA = Math.sqrt(
-      trainingResult
-        .getPredictedVsActual()
-        .get
-        .map {
-          case (_, p: Double, a: Double) => Math.pow(p - a, 2.0)
-        }
-        .sum / trainingResult.getPredictedVsActual().get.size
+      trainingResult.predictedVsActual.get.map {
+        case (_, p: Double, a: Double) => Math.pow(p - a, 2.0)
+      }.sum / trainingResult.predictedVsActual.get.size
     )
 
     // These have a false negative rate less than 1/100 at the time of original authorship

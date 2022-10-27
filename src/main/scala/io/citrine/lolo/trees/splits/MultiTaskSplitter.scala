@@ -1,9 +1,10 @@
 package io.citrine.lolo.trees.splits
 
+import io.citrine.lolo.api.TrainingRow
 import io.citrine.random.Random
 import io.citrine.lolo.trees.impurity.MultiImpurityCalculator
 
-case class MultiTaskSplitter(randomizePivotLocation: Boolean = false) extends Splitter[Seq[AnyVal]] {
+case class MultiTaskSplitter(randomizePivotLocation: Boolean = false) extends Splitter[Vector[AnyVal]] {
 
   /**
     * Get the best split, considering numFeature random features (w/o replacement)
@@ -15,28 +16,27 @@ case class MultiTaskSplitter(randomizePivotLocation: Boolean = false) extends Sp
     * @return a split object that optimally divides data
     */
   def getBestSplit(
-      data: Seq[(Vector[AnyVal], Seq[AnyVal], Double)],
+      data: Seq[TrainingRow[Vector[AnyVal]]],
       numFeatures: Int,
       minInstances: Int,
       rng: Random
   ): (Split, Double) = {
     var bestSplit: Split = NoSplit()
     var bestImpurity = Double.MaxValue
-    val calculator = MultiImpurityCalculator.build(data.map(_._2), data.map(_._3))
+    val calculator = MultiImpurityCalculator.build(data.map(_.label), data.map(_.weight))
     val initialImpurity = calculator.getImpurity
 
     // Pre-compute these for the variance calculation.
     val rep = data.head
 
     // Try every feature index.
-    val featureIndices: Seq[Int] = rep._1.indices
+    val featureIndices: Seq[Int] = rep.inputs.indices
     rng.shuffle(featureIndices).take(numFeatures).foreach { index =>
       // Use different splitters for each type.
-      val (possibleSplit, possibleImpurity) = rep._1(index) match {
-        case _: Double =>
-          Splitter.getBestRealSplit[Seq[AnyVal]](data, calculator, index, minInstances, randomizePivotLocation, rng)
-        case _: Char => getBestCategoricalSplit(data, calculator, index, minInstances)
-        case _: Any  => throw new IllegalArgumentException("Trying to split unknown feature type")
+      val (possibleSplit, possibleImpurity) = rep.inputs(index) match {
+        case _: Double => Splitter.getBestRealSplit(data, calculator, index, minInstances, randomizePivotLocation, rng)
+        case _: Char   => getBestCategoricalSplit(data, calculator, index, minInstances)
+        case _: Any    => throw new IllegalArgumentException("Trying to split unknown feature type")
       }
 
       // Keep track of the best split.
@@ -63,14 +63,13 @@ case class MultiTaskSplitter(randomizePivotLocation: Boolean = false) extends Sp
     * @return the best split of this feature
     */
   def getBestCategoricalSplit(
-      data: Seq[(Vector[AnyVal], Seq[AnyVal], Double)],
+      data: Seq[TrainingRow[Vector[AnyVal]]],
       calculator: MultiImpurityCalculator,
       index: Int,
       minInstances: Int
   ): (Split, Double) = {
     // Extract the features at the index.
-    val thinData: Seq[(Char, Seq[AnyVal], Double)] =
-      data.map(dat => (dat._1(index).asInstanceOf[Char], dat._2, dat._3))
+    val thinData = data.map(dat => (dat.inputs(index).asInstanceOf[Char], dat.label, dat.weight))
     val totalWeight = thinData.map(_._3).sum
 
     // Group the data by categorical feature and compute the weighted sum and sum of the weights for each.
@@ -120,7 +119,7 @@ case class MultiTaskSplitter(randomizePivotLocation: Boolean = false) extends Sp
     * @param labels is a seq of (Array of multiple labels, single weight)
     * @return the impurity, which is in [0, number of labels * sum of weights]
     */
-  def computeImpurity(labels: Seq[(Seq[AnyVal], Double)]): Double = {
+  def computeImpurity(labels: Seq[(Vector[AnyVal], Double)]): Double = {
     val calculator = MultiImpurityCalculator.build(labels.map(_._1), labels.map(_._2))
     calculator.getImpurity
   }

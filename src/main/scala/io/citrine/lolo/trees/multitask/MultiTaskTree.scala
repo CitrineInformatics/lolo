@@ -1,12 +1,12 @@
 package io.citrine.lolo.trees.multitask
 
+import io.citrine.lolo.api.{Model, MultiTaskLearner, MultiTaskTrainingResult, ParallelModels, TrainingRow}
 import io.citrine.random.Random
 import io.citrine.lolo.encoders.CategoricalEncoder
 import io.citrine.lolo.trees.ModelNode
 import io.citrine.lolo.trees.classification.ClassificationTree
 import io.citrine.lolo.trees.regression.RegressionTree
 import io.citrine.lolo.trees.splits.MultiTaskSplitter
-import io.citrine.lolo.{Model, MultiTaskLearner, MultiTaskTrainingResult, ParallelModels, PredictionResult}
 
 /**
   * A tree learner that operates on multiple labels.
@@ -27,16 +27,11 @@ case class MultiTaskTreeLearner(
     * Construct one regression or classification tree for each label.
     *
     * @param trainingData to train on
-    * @param weights      for the training rows, if applicable
     * @param rng          random number generator for reproducibility
     * @return             sequence of models, one for each label
     */
-  override def train(
-      trainingData: Seq[(Vector[Any], Vector[Any])],
-      weights: Option[Seq[Double]],
-      rng: Random
-  ): MultiTaskTreeTrainingResult = {
-    val (inputs, labels) = trainingData.unzip
+  override def train(trainingData: Seq[TrainingRow[Vector[Any]]], rng: Random): MultiTaskTreeTrainingResult = {
+    val (inputs, labels, weights) = trainingData.map(_.asTuple).unzip3
     val repInput = inputs.head
     val repOutput = labels.head
     val labelIndices = repOutput.indices
@@ -65,16 +60,14 @@ case class MultiTaskTreeLearner(
 
     // Encode the inputs, outputs, and filter out zero weight rows
     val collectedData = inputs.indices
-      .map { i =>
-        (encodedInputs(i), encodedLabels(i), weights.map(_(i)).getOrElse(1.0))
-      }
-      .filter(_._3 > 0.0)
+      .map { i => TrainingRow(encodedInputs(i), encodedLabels(i), weights(i)) }
+      .filter(_.weight > 0.0)
 
     /* If the number of features isn't specified, use all of them */
     val numFeaturesActual = if (numFeatures > 0) {
       numFeatures
     } else {
-      collectedData.head._1.size
+      collectedData.head.inputs.size
     }
 
     // Construct the training tree
@@ -94,13 +87,13 @@ case class MultiTaskTreeLearner(
     // Stick the model trees into RegressionTree and ClassificationTree objects
     val models = labelIndices.map { i =>
       if (repOutput(i).isInstanceOf[Double]) {
-        new RegressionTree(
-          nodes(i).asInstanceOf[ModelNode[PredictionResult[Double]]],
+        RegressionTree(
+          nodes(i).asInstanceOf[ModelNode[Double]],
           inputEncoders
         )
       } else {
-        new ClassificationTree(
-          nodes(i).asInstanceOf[ModelNode[PredictionResult[Char]]],
+        ClassificationTree(
+          nodes(i).asInstanceOf[ModelNode[Char]],
           inputEncoders,
           outputEncoders(i).get
         )
@@ -114,27 +107,22 @@ case class MultiTaskTreeLearner(
       }
     }
 
-    new MultiTaskTreeTrainingResult(models, sumFeatureImportance)
+    MultiTaskTreeTrainingResult(models, sumFeatureImportance)
   }
 }
 
-class MultiTaskTreeTrainingResult(
-    models: Seq[Model[PredictionResult[Any]]],
-    featureImportance: Vector[Double]
+case class MultiTaskTreeTrainingResult(
+    override val models: Seq[Model[Any]],
+    nodeImportance: Vector[Double]
 ) extends MultiTaskTrainingResult {
-  val model = new ParallelModels(models, models.map(_.isInstanceOf[RegressionTree]))
-  private lazy val importanceNormalized = {
-    if (Math.abs(featureImportance.sum) > 0) {
-      featureImportance.map(_ / featureImportance.sum)
+
+  override val model: ParallelModels = ParallelModels(models, models.map(_.isInstanceOf[RegressionTree]))
+
+  override lazy val featureImportance: Option[Vector[Double]] = Some(
+    if (Math.abs(nodeImportance.sum) > 0) {
+      nodeImportance.map(_ / nodeImportance.sum)
     } else {
-      featureImportance.map(_ => 1.0 / featureImportance.size)
+      nodeImportance.map(_ => 1.0 / nodeImportance.size)
     }
-  }
-
-  override def getModel(): ParallelModels = model
-
-  override def getModels(): Seq[Model[PredictionResult[Any]]] = models
-
-  override def getFeatureImportance(): Option[Vector[Double]] = Some(importanceNormalized)
-
+  )
 }

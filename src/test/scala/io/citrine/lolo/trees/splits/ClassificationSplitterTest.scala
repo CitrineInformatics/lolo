@@ -1,6 +1,7 @@
 package io.citrine.lolo.trees.splits
 
-import io.citrine.lolo.{SeedRandomMixIn, TestUtils}
+import io.citrine.lolo.api.TrainingRow
+import io.citrine.lolo.{DataGenerator, SeedRandomMixIn}
 import io.citrine.lolo.encoders.CategoricalEncoder
 import io.citrine.theta.Stopwatch
 
@@ -16,18 +17,13 @@ class ClassificationSplitterTest extends SeedRandomMixIn {
   val nLabel = 4096
   val nSubset = 4
 
-  val testData: Seq[(Vector[Any], Any)] = TestUtils.binTrainingData(
-    TestUtils.generateTrainingData(nRow, 12, rng = rng),
-    responseBins = Some(nLabel)
-  )
+  val testData: Seq[TrainingRow[String]] = DataGenerator.generate(nRow, 12, rng = rng).withBinnedLabels(nLabel).data
 
-  val encoder: CategoricalEncoder[Any] = CategoricalEncoder.buildEncoder(testData.map(_._2))
-  val encodedData: Seq[(Vector[AnyVal], Char, Double)] = testData.map {
-    case (f, l) =>
-      (f.asInstanceOf[Vector[AnyVal]], encoder.encode(l), 1.0)
+  val encoder: CategoricalEncoder[Any] = CategoricalEncoder.buildEncoder(testData.map(_.label))
+  val encodedData: Seq[TrainingRow[Char]] = testData.map { row =>
+    row.withLabel(encoder.encode(row.getClass))
   }
-
-  val subset: Seq[(Vector[AnyVal], Char, Double)] = encodedData.take(nSubset)
+  val subset: Seq[TrainingRow[Char]] = encodedData.take(nSubset)
 
   /**
     * Evaluate the split finding performance on large and small datasets

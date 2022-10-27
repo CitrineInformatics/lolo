@@ -7,7 +7,7 @@ package io.citrine.lolo.trees.impurity
   */
 class MultiImpurityCalculator(
     calculators: Seq[ImpurityCalculator[AnyVal]]
-) extends ImpurityCalculator[Seq[AnyVal]] {
+) extends ImpurityCalculator[Vector[AnyVal]] {
 
   /**
     * Add the value to each calculator
@@ -16,13 +16,15 @@ class MultiImpurityCalculator(
     * @param weight of the value
     * @return the impurity after adding
     */
-  def add(value: Seq[AnyVal], weight: Double): Double = {
+  def add(value: Vector[AnyVal], weight: Double): Double = {
     value.zip(calculators).map {
       case (v, calc) =>
-        if (v.isInstanceOf[Double]) {
-          calc.asInstanceOf[ImpurityCalculator[Double]].add(v.asInstanceOf[Double], weight)
-        } else if (v.isInstanceOf[Char]) {
-          calc.asInstanceOf[ImpurityCalculator[Char]].add(v.asInstanceOf[Char], weight)
+        v match {
+          case d: Double =>
+            calc.asInstanceOf[ImpurityCalculator[Double]].add(d, weight)
+          case c: Char =>
+            calc.asInstanceOf[ImpurityCalculator[Char]].add(c, weight)
+          case _ =>
         }
     }
 
@@ -36,13 +38,15 @@ class MultiImpurityCalculator(
     * @param weight of the value
     * @return the impurity after removing
     */
-  def remove(value: Seq[AnyVal], weight: Double): Double = {
+  def remove(value: Vector[AnyVal], weight: Double): Double = {
     value.zip(calculators).map {
       case (v, calc) =>
-        if (v.isInstanceOf[Double]) {
-          calc.asInstanceOf[ImpurityCalculator[Double]].remove(v.asInstanceOf[Double], weight)
-        } else if (v.isInstanceOf[Char]) {
-          calc.asInstanceOf[ImpurityCalculator[Char]].remove(v.asInstanceOf[Char], weight)
+        v match {
+          case d: Double =>
+            calc.asInstanceOf[ImpurityCalculator[Double]].remove(d, weight)
+          case c: Char =>
+            calc.asInstanceOf[ImpurityCalculator[Char]].remove(c, weight)
+          case _ =>
         }
     }
 
@@ -78,7 +82,7 @@ object MultiImpurityCalculator {
     * @param weights which are assumed to be constant over the labels at each row
     * @return MultiImpurityCalculator that sum the impurity of each label index
     */
-  def build(labels: Seq[Seq[AnyVal]], weights: Seq[Double]): MultiImpurityCalculator = {
+  def build(labels: Seq[Vector[AnyVal]], weights: Seq[Double]): MultiImpurityCalculator = {
     val calculators: Seq[ImpurityCalculator[AnyVal]] = labels.transpose.map { labelSeq =>
       if (labelSeq.head.isInstanceOf[Double]) {
         VarianceCalculator

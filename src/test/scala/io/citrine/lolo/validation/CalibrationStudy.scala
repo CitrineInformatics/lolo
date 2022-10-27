@@ -1,9 +1,10 @@
 package io.citrine.lolo.validation
 
-import io.citrine.lolo.bags.Bagger
+import io.citrine.lolo.api.{PredictionResult, TrainingRow}
+import io.citrine.lolo.bags.{Bagger, RegressionBagger}
 import io.citrine.lolo.stats.functions.{Friedman, Linear}
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
-import io.citrine.lolo.{PredictionResult, SeedRandomMixIn, TestUtils}
+import io.citrine.lolo.{DataGenerator, SeedRandomMixIn, TestUtils}
 import org.apache.commons.math3.distribution.CauchyDistribution
 import org.knowm.xchart.BitmapEncoder.BitmapFormat
 import org.knowm.xchart.{BitmapEncoder, CategoryChart, CategoryChartBuilder}
@@ -54,7 +55,7 @@ object CalibrationStudy extends SeedRandomMixIn {
       ratios: Seq[Int] = Seq(1, 2, 4)
   ): Unit = {
     val nFeature = 8
-    val data = TestUtils.iterateTrainingData(nFeature, Friedman.friedmanSilverman, rng = rng)
+    val data = DataGenerator.iterate(nFeature, Friedman.friedmanSilverman, rng = rng)
 
     ratios.foreach { ratio =>
       val chart = Merit.plotMeritScan(
@@ -72,10 +73,8 @@ object CalibrationStudy extends SeedRandomMixIn {
         rng = rng
       ) { nTrain: Double =>
         val nTree = ratio * nTrain
-        val learner = Bagger(
-          RegressionTreeLearner(
-            numFeatures = nFeature
-          ),
+        val learner = RegressionBagger(
+          RegressionTreeLearner(numFeatures = nFeature),
           numBags = nTree.toInt,
           useJackknife = true,
           uncertaintyCalibration = false
@@ -92,7 +91,7 @@ object CalibrationStudy extends SeedRandomMixIn {
       calibrated: Boolean = false
   ): Unit = {
     val nFeature = 8
-    val data = TestUtils.iterateTrainingData(nFeature, Friedman.friedmanSilverman, rng = rng)
+    val data = DataGenerator.iterate(nFeature, Friedman.friedmanSilverman, rng = rng)
     sizes.foreach { nTrain =>
       val chart = Merit.plotMeritScan(
         "Number of trees",
@@ -108,10 +107,8 @@ object CalibrationStudy extends SeedRandomMixIn {
         yMax = Some(1.0),
         rng = rng
       ) { nTree: Double =>
-        val learner = Bagger(
-          RegressionTreeLearner(
-            numFeatures = nFeature
-          ),
+        val learner = RegressionBagger(
+          RegressionTreeLearner(numFeatures = nFeature),
           numBags = nTree.toInt,
           useJackknife = true,
           uncertaintyCalibration = calibrated
@@ -135,7 +132,7 @@ object CalibrationStudy extends SeedRandomMixIn {
       funcName: String = "fs"
   ): Unit = {
     val nFeature = 8
-    val data = TestUtils.iterateTrainingData(nFeature, func, rng = rng)
+    val data = DataGenerator.iterate(nFeature, func, rng = rng)
     sizes.foreach { nTree =>
       val chart = Merit.plotMeritScan(
         "Number of training points",
@@ -151,10 +148,8 @@ object CalibrationStudy extends SeedRandomMixIn {
         yMax = Some(1.0),
         rng = rng
       ) { nTrain: Double =>
-        val learner = Bagger(
-          RegressionTreeLearner(
-            numFeatures = nFeature
-          ),
+        val learner = RegressionBagger(
+          RegressionTreeLearner(numFeatures = nFeature),
           numBags = nTree.toInt,
           useJackknife = true,
           uncertaintyCalibration = calibrated
@@ -181,13 +176,11 @@ object CalibrationStudy extends SeedRandomMixIn {
       ignoreDims: Int = 0
   ): Map[String, (Double, Double)] = {
 
-    val data = TestUtils
-      .iterateTrainingData(nFeature, func, rng = rng)
-      .map { case (x, y) => (x.drop(ignoreDims), y) }
-    val learner = Bagger(
-      RegressionTreeLearner(
-        numFeatures = nFeature
-      ),
+    val data = DataGenerator
+      .iterate(nFeature, func, rng = rng)
+      .map { row => row.mapInputs(_.drop(ignoreDims)) }
+    val learner = RegressionBagger(
+      RegressionTreeLearner(numFeatures = nFeature),
       numBags = nTree,
       useJackknife = true,
       uncertaintyCalibration = true,
@@ -244,9 +237,8 @@ object CalibrationStudy extends SeedRandomMixIn {
   ): CategoryChart = {
     val data: Seq[(Double, Double, Double)] = source.flatMap {
       case (predictions, actual) =>
-        predictions
-          .getExpected()
-          .lazyZip(predictions.getUncertainty().get.asInstanceOf[Seq[Double]])
+        predictions.expected
+          .lazyZip(predictions.uncertainty().get.asInstanceOf[Seq[Double]])
           .lazyZip(actual)
           .toSeq
     }.toSeq
@@ -302,7 +294,7 @@ object CalibrationStudy extends SeedRandomMixIn {
       calibrated: Boolean = false
   ): Unit = {
     val csv = TestUtils.readCsv("hcep.csv")
-    val trainingData = csv.tail.map(vec => (vec.init, vec.last.asInstanceOf[Double]))
+    val trainingData = csv.tail.map(vec => TrainingRow(vec.init, vec.last.asInstanceOf[Double]))
     val nFeature = 8
     sizes.foreach { nTree =>
       val chart = Merit.plotMeritScan(
@@ -319,10 +311,8 @@ object CalibrationStudy extends SeedRandomMixIn {
         yMax = Some(1.0),
         rng = rng
       ) { nTrain: Double =>
-        val learner = Bagger(
-          RegressionTreeLearner(
-            numFeatures = nFeature
-          ),
+        val learner = RegressionBagger(
+          RegressionTreeLearner(numFeatures = nFeature),
           numBags = nTree.toInt,
           useJackknife = true,
           uncertaintyCalibration = calibrated
@@ -354,12 +344,10 @@ object CalibrationStudy extends SeedRandomMixIn {
   ): Map[String, (Double, Double)] = {
 
     val csv = TestUtils.readCsv("hcep.csv")
-    val trainingData = csv.tail.map(vec => (vec.init, vec.last.asInstanceOf[Double]))
+    val trainingData = csv.tail.map(vec => TrainingRow(vec.init, vec.last.asInstanceOf[Double]))
 
-    val learner = Bagger(
-      RegressionTreeLearner(
-        numFeatures = nFeature / 3
-      ),
+    val learner = RegressionBagger(
+      RegressionTreeLearner(numFeatures = nFeature / 3),
       numBags = nTree,
       useJackknife = true,
       uncertaintyCalibration = false

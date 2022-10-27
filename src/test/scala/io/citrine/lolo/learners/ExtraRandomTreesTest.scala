@@ -1,11 +1,13 @@
 package io.citrine.lolo.learners
 
 import breeze.stats.distributions.{Beta, RandBasis}
-import io.citrine.lolo.{SeedRandomMixIn, TestUtils}
+import io.citrine.lolo.api.TrainingRow
+import io.citrine.lolo.{DataGenerator, SeedRandomMixIn}
 import io.citrine.lolo.stats.functions.Friedman
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
 import io.citrine.random.Random
 import org.junit.Test
+import org.scalatest.Assertions._
 
 @Test
 class ExtraRandomTreesTest extends SeedRandomMixIn {
@@ -15,34 +17,34 @@ class ExtraRandomTreesTest extends SeedRandomMixIn {
     */
   @Test
   def testRegression(): Unit = {
-    val trainingData = TestUtils.binTrainingData(
-      TestUtils.generateTrainingData(256, 5, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng),
-      inputBins = Seq((0, 8))
-    )
+    val trainingData = DataGenerator
+      .generate(256, 5, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng)
+      .withBinnedInputs(bins = Seq((0, 8)))
+      .data
 
     Seq(true, false).foreach { randomlyRotateFeatures =>
-      val RFMeta = ExtraRandomTrees(randomlyRotateFeatures = randomlyRotateFeatures)
+      val RFMeta = ExtraRandomTreesRegressor(randomlyRotateFeatures = randomlyRotateFeatures)
         .train(trainingData, rng = rng)
-      val RF = RFMeta.getModel()
+      val RF = RFMeta.model
 
-      val loss = RFMeta.getLoss().get
+      val loss = RFMeta.loss.get
       assert(0 <= loss && loss < 1e-8, "Expected zero loss.")
 
-      val results = RF.transform(trainingData.map(_._1))
-      // val means = results.getExpected()
-      val sigma: Seq[Double] = results.getUncertainty(observational = false).get.asInstanceOf[Seq[Double]]
+      val results = RF.transform(trainingData.map(_.inputs))
+      // val means = results.expected
+      val sigma: Seq[Double] = results.uncertainty(observational = false).get.asInstanceOf[Seq[Double]]
       assert(sigma.forall(_ >= 0.0))
 
       assert(
-        results.getUncertainty(observational = true).isEmpty,
+        results.uncertainty(observational = true).isEmpty,
         "Observational uncertainty should be empty, since jackknife is disabled."
       )
 
-      assert(results.getGradient().isEmpty, "Returned a gradient when there shouldn't be one")
+      assert(results.gradient.isEmpty, "Returned a gradient when there shouldn't be one")
 
       if (!randomlyRotateFeatures) {
         /* The first feature should be the most important */
-        val importances = RFMeta.getFeatureImportance().get
+        val importances = RFMeta.featureImportance.get
         assert(importances(1) == importances.max)
       }
     }
@@ -56,16 +58,15 @@ class ExtraRandomTreesTest extends SeedRandomMixIn {
     val nTrain = 64
     val nTest = nTrain
     val nBins = 8
-    val trainingData = TestUtils.binTrainingData(
-      TestUtils.generateTrainingData(nTrain, 5, noise = 0.0, function = Friedman.friedmanSilverman, rng = rng),
-      responseBins = Some(nBins)
-    )
+
+    val trainingData = DataGenerator
+      .generate(nTrain, 5, noise = 0.0, function = Friedman.friedmanSilverman, rng = rng)
+      .withBinnedLabels(bins = nBins)
+      .data
 
     /* Generate small perturbations from the training data */
     val testData = trainingData
-      .map { r =>
-        (r._1.map { _.asInstanceOf[Double] + 0.05 * rng.nextGaussian() }, r._2)
-      }
+      .map(_.mapInputs(_.map(x => x.asInstanceOf[Double] + 0.05 * rng.nextGaussian())))
       .take(nTest)
 
     Seq(true, false).foreach { randomlyRotateFeatures =>
@@ -73,18 +74,18 @@ class ExtraRandomTreesTest extends SeedRandomMixIn {
         Seq(1, 2).foreach { minLeafInstances =>
           rng = Random(238834L)
 
-          val RFMeta = ExtraRandomTrees(
+          val RFMeta = ExtraRandomTreesClassifier(
             numTrees = trainingData.size * 4,
             randomlyRotateFeatures = randomlyRotateFeatures,
             disableBootstrap = disableBootstrap,
             minLeafInstances = minLeafInstances
           ).train(trainingData, rng = rng)
-          val RF = RFMeta.getModel()
+          val RF = RFMeta.model
 
           /* Inspect the results on the training set */
           val trueRateTrainingSet = trainingData
-            .map(_._2)
-            .zip(RF.transform(trainingData.map(_._1)).getExpected())
+            .map(_.label)
+            .zip(RF.transform(trainingData.map(_.inputs)).expected)
             .count { case (a, p) => a == p }
             .toDouble / nTrain
           if (minLeafInstances == 1 && disableBootstrap) {
@@ -94,15 +95,15 @@ class ExtraRandomTreesTest extends SeedRandomMixIn {
           }
 
           /* Inspect the results on the perturbed test set */
-          val results = RF.transform(testData.map(_._1))
-          val means = results.getExpected()
-          val trueRateTestSet = testData.map(_._2).zip(means).count { case (a, p) => a == p }.toDouble / nTest
+          val results = RF.transform(testData.map(_.inputs))
+          val means = results.expected
+          val trueRateTestSet = testData.map(_.label).zip(means).count { case (a, p) => a == p }.toDouble / nTest
           assert(trueRateTestSet > 0.5)
 
           /* Check that class probabilities are reasonable */
-          val uncertainty = results.getUncertainty()
+          val uncertainty = results.uncertainty()
           assert(uncertainty.isDefined)
-          assert(testData.map(_._2).zip(uncertainty.get).forall {
+          assert(testData.map(_.label).zip(uncertainty.get).forall {
             case (a, probs) =>
               val classProbabilities = probs.asInstanceOf[Map[Any, Double]]
               val maxProb = classProbabilities(a)
@@ -125,34 +126,34 @@ class ExtraRandomTreesTest extends SeedRandomMixIn {
         val nTrain = 64
         val nTest = 16
         val (mainTrainingData, testData) = {
-          val allData = TestUtils.binTrainingData(
-            TestUtils.generateTrainingData(
+          val allData = DataGenerator
+            .generate(
               nTrain + nTest,
               5,
               noise = 0.1,
               function = Friedman.friedmanSilverman,
               rng = rng
-            ),
-            responseBins = Some(2)
-          )
+            )
+            .withBinnedLabels(bins = 2)
+            .data
           (allData.take(nTrain), allData.takeRight(nTest))
         }
         val dupeLabel = "DUPE"
         val trainingDataSuffixed = mainTrainingData ++ Seq(
-          (mainTrainingData.head._1, dupeLabel)
+          TrainingRow(mainTrainingData.head.inputs, dupeLabel)
         )
         val trainingDataPrefixed = Seq(
-          (mainTrainingData.head._1, dupeLabel)
+          TrainingRow(mainTrainingData.head.inputs, dupeLabel)
         ) ++ mainTrainingData
 
         val RFSuffixed =
-          ExtraRandomTrees(numTrees = trainingDataSuffixed.size * 2).train(trainingDataSuffixed, rng = rng)
+          ExtraRandomTreesClassifier(numTrees = trainingDataSuffixed.size * 2).train(trainingDataSuffixed, rng = rng)
         val RFPrefixed =
-          ExtraRandomTrees(numTrees = trainingDataPrefixed.size * 2).train(trainingDataPrefixed, rng = rng)
-        val predictedSuffixed = RFSuffixed.getModel().transform(testData.map(_._1))
-        val predictedPrefixed = RFPrefixed.getModel().transform(testData.map(_._1))
-        val extraLabelCountSuffixed = predictedSuffixed.getExpected().count { case p: String => p == dupeLabel }
-        val extraLabelCountPrefixed = predictedPrefixed.getExpected().count { case p: String => p == dupeLabel }
+          ExtraRandomTreesClassifier(numTrees = trainingDataPrefixed.size * 2).train(trainingDataPrefixed, rng = rng)
+        val predictedSuffixed = RFSuffixed.model.transform(testData.map(_.inputs))
+        val predictedPrefixed = RFPrefixed.model.transform(testData.map(_.inputs))
+        val extraLabelCountSuffixed = predictedSuffixed.expected.count { case p: String => p == dupeLabel }
+        val extraLabelCountPrefixed = predictedPrefixed.expected.count { case p: String => p == dupeLabel }
 
         if (extraLabelCountSuffixed > extraLabelCountPrefixed) {
           (1, 0)
@@ -185,12 +186,12 @@ class ExtraRandomTreesTest extends SeedRandomMixIn {
     */
   @Test
   def testWeightsWithSmallData(): Unit = {
-    val trainingData = TestUtils.generateTrainingData(8, 1)
+    val trainingData = DataGenerator.generate(8, 1).data
     // the number of trees is the number of times we generate weights
     // so this has the effect of creating lots of different sets of weights
-    val learner = ExtraRandomTrees(numTrees = 16384)
+    val learner = ExtraRandomTreesRegressor(numTrees = 16384)
     // the test is that this training doesn't throw an exception
-    learner.train(trainingData, rng = rng).getModel()
+    learner.train(trainingData, rng = rng).model
   }
 
   /** Test that the same random seed leads to identical models */
@@ -198,27 +199,30 @@ class ExtraRandomTreesTest extends SeedRandomMixIn {
   def testReproducibility(): Unit = {
     val numTrain = 50
     // Generate completely random training data
-    val (inputs: Seq[Vector[Double]], realLabel: Seq[Double]) = TestUtils
-      .generateTrainingData(rows = numTrain, cols = 12, noise = 5.0, function = _ => 0.0, rng = rng)
-      .unzip
-    val catLabel: Seq[Boolean] = Seq.fill(numTrain)(rng.nextBoolean())
+    val realRows = DataGenerator.generate(rows = numTrain, cols = 12, noise = 5.0, function = _ => 0.0, rng = rng).data
+    val catRows = realRows.map(_.withLabel(rng.nextBoolean()))
 
     // Generate test points
     val numTest = 25
-    val testInputs = TestUtils.generateTrainingData(rows = numTest, cols = 12, function = _ => 0.0, rng = rng).map(_._1)
+    val testInputs =
+      DataGenerator.generate(rows = numTest, cols = 12, function = _ => 0.0, rng = rng).data.map(_.inputs)
 
     val seed = 67852103L
-    val RFMeta = ExtraRandomTrees(
+    val extraRegressor = ExtraRandomTreesRegressor(
       biasLearner = Some(RegressionTreeLearner(maxDepth = 5)),
       randomlyRotateFeatures = true
     )
-    Vector(realLabel, catLabel).foreach { labels =>
-      val model1 = RFMeta.train(inputs.zip(labels), rng = Random(seed)).getModel()
-      val model2 = RFMeta.train(inputs.zip(labels), rng = Random(seed)).getModel()
-      val predictions1 = model1.transform(testInputs)
-      val predictions2 = model2.transform(testInputs)
-      assert(predictions1.getExpected() == predictions2.getExpected())
-    }
-  }
+    val regModel1 = extraRegressor.train(realRows, rng = Random(seed)).model
+    val regModel2 = extraRegressor.train(realRows, rng = Random(seed)).model
+    val regPredictions1 = regModel1.transform(testInputs)
+    val regPredictions2 = regModel2.transform(testInputs)
+    assert(regPredictions1.expected == regPredictions2.expected)
 
+    val extraClassifier = ExtraRandomTreesClassifier(randomlyRotateFeatures = true)
+    val classModel1 = extraClassifier.train(catRows, rng = Random(seed)).model
+    val classModel2 = extraClassifier.train(catRows, rng = Random(seed)).model
+    val classPredictions1 = classModel1.transform(testInputs)
+    val classPredictions2 = classModel2.transform(testInputs)
+    assert(classPredictions1.expected == classPredictions2.expected)
+  }
 }

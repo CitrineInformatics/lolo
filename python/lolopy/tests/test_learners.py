@@ -1,6 +1,7 @@
 from lolopy.learners import (
     RandomForestRegressor,
     RandomForestClassifier,
+    MultiTaskRandomForest,
     RegressionTreeLearner,
     LinearRegression,
     ExtraRandomTreesRegressor,
@@ -12,6 +13,9 @@ from sklearn.datasets import load_iris, load_diabetes, load_linnerud
 from unittest import TestCase, main
 import pickle as pkl
 import numpy as np
+
+import logging
+logging.getLogger("py4j.java_gateway").setLevel(logging.ERROR)
 
 
 def _make_linear_data():
@@ -91,7 +95,7 @@ class TestRF(TestCase):
         self.assertTrue((pred1 == pred2).all())
 
     def test_rf_multioutput_regressor(self):
-        rf = RandomForestRegressor()
+        rf = MultiTaskRandomForest()
         # A regression dataset with 3 outputs
         X, y = load_linnerud(return_X_y=True)
         num_data = len(X)
@@ -231,7 +235,8 @@ class TestRF(TestCase):
 class TestExtraRandomTrees(TestCase):
 
     def test_extra_random_trees_regressor(self):
-        rf = ExtraRandomTreesRegressor()
+        # Setting disable_bootstrap=False allows us to generate uncertainty estimates from the bagged ensemble
+        rf = ExtraRandomTreesRegressor(disable_bootstrap=False)
 
         # Train the model
         X, y = load_diabetes(return_X_y=True)
@@ -264,6 +269,7 @@ class TestExtraRandomTrees(TestCase):
         self.assertAlmostEqual(1.0, np.sum(rf.feature_importances_))
 
         # Run predictions with std dev
+        # Requires disable_bootstrap=False on the learner to generate std dev alongside predictions
         y_pred, y_std = rf.predict(X, return_std=True)
         self.assertEqual(len(y_pred), len(y_std))
         self.assertTrue((y_std >= 0).all())  # They must be positive

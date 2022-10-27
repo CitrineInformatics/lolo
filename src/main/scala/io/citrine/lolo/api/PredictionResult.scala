@@ -1,8 +1,9 @@
-package io.citrine.lolo
+package io.citrine.lolo.api
 
 /**
   * Container for prediction results; must include expected values
-  * Created by maxhutch on 11/29/16.
+  *
+  * @tparam T the type of label variables being predicted
   */
 trait PredictionResult[+T] {
 
@@ -11,7 +12,7 @@ trait PredictionResult[+T] {
     *
     * @return expected value of each prediction
     */
-  def getExpected(): Seq[T]
+  def expected: Seq[T]
 
   /**
     * Get the "uncertainty" of the prediction
@@ -21,14 +22,14 @@ trait PredictionResult[+T] {
     * @param observational whether the uncertainty should account for observational uncertainty
     * @return uncertainty of each prediction
     */
-  def getUncertainty(observational: Boolean = true): Option[Seq[Any]] = None
+  def uncertainty(observational: Boolean = true): Option[Seq[Any]] = None
 
   /**
     * Get the training row scores for each prediction
     *
     * @return sequence (over predictions) of sequence (over training rows) of importances
     */
-  def getImportanceScores(): Option[Seq[Seq[Double]]] = None
+  def importanceScores: Option[Seq[Seq[Double]]] = None
 
   /**
     * Get the improvement (positive) or damage (negative) due to each training row on a prediction
@@ -36,14 +37,14 @@ trait PredictionResult[+T] {
     * @param actuals to assess the improvement or damage against
     * @return Sequence (over predictions) of sequence (over training rows) of influence
     */
-  def getInfluenceScores(actuals: Seq[Any]): Option[Seq[Seq[Double]]] = None
+  def influenceScores(actuals: Seq[Any]): Option[Seq[Seq[Double]]] = None
 
   /**
     * Get the gradient or sensitivity of each prediction
     *
     * @return a vector of doubles for each prediction
     */
-  def getGradient(): Option[Seq[Vector[Double]]] = None
+  def gradient: Option[Seq[Vector[Double]]] = None
 }
 
 /**
@@ -68,7 +69,7 @@ trait RegressionResult extends PredictionResult[Double] {
     * This statistic is related to the https://en.wikipedia.org/wiki/Prediction_interval
     * It does not include estimated bias, even if the regression result contains a bias estimate.
     */
-  def getStdDevObs(): Option[Seq[Double]] = None
+  def stdDevObs: Option[Seq[Double]] = None
 
   /**
     * Get the expected error of the observations, if possible
@@ -77,7 +78,7 @@ trait RegressionResult extends PredictionResult[Double] {
     * This statistic includes the contribution of the estimated bias.  E.g., for a normal distribution of predicted
     * means, the total error is sqrt(bias**2 + variance).
     */
-  def getTotalErrorObs(): Option[Seq[Double]] = None
+  def totalErrorObs: Option[Seq[Double]] = None
 
   /**
     * Get a quantile from the distribution of predicted observations, if possible
@@ -89,7 +90,7 @@ trait RegressionResult extends PredictionResult[Double] {
     *
     * @param quantile to get, taken between 0.0 and 1.0 (i.e. not a percentile)
     */
-  def getTotalErrorQuantileObs(quantile: Double): Option[Seq[Double]] = None
+  def totalErrorQuantileObs(quantile: Double): Option[Seq[Double]] = None
 
   /**
     * Get the expected error of the predicted mean observations, if possible
@@ -100,7 +101,7 @@ trait RegressionResult extends PredictionResult[Double] {
     * This statistic includes the contribution of the estimated bias.  E.g., for a normal distribution of predicted
     * means, the total error is sqrt(bias**2 + variance)
     */
-  def getTotalError(): Option[Seq[Double]] = None
+  def totalError: Option[Seq[Double]] = None
 
   /**
     * Get a quantile from the distribution of predicted means, if possible
@@ -109,7 +110,7 @@ trait RegressionResult extends PredictionResult[Double] {
     * corrected.
     * @param quantile to get, taken between 0.0 and 1.0 (i.e. not a percentile)
     */
-  def getTotalErrorQuantile(quantile: Double): Option[Seq[Double]] = None
+  def totalErrorQuantile(quantile: Double): Option[Seq[Double]] = None
 
   /**
     * Get the standard deviation of the distribution of predicted mean observations, if possible
@@ -119,7 +120,7 @@ trait RegressionResult extends PredictionResult[Double] {
     * This statistic is related to the variance in the bias-variance trade-off
     * https://en.wikipedia.org/wiki/Bias%E2%80%93variance_tradeoff
     */
-  def getStdDevMean(): Option[Seq[Double]] = None
+  def stdDevMean: Option[Seq[Double]] = None
 
   /**
     * Get a quantile from the distribution of predicted means, if possible
@@ -127,18 +128,15 @@ trait RegressionResult extends PredictionResult[Double] {
     * The distribution for which these quantiles are computed should have zero-mean (i.e. no bias)
     * @param quantile to get, taken between 0.0 and 1.0 (i.e. not a percentile)
     */
-  def getQuantileMean(quantile: Double): Option[Seq[Double]] = None
+  def quantileMean(quantile: Double): Option[Seq[Double]] = None
 
   /**
-    * **EXPERIMENTAL** Get the estimated bias of each prediction, if possible
+    * Get the estimated bias of each prediction, if possible.
     *
     * The bias is signed and can be subtracted from the prediction to improve accuracy.
     * See https://en.wikipedia.org/wiki/Bias%E2%80%93variance_tradeoff
-    *
-    * It is unclear if this method will be a stable member of the interface.  It should be reviewed
-    * before the next formal release.
     */
-  def getBias(): Option[Seq[Double]] = None
+  def bias: Option[Seq[Double]] = None
 
   /**
     * Get the "uncertainty", which is the TotalError if non-observational and the StdDevObs if observational
@@ -146,27 +144,27 @@ trait RegressionResult extends PredictionResult[Double] {
     * @param observational whether the uncertainty should account for observational uncertainty
     * @return uncertainty of each prediction
     */
-  override def getUncertainty(observational: Boolean = true): Option[Seq[Any]] = {
+  override def uncertainty(observational: Boolean = true): Option[Seq[Any]] = {
     if (observational) {
-      getTotalErrorObs()
+      totalErrorObs
     } else {
-      getTotalError()
+      totalError
     }
   }
 
-  def getQuantile(quantile: Double, observational: Boolean = true): Option[Seq[Double]] = {
+  def quantile(quantile: Double, observational: Boolean = true): Option[Seq[Double]] = {
     if (observational) {
-      getTotalErrorQuantileObs(quantile)
+      totalErrorQuantileObs(quantile)
     } else {
-      getTotalErrorQuantile(quantile)
+      totalErrorQuantile(quantile)
     }
   }
 }
 
 /** Container for predictions made on multiple labels simultaneously. */
-trait MultiTaskModelPredictionResult extends PredictionResult[Seq[Any]] {
+trait MultiTaskModelPredictionResult extends PredictionResult[Vector[Any]] {
 
-  override def getUncertainty(observational: Boolean = true): Option[Seq[Seq[Any]]] = None
+  override def uncertainty(observational: Boolean = true): Option[Seq[Seq[Any]]] = None
 
   /**
     * Get the correlation coefficients between the predictions made on two labels.
@@ -178,10 +176,8 @@ trait MultiTaskModelPredictionResult extends PredictionResult[Seq[Any]] {
     * @param observational whether the uncertainty correlation should take observational noise into account
     * @return optional sequence of correlation coefficients between specified labels for each prediction
     */
-  def getUncertaintyCorrelation(i: Int, j: Int, observational: Boolean = true): Option[Seq[Double]] = None
+  def uncertaintyCorrelation(i: Int, j: Int, observational: Boolean = true): Option[Seq[Double]] = None
 }
 
 /** A container that holds the predictions of several parallel models for multiple labels. */
-class ParallelModelsPredictionResult(predictions: Seq[Seq[Any]]) extends MultiTaskModelPredictionResult {
-  override def getExpected(): Seq[Seq[Any]] = predictions
-}
+case class ParallelModelsPredictionResult(expected: Seq[Vector[Any]]) extends MultiTaskModelPredictionResult

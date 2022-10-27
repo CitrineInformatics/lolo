@@ -6,7 +6,13 @@ from lolopy.utils import send_feature_array, send_1D_array
 from sklearn.base import BaseEstimator, RegressorMixin, ClassifierMixin, is_regressor
 from sklearn.exceptions import NotFittedError
 
-__all__ = ['RandomForestRegressor', 'RandomForestClassifier', 'ExtraRandomTreesRegressor', 'ExtraRandomTreesClassifier']
+__all__ = [
+    'RandomForestRegressor',
+    'RandomForestClassifier',
+    'MultiTaskRandomForest',
+    'ExtraRandomTreesRegressor',
+    'ExtraRandomTreesClassifier'
+]
 
 
 class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
@@ -86,19 +92,23 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
         assert weights_java.length() == len(X), "Weights copy failed"
 
         # Train the model
+        train_rows = self.gateway.jvm.io.citrine.lolo.api.TrainingRow.build(
+            train_data, self.gateway.jvm.scala.Some(weights_java)
+        )
         rng = self.gateway.jvm.io.citrine.lolo.util.LoloPyRandom.getRng(random_seed) if random_seed \
             else self.gateway.jvm.io.citrine.lolo.util.LoloPyRandom.getRng()
-        result = learner.train(train_data, self.gateway.jvm.scala.Some(weights_java), rng)
+        result = learner.train(train_rows, rng)
 
         # Unlink the training data, which is no longer needed (to save memory)
         self.gateway.detach(train_data)
         self.gateway.detach(weights_java)
+        self.gateway.detach(train_rows)
 
         # Get the model out
-        self.model_ = result.getModel()
+        self.model_ = result.model()
 
         # Store the feature importances
-        feature_importances_java = result.getFeatureImportance().get()
+        feature_importances_java = result.featureImportance().get()
         feature_importances_bytes = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.send1DArray(feature_importances_java)
         self.feature_importances_ = np.frombuffer(feature_importances_bytes, 'float')
 
@@ -306,11 +316,8 @@ class BaseLoloClassifier(BaseLoloLearner, ClassifierMixin):
         return probs
 
 
-class RandomForestMixin(BaseLoloLearner):
-    """Random Forest base class
-
-    Implements the _make_learner operation and the __init__ function with options specific to the RandomForest
-    class in Lolo"""
+class RandomForestRegressor(BaseLoloRegressor):
+    """Random Forest model used for regression"""
 
     def __init__(self, num_trees=-1, use_jackknife=True, bias_learner=None,
                  leaf_learner=None, subset_strategy="auto", min_leaf_instances=1,
@@ -323,7 +330,7 @@ class RandomForestMixin(BaseLoloLearner):
             use_jackknife (bool): Whether to use jackknife based variance estimates
             bias_learner (BaseLoloLearner): Algorithm used to model bias (default: no model)
             leaf_learner (BaseLoloLearner): Learner used at each leaf of the random forest (default: GuessTheMean)
-            subset_strategy (Union[string,int,float]): Strategy used to determine number of features used at each split 
+            subset_strategy (Union[string,int,float]): Strategy used to determine number of features used at each split
                 Available options:
                     "auto": Use the default for lolo (all features for regression, sqrt for classification)
                     "log2": Use the base 2 log of the number of features
@@ -336,7 +343,7 @@ class RandomForestMixin(BaseLoloLearner):
             randomize_pivot_location (bool): whether to draw pivots randomly or always select the midpoint
             randomly_rotate_features (bool): whether to randomly rotate real features for each tree in the forest
         """
-        super(RandomForestMixin, self).__init__()
+        super().__init__()
 
         # Store the variables
         self.num_trees = num_trees
@@ -351,15 +358,21 @@ class RandomForestMixin(BaseLoloLearner):
         self.randomly_rotate_features = randomly_rotate_features
 
     def _make_learner(self):
-        #  TODO: Figure our a more succinct way of dealing with optional arguments/Option values
-        learner = self.gateway.jvm.io.citrine.lolo.learners.RandomForest(
-            self.num_trees, self.use_jackknife,
-            getattr(self.gateway.jvm.io.citrine.lolo.learners.RandomForest,
-                    "$lessinit$greater$default$3")() if self.bias_learner is None
-            else self.gateway.jvm.scala.Some(self.bias_learner._make_learner()),
-            getattr(self.gateway.jvm.io.citrine.lolo.learners.RandomForest,
-                    "$lessinit$greater$default$4")() if self.leaf_learner is None
-            else self.gateway.jvm.scala.Some(self.leaf_learner._make_learner()),
+        if self.bias_learner is None:
+            bias_learner = getattr(self.gateway.jvm.io.citrine.lolo.learners.RandomForestRegressor, "$lessinit$greater$default$3")()
+        else:
+            bias_learner = self.gateway.jvm.scala.Some(self.bias_learner._make_learner())
+
+        if self.leaf_learner is None:
+            leaf_learner = getattr(self.gateway.jvm.io.citrine.lolo.learners.RandomForestRegressor, "$lessinit$greater$default$4")()
+        else:
+            leaf_learner = self.gateway.jvm.scala.Some(self.leaf_learner._make_learner())
+
+        return self.gateway.jvm.io.citrine.lolo.learners.RandomForestRegressor(
+            self.num_trees,
+            self.use_jackknife,
+            bias_learner,
+            leaf_learner,
             self.subset_strategy,
             self.min_leaf_instances,
             self.max_depth,
@@ -367,22 +380,120 @@ class RandomForestMixin(BaseLoloLearner):
             self.randomize_pivot_location,
             self.randomly_rotate_features
         )
-        return learner
 
 
-class RandomForestRegressor(BaseLoloRegressor, RandomForestMixin):
-    """Random Forest model used for regression"""
-
-
-class RandomForestClassifier(BaseLoloClassifier, RandomForestMixin):
+class RandomForestClassifier(BaseLoloClassifier):
     """Random Forest model used for classification"""
 
+    def __init__(self, num_trees=-1, use_jackknife=False, leaf_learner=None, subset_strategy="auto",
+                 min_leaf_instances=1, max_depth=2**30, randomize_pivot_location=False, randomly_rotate_features=False):
+        """Initialize the RandomForest
 
-class ExtraRandomTreesMixIn(BaseLoloLearner):
-    """Extra Random Trees base class
+        Args:
+            num_trees (int): Number of trees to use in the forest (default of -1 sets the number of trees to the number of training rows)
+            use_jackknife (bool): Whether to use jackknife based variance estimates
+            leaf_learner (BaseLoloLearner): Learner used at each leaf of the random forest (default: GuessTheMean)
+            subset_strategy (Union[string,int,float]): Strategy used to determine number of features used at each split
+                Available options:
+                    "auto": Use the default for lolo (all features for regression, sqrt for classification)
+                    "log2": Use the base 2 log of the number of features
+                    "sqrt": Use the square root of the number of features
+                    integer: Set the number of features explicitly
+                    float: Use a certain fraction of the features
+            min_leaf_instances (int): Minimum number of features used at each leaf
+            max_depth (int): Maximum depth to which to allow the decision trees to grow
+            randomize_pivot_location (bool): whether to draw pivots randomly or always select the midpoint
+            randomly_rotate_features (bool): whether to randomly rotate real features for each tree in the forest
+        """
+        super().__init__()
 
-    Implements the _make_learner operation and the __init__ function with options specific to the ExtraRandomTrees
-    class in Lolo"""
+        # Store the variables
+        self.num_trees = num_trees
+        self.use_jackknife = use_jackknife
+        self.subset_strategy = subset_strategy
+        self.leaf_learner = leaf_learner
+        self.min_leaf_instances = min_leaf_instances
+        self.max_depth = max_depth
+        self.randomize_pivot_location = randomize_pivot_location
+        self.randomly_rotate_features = randomly_rotate_features
+
+    def _make_learner(self):
+        if self.leaf_learner is None:
+            leaf_learner = getattr(self.gateway.jvm.io.citrine.lolo.learners.RandomForestClassifier, "$lessinit$greater$default$3")()
+        else:
+            leaf_learner = self.gateway.jvm.scala.Some(self.leaf_learner._make_learner())
+
+        return self.gateway.jvm.io.citrine.lolo.learners.RandomForestClassifier(
+            self.num_trees,
+            self.use_jackknife,
+            leaf_learner,
+            self.subset_strategy,
+            self.min_leaf_instances,
+            self.max_depth,
+            self.randomize_pivot_location,
+            self.randomly_rotate_features
+        )
+
+
+class MultiTaskRandomForest(BaseLoloRegressor):
+    """Random Forest model used for regression on multiple outputs."""
+
+    def __init__(self, num_trees=-1, use_jackknife=True, bias_learner=None,
+                 subset_strategy="auto", min_leaf_instances=1, max_depth=2**30, uncertainty_calibration=False,
+                 randomize_pivot_location=False, randomly_rotate_features=False):
+        """Initialize the RandomForest
+
+        Args:
+            num_trees (int): Number of trees to use in the forest (default of -1 sets the number of trees to the number of training rows)
+            use_jackknife (bool): Whether to use jackknife based variance estimates
+            bias_learner (BaseLoloLearner): Algorithm used to model bias (default: no model)
+            subset_strategy (Union[string,int,float]): Strategy used to determine number of features used at each split
+                Available options:
+                    "auto": Use the default for lolo (all features for regression, sqrt for classification)
+                    "log2": Use the base 2 log of the number of features
+                    "sqrt": Use the square root of the number of features
+                    integer: Set the number of features explicitly
+                    float: Use a certain fraction of the features
+            min_leaf_instances (int): Minimum number of features used at each leaf
+            max_depth (int): Maximum depth to which to allow the decision trees to grow
+            uncertainty_calibration (bool): whether to re-calibrate the predicted uncertainty based on out-of-bag residuals
+            randomize_pivot_location (bool): whether to draw pivots randomly or always select the midpoint
+            randomly_rotate_features (bool): whether to randomly rotate real features for each tree in the forest
+        """
+        super().__init__()
+
+        # Store the variables
+        self.num_trees = num_trees
+        self.use_jackknife = use_jackknife
+        self.subset_strategy = subset_strategy
+        self.bias_learner = bias_learner
+        self.min_leaf_instances = min_leaf_instances
+        self.max_depth = max_depth
+        self.uncertainty_calibration = uncertainty_calibration
+        self.randomize_pivot_location = randomize_pivot_location
+        self.randomly_rotate_features = randomly_rotate_features
+
+    def _make_learner(self):
+        if self.bias_learner is None:
+            bias_learner = getattr(self.gateway.jvm.io.citrine.lolo.learners.MultiTaskRandomForest, "$lessinit$greater$default$3")()
+        else:
+            bias_learner = self.gateway.jvm.scala.Some(self.bias_learner._make_learner())
+
+        return self.gateway.jvm.io.citrine.lolo.learners.MultiTaskRandomForest(
+            self.num_trees,
+            self.use_jackknife,
+            bias_learner,
+            self.subset_strategy,
+            self.min_leaf_instances,
+            self.max_depth,
+            self.uncertainty_calibration,
+            self.randomize_pivot_location,
+            self.randomly_rotate_features
+        )
+
+
+class ExtraRandomTreesRegressor(BaseLoloRegressor):
+    """Extra Random Trees model used for regression."""
 
     def __init__(self, num_trees=-1, use_jackknife=False, bias_learner=None,
                  leaf_learner=None, subset_strategy="auto", min_leaf_instances=1,
@@ -405,15 +516,13 @@ class ExtraRandomTreesMixIn(BaseLoloLearner):
             min_leaf_instances (int): Minimum number of features used at each leaf
             max_depth (int): Maximum depth to which to allow the decision trees to grow
             uncertainty_calibration (bool): whether to re-calibrate the predicted uncertainty based on out-of-bag residuals
-            randomize_pivot_location (bool): whether to draw pivots randomly or always select the midpoint
-            disable_bootstrap (bool): whether to disable bootstrapping (default: true)
+            disable_bootstrap (bool): whether to disable bootstrapping (default: True)
             randomly_rotate_features (bool): whether to randomly rotate real features for each tree in the forest
         """
-        super(ExtraRandomTreesMixIn, self).__init__()
+        super().__init__()
 
         # Store the variables
         self.num_trees = num_trees
-
         self.use_jackknife = use_jackknife
         self.bias_learner = bias_learner
         self.leaf_learner = leaf_learner
@@ -421,18 +530,25 @@ class ExtraRandomTreesMixIn(BaseLoloLearner):
         self.min_leaf_instances = min_leaf_instances
         self.max_depth = max_depth
         self.uncertainty_calibration = uncertainty_calibration
+        self.disable_bootstrap = disable_bootstrap
         self.randomly_rotate_features = randomly_rotate_features
 
     def _make_learner(self):
-        #  TODO: Figure our a more succinct way of dealing with optional arguments/Option values
-        learner = self.gateway.jvm.io.citrine.lolo.learners.ExtraRandomTrees(
-            self.num_trees, self.use_jackknife,
-            getattr(self.gateway.jvm.io.citrine.lolo.learners.ExtraRandomTrees,
-                    "$lessinit$greater$default$3")() if self.bias_learner is None
-            else self.gateway.jvm.scala.Some(self.bias_learner._make_learner()),
-            getattr(self.gateway.jvm.io.citrine.lolo.learners.ExtraRandomTrees,
-                    "$lessinit$greater$default$4")() if self.leaf_learner is None
-            else self.gateway.jvm.scala.Some(self.leaf_learner._make_learner()),
+        if self.bias_learner is None:
+            bias_learner = getattr(self.gateway.jvm.io.citrine.lolo.learners.ExtraRandomTreesRegressor, "$lessinit$greater$default$3")()
+        else:
+            bias_learner = self.gateway.jvm.scala.Some(self.bias_learner._make_learner())
+
+        if self.leaf_learner is None:
+            leaf_learner = getattr(self.gateway.jvm.io.citrine.lolo.learners.ExtraRandomTreesRegressor, "$lessinit$greater$default$4")()
+        else:
+            leaf_learner = self.gateway.jvm.scala.Some(self.leaf_learner._make_learner())
+
+        return self.gateway.jvm.io.citrine.lolo.learners.ExtraRandomTreesRegressor(
+            self.num_trees,
+            self.use_jackknife,
+            bias_learner,
+            leaf_learner,
             self.subset_strategy,
             self.min_leaf_instances,
             self.max_depth,
@@ -440,15 +556,63 @@ class ExtraRandomTreesMixIn(BaseLoloLearner):
             self.disable_bootstrap,
             self.randomly_rotate_features
         )
-        return learner
 
 
-class ExtraRandomTreesRegressor(BaseLoloRegressor, RandomForestMixin):
-    """Random Forest model used for regression"""
+class ExtraRandomTreesClassifier(BaseLoloClassifier):
+    """Extra Random Trees model used for classification."""
 
+    def __init__(self, num_trees=-1, use_jackknife=False, bias_learner=None,
+                 leaf_learner=None, subset_strategy="auto", min_leaf_instances=1,
+                 max_depth=2**30, uncertainty_calibration=False, disable_bootstrap=True,
+                 randomly_rotate_features=False):
+        """Initialize the ExtraRandomTrees ensemble
 
-class ExtraRandomTreesClassifier(BaseLoloClassifier, RandomForestMixin):
-    """Random Forest model used for regression"""
+        Args:
+            num_trees (int): Number of trees to use in the forest (default of -1 sets the number of trees to the number of training rows)
+            use_jackknife (bool): Whether to use jackknife based variance estimates (default: False)
+            leaf_learner (BaseLoloLearner): Learner used at each leaf of the random forest (default: GuessTheMean)
+            subset_strategy (Union[string,int,float]): Strategy used to determine number of features used at each split
+                Available options:
+                    "auto": Use the default for lolo (all features for regression; classification not supported)
+                    "log2": Use the base 2 log of the number of features
+                    "sqrt": Use the square root of the number of features
+                    integer: Set the number of features explicitly
+                    float: Use a certain fraction of the features
+            min_leaf_instances (int): Minimum number of features used at each leaf
+            max_depth (int): Maximum depth to which to allow the decision trees to grow
+            disable_bootstrap (bool): whether to disable bootstrapping (default: True)
+            randomly_rotate_features (bool): whether to randomly rotate real features for each tree in the forest
+        """
+        super().__init__()
+
+        # Store the variables
+        self.num_trees = num_trees
+        self.use_jackknife = use_jackknife
+        self.bias_learner = bias_learner
+        self.leaf_learner = leaf_learner
+        self.subset_strategy = subset_strategy
+        self.min_leaf_instances = min_leaf_instances
+        self.max_depth = max_depth
+        self.uncertainty_calibration = uncertainty_calibration
+        self.disable_bootstrap = disable_bootstrap
+        self.randomly_rotate_features = randomly_rotate_features
+
+    def _make_learner(self):
+        if self.leaf_learner is None:
+            leaf_learner = getattr(self.gateway.jvm.io.citrine.lolo.learners.ExtraRandomTreesClassifier, "$lessinit$greater$default$3")()
+        else:
+            leaf_learner = self.gateway.jvm.scala.Some(self.leaf_learner._make_learner())
+
+        return self.gateway.jvm.io.citrine.lolo.learners.ExtraRandomTreesClassifier(
+            self.num_trees,
+            self.use_jackknife,
+            leaf_learner,
+            self.subset_strategy,
+            self.min_leaf_instances,
+            self.max_depth,
+            self.disable_bootstrap,
+            self.randomly_rotate_features
+        )
 
 
 class RegressionTreeLearner(BaseLoloRegressor):

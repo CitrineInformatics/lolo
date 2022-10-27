@@ -2,14 +2,16 @@ package io.citrine.lolo.trees.classification
 
 import io.citrine.lolo.trees.splits.{NoSplit, Split, Splitter}
 import io.citrine.lolo.trees.{InternalModelNode, ModelNode, TrainingNode}
-import io.citrine.lolo.{Learner, PredictionResult}
+import io.citrine.lolo.api.{Learner, TrainingRow}
 import io.citrine.random.Random
 
+import scala.collection.mutable
+
 case class ClassificationTrainingNode(
-    trainingData: Seq[(Vector[AnyVal], Char, Double)],
+    trainingData: Seq[TrainingRow[Char]],
     leftNode: TrainingNode[Char],
     rightNode: TrainingNode[Char],
-    leafLearner: Learner,
+    leafLearner: Learner[Char],
     split: Split,
     deltaImpurity: Double,
     numClasses: Int
@@ -20,16 +22,16 @@ case class ClassificationTrainingNode(
     *
     * @return lightweight prediction node
     */
-  override def modelNode: ModelNode[PredictionResult[Char]] =
+  override def modelNode: ModelNode[Char] =
     InternalModelNode(
       split,
       leftNode.modelNode,
       rightNode.modelNode,
       numClasses,
-      trainingData.map(_._3).sum
+      trainingData.map(_.weight).sum
     )
 
-  override def featureImportance: scala.collection.mutable.ArraySeq[Double] = {
+  override def featureImportance: mutable.ArraySeq[Double] = {
     val improvement = deltaImpurity
     val ans = leftNode.featureImportance.zip(rightNode.featureImportance).map(p => p._1 + p._2)
     ans(split.index) = ans(split.index) + improvement
@@ -40,8 +42,8 @@ case class ClassificationTrainingNode(
 object ClassificationTrainingNode {
 
   def build(
-      trainingData: Seq[(Vector[AnyVal], Char, Double)],
-      leafLearner: Learner,
+      trainingData: Seq[TrainingRow[Char]],
+      leafLearner: Learner[Char],
       splitter: Splitter[Char],
       numFeatures: Int,
       minLeafInstances: Int,
@@ -52,7 +54,7 @@ object ClassificationTrainingNode {
   ): TrainingNode[Char] = {
     val sufficientData = trainingData.size >= 2 * minLeafInstances &&
       remainingDepth > 0 &&
-      trainingData.exists(_._2 != trainingData.head._2)
+      trainingData.exists(_.label != trainingData.head.label)
     val (split: Split, deltaImpurity: Double) = if (sufficientData) {
       splitter.getBestSplit(trainingData, numFeatures, minLeafInstances, rng)
     } else {
@@ -62,7 +64,7 @@ object ClassificationTrainingNode {
       case _: NoSplit =>
         ClassificationTrainingLeaf.build(trainingData, leafLearner, maxDepth - remainingDepth, rng)
       case split: Split =>
-        val (leftTrain, rightTrain) = trainingData.partition(r => split.turnLeft(r._1))
+        val (leftTrain, rightTrain) = trainingData.partition(r => split.turnLeft(r.inputs))
         val leftNode = ClassificationTrainingNode.build(
           trainingData = leftTrain,
           leafLearner = leafLearner,

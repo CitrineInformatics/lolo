@@ -1,6 +1,7 @@
 package io.citrine.lolo.trees.splits
 
-import io.citrine.lolo.{SeedRandomMixIn, TestUtils}
+import io.citrine.lolo.api.TrainingRow
+import io.citrine.lolo.{DataGenerator, SeedRandomMixIn}
 import io.citrine.random.Random
 import org.junit.Test
 
@@ -16,7 +17,7 @@ class ExtraRandomRegressionSplitterTest extends SeedRandomMixIn {
       val x = rng.nextDouble()
       val y = 1.0
       val weight = 1.0
-      (Vector(x), y, weight)
+      TrainingRow(Vector(x), y, weight)
     }
 
     val (bestSplit, improvement) = splitter.getBestSplit(testData, 1, 1)
@@ -37,7 +38,7 @@ class ExtraRandomRegressionSplitterTest extends SeedRandomMixIn {
       val x = rng.nextDouble()
       val y = rng.nextGaussian() * 1.0e-9 + 1.0
       val weight = 1.0
-      (Vector(x), y, weight)
+      TrainingRow(Vector(x), y, weight)
     }
 
     splitter.getBestSplit(testData, 1, 1, rng = rng)
@@ -54,7 +55,7 @@ class ExtraRandomRegressionSplitterTest extends SeedRandomMixIn {
     Seq(1, 5, 9).foreach { numFeatures =>
       // Arrange training input data as a regular grid, and then as a Gaussian-distributed sample.
       Seq(
-        TestUtils.enumerateGrid(Seq.fill(numFeatures)(baseGrid)),
+        DataGenerator.enumerateGrid(Seq.fill(numFeatures)(baseGrid)),
         Seq.fill(64)(Vector.fill(numFeatures)(rng.nextGaussian()))
       ).foreach { xTrain =>
         // Have ExtraRandomSplitter.getBestSplit choose a split from this number of randomly-chosen features.
@@ -67,7 +68,7 @@ class ExtraRandomRegressionSplitterTest extends SeedRandomMixIn {
 
             // Generate linear training data, using xTrain from above as inputs, starting by selecting coefficients for each feature.
             val featureCoefficients = rng.shuffle(featureIndices).map { i => Math.pow((i + 1).toDouble, 2.0) }
-            val trainingData = xTrain.map { x =>
+            val trainingTuples = xTrain.map { x =>
               val y = x.zip(featureCoefficients).map { case (a, b) => a * b }.sum
               val weight = 1.0
               (x, y, weight)
@@ -86,7 +87,7 @@ class ExtraRandomRegressionSplitterTest extends SeedRandomMixIn {
               .zip(randomUniforms)
               .map {
                 case (i, u) =>
-                  val x = trainingData.map(_._1(i))
+                  val x = trainingTuples.map(_._1(i))
                   val xmin = x.min
                   val xmax = x.max
                   val cutPoint = xmin + u * (xmax - xmin)
@@ -97,7 +98,7 @@ class ExtraRandomRegressionSplitterTest extends SeedRandomMixIn {
 
             // Compute the sum of variances across partitions of each possible cut.
             val varianceSums = featureIndices.map { k =>
-              trainingData
+              trainingTuples
                 .groupBy { v => v._1(k) < cutPoints(k) }
                 .flatMap {
                   case (_, subset) =>
@@ -123,7 +124,8 @@ class ExtraRandomRegressionSplitterTest extends SeedRandomMixIn {
             rng = Random(sharedSeed)
             val splitter = ExtraRandomRegressionSplitter()
             // Ask the splitter what it chose as a split.
-            val bestSplit = splitter.getBestSplit(trainingData, numFeaturesToConsider, 1, rng = rng)
+            val bestSplit =
+              splitter.getBestSplit(TrainingRow.build(trainingTuples), numFeaturesToConsider, 1, rng = rng)
 
             // Finally, we can ensure that the index on which we split is correct...
             val testCaveatMessage = "NOTE: this test may inaccurately fail due to changes in the sequence of rng calls."

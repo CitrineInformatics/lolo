@@ -1,84 +1,89 @@
 package io.citrine.lolo.bags
 
-import breeze.linalg.DenseMatrix
 import breeze.stats.distributions.Poisson
+import io.citrine.lolo.api.{Learner, Model, TrainingRow}
+import io.citrine.lolo.bags.Bagger.BaggedEnsemble
+import io.citrine.lolo.stats.StatsUtils
 import io.citrine.random.Random
-import io.citrine.lolo.stats.metrics.{ClassificationMetrics, RegressionMetrics}
-import io.citrine.lolo.stats.StatsUtils.breezeRandBasis
-import io.citrine.lolo.{Learner, Model, PredictionResult, TrainingResult}
 
-import scala.collection.parallel.immutable.ParSeq
-import scala.collection.parallel.CollectionConverters.IterableIsParallelizable
-import scala.reflect._
+import scala.collection.parallel.CollectionConverters._
+import scala.collection.parallel.immutable.ParVector
 
-/**
-  * A bagger creates an ensemble of models by training the learner on random samples of the training data
-  *
-  * @param method  learner to train each model in the ensemble
-  * @param numBags number of base models to aggregate (default of -1 sets the number of models to the number of training rows)
-  * @param useJackknife whether to enable jackknife uncertainty estimate
-  * @param biasLearner learner to use for estimating bias
-  * @param uncertaintyCalibration whether to enable empirical uncertainty calibration
-  * @param disableBootstrap whether to disable bootstrap (useful when `method` implements its own randomization)
-  */
-case class Bagger(
-    method: Learner,
-    numBags: Int = -1,
-    useJackknife: Boolean = true,
-    biasLearner: Option[Learner] = None,
-    uncertaintyCalibration: Boolean = true,
-    disableBootstrap: Boolean = false
-) extends Learner {
-  require(
-    !(uncertaintyCalibration && disableBootstrap),
-    "Options uncertaintyCalibration and disableBootstrap are incompatible. At most one may be set true."
-  )
+sealed trait Bagger[T] extends Learner[T] {
+
+  def numBags: Int
+
+  def useJackknife: Boolean
+
+  def disableBootstrap: Boolean
+
+  def baseLearner: Learner[T]
 
   /**
-    * Draw with replacement from the training data for each model
+    * Draw with replacement from the training data for each model.
     *
     * @param trainingData to train on
-    * @param weights      for the training rows, if applicable
     * @param rng          random number generator for reproducibility
-    * @return a model
+    * @return a training result containing the bagged model
     */
-  override def train(
-      trainingData: Seq[(Vector[Any], Any)],
-      weights: Option[Seq[Double]],
-      rng: Random
-  ): BaggedTrainingResult[Any] = {
-    /* Make sure the training data is the same size */
-    assert(trainingData.forall(trainingData.head._1.size == _._1.size))
+  override def train(trainingData: Seq[TrainingRow[T]], rng: Random = Random()): BaggedTrainingResult[T]
+
+  /** Bootstrap the training data to train an ensemble of models from the base learner. */
+  protected def trainEnsemble(trainingData: Seq[TrainingRow[T]], rng: Random): BaggedEnsemble[T] = {
+    // Make sure the training data is the same size
+    assert(trainingData.forall(trainingData.head.inputs.length == _.inputs.length))
     require(
-      trainingData.size >= Bagger.minimumTrainingSize,
-      s"We need to have at least ${Bagger.minimumTrainingSize} rows, only ${trainingData.size} given"
+      trainingData.length >= Bagger.minimumTrainingSize,
+      s"We need to have at least ${Bagger.minimumTrainingSize} rows, only ${trainingData.length} given."
     )
 
-    /* Use unit weights if none are specified */
-    val weightsActual = weights.getOrElse(Seq.fill(trainingData.size)(1.0))
-
-    /* Set default number of bags */
-    val actualBags = if (numBags > 0) {
-      numBags
-    } else {
-      trainingData.size
-    }
+    // Set default number of bags
+    val actualBags = if (numBags > 0) numBags else trainingData.length
 
     // We need enough bags such that the probability that the poisson draw is "valid" is at least 50%
     // Valid here means that for each training point, there is at least one tree that doesn't include it
     // The probability that the weights are valid is:
     // (1 - [(1 - 1/e)^{number of trees}])^{number of training points}
-    val minBags = Math.log(1 - Math.pow(2, -1.0 / trainingData.size)) / Math.log((Math.E - 1) / Math.E)
+    val minBags = math.log(1 - math.pow(2, -1.0 / trainingData.length)) / math.log((Math.E - 1) / math.E)
     require(
       !useJackknife || actualBags >= minBags,
-      s"Jackknife requires ${minBags} bags for ${trainingData.size} training rows, but only ${actualBags} given."
+      s"Jackknife requires $minBags bags for ${trainingData.length} training rows, but only $actualBags given."
     )
 
-    /* Compute the number of instances of each training row in each training sample */
-    val randBasis = breezeRandBasis(rng)
+    // Compute the number of instances of each training row in each training sample
+    val Nib = drawNib(actualBags, trainingData.length, rng)
+
+    // Learn the actual models in parallel
+    val indices = Nib.indices.toVector
+    val (models, importances) = rng
+      .zip(indices)
+      .par
+      .map {
+        case (thisRng, i) =>
+          val weightedTrainingData = Nib(i).zip(trainingData).map {
+            case (count, row) => row.mapWeight(_ * count.toDouble)
+          }
+          val meta = baseLearner.train(weightedTrainingData, thisRng)
+          (meta.model, meta.featureImportance)
+      }
+      .unzip
+
+    // Average the feature importance
+    val averageImportance = importances.reduce(Bagger.combineImportance).map(_.map(_ / importances.size))
+
+    BaggedEnsemble(models, Nib, averageImportance)
+  }
+
+  /**
+    * Compute the number of instances of each training row in each bag.
+    *
+    * @return the (# bags) x (# training rows) array of sample counts
+    */
+  private def drawNib(actualBags: Int, trainingSize: Int, rng: Random = Random()): Vector[Vector[Int]] = {
+    val randBasis = StatsUtils.breezeRandBasis(rng)
     val dist = new Poisson(1.0)(randBasis)
-    val Nib: Vector[Vector[Int]] = if (disableBootstrap) {
-      Vector.fill[Vector[Int]](actualBags)(Vector.fill[Int](trainingData.size)(1))
+    if (disableBootstrap) {
+      Vector.fill[Vector[Int]](actualBags)(Vector.fill[Int](trainingSize)(1))
     } else {
       Iterator
         .continually {
@@ -86,7 +91,7 @@ case class Bagger(
           // of non-zero training weights
           Iterator
             .continually {
-              Vector.fill(trainingData.size)(dist.draw())
+              Vector.fill(trainingSize)(dist.draw())
             }
             .filter(_.count(_ > 0) >= Bagger.minimumNonzeroWeightSize)
             .take(actualBags)
@@ -100,204 +105,100 @@ case class Bagger(
         }
         .next()
     }
-
-    // Learn the actual models in parallel
-    val indices = Nib.indices.toVector
-    val (models: ParSeq[Model[PredictionResult[Any]]], importances: ParSeq[Option[Vector[Double]]]) =
-      rng
-        .zip(indices)
-        .par
-        .map {
-          case (thisRng, i) =>
-            val sampleWeights = Nib(i).zip(weightsActual).map(p => p._1.toDouble * p._2)
-            val meta = method.train(trainingData.toVector, Some(sampleWeights), thisRng)
-            (meta.getModel(), meta.getFeatureImportance())
-        }
-        .unzip
-
-    // Average the feature importances
-    val averageImportance: Option[Vector[Double]] = importances
-      .reduce(Bagger.combineImportance)
-      .map(_.map(_ / importances.size))
-
-    /* Wrap the models in a BaggedModel object */
-    val helper = BaggerHelper(models, trainingData, Nib, useJackknife, uncertaintyCalibration)
-    val biasModel = if (biasLearner.isDefined && helper.oobErrors.nonEmpty && helper.isRegression) {
-      Some(
-        biasLearner.get.train(helper.biasTraining, rng = rng).getModel().asInstanceOf[Model[PredictionResult[Double]]]
-      )
-    } else None
-
-    if (helper.isRegression) {
-      new BaggedTrainingResult[Double](
-        models = models.asInstanceOf[ParSeq[Model[PredictionResult[Double]]]],
-        featureImportance = averageImportance,
-        Nib = Nib,
-        trainingData = trainingData,
-        useJackknife = useJackknife,
-        biasModel = biasModel,
-        rescale = helper.rescaleRatio,
-        disableBootstrap = disableBootstrap
-      )
-    } else {
-      new BaggedTrainingResult[Any](
-        models = models,
-        featureImportance = averageImportance,
-        Nib = Nib,
-        trainingData = trainingData,
-        useJackknife = useJackknife,
-        biasModel = biasModel,
-        rescale = helper.rescaleRatio,
-        disableBootstrap = disableBootstrap
-      )
-    }
-  }
-}
-
-class BaggedTrainingResult[+T: ClassTag](
-    models: ParSeq[Model[PredictionResult[T]]],
-    featureImportance: Option[Vector[Double]],
-    Nib: Vector[Vector[Int]],
-    trainingData: Seq[(Vector[Any], Any)],
-    useJackknife: Boolean,
-    biasModel: Option[Model[PredictionResult[T]]] = None,
-    rescale: Double = 1.0,
-    disableBootstrap: Boolean = false
-) extends TrainingResult {
-
-  lazy val NibT = Nib.transpose
-  lazy val model = new BaggedModel[T](models, Nib, useJackknife, biasModel, rescale, disableBootstrap)
-  lazy val rep = trainingData.find(_._2 != null).get._2
-  lazy val predictedVsActual = trainingData.zip(NibT).flatMap {
-    case ((f, l), nb) =>
-      val oob = if (disableBootstrap) {
-        models.zip(nb)
-      } else {
-        models.zip(nb).filter(_._2 == 0)
-      }
-
-      if (oob.isEmpty || l == null || (l.isInstanceOf[Double] && l.asInstanceOf[Double].isNaN)) {
-        Seq()
-      } else {
-        val predicted = l match {
-          case _: Double => oob.map(_._1.transform(Seq(f)).getExpected().head.asInstanceOf[Double]).sum / oob.size
-          case _: Any    => oob.map(_._1.transform(Seq(f)).getExpected().head).groupBy(identity).maxBy(_._2.size)._1
-        }
-        Seq((f, predicted, l))
-      }
-  }
-
-  lazy val loss: Double = rep match {
-    case _: Double => RegressionMetrics.RMSE(predictedVsActual.asInstanceOf[Seq[(Vector[Any], Double, Double)]])
-    case _: Any    => ClassificationMetrics.loss(predictedVsActual)
-  }
-
-  /**
-    * Average the influences across the ensemble of models
-    *
-    * @return feature influences as an array of doubles
-    */
-  override def getFeatureImportance(): Option[Vector[Double]] = featureImportance
-
-  override def getModel(): BaggedModel[Any] = model
-
-  override def getPredictedVsActual(): Option[Seq[(Vector[Any], Any, Any)]] = Some(predictedVsActual)
-
-  override def getLoss(): Option[Double] = {
-    if (predictedVsActual.nonEmpty) {
-      Some(loss)
-    } else {
-      None
-    }
   }
 }
 
 /**
-  * Container holding a parallel sequence of models and the sample counts used to train them
+  * A bagger creates an ensemble of models by training the learner on random samples of the training data.
   *
-  * @param models in this bagged model
-  * @param Nib    training sample counts
+  * @param baseLearner learner to train each model in the ensemble
+  * @param numBags number of base models to aggregate (default of -1 sets the number of models to the number of training rows)
+  * @param useJackknife whether to enable jackknife uncertainty estimate
+  * @param uncertaintyCalibration whether to enable empirical uncertainty calibration
+  * @param disableBootstrap whether to disable bootstrap (useful when `method` implements its own randomization)
+  * @param biasLearner learner to use for estimating bias
   */
-class BaggedModel[+T: ClassTag](
-    models: ParSeq[Model[PredictionResult[T]]],
-    Nib: Vector[Vector[Int]],
-    useJackknife: Boolean,
-    biasModel: Option[Model[PredictionResult[T]]] = None,
-    rescale: Double = 1.0,
+case class RegressionBagger(
+    baseLearner: Learner[Double],
+    numBags: Int = -1,
+    useJackknife: Boolean = true,
+    uncertaintyCalibration: Boolean = true,
+    disableBootstrap: Boolean = false,
+    biasLearner: Option[Learner[Double]] = None
+) extends Bagger[Double] {
+  require(
+    !(uncertaintyCalibration && disableBootstrap),
+    "Options uncertaintyCalibration and disableBootstrap are incompatible. At most one may be set true."
+  )
+
+  override def train(trainingData: Seq[TrainingRow[Double]], rng: Random): RegressionBaggerTrainingResult = {
+    // Train the ensemble of models from the data
+    val ensemble = trainEnsemble(trainingData, rng)
+
+    // Compute uncertainty rescales and train the bias model (if present)
+    val helper = BaggerHelper(ensemble.models, trainingData, ensemble.Nib, useJackknife, uncertaintyCalibration)
+    val biasModel = biasLearner.collect {
+      case learner if helper.oobErrors.nonEmpty =>
+        learner.train(helper.biasTraining, rng = rng).model
+    }
+
+    RegressionBaggerTrainingResult(
+      ensembleModels = ensemble.models,
+      Nib = ensemble.Nib,
+      trainingData = trainingData,
+      featureImportance = ensemble.averageImportance,
+      biasModel = biasModel,
+      rescaleRatio = helper.rescaleRatio,
+      disableBootstrap = disableBootstrap
+    )
+  }
+}
+
+/**
+  * A bagger creates an ensemble of models by training the learner on random samples of the training data
+  *
+  * @param baseLearner learner to train each model in the ensemble
+  * @param numBags number of base models to aggregate (default of -1 sets the number of models to the number of training rows)
+  * @param useJackknife whether to enable jackknife uncertainty estimate
+  * @param disableBootstrap whether to disable bootstrap (useful when `method` implements its own randomization)
+  * @tparam T the type of label data
+  */
+case class ClassificationBagger[T](
+    baseLearner: Learner[T],
+    numBags: Int = -1,
+    useJackknife: Boolean = true,
     disableBootstrap: Boolean = false
-) extends Model[BaggedResult[T]] {
+) extends Bagger[T] {
 
-  /**
-    * Apply each model to the outputs and wrap them up
-    *
-    * @param inputs to apply the model to
-    * @return a predictionresult that includes uncertainties and scores
-    */
-  override def transform(inputs: Seq[Vector[Any]]): BaggedResult[T] = {
-    assert(inputs.forall(_.size == inputs.head.size))
-    val isRegression = classTag[T].runtimeClass == classOf[Double]
+  override def train(trainingData: Seq[TrainingRow[T]], rng: Random): ClassificationBaggerTrainingResult[T] = {
+    // Train the ensemble of models from the data
+    val ensemble = trainEnsemble(trainingData, rng)
 
-    val bias = if (biasModel.isDefined) {
-      Some(biasModel.get.transform(inputs).getExpected().asInstanceOf[Seq[Double]])
-    } else {
-      None
-    }
-    val ensemblePredictions = models.map(model => model.transform(inputs)).seq
-
-    val res = if (inputs.size == 1 && isRegression) {
-      // In the special case of a single prediction on a real value, emit an optimized BaggedSingleResult
-      SinglePredictionBaggedResult(
-        ensemblePredictions.map(_.asInstanceOf[PredictionResult[Double]]),
-        Nib,
-        bias.map(_.head),
-        rescale,
-        disableBootstrap
-      )
-    } else if (isRegression) {
-      MultiPredictionBaggedResult(
-        ensemblePredictions.map(_.asInstanceOf[PredictionResult[Double]]),
-        Nib,
-        bias,
-        rescale,
-        disableBootstrap
-      )
-    } else {
-      BaggedClassificationResult(ensemblePredictions)
-    }
-
-    res.asInstanceOf[BaggedResult[T]]
+    ClassificationBaggerTrainingResult(
+      ensembleModels = ensemble.models,
+      Nib = ensemble.Nib,
+      trainingData = trainingData,
+      featureImportance = ensemble.averageImportance,
+      disableBootstrap = disableBootstrap
+    )
   }
-
-  /**
-    * Compute Shapley feature attributions for a given input
-    *
-    * @param input for which to compute feature attributions.
-    * @param omitFeatures feature indices to omit in computing Shapley values
-    * @return matrix of attributions for each feature and output
-    *         One row per feature, each of length equal to the output dimension.
-    *         The output dimension is 1 for single-task regression, or equal to the number of classification categories.
-    */
-  override def shapley(input: Vector[Any], omitFeatures: Set[Int] = Set()): Option[DenseMatrix[Double]] = {
-    val ensembleShapley = models.map(model => model.shapley(input, omitFeatures))
-    if (ensembleShapley.head.isEmpty) {
-      None
-    } else {
-      assert(ensembleShapley.forall(x => x.isDefined))
-
-      def sumReducer(a: Option[DenseMatrix[Double]], b: Option[DenseMatrix[Double]]): Option[DenseMatrix[Double]] = {
-        Some(a.get + b.get)
-      }
-      val scale = 1.0 / ensembleShapley.length
-
-      Some(scale * ensembleShapley.reduce(sumReducer).get)
-    }
-  }
-
-  // Accessor useful for testing.
-  private[bags] def getModels(): ParSeq[Model[PredictionResult[T]]] = models
 }
 
 object Bagger {
+
+  /**
+    * Data class storing intermediate results from training a [[Bagger]]
+    *
+    * @param models trained from each bag in the ensemble
+    * @param Nib array of sample counts of shape (# bags) x (# training rows)
+    * @param averageImportance across models in the ensemble
+    * @tparam T type of label data for the models
+    */
+  protected[bags] case class BaggedEnsemble[+T](
+      models: ParVector[Model[T]],
+      Nib: Vector[Vector[Int]],
+      averageImportance: Option[Vector[Double]]
+  )
 
   /**
     * The minimum number of training rows in order to train a Bagger
@@ -314,11 +215,10 @@ object Bagger {
     */
   val minimumNonzeroWeightSize: Int = 4
 
-  private def combineImportance(v1: Option[Vector[Double]], v2: Option[Vector[Double]]): Option[Vector[Double]] = {
-    (v1, v2) match {
-      case (None, None)                                         => None
-      case (Some(v1: Vector[Double]), Some(v2: Vector[Double])) => Some(v1.zip(v2).map(p => p._1 + p._2))
-      case _                                                    => None
+  /** Combine two optional feature importance vectors. */
+  def combineImportance(vec1: Option[Vector[Double]], vec2: Option[Vector[Double]]): Option[Vector[Double]] = {
+    vec1.zip(vec2).map {
+      case (v1, v2) => v1.zip(v2).map(p => p._1 + p._2)
     }
   }
 }

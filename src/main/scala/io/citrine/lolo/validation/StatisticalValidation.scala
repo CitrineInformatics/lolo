@@ -1,6 +1,6 @@
 package io.citrine.lolo.validation
 
-import io.citrine.lolo.{Learner, PredictionResult}
+import io.citrine.lolo.api.{Learner, PredictionResult, TrainingRow}
 import io.citrine.random.Random
 
 /**
@@ -28,19 +28,19 @@ case class StatisticalValidation() {
     * @return predicted-vs-actual data that can be fed into a metric or visualization
     */
   def generativeValidation[T](
-      source: Iterator[(Vector[Any], T)],
-      learner: Learner,
+      source: Iterator[TrainingRow[T]],
+      learner: Learner[T],
       nTrain: Int,
       nTest: Int,
       nRound: Int,
       rng: Random
   ): Iterator[(PredictionResult[T], Seq[T])] = {
     Iterator.tabulate(nRound) { _ =>
-      val trainingData: Seq[(Vector[Any], T)] = source.take(nTrain).toSeq
-      val model = learner.train(trainingData, rng = rng).getModel()
-      val testData: Seq[(Vector[Any], T)] = source.take(nTest).toSeq
-      val predictions: PredictionResult[T] = model.transform(testData.map(_._1)).asInstanceOf[PredictionResult[T]]
-      (predictions, testData.map(_._2))
+      val trainingData = source.take(nTrain).toSeq
+      val model = learner.train(trainingData, rng = rng).model
+      val testData = source.take(nTest).toSeq
+      val predictions: PredictionResult[T] = model.transform(testData.map(_.inputs))
+      (predictions, testData.map(_.label))
     }
   }
 
@@ -64,8 +64,8 @@ case class StatisticalValidation() {
     * @return predicted-vs-actual data that can be fed into a metric or visualization
     */
   def generativeValidation[T](
-      source: Iterable[(Vector[Any], T)],
-      learner: Learner,
+      source: Iterable[TrainingRow[T]],
+      learner: Learner[T],
       nTrain: Int,
       nTest: Int,
       nRound: Int,
@@ -73,11 +73,10 @@ case class StatisticalValidation() {
   ): Iterator[(PredictionResult[T], Seq[T])] = {
     Iterator.tabulate(nRound) { _ =>
       val subset = rng.shuffle(source).take(nTrain + nTest)
-      val (trainingData: Seq[(Vector[Any], T)], testData: Seq[(Vector[Any], T)]) = subset.splitAt(nTrain)
-      val model = learner.train(trainingData, rng = rng).getModel()
-      val predictions: PredictionResult[T] = model.transform(testData.map(_._1)).asInstanceOf[PredictionResult[T]]
-      (predictions, testData.map(_._2))
+      val (trainingData, testData) = subset.toVector.splitAt(nTrain)
+      val model = learner.train(trainingData, rng = rng).model
+      val predictions: PredictionResult[T] = model.transform(testData.map(_.inputs))
+      (predictions, testData.map(_.label))
     }
   }
-
 }

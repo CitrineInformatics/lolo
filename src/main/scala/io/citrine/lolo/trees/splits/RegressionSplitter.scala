@@ -1,5 +1,6 @@
 package io.citrine.lolo.trees.splits
 
+import io.citrine.lolo.api.TrainingRow
 import io.citrine.lolo.trees.impurity.VarianceCalculator
 import io.citrine.random.Random
 
@@ -32,13 +33,13 @@ case class RegressionSplitter(randomizePivotLocation: Boolean = false) extends S
     * @return a split object that optimally divides data
     */
   def getBestSplit(
-      data: Seq[(Vector[AnyVal], Double, Double)],
+      data: Seq[TrainingRow[Double]],
       numFeatures: Int,
       minInstances: Int,
       rng: Random
   ): (Split, Double) = {
 
-    val calculator = VarianceCalculator.build(data.map(_._2), data.map(_._3))
+    val calculator = VarianceCalculator.build(data.map(_.label), data.map(_.weight))
     val initialVariance = calculator.getImpurity
     var bestSplit: Split = NoSplit()
     var bestVariance = Double.MaxValue
@@ -46,10 +47,10 @@ case class RegressionSplitter(randomizePivotLocation: Boolean = false) extends S
     val rep = data.head
 
     /* Try every feature index */
-    val featureIndices: Seq[Int] = rep._1.indices
+    val featureIndices: Seq[Int] = rep.inputs.indices
     rng.shuffle(featureIndices).take(numFeatures).foreach { index =>
       /* Use different splitters for each type */
-      val (possibleSplit, possibleVariance) = rep._1(index) match {
+      val (possibleSplit, possibleVariance) = rep.inputs(index) match {
         case _: Double =>
           Splitter.getBestRealSplit[Double](data, calculator.copy(), index, minInstances, randomizePivotLocation, rng)
         case _: Char => getBestCategoricalSplit(data, calculator.copy(), index, minInstances)
@@ -78,13 +79,13 @@ case class RegressionSplitter(randomizePivotLocation: Boolean = false) extends S
     * @return the best split of this feature
     */
   def getBestCategoricalSplit(
-      data: Seq[(Vector[AnyVal], Double, Double)],
+      data: Seq[TrainingRow[Double]],
       calculator: VarianceCalculator,
       index: Int,
       minCount: Int
   ): (CategoricalSplit, Double) = {
     /* Extract the features at the index */
-    val thinData = data.map(dat => (dat._1(index).asInstanceOf[Char], dat._2, dat._3))
+    val thinData = data.map(dat => (dat.inputs(index).asInstanceOf[Char], dat.label, dat.weight))
     val totalWeight = thinData.map(_._3).sum
 
     /* Group the data by categorical feature and compute the weighted sum and sum of the weights for each */
@@ -99,7 +100,7 @@ case class RegressionSplitter(randomizePivotLocation: Boolean = false) extends S
     /* Compute the average label for each categorical value */
     val categoryAverages: Map[Char, Double] = groupedData.mapValues(p => p._1 / p._2).toMap
 
-    /* Create an orderd list of the categories by average label */
+    /* Create an ordered list of the categories by average label */
     val orderedNames = categoryAverages.toSeq.sortBy(_._2).map(_._1)
 
     /* Base cases for the iteration */

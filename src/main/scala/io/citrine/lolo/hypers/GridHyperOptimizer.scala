@@ -1,13 +1,9 @@
 package io.citrine.lolo.hypers
 
-import io.citrine.lolo.Learner
+import io.citrine.lolo.api.{Learner, TrainingRow}
 import io.citrine.random.Random
 
-/**
-  * Brute force search over the grid of hypers
-  *
-  * Created by maxhutch on 12/7/16.
-  */
+/** Brute force search over the grid of hypers. */
 case class GridHyperOptimizer() extends HyperOptimizer {
 
   /**
@@ -17,10 +13,10 @@ case class GridHyperOptimizer() extends HyperOptimizer {
     * @param numIterations ignored, since this is a brute force search
     * @return the best hyper map found in the search space
     */
-  override def optimize(
-      trainingData: Seq[(Vector[Any], Any)],
+  override def optimize[T](
+      trainingData: Seq[TrainingRow[T]],
       numIterations: Int = 1,
-      builder: Map[String, Any] => Learner,
+      builder: Map[String, Any] => Learner[T],
       rng: Random
   ): (Map[String, Any], Double) = {
     var best: Map[String, Any] = Map()
@@ -43,16 +39,16 @@ case class GridHyperOptimizer() extends HyperOptimizer {
       // Set up a learner with these parameters and compute the loss
       val testLearner = builder(testHypers)
       val res = testLearner.train(trainingData, rng = rng)
-      if (res.getLoss().isEmpty) {
-        throw new IllegalArgumentException("Trying to optimize hyper-paramters for a learner without getLoss")
+      if (res.loss.isEmpty) {
+        throw new IllegalArgumentException("Trying to optimize hyper-parameters for a learner without getLoss")
       }
-      val thisLoss = res.getLoss().get
+      val thisLoss = res.loss.get
 
       /* Save if it is an improvement */
       if (thisLoss < loss) {
         best = testHypers
         loss = thisLoss
-        println(s"Improved the loss to ${loss} with ${best}")
+        println(s"Improved the loss to $loss with $best")
       }
     }
     (best, loss)

@@ -1,7 +1,7 @@
 package io.citrine.lolo.validation
 
+import io.citrine.lolo.api.{Learner, PredictionResult, TrainingRow}
 import io.citrine.random.Random
-import io.citrine.lolo.{Learner, PredictionResult}
 
 /**
   * Methods tha use cross-validation to calculate predicted-vs-actual data and metric estimates
@@ -21,8 +21,8 @@ case object CrossValidation {
     * @return a Map from the name of the metric to its mean value and the error in that mean
     */
   def kFoldCrossvalidation[T](
-      trainingData: Seq[(Vector[Any], T)],
-      learner: Learner,
+      trainingData: Seq[TrainingRow[T]],
+      learner: Learner[T],
       metrics: Map[String, Merit[T]],
       k: Int = 8,
       nTrial: Int = 1,
@@ -46,25 +46,24 @@ case object CrossValidation {
     * @return an iterable over predicted-vs-actual for each fold
     */
   def kFoldPvA[T](
-      trainingData: Seq[(Vector[Any], T)],
-      learner: Learner,
+      trainingData: Seq[TrainingRow[T]],
+      learner: Learner[T],
       k: Int = 8,
       nTrial: Int = 1,
       rng: Random = Random()
   ): Iterable[(PredictionResult[T], Seq[T])] = {
     val nTest: Int = Math.ceil(trainingData.size.toDouble / k).toInt
     (0 until nTrial).flatMap { _ =>
-      val folds: Seq[Seq[(Vector[Any], T)]] = rng.shuffle(trainingData).grouped(nTest).toSeq
+      val folds = rng.shuffle(trainingData).grouped(nTest).toSeq
 
       folds.indices.map { idx =>
         val (testFolds, trainFolds) = folds.zipWithIndex.partition(_._2 == idx)
         val testData = testFolds.flatMap(_._1)
         val trainData = trainFolds.flatMap(_._1)
-        val model = learner.train(trainData, rng = rng).getModel()
-        val predictions: PredictionResult[T] = model.transform(testData.map(_._1)).asInstanceOf[PredictionResult[T]]
-        (predictions, testData.map(_._2))
+        val model = learner.train(trainData, rng = rng).model
+        val predictions: PredictionResult[T] = model.transform(testData.map(_.inputs))
+        (predictions, testData.map(_.label))
       }
     }
   }
-
 }

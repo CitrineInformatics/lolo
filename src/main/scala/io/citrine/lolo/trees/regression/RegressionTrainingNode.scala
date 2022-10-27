@@ -2,14 +2,14 @@ package io.citrine.lolo.trees.regression
 
 import io.citrine.lolo.trees.splits.{NoSplit, Split, Splitter}
 import io.citrine.lolo.trees.{InternalModelNode, ModelNode, TrainingNode}
-import io.citrine.lolo.{Learner, PredictionResult}
+import io.citrine.lolo.api.{Learner, TrainingRow}
 import io.citrine.random.Random
 
 case class RegressionTrainingNode(
-    trainingData: Seq[(Vector[AnyVal], Double, Double)],
+    trainingData: Seq[TrainingRow[Double]],
     leftNode: TrainingNode[Double],
     rightNode: TrainingNode[Double],
-    leafLearner: Learner,
+    leafLearner: Learner[Double],
     split: Split,
     deltaImpurity: Double
 ) extends TrainingNode[Double] {
@@ -19,13 +19,13 @@ case class RegressionTrainingNode(
     *
     * @return lightweight prediction node
     */
-  override def modelNode: ModelNode[PredictionResult[Double]] = {
-    new InternalModelNode[PredictionResult[Double]](
+  override def modelNode: ModelNode[Double] = {
+    InternalModelNode(
       split,
       leftNode.modelNode,
       rightNode.modelNode,
-      1,
-      trainingData.map(_._3).sum
+      outputDimension = 1,
+      trainingData.map(_.weight).sum
     )
   }
 
@@ -62,8 +62,8 @@ object RegressionTrainingNode {
     * @return the child node, either a RegressionTrainingNode or TrainingLeaf
     */
   def build(
-      trainingData: Seq[(Vector[AnyVal], Double, Double)],
-      leafLearner: Learner,
+      trainingData: Seq[TrainingRow[Double]],
+      leafLearner: Learner[Double],
       splitter: Splitter[Double],
       numFeatures: Int,
       minLeafInstances: Int,
@@ -73,7 +73,7 @@ object RegressionTrainingNode {
   ): TrainingNode[Double] = {
     val sufficientData = trainingData.size >= 2 * minLeafInstances &&
       remainingDepth > 0 &&
-      trainingData.exists(_._2 != trainingData.head._2)
+      trainingData.exists(_.label != trainingData.head.label)
     val (split: Split, deltaImpurity: Double) = if (sufficientData) {
       splitter.getBestSplit(trainingData, numFeatures, minLeafInstances, rng)
     } else {
@@ -83,7 +83,7 @@ object RegressionTrainingNode {
       case _: NoSplit =>
         RegressionTrainingLeaf.build(trainingData, leafLearner, maxDepth - remainingDepth, rng)
       case split: Split =>
-        val (leftTrain, rightTrain) = trainingData.partition(r => split.turnLeft(r._1))
+        val (leftTrain, rightTrain) = trainingData.partition(r => split.turnLeft(r.inputs))
         val leftNode = RegressionTrainingNode.build(
           trainingData = leftTrain,
           leafLearner = leafLearner,

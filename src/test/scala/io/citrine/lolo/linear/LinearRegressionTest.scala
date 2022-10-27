@@ -2,6 +2,7 @@ package io.citrine.lolo.linear
 
 import breeze.linalg.{norm, DenseMatrix, DenseVector}
 import io.citrine.lolo.SeedRandomMixIn
+import io.citrine.lolo.api.TrainingRow
 import org.junit.Test
 
 /**
@@ -30,15 +31,15 @@ class LinearRegressionTest extends SeedRandomMixIn {
     val result = data * beta0
 
     val trainingData = (0 until n).map { i =>
-      (data.t(::, i).toDenseVector.toArray.toVector, result(i))
+      TrainingRow(data.t(::, i).toDenseVector.toArray.toVector, result(i))
     }
 
     val lr = LinearRegressionLearner(fitIntercept = false)
     val lrm = lr.train(trainingData)
-    val model = lrm.getModel()
-    val output = model.transform(trainingData.map(_._1))
-    val predicted = output.getExpected()
-    val beta = output.getGradient().get.head
+    val model = lrm.model
+    val output = model.transform(trainingData.map(_.inputs))
+    val predicted = output.expected
+    val beta = output.gradient.get.head
 
     assert(norm(new DenseVector(beta.toArray) - beta0) < 1.0e-9, "Coefficients are inaccurate")
     assert(norm(new DenseVector(predicted.toArray) - result) < 1.0e-9, "Predictions are inaccurate")
@@ -53,15 +54,15 @@ class LinearRegressionTest extends SeedRandomMixIn {
     val result = data * beta0 + int0
 
     val trainingData = (0 until n).map { i =>
-      (data.t(::, i).toDenseVector.toArray.toVector, result(i))
+      TrainingRow(data.t(::, i).toDenseVector.toArray.toVector, result(i))
     }
 
     val lr = LinearRegressionLearner()
     val lrm = lr.train(trainingData)
-    val model = lrm.getModel()
-    val output = model.transform(trainingData.map(_._1))
-    val predicted = output.getExpected()
-    val beta = output.getGradient().get.head
+    val model = lrm.model
+    val output = model.transform(trainingData.map(_.inputs))
+    val predicted = output.expected
+    val beta = output.gradient.get.head
 
     assert(norm(new DenseVector(beta.toArray) - beta0) < 1.0e-9, "Coefficients are inaccurate")
     assert(norm(new DenseVector(predicted.toArray) - result) < 1.0e-9, "Predictions are inaccurate")
@@ -76,15 +77,15 @@ class LinearRegressionTest extends SeedRandomMixIn {
     val result = data * beta0 + int0
 
     val trainingData = (0 until n).map { i =>
-      (data.t(::, i).toDenseVector.toArray.toVector, result(i))
+      TrainingRow(data.t(::, i).toDenseVector.toArray.toVector, result(i), math.abs(rng.nextDouble()))
     }
 
     val lr = LinearRegressionLearner()
-    val lrm = lr.train(trainingData, weights = Some(Seq.tabulate(n)(i => Math.abs(rng.nextDouble()))))
-    val model = lrm.getModel()
-    val output = model.transform(trainingData.map(_._1))
-    val predicted = output.getExpected()
-    val beta = output.getGradient().get.head
+    val lrm = lr.train(trainingData, rng = rng)
+    val model = lrm.model
+    val output = model.transform(trainingData.map(_.inputs))
+    val predicted = output.expected
+    val beta = output.gradient.get.head
 
     assert(norm(new DenseVector(beta.toArray) - beta0) < 1.0e-9, "Coefficients are inaccurate")
     assert(norm(new DenseVector(predicted.toArray) - result) < 1.0e-9, "Predictions are inaccurate")
@@ -110,15 +111,15 @@ class LinearRegressionTest extends SeedRandomMixIn {
     val result = data * beta0
 
     val trainingData = (0 until n).map { i =>
-      (data.t(::, i).toDenseVector.toArray.toVector, result(i))
+      TrainingRow(data.t(::, i).toDenseVector.toArray.toVector, result(i))
     }
 
-    val lr = new LinearRegressionLearner(fitIntercept = false)
+    val lr = LinearRegressionLearner(fitIntercept = false)
     val lrm = lr.train(trainingData)
-    val model = lrm.getModel()
-    val output = model.transform(trainingData.map(_._1))
-    val predicted = output.getExpected()
-    val beta = output.getGradient().head
+    val model = lrm.model
+    val output = model.transform(trainingData.map(_.inputs))
+    val predicted = output.expected
+    val beta = output.gradient.head
 
     assert(norm(new DenseVector(predicted.toArray) - result) < 1.0e-9, "Predictions are inaccurate")
   }
@@ -132,16 +133,17 @@ class LinearRegressionTest extends SeedRandomMixIn {
     val result = data * beta0 + int0
 
     val trainingData = (0 until n).map { i =>
-      ("Foo" +: data.t(::, i).toDenseVector.toArray.toVector.asInstanceOf[Vector[Any]] :+ "Bar", result(i))
+      val inputs = "Foo" +: data.t(::, i).toDenseVector.toArray.toVector.asInstanceOf[Vector[Any]] :+ "Bar"
+      TrainingRow(inputs, result(i))
     }
 
-    val lr = new LinearRegressionLearner()
+    val lr = LinearRegressionLearner()
     val lrm = lr.train(trainingData)
-    val model = lrm.getModel()
-    val output = model.transform(trainingData.map(_._1))
-    val predicted = output.getExpected()
-    val beta = output.getGradient().get.head
-    val importance = lrm.getFeatureImportance().get
+    val model = lrm.model
+    val output = model.transform(trainingData.map(_.inputs))
+    val predicted = output.expected
+    val beta = output.gradient.get.head
+    val importance = lrm.featureImportance.get
 
     /* Make sure that feature importance matches the gradient */
     val betaScale = beta.map(Math.abs).sum

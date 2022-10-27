@@ -1,7 +1,6 @@
 package io.citrine.lolo.validation
 
-import java.util
-import io.citrine.lolo.PredictionResult
+import io.citrine.lolo.api.PredictionResult
 import io.citrine.random.Random
 import org.knowm.xchart.XYChart
 
@@ -44,13 +43,12 @@ case object RootMeanSquareError extends Merit[Double] {
       rng: Random = Random()
   ): Double = {
     Math.sqrt(
-      predictionResult
-        .getExpected()
+      predictionResult.expected
         .zip(actual)
         .map {
           case (x, y) => Math.pow(x - y, 2)
         }
-        .sum / predictionResult.getExpected().size
+        .sum / predictionResult.expected.size
     )
   }
 }
@@ -66,7 +64,7 @@ case object CoefficientOfDetermination extends Merit[Double] {
   ): Double = {
     val averageActual = actual.sum / actual.size
     val sumOfSquares = actual.map(x => Math.pow(x - averageActual, 2)).sum
-    val sumOfResiduals = predictionResult.getExpected().zip(actual).map { case (x, y) => Math.pow(x - y, 2.0) }.sum
+    val sumOfResiduals = predictionResult.expected.zip(actual).map { case (x, y) => Math.pow(x - y, 2.0) }.sum
     1.0 - sumOfResiduals / sumOfSquares
   }
 }
@@ -80,11 +78,11 @@ case object StandardConfidence extends Merit[Double] {
       actual: Seq[Double],
       rng: Random = Random()
   ): Double = {
-    if (predictionResult.getUncertainty().isEmpty) return 0.0
+    if (predictionResult.uncertainty().isEmpty) return 0.0
 
-    predictionResult.getExpected().lazyZip(predictionResult.getUncertainty().get).lazyZip(actual).count {
+    predictionResult.expected.lazyZip(predictionResult.uncertainty().get).lazyZip(actual).count {
       case (x, sigma: Double, y) => Math.abs(x - y) < sigma
-    } / predictionResult.getExpected().size.toDouble
+    } / predictionResult.expected.size.toDouble
   }
 }
 
@@ -97,9 +95,9 @@ case class StandardError(rescale: Double = 1.0) extends Merit[Double] {
       actual: Seq[Double],
       rng: Random = Random()
   ): Double = {
-    if (predictionResult.getUncertainty().isEmpty) return Double.PositiveInfinity
+    if (predictionResult.uncertainty().isEmpty) return Double.PositiveInfinity
     val standardized =
-      predictionResult.getExpected().lazyZip(predictionResult.getUncertainty().get).lazyZip(actual).map {
+      predictionResult.expected.lazyZip(predictionResult.uncertainty().get).lazyZip(actual).map {
         case (x, sigma: Double, y) => (x - y) / sigma
       }
     rescale * Math.sqrt(standardized.map(Math.pow(_, 2.0)).sum / standardized.size)
@@ -123,12 +121,9 @@ case object UncertaintyCorrelation extends Merit[Double] {
       actual: Seq[Double],
       rng: Random = Random()
   ): Double = {
-    val predictedUncertaintyActual: Seq[(Double, Double, Double)] = (
-      predictionResult
-        .getExpected()
-        .lazyZip(predictionResult.getUncertainty().get.asInstanceOf[Seq[Double]])
-        .lazyZip(actual)
-      )
+    val predictedUncertaintyActual: Seq[(Double, Double, Double)] = predictionResult.expected
+      .lazyZip(predictionResult.uncertainty().get.asInstanceOf[Seq[Double]])
+      .lazyZip(actual)
       .toSeq
 
     val ideal = predictedUncertaintyActual.map {

@@ -1,6 +1,7 @@
 package io.citrine.lolo
 
-import io.citrine.lolo.bags.Bagger
+import io.citrine.lolo.api.{Learner, TrainingRow}
+import io.citrine.lolo.bags.{Bagger, RegressionBagger}
 import io.citrine.lolo.trees.regression.RegressionTreeLearner
 import io.citrine.lolo.trees.splits.{BoltzmannSplitter, RegressionSplitter}
 import io.citrine.random.Random
@@ -17,16 +18,12 @@ class AccuracyTest extends SeedRandomMixIn {
   val nScal: Int = 2
   val minInstances: Int = 1
 
-  val trainingData: Seq[(Vector[Any], Double)] = TestUtils
-    .binTrainingData(
-      TestUtils.generateTrainingData(nRow, nFeat, noise = noiseLevel, rng = rng),
-      inputBins = Seq((4, 32))
-    )
-    .asInstanceOf[Seq[(Vector[Any], Double)]] // binTrainingData isn't binning the labels
+  val trainingData: Seq[TrainingRow[Double]] =
+    DataGenerator.generate(nRow, nFeat, noise = noiseLevel, rng = rng).withBinnedInputs(bins = Seq((4, 32))).data
 
   // Get the out-of-bag RMSE
-  private def computeMetrics(learner: Learner, rng: Random): Double = {
-    learner.train(trainingData, rng = rng).getLoss().get
+  private def computeMetrics(learner: Learner[Double], rng: Random): Double = {
+    learner.train(trainingData, rng = rng).loss.get
   }
 
   /**
@@ -35,7 +32,7 @@ class AccuracyTest extends SeedRandomMixIn {
   @Test
   def testRandomForest(): Unit = {
     val baseLearner = RegressionTreeLearner(numFeatures = nFeat / 3, minLeafInstances = minInstances)
-    val learner = new Bagger(baseLearner, numBags = nRow * nScal)
+    val learner = RegressionBagger(baseLearner, numBags = nRow * nScal)
     val error = computeMetrics(learner, rng)
     assert(error > noiseLevel, s"Can't do better than noise")
     assert(error < 4.0, "Error increased, probably due to a change in configuration")
@@ -51,8 +48,7 @@ class AccuracyTest extends SeedRandomMixIn {
         numFeatures = nFeat,
         splitter = RegressionSplitter(randomizePivotLocation = true)
       )
-      val learner =
-        new Bagger(baseLearner, numBags = nRow * 16)
+      val learner = RegressionBagger(baseLearner, numBags = nRow * 16)
       // println(s"Normal train time: ${Stopwatch.time(computeMetrics(learner))}")
       computeMetrics(learner, rng)
     }
@@ -61,8 +57,7 @@ class AccuracyTest extends SeedRandomMixIn {
         numFeatures = nFeat,
         splitter = BoltzmannSplitter(temperature = Float.MinPositiveValue)
       )
-      val learner =
-        new Bagger(baseLearner, numBags = nRow * 16)
+      val learner = RegressionBagger(baseLearner, numBags = nRow * 16)
       // println(s"Annealing train time: ${Stopwatch.time(computeMetrics(learner))}")
       computeMetrics(learner, rng)
     }
@@ -78,16 +73,11 @@ class AccuracyTest extends SeedRandomMixIn {
   * Driver code to study the performance vs temperature
   *
   * This isn't cast as a test, but can be used to try to understand the behavior of Boltzmann trees on some simple problems.
-  * TODO: turn this into a demo or otherwise relocate it before the Boltzmann tree release
   */
 object AccuracyTest extends SeedRandomMixIn {
 
-  val trainingDataFull: Seq[(Vector[Any], Double)] = TestUtils
-    .binTrainingData(
-      TestUtils.generateTrainingData(2048, 48, rng = rng),
-      inputBins = Seq((2, 32)) // bin the 3rd feature into a categorical
-    )
-    .asInstanceOf[Seq[(Vector[Any], Double)]]
+  val trainingDataFull: Seq[TrainingRow[Double]] =
+    DataGenerator.generate(2048, 48, rng = rng).withBinnedInputs(bins = Seq((2, 32))).data
 
   /**
     * Compute the RMSE and standard residual for a Boltzmann tree with the given temperature
@@ -107,7 +97,7 @@ object AccuracyTest extends SeedRandomMixIn {
       minInstances: Int,
       temperature: Double
   ): (Double, Double) = {
-    val trainingData = trainingDataFull.take(nRow).map { case (f, l) => (f.take(nFeat), l) }
+    val trainingData = trainingDataFull.take(nRow).map(_.mapInputs(inputs => inputs.take(nFeat)))
     val splitter = if (temperature > 0) {
       BoltzmannSplitter(temperature = temperature)
     } else {
@@ -118,16 +108,16 @@ object AccuracyTest extends SeedRandomMixIn {
       splitter = splitter,
       minLeafInstances = minInstances
     )
-    val learner = new Bagger(baseLearner, numBags = nRow * nScal, biasLearner = None)
-    val model = learner.train(trainingData, rng = rng).getModel()
-    val (features, labels) = trainingData.unzip
+    val learner = RegressionBagger(baseLearner, numBags = nRow * nScal, biasLearner = None)
+    val model = learner.train(trainingData, rng = rng).model
+    val (features, labels) = trainingData.map(row => (row.inputs, row.label)).unzip
     val predictions = model.transform(features)
-    val expected = predictions.getExpected().asInstanceOf[Seq[Double]]
-    val sigma = predictions.getUncertainty().get.asInstanceOf[Seq[Double]]
+    val expected = predictions.expected
+    val sigma = predictions.uncertainty().get.asInstanceOf[Seq[Double]]
     val pva: Seq[(Double, Double, Double)] = labels.indices.map { i =>
       (labels(i), expected(i), sigma(i))
     }
-    val rmse = Math.sqrt(pva.map { case (x, y, s) => Math.pow(x - y, 2) }.sum / pva.size)
+    val rmse = Math.sqrt(pva.map { case (x, y, _) => Math.pow(x - y, 2) }.sum / pva.size)
     val stdres = Math.sqrt(pva.map { case (x, y, s) => Math.pow((x - y) / s, 2) }.sum / pva.size)
     (rmse, stdres)
   }
