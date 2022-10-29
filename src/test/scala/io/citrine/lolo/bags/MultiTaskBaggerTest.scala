@@ -3,7 +3,7 @@ package io.citrine.lolo.bags
 import breeze.stats.distributions.{Beta, RandBasis}
 import io.citrine.lolo.api.TrainingRow
 import io.citrine.lolo.{DataGenerator, SeedRandomMixIn}
-import io.citrine.lolo.linear.GuessTheMeanLearner
+import io.citrine.lolo.linear.{GuessTheMeanLearner, MultiTaskLinearRegressionLearner}
 import io.citrine.lolo.stats.functions.Friedman
 import io.citrine.lolo.stats.metrics.ClassificationMetrics
 import io.citrine.lolo.trees.classification.ClassificationTreeLearner
@@ -366,5 +366,34 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
       )
       assert(baggedLearner.train(multiTaskRows, rng = rng).models.size == 2)
     }
+  }
+
+  @Test
+  def testMultiTaskLinearEnsemble(): Unit = {
+    val numTrain = 256
+    val numBags = 64
+    val numTest = 32
+    val trainingRho = 0.45 // desired correlation between two real-valued training labels
+
+    val realRows = DataGenerator
+      .generate(numTrain, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng)
+      .data
+    val (inputs, realLabel) = realRows.map(row => (row.inputs, row.label)).unzip
+    val correlatedLabel = DataGenerator.makeLinearlyCorrelatedData(realLabel, trainingRho, rng = rng)
+    val labels = Vector(realLabel, correlatedLabel).transpose
+    val multiTaskRows = TrainingRow.build(inputs.zip(labels))
+
+    val learner = MultiTaskLinearRegressionLearner(regParam = Some(1.0))
+    val baggedLearner = MultiTaskBagger(
+      learner,
+      numBags = numBags
+    )
+    val baggedModel = baggedLearner.train(multiTaskRows, rng = rng).model
+
+    val testInputs =
+      DataGenerator.generate(numTest, 12, function = Friedman.friedmanSilverman, rng = rng).data.map(_.inputs)
+    val predictionResult = baggedModel.transform(testInputs)
+
+    println(predictionResult.uncertaintyCorrelation(0, 1))
   }
 }

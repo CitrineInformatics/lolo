@@ -26,7 +26,17 @@ case class MultiTaskLinearRegressionLearner(regParam: Option[Double] = None, fit
 case class MultiTaskLinearRegressionTrainingResult(linearResults: Vector[LinearRegressionTrainingResult])
     extends MultiTaskTrainingResult {
 
-  override def models: Vector[LinearRegressionModel] = linearResults.map(_.model)
+  override val models: Vector[LinearRegressionModel] = linearResults.map(_.model)
 
-  override def model: MultiTaskModel = ParallelModels(models, Vector.fill(models.length)(true))
+  override val model: MultiTaskModel = ParallelModels(models, Vector.fill(models.length)(true))
+
+  override lazy val featureImportance: Option[Vector[Double]] = {
+    // Average the importance across labels
+    val labelImportance = linearResults.flatMap(_.featureImportance) // (# labels) x (# features) array
+    Option.when(labelImportance.nonEmpty) {
+      val importanceByFeature = labelImportance.transpose.map(_.sum)
+      val totalImportance = importanceByFeature.sum
+      importanceByFeature.map(_ / totalImportance)
+    }
+  }
 }
