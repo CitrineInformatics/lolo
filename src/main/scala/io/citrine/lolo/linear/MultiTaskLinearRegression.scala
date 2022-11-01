@@ -6,18 +6,25 @@ import io.citrine.random.Random
 case class MultiTaskLinearRegressionLearner(regParam: Option[Double] = None, fitIntercept: Boolean = true)
     extends MultiTaskLearner {
 
-  override def train(trainingData: Seq[TrainingRow[Vector[Any]]], rng: Random): MultiTaskTrainingResult = {
+  override def train(
+      trainingData: Seq[TrainingRow[Vector[Any]]],
+      rng: Random
+  ): MultiTaskLinearRegressionTrainingResult = {
     val rep = trainingData.head
     val repLabels = rep.label
     val numLabels = repLabels.length
-    assert(repLabels.forall(_.isInstanceOf[Double]))
+    assert(
+      repLabels.forall(_.isInstanceOf[Double]),
+      "Multi-task linear regression can only be performed for real-valued labels."
+    )
 
+    // Train each task independently so that label sparsity does not diminish the training corpus
     val singleTaskLearner = LinearRegressionLearner(regParam, fitIntercept)
-    val singleTaskRows = Vector.tabulate(numLabels) { idx =>
-      trainingData.map(_.mapLabel(labelVec => labelVec(idx).asInstanceOf[Double]))
-    }
-    val singleTaskResults = singleTaskRows.map { labelTrainingRows =>
-      singleTaskLearner.train(labelTrainingRows, rng)
+    val singleTaskResults = Vector.tabulate(numLabels) { idx =>
+      val reducedData = trainingData
+        .map(row => row.mapLabel(labelVec => labelVec(idx).asInstanceOf[Double]))
+        .filterNot(_.label.isNaN)
+      singleTaskLearner.train(reducedData, rng)
     }
     MultiTaskLinearRegressionTrainingResult(singleTaskResults)
   }

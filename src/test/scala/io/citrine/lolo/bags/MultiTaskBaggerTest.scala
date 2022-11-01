@@ -373,7 +373,7 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
     val numTrain = 256
     val numBags = 64
     val numTest = 32
-    val trainingRho = 0.45 // desired correlation between two real-valued training labels
+    val trainingRho = 0.75 // desired correlation between two real-valued training labels
 
     val realRows = DataGenerator
       .generate(numTrain, 12, noise = 0.1, function = Friedman.friedmanSilverman, rng = rng)
@@ -384,16 +384,29 @@ class MultiTaskBaggerTest extends SeedRandomMixIn {
     val multiTaskRows = TrainingRow.build(inputs.zip(labels))
 
     val learner = MultiTaskLinearRegressionLearner(regParam = Some(1.0))
-    val baggedLearner = MultiTaskBagger(
-      learner,
-      numBags = numBags
+    val baggedLearner = MultiTaskBagger(learner, numBags = numBags)
+
+    val baggedTrainingResult = baggedLearner.train(multiTaskRows, rng = rng)
+    assert(baggedTrainingResult.featureImportance.isDefined)
+
+    val testInputs = DataGenerator
+      .generate(numTest, 12, function = Friedman.friedmanSilverman, rng = rng)
+      .data
+      .map(_.inputs)
+
+    val baggedModel = baggedTrainingResult.model
+    val prediction = baggedModel.transform(testInputs)
+    assert(prediction.expected.length == testInputs.length)
+    val uncertainty = prediction.uncertainty().get
+    assert(
+      uncertainty.forall { vec =>
+        vec.forall {
+          case x: Double if x > 0.0 => true
+          case _                    => false
+        }
+      }
     )
-    val baggedModel = baggedLearner.train(multiTaskRows, rng = rng).model
-
-    val testInputs =
-      DataGenerator.generate(numTest, 12, function = Friedman.friedmanSilverman, rng = rng).data.map(_.inputs)
-    val predictionResult = baggedModel.transform(testInputs)
-
-    println(predictionResult.uncertaintyCorrelation(0, 1))
+    val correlation = prediction.uncertaintyCorrelation(0, 1).get
+    assert(correlation.forall(_ > 0.0))
   }
 }
