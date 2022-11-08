@@ -4,7 +4,7 @@ import java.io.{ByteArrayInputStream, ByteArrayOutputStream, ObjectInputStream, 
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.zip._
-import io.citrine.lolo.api.{MultiTaskModelPredictionResult, PredictionResult}
+import io.citrine.lolo.api.{MultiTaskModelPredictionResult, PredictionResult, TrainingRow}
 
 /**
   * Tool used to transfer data from LoloPy to the JVM
@@ -56,18 +56,17 @@ object LoloPyDataLoader {
   }
 
   /**
-    * Zips the features and labels together
-    *
-    * This function was created to provide the ability to easily Zip training and testing data when using Lolo
-    * from lolopy. Py4J does not support generic methods well, and this function is a workaround for being able
-    * to call zip when needed generate a training set.
+    * Build training rows from the features, labels, and weights.
     *
     * @param X Feature array
     * @param y Label array
-    * @return Zipped arrays
+    * @param w Weight array
+    * @return Sequence of training row objects
     */
-  def zipTrainingData(X: Seq[Vector[Double]], y: Seq[Any]): Seq[(Vector[Double], Any)] = {
-    X.zip(y)
+  def buildTrainingRows[T](X: Seq[Vector[Double]], y: Seq[T], w: Seq[Double]): Seq[TrainingRow[T]] = {
+    X.lazyZip(y).lazyZip(w).map {
+      case (xi, yi, wi) => TrainingRow(xi, yi, wi)
+    }
   }
 
   /**

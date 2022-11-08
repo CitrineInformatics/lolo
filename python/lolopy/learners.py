@@ -85,24 +85,18 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
         else:
             raise ValueError("Output array must be either 1- or 2-dimensional")
 
-        # Convert all of the training data to Java arrays
-        train_data, weights_java = self._convert_train_data(X, y, weights)
-        assert train_data.length() == len(X), "Array copy failed"
-        assert train_data.head()._1().length() == len(X[0]), "Wrong number of features"
-        assert weights_java.length() == len(X), "Weights copy failed"
+        # Convert all of the training data to Java training rows
+        training_data = self._convert_training_data(X, y, weights)
+        assert training_data.length() == len(X), "Array copy failed"
+        assert training_data.head().inputs().length() == len(X[0]), "Wrong number of features"
 
         # Train the model
-        train_rows = self.gateway.jvm.io.citrine.lolo.api.TrainingRow.build(
-            train_data, self.gateway.jvm.scala.Some(weights_java)
-        )
         rng = self.gateway.jvm.io.citrine.lolo.util.LoloPyRandom.getRng(random_seed) if random_seed \
             else self.gateway.jvm.io.citrine.lolo.util.LoloPyRandom.getRng()
-        result = learner.train(train_rows, rng)
+        result = learner.train(training_data, rng)
 
         # Unlink the training data, which is no longer needed (to save memory)
-        self.gateway.detach(train_data)
-        self.gateway.detach(weights_java)
-        self.gateway.detach(train_rows)
+        self.gateway.detach(training_data)
 
         # Get the model out
         self.model_ = result.model()
@@ -129,15 +123,15 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
             self.gateway.detach(self.model_)
             self.model_ = None
 
-    def _convert_train_data(self, X, y, weights=None):
+    def _convert_training_data(self, X, y, weights=None):
         """Convert the training data to a form accepted by Lolo
 
         Args:
             X (ndarray): Input variables
             y (ndarray): Output variables
-            weights (ndarray): Wegihts for each sample
+            weights (ndarray): Weights for each sample
         Returns
-            train_data (JavaObject): Pointer to the training data in Java
+            training_data (JavaObject): Pointer to the rows of training data in Java
         """
 
         # Make some default weights
@@ -159,7 +153,7 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
         w_java = send_1D_array(self.gateway, weights, True)
         assert w_java.length() == len(weights)
 
-        return self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.zipTrainingData(X_java, y_java), w_java
+        return self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.buildTrainingRows(X_java, y_java, w_java)
 
     def _convert_run_data(self, X):
         """Convert the data to be run by the model
@@ -310,8 +304,7 @@ class BaseLoloClassifier(BaseLoloLearner, ClassifierMixin):
         pred_result = self._get_prediction_result(X)
 
         # Copy over the class probabilities
-        probs_byte = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getClassifierProbabilities(pred_result,
-                                                                                                   self.n_classes_)
+        probs_byte = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.getClassifierProbabilities(pred_result, self.n_classes_)
         probs = np.frombuffer(probs_byte, dtype='float').reshape(-1, self.n_classes_)
         return probs
 
@@ -616,7 +609,7 @@ class ExtraRandomTreesClassifier(BaseLoloClassifier):
 
 
 class RegressionTreeLearner(BaseLoloRegressor):
-    """Regression tree learner, based on the RandomTree algorithm."""
+    """Regression tree learner, based on the decision tree algorithm."""
 
     def __init__(self, num_features=-1, max_depth=30, min_leaf_instances=1, leaf_learner=None):
         """Initialize the learner
@@ -627,7 +620,7 @@ class RegressionTreeLearner(BaseLoloRegressor):
             min_leaf_instances (int): Minimum number instances per leaf
             leaf_learner (BaseLoloLearner): Learner to use on the leaves
         """
-        super(RegressionTreeLearner, self).__init__()
+        super().__init__()
         self.num_features = num_features
         self.max_depth = max_depth
         self.min_leaf_instances = min_leaf_instances
@@ -636,22 +629,19 @@ class RegressionTreeLearner(BaseLoloRegressor):
     def _make_learner(self):
         if self.leaf_learner is None:
             # pull out default learner
-            leaf_learner = getattr(
-                self.gateway.jvm.io.citrine.lolo.trees.regression.RegressionTreeLearner,
-                "$lessinit$greater$default$4"
-            )()
+            leaf_learner = getattr(self.gateway.jvm.io.citrine.lolo.trees.regression.RegressionTreeLearner, "$lessinit$greater$default$4")()
         else:
             leaf_learner = self.gateway.jvm.scala.Some(self.leaf_learner._make_learner())
 
         # pull out default splitter
-        splitter = getattr(
-            self.gateway.jvm.io.citrine.lolo.trees.regression.RegressionTreeLearner,
-            "$lessinit$greater$default$5"
-        )()
+        splitter = getattr(self.gateway.jvm.io.citrine.lolo.trees.regression.RegressionTreeLearner, "$lessinit$greater$default$5")()
 
         return self.gateway.jvm.io.citrine.lolo.trees.regression.RegressionTreeLearner(
-            self.num_features, self.max_depth, self.min_leaf_instances,
-            leaf_learner, splitter
+            self.num_features,
+            self.max_depth,
+            self.min_leaf_instances,
+            leaf_learner,
+            splitter
         )
 
 
@@ -661,15 +651,15 @@ class LinearRegression(BaseLoloRegressor):
     def __init__(self, reg_param=None, fit_intercept=True):
         """Initialize the regressor"""
 
-        super(LinearRegression, self).__init__()
+        super().__init__()
 
         self.reg_param = reg_param
         self.fit_intercept = fit_intercept
 
     def _make_learner(self):
-        return self.gateway.jvm.io.citrine.lolo.linear.LinearRegressionLearner(
-            getattr(self.gateway.jvm.io.citrine.lolo.linear.LinearRegressionLearner,
-                    "$lessinit$greater$default$1")() if self.reg_param is None
-            else self.gateway.jvm.scala.Some(float(self.reg_param)),
-            self.fit_intercept
-        )
+        if self.reg_param is None:
+            reg_param = getattr(self.gateway.jvm.io.citrine.lolo.linear.LinearRegressionLearner, "$lessinit$greater$default$1")()
+        else:
+            reg_param = self.gateway.jvm.scala.Some(float(self.reg_param))
+        
+        return self.gateway.jvm.io.citrine.lolo.linear.LinearRegressionLearner(reg_param, self.fit_intercept)
