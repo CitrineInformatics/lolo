@@ -34,16 +34,16 @@ Lolo is on the central repository, and can be used by simply adding the followin
 <dependency>
     <groupId>io.citrine</groupId>
     <artifactId>lolo</artifactId>
-    <version>5.0.0</version>
+    <version>6.0.0</version>
 </dependency>
 ```
 Lolo provides higher level wrappers for common learner combinations.
 For example, you can use Random Forest with:
 ```
-import io.citrine.lolo.learners.RandomForest
-val trainingData: Seq[(Vector[Any], Any)] = features.zip(labels)
-val model = new RandomForest().train(trainingData).getModel()
-val predictions: Seq[Any] = model.transform(testInputs).expected
+import io.citrine.lolo.learners.RandomForestRegressor
+val trainingData: Seq[TrainingRow[Double]] = TrainingRow.build(features.zip(labels))
+val model = RandomForestRegressor().train(trainingData).model
+val predictions: Seq[Double] = model.transform(testInputs).expected
 ```
 
 # Performance
