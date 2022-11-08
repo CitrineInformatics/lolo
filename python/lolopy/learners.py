@@ -153,7 +153,15 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
         w_java = send_1D_array(self.gateway, weights, True)
         assert w_java.length() == len(weights)
 
-        return self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.buildTrainingRows(X_java, y_java, w_java)
+        # Build the training rows
+        training_data = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.buildTrainingRows(X_java, y_java, w_java)
+
+        # Detach the intermediate arrays before returning
+        self.gateway.detach(X_java)
+        self.gateway.detach(y_java)
+        self.gateway.detach(w_java)
+
+        return training_data
 
     def _convert_run_data(self, X):
         """Convert the data to be run by the model
@@ -661,5 +669,5 @@ class LinearRegression(BaseLoloRegressor):
             reg_param = getattr(self.gateway.jvm.io.citrine.lolo.linear.LinearRegressionLearner, "$lessinit$greater$default$1")()
         else:
             reg_param = self.gateway.jvm.scala.Some(float(self.reg_param))
-        
+
         return self.gateway.jvm.io.citrine.lolo.linear.LinearRegressionLearner(reg_param, self.fit_intercept)
