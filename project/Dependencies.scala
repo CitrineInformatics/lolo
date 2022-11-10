@@ -6,7 +6,7 @@ object Dependencies {
     val theta = "1.1.5"
     val sprandom = "0.1.1"
     val breeze = "2.1.0"
-    val xchart = "3.8.2"
+    val xchart = "3.5.2"
 
     val slf4j = "2.0.3"
     val junit = "4.13.2"
