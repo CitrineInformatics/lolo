@@ -24,7 +24,7 @@ ThisBuild / sonatypeCredentialHost := "s01.oss.sonatype.org"
 ThisBuild / sonatypeRepository := "https://s01.oss.sonatype.org/service/local"
 ThisBuild / pomIncludeRepository := { _ => false }
 
-ThisBuild / libraryDependencies ++= logging ++ loloDeps
+ThisBuild / libraryDependencies ++= loloDependencies ++ testDependencies
 ThisBuild / Test / testOptions += Tests.Argument(TestFrameworks.JUnit, "-v")
 
 // Assembly settings

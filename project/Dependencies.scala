@@ -1,28 +1,34 @@
 import sbt._
 
 object Dependencies {
-  lazy val thetaVersion = "1.1.5"
-  lazy val sprandomVersion = "0.1.1"
-  lazy val breezeVersion = "2.1.0"
-  lazy val junitVersion = "4.13.1"
-  lazy val scalaTestVersion = "3.2.2"
-  lazy val scalaParallelCollectionsVersion = "1.0.0"
 
-  lazy val logging = Seq(
-    "org.slf4j"                % "slf4j-api"        % "1.7.36",
-    "org.apache.logging.log4j" % "log4j-core"       % "2.17.2",
-    "org.apache.logging.log4j" % "log4j-api"        % "2.17.2",
-    "org.apache.logging.log4j" % "log4j-slf4j-impl" % "2.17.2"
+  object Versions {
+    val theta = "1.1.5"
+    val sprandom = "0.1.1"
+    val breeze = "2.1.0"
+    val xchart = "3.5.2"
+
+    val slf4j = "2.0.3"
+    val junit = "4.13.2"
+    val scalaTest = "3.2.14"
+    val log4j = "2.19.0"
+  }
+
+  lazy val loloDependencies = Seq(
+    "org.scala-lang.modules" %% "scala-parallel-collections" % "1.0.4",
+    "io.citrine"             %% "theta"                      % Versions.theta,
+    "io.citrine"             %% "sprandom"                   % Versions.sprandom,
+    "org.scalanlp"           %% "breeze"                     % Versions.breeze,
+    "org.knowm.xchart"        % "xchart"                     % Versions.xchart,
+    "org.slf4j"               % "slf4j-api"                  % Versions.slf4j
   )
 
-  lazy val loloDeps = Seq(
-    "io.citrine"              %% "theta"                      % thetaVersion,
-    "io.citrine"              %% "sprandom"                   % sprandomVersion,
-    "org.scalanlp"            %% "breeze"                     % breezeVersion,
-    "org.scala-lang.modules"  %% "scala-parallel-collections" % scalaParallelCollectionsVersion,
-    "junit"                    % "junit"                      % junitVersion     % "test",
-    "org.scalatest"           %% "scalatest"                  % scalaTestVersion % "test",
-    "com.github.sbt"           % "junit-interface"            % "0.13.3"         % "test",
-    "org.knowm.xchart"         % "xchart"                     % "3.5.2"
-  )
+  lazy val testDependencies = Seq(
+    "com.github.sbt"           % "junit-interface"   % "0.13.3",
+    "junit"                    % "junit"             % Versions.junit,
+    "org.scalatest"           %% "scalatest"         % Versions.scalaTest,
+    "org.apache.logging.log4j" % "log4j-core"        % Versions.log4j,
+    "org.apache.logging.log4j" % "log4j-api"         % Versions.log4j,
+    "org.apache.logging.log4j" % "log4j-slf4j2-impl" % Versions.log4j
+  ).map(_ % Test)
 }
