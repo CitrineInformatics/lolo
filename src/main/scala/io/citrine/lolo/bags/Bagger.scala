@@ -7,7 +7,6 @@ import io.citrine.lolo.stats.StatsUtils
 import io.citrine.random.Random
 
 import scala.collection.parallel.CollectionConverters._
-import scala.collection.parallel.immutable.ParVector
 
 sealed trait Bagger[T] extends Learner[T] {
 
@@ -66,6 +65,7 @@ sealed trait Bagger[T] extends Learner[T] {
           val meta = baseLearner.train(weightedTrainingData, thisRng)
           (meta.model, meta.featureImportance)
       }
+      .seq
       .unzip
 
     // Average the feature importance
@@ -195,7 +195,7 @@ object Bagger {
     * @tparam T type of label data for the models
     */
   protected[bags] case class BaggedEnsemble[+T](
-      models: ParVector[Model[T]],
+      models: Vector[Model[T]],
       Nib: Vector[Vector[Int]],
       averageImportance: Option[Vector[Double]]
   )

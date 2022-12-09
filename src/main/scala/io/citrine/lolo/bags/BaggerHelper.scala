@@ -3,8 +3,6 @@ package io.citrine.lolo.bags
 import io.citrine.lolo.stats.{MathUtils, StatsUtils}
 import io.citrine.lolo.api.{Model, TrainingRow}
 
-import scala.collection.parallel.immutable.ParSeq
-
 /**
   * Helper class to subsume shared functionality of [[RegressionBagger]] and [[MultiTaskBagger]].
   *
@@ -15,7 +13,7 @@ import scala.collection.parallel.immutable.ParSeq
   * @param uncertaintyCalibration whether to apply empirical uncertainty calibration
   */
 protected[bags] case class BaggerHelper(
-    models: ParSeq[Model[Double]],
+    models: Seq[Model[Double]],
     trainingData: Seq[TrainingRow[Double]],
     Nib: Vector[Vector[Int]],
     useJackknife: Boolean,

@@ -3,8 +3,6 @@ package io.citrine.lolo.bags
 import io.citrine.lolo.api.{Model, TrainingResult, TrainingRow}
 import io.citrine.lolo.stats.metrics.{ClassificationMetrics, RegressionMetrics}
 
-import scala.collection.parallel.immutable.ParSeq
-
 /** The result of training a [[Bagger]] to produce a [[BaggedModel]]. */
 sealed trait BaggedTrainingResult[+T] extends TrainingResult[T] {
 
@@ -12,7 +10,7 @@ sealed trait BaggedTrainingResult[+T] extends TrainingResult[T] {
 }
 
 case class RegressionBaggerTrainingResult(
-    ensembleModels: ParSeq[Model[Double]],
+    ensembleModels: Seq[Model[Double]],
     Nib: Vector[Vector[Int]],
     trainingData: Seq[TrainingRow[Double]],
     override val featureImportance: Option[Vector[Double]],
@@ -50,7 +48,7 @@ case class RegressionBaggerTrainingResult(
 }
 
 case class ClassificationBaggerTrainingResult[T](
-    ensembleModels: ParSeq[Model[T]],
+    ensembleModels: Seq[Model[T]],
     Nib: Vector[Vector[Int]],
     trainingData: Seq[TrainingRow[T]],
     override val featureImportance: Option[Vector[Double]],
