@@ -3,13 +3,13 @@ package io.citrine.lolo.bags
 import breeze.linalg.DenseMatrix
 import io.citrine.lolo.api.Model
 
-import scala.collection.parallel.immutable.ParSeq
+import scala.collection.parallel.CollectionConverters._
 
 /** A model holding a parallel sequence of models and the sample counts used to train them. */
 trait BaggedModel[+T] extends Model[T] {
 
   /** Models in the ensemble trained on subsets of the training data. */
-  def ensembleModels: ParSeq[Model[T]]
+  def ensembleModels: Seq[Model[T]]
 
   override def transform(inputs: Seq[Vector[Any]]): BaggedPrediction[T]
 
@@ -31,7 +31,7 @@ trait BaggedModel[+T] extends Model[T] {
 }
 
 case class BaggedRegressionModel(
-    ensembleModels: ParSeq[Model[Double]],
+    ensembleModels: Seq[Model[Double]],
     Nib: Vector[Vector[Int]],
     rescaleRatio: Double = 1.0,
     disableBootstrap: Boolean = false,
@@ -42,7 +42,7 @@ case class BaggedRegressionModel(
     assert(inputs.forall(_.size == inputs.head.size))
 
     val bias = biasModel.map(_.transform(inputs).expected)
-    val ensemblePredictions = ensembleModels.map(model => model.transform(inputs)).seq
+    val ensemblePredictions = ensembleModels.par.map(model => model.transform(inputs)).seq
 
     if (inputs.size == 1) {
       // In the special case of a single prediction on a real value, emit an optimized prediction class
@@ -65,11 +65,11 @@ case class BaggedRegressionModel(
   }
 }
 
-case class BaggedClassificationModel[T](ensembleModels: ParSeq[Model[T]]) extends BaggedModel[T] {
+case class BaggedClassificationModel[T](ensembleModels: Seq[Model[T]]) extends BaggedModel[T] {
 
   override def transform(inputs: Seq[Vector[Any]]): BaggedClassificationPrediction[T] = {
     assert(inputs.forall(_.size == inputs.head.size))
-    val ensemblePredictions = ensembleModels.map(model => model.transform(inputs)).seq
+    val ensemblePredictions = ensembleModels.par.map(model => model.transform(inputs)).seq
     BaggedClassificationPrediction(ensemblePredictions)
   }
 }

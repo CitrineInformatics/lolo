@@ -16,7 +16,6 @@ import io.citrine.lolo.stats.StatsUtils
 import io.citrine.random.Random
 import io.citrine.lolo.stats.metrics.{ClassificationMetrics, RegressionMetrics}
 
-import scala.collection.parallel.immutable.ParSeq
 import scala.collection.parallel.CollectionConverters._
 
 /**
@@ -88,6 +87,7 @@ case class MultiTaskBagger(
             val meta = method.train(weightedTrainingData, thisRng)
             (meta.model, meta.featureImportance)
         }
+        .seq
         .unzip
 
     val averageImportance: Option[Vector[Double]] = importances
@@ -144,7 +144,7 @@ case class MultiTaskBagger(
   * @param rescaleRatios     sequence of uncertainty calibration ratios for each label
   */
 case class MultiTaskBaggedTrainingResult(
-    ensembleModels: ParSeq[MultiTaskModel],
+    ensembleModels: Seq[MultiTaskModel],
     Nib: Vector[Vector[Int]],
     trainingData: Seq[TrainingRow[Vector[Any]]],
     override val featureImportance: Option[Vector[Double]],
@@ -217,7 +217,7 @@ case class MultiTaskBaggedTrainingResult(
         val thisLabelModels = ensembleModels.map(_.models(i))
         if (isReal) {
           BaggedRegressionModel(
-            thisLabelModels.asInstanceOf[ParSeq[Model[Double]]],
+            thisLabelModels.asInstanceOf[Seq[Model[Double]]],
             Nib = Nib,
             rescaleRatio = rescaleRatios(i),
             biasModel = biasModels(i)
@@ -238,7 +238,7 @@ case class MultiTaskBaggedTrainingResult(
   * @param rescaleRatios  sequence of uncertainty calibration ratios for each label
   */
 case class MultiTaskBaggedModel(
-    ensembleModels: ParSeq[MultiTaskModel],
+    ensembleModels: Seq[MultiTaskModel],
     Nib: Vector[Vector[Int]],
     biasModels: Seq[Option[Model[Double]]],
     rescaleRatios: Seq[Double]
@@ -250,7 +250,7 @@ case class MultiTaskBaggedModel(
     val thisLabelsModels = ensembleModels.map(_.models(i))
     if (realLabels(i)) {
       BaggedRegressionModel(
-        thisLabelsModels.asInstanceOf[ParSeq[Model[Double]]],
+        thisLabelsModels.asInstanceOf[Seq[Model[Double]]],
         Nib = Nib,
         rescaleRatio = rescaleRatios(i),
         biasModel = biasModels(i)
