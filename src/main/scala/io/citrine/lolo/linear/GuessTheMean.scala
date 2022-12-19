@@ -7,8 +7,14 @@ import io.citrine.random.Random
 case class GuessTheMeanLearner() extends Learner[Double] {
 
   override def train(trainingData: Seq[TrainingRow[Double]], rng: Random): GuessTheMeanTrainingResult[Double] = {
-    val totalWeight = trainingData.map(_.weight).sum
-    val mean = trainingData.map { case TrainingRow(_, label, weight) => label * weight }.sum / totalWeight
+    val trainingLabels = trainingData.map(_.label)
+    val allEqual = trainingLabels.forall(_ == trainingLabels.head)
+    val mean = if (allEqual) {
+      trainingLabels.head
+    } else {
+      val totalWeight = trainingData.map(_.weight).sum
+      trainingData.map { case TrainingRow(_, label, weight) => label * weight }.sum / totalWeight
+    }
     GuessTheMeanTrainingResult(GuessTheMeanModel(mean))
   }
 }
