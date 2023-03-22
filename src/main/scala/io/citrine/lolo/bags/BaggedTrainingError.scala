@@ -1,6 +1,6 @@
 package io.citrine.lolo.bags
 
-sealed trait BaggedTrainingError {
+sealed trait BaggedTrainingError extends Throwable {
   def numRows: Int
   def numRequired: Int
 }
