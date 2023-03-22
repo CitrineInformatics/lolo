@@ -50,7 +50,11 @@ case class MultiTaskBagger(
     (0 until numOutputs).foreach { i =>
       val numOutputValues = trainingData.count(row => validOutput(row.label(i)))
       if (numOutputValues < Bagger.minimumOutputCount) {
-        throw InsufficientOutputDataException(numRows = numOutputValues, numRequired = Bagger.minimumOutputCount, index = i)
+        throw InsufficientOutputDataException(
+          numRows = numOutputValues,
+          numRequired = Bagger.minimumOutputCount,
+          index = i
+        )
       }
     }
 
