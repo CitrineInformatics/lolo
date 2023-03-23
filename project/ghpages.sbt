@@ -1,2 +1,2 @@
-addSbtPlugin("com.github.sbt" % "sbt-ghpages" % "2.0.0")
+addSbtPlugin("com.github.sbt" % "sbt-ghpages" % "0.7.0")
 
