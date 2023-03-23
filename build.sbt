@@ -42,3 +42,4 @@ ThisBuild / assembly / assemblyMergeStrategy := {
 
 enablePlugins(SiteScaladocPlugin)
 enablePlugins(GhpagesPlugin)
+ThisBuild / git.remoteRepo := "git@github.com:CitrineInformatics/lolo.git"
