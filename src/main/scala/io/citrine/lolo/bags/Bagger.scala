@@ -31,10 +31,9 @@ sealed trait Bagger[T] extends Learner[T] {
   protected def trainEnsemble(trainingData: Seq[TrainingRow[T]], rng: Random): BaggedEnsemble[T] = {
     // Make sure the training data is the same size
     assert(trainingData.forall(trainingData.head.inputs.length == _.inputs.length))
-    require(
-      trainingData.length >= Bagger.minimumTrainingSize,
-      s"We need to have at least ${Bagger.minimumTrainingSize} rows, only ${trainingData.length} given."
-    )
+    if (trainingData.length < Bagger.minimumTrainingSize) {
+      throw InsufficientTrainingDataException(numRows = trainingData.length, numRequired = Bagger.minimumTrainingSize)
+    }
 
     // Set default number of bags
     val actualBags = if (numBags > 0) numBags else trainingData.length

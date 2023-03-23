@@ -44,16 +44,18 @@ case class MultiTaskBagger(
         row.inputs.length == numInputs && row.label.length == numOutputs
       }
     )
-    assert(
-      trainingData.size >= Bagger.minimumTrainingSize,
-      s"We need to have at least ${Bagger.minimumTrainingSize} rows, only ${trainingData.size} given"
-    )
+    if (trainingData.size < Bagger.minimumTrainingSize) {
+      throw InsufficientTrainingDataException(numRows = trainingData.size, numRequired = Bagger.minimumTrainingSize)
+    }
     (0 until numOutputs).foreach { i =>
       val numOutputValues = trainingData.count(row => validOutput(row.label(i)))
-      assert(
-        numOutputValues >= Bagger.minimumOutputCount,
-        s"There must be at least ${Bagger.minimumOutputCount} data points for each output, but output $i only had $numOutputValues values."
-      )
+      if (numOutputValues < Bagger.minimumOutputCount) {
+        throw InsufficientOutputDataException(
+          numRows = numOutputValues,
+          numRequired = Bagger.minimumOutputCount,
+          index = i
+        )
+      }
     }
 
     // if numBags is non-positive, set # bags = # inputs
