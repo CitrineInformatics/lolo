@@ -3,7 +3,7 @@
 Lolo
 ====
 
-![Travis](https://travis-ci.org/CitrineInformatics/lolo.svg?branch=main)
+![Travis](https://app.travis-ci.com/CitrineInformatics/lolo.svg?branch=main)
 
 Lolo is a [random forest](https://en.wikipedia.org/wiki/Lolo_National_Forest)-centered machine learning library in Scala.
 
