@@ -1,8 +1,8 @@
 import Dependencies._
 
 ThisBuild / name := "lolo"
-ThisBuild / scalaVersion := "2.13.8"
-ThisBuild / crossScalaVersions := List("2.13.8")
+ThisBuild / scalaVersion := "2.13.10"
+ThisBuild / crossScalaVersions := List("2.13.10")
 ThisBuild / organization := "io.citrine"
 ThisBuild / organizationName := "Citrine Informatics"
 ThisBuild / homepage := Some(url("https://github.com/CitrineInformatics/lolo"))
