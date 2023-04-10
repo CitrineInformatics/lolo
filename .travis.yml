@@ -1,6 +1,7 @@
 language: scala
 scala: 2.13.8
 jdk: openjdk11
+dist: bionic
 
 cache:
   directories:
