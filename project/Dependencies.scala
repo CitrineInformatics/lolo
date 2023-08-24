@@ -4,7 +4,7 @@ object Dependencies {
 
   object Versions {
     val theta = "1.1.5"
-    val sprandom = "0.1.1"
+    val sprandom = "0.2.0"
     val breeze = "2.1.0"
     val xchart = "3.5.2"
 
