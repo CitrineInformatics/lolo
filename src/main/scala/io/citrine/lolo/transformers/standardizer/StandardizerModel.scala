@@ -12,8 +12,7 @@ trait StandardizerModel[+T] extends Model[T] {
   override def transform(inputs: Seq[Vector[Any]]): StandardizerPrediction[T]
 
   override def shapley(input: Vector[Any], omitFeatures: Set[Int] = Set()): Option[DenseMatrix[Double]] = {
-      val baseModel_ = baseModel
-      baseModel_.shapley(input, omitFeatures)
+    baseModel.shapley(input, omitFeatures)
   }
 }
 
