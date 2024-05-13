@@ -4,6 +4,7 @@ import io.citrine.lolo.api.TrainingRow
 import io.citrine.lolo.linear.{GuessTheMeanLearner, LinearRegressionLearner}
 import io.citrine.lolo.stats.functions.Friedman
 import io.citrine.lolo.trees.classification.ClassificationTreeLearner
+import io.citrine.lolo.trees.regression.RegressionTreeLearner
 import io.citrine.lolo.{DataGenerator, SeedRandomMixIn}
 import org.junit.Test
 
@@ -174,6 +175,21 @@ class StandardizerTest extends SeedRandomMixIn {
     result.zip(standardResult).foreach {
       case (free: String, standard: String) =>
         assert(free == standard, s"Standard classification tree should be the same")
+    }
+  }
+
+  /**
+    * Shapley values should be calculated on the standardized tree
+    */
+  @Test
+  def testStandardTreeShapley(): Unit = {
+    val learner = RegressionTreeLearner()
+    val standardLearner = RegressionStandardizer(learner)
+    val standardModel = standardLearner.train(data).model
+
+    data.foreach {
+      case row =>
+        assert(standardModel.shapley(row.inputs).isDefined, "Shapley should be defined")
     }
   }
 }

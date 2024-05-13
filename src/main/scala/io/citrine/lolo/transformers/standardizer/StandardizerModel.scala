@@ -1,5 +1,6 @@
 package io.citrine.lolo.transformers.standardizer
 
+import breeze.linalg.DenseMatrix
 import io.citrine.lolo.api.Model
 
 trait StandardizerModel[+T] extends Model[T] {
@@ -9,6 +10,10 @@ trait StandardizerModel[+T] extends Model[T] {
 
   /** Standardize the inputs and apply the base model. */
   override def transform(inputs: Seq[Vector[Any]]): StandardizerPrediction[T]
+
+  override def shapley(input: Vector[Any], omitFeatures: Set[Int] = Set()): Option[DenseMatrix[Double]] = {
+    baseModel.shapley(input, omitFeatures)
+  }
 }
 
 case class RegressionStandardizerModel(
