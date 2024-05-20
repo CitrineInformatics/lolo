@@ -128,28 +128,30 @@ class ClassificationTreeTest extends SeedRandomMixIn {
     val DTLearner = ClassificationTreeLearner()
     val DTMeta = DTLearner.train(shapTrainingData)
     val DT = DTMeta.model
-    // baseValue is the average of the training labels
-    val baseValue = 0.5
+    // baseValue is the average of the training labels.
+    // Note that labels are internally encoded as 1 and 2 not 0 and 1
+    val baseValue = 1.5
 
     // Assert we obtain Shapley values
-    val shapley1 = DT.shapley(Vector.fill[Any](5)(1.0))
+    val shapley1 = DT.shapley(Vector.fill[Any](5)(0.0))
     assert(shapley1.isDefined, "Shapley values should be defined")
     // Shapley values should sum to the difference between the prediction and the base value
     val shapley1Sum = shapley1.get.valuesIterator.sum
-    assert(shapley1Sum + baseValue - 1 < 1e-6, s"Shapley sum is $shapley1Sum")
+    assert(math.abs(shapley1Sum + baseValue - 1) < 1e-6, s"Shapley sum is $shapley1Sum")
     // Double check that the prediction is as expected
     val pred1 = DT.transform(Seq(Vector.fill[Any](5)(0.0))).expected.head
     assert(pred1 == "1", "Prediction should be 1")
 
     // Same as above, but with all zeros
-    val shapley0 = DT.shapley(Vector.fill[Any](5)(0.0))
+    val shapley0 = DT.shapley(Vector(0.0, 0.0, 0.0, 0.0, 1.0))
     assert(shapley0.isDefined, "Shapley values should be defined")
 
     val shapley0Sum = shapley0.get.valuesIterator.sum
-    assert(shapley0Sum + baseValue - 0 < 1e-6, s"Shapley sum is $shapley0Sum")
+    assert(math.abs(shapley0Sum + baseValue - 2) < 1e-6, s"Shapley sum is $shapley0Sum")
 
-    val pred0 = DT.transform(Seq(Vector.fill[Any](5)(1.0))).expected.head
+    val pred0 = DT.transform(Seq(Vector(0.0, 0.0, 0.0, 0.0, 1.0))).expected.head
     assert(pred0 == "0", "Prediction should be 0")
+
   }
 }
 
@@ -165,5 +167,6 @@ object ClassificationTreeTest {
     new ClassificationTreeTest().testBinary()
     new ClassificationTreeTest().longerTest()
     new ClassificationTreeTest().testCategorical()
+    new ClassificationTreeTest().testShapley()
   }
 }
