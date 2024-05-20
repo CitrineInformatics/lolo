@@ -142,7 +142,7 @@ class ClassificationTreeTest extends SeedRandomMixIn {
     assert(pred1 == "1", "Prediction should be 1")
 
     // Same as above, but with all zeros
-    val shapley0 = DT.shapley1(Vector.fill[Any](5)(0.0))
+    val shapley0 = DT.shapley(Vector.fill[Any](5)(0.0))
     assert(shapley0.isDefined, "Shapley values should be defined")
 
     val shapley0Sum = shapley0.get.valuesIterator.sum
