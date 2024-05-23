@@ -3,6 +3,7 @@ package io.citrine.lolo.trees
 import breeze.linalg.DenseMatrix
 import io.citrine.lolo.api.{Model, PredictionResult}
 import io.citrine.lolo.trees.splits.Split
+import breeze.linalg.sum
 
 trait ModelNode[+T] extends Serializable {
 
@@ -186,6 +187,17 @@ case class ModelLeaf[+T](model: Model[T], depth: Int, trainingWeight: Double) ex
             val w = set.unwoundTotalWeight(node.weightWhenExcluded, node.weightWhenIncluded)
             shapValues(0, featureIndex) = w * (node.weightWhenIncluded - node.weightWhenExcluded) * v
         }
+      case v: Char =>
+        // For classification output is a class label. Calculate similar to regression.
+        featureWeights.foreach {
+          case (featureIndex, node) =>
+            // Compute the weight of the contribution by removing this feature from the set and then computing the weights
+            // These two steps are fused to avoid an extra memory allocation
+            // This is equivalent to `set.unwind(node.weightWhenExcluded, node.weightWhenIncluded).totalWeight`
+            val w = set.unwoundTotalWeight(node.weightWhenExcluded, node.weightWhenIncluded)
+            shapValues(0, featureIndex) = w * (node.weightWhenIncluded - node.weightWhenExcluded) * v
+        }
+
       case _ => throw new NotImplementedError()
     }
     shapValues

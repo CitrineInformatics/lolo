@@ -1,5 +1,6 @@
 package io.citrine.lolo.trees.classification
 
+import breeze.linalg.DenseMatrix
 import io.citrine.lolo.api.{Learner, Model, PredictionResult, TrainingResult, TrainingRow}
 import io.citrine.random.Random
 import io.citrine.lolo.encoders.CategoricalEncoder
@@ -124,6 +125,19 @@ case class ClassificationTree(
       inputs.map(inp => rootModelNode.transform(CategoricalEncoder.encodeInput(inp, inputEncoders))),
       outputEncoder
     )
+  }
+
+  /**
+    * Compute Shapley feature attributions for a given input
+    *
+    * @param input for which to compute feature attributions.
+    * @param omitFeatures feature indices to omit in computing Shapley values
+    * @return array of Shapley feature attributions, one per input feature, each a vector of
+    *         One Vector[Double] per feature, each of length equal to the output dimension.
+    *         The output dimension is 1 for single-task regression, or equal to the number of classification categories.
+    */
+  override def shapley(input: Vector[Any], omitFeatures: Set[Int] = Set()): Option[DenseMatrix[Double]] = {
+    rootModelNode.shapley(CategoricalEncoder.encodeInput(input, inputEncoders), omitFeatures)
   }
 }
 

@@ -127,4 +127,20 @@ class MultiTaskTreeTest extends SeedRandomMixIn {
     val importances = multiTaskTrainingResult.featureImportance.get
     assert(importances(1) == importances.max)
   }
+
+  /** Test that shapley values exist for both the regression and classification trees.
+    * Correctness of the shapley values is tested in the ClassificationTreeTest and RegressionTreeTest.
+    */
+  @Test
+  def testShapley(): Unit = {
+    val multiTaskLearner = MultiTaskTreeLearner()
+    val multiTaskTrainingResult = multiTaskLearner.train(TrainingRow.build(inputs.zip(labels)), rng = rng)
+    val models = multiTaskTrainingResult.models
+    // Test shapley values for each individual model.
+    models.foreach { model =>
+      val shapley = model.shapley(inputs.head)
+      assert(shapley.isDefined)
+
+    }
+  }
 }
