@@ -52,7 +52,10 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
             state = self.__dict__.copy()
 
         # Delete the gateway data
-        del state['gateway']
+        try:
+            del state['gateway']
+        except AttributeError:
+            pass
 
         # If there is a model set, replace it with the JVM copy
         if self.model_ is not None:
@@ -212,6 +215,66 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
         # Unlink the run data, which is no longer needed (to save memory)
         self.gateway.detach(X_java)
         return pred_result
+    
+    def save(self, filename):
+        """Save the model to a file.
+
+        Args:
+            filename (str): Path to save the model
+        """
+        import json
+        import base64
+        
+        data = {
+            'class_name': self.__class__.__name__,
+            'params': self.get_params(),
+            'feature_importances_': self.feature_importances_.tolist() if self.feature_importances_ is not None else None,
+            '_num_outputs': self._num_outputs,
+        }
+
+        # serialize fitted model
+        if self.model_ is not None:
+            model_bytes = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.serializeObject(
+                self.model_, self._compress_level)
+            data['model_bytes'] = base64.b64encode(model_bytes).decode('utf-8')
+
+        # save to file
+        with open(filename, 'w') as f:
+            json.dump(data, f)
+
+    @classmethod
+    def load(cls, filename):
+        """Load the model from a file.
+
+        Args:
+            filename (str): Path to the saved model
+
+        Returns:
+            BaseLoloLearner: Loaded model
+        """
+        import json
+        import base64
+        
+        with open(filename, 'r') as f:
+            data = json.load(f)
+
+        # Create a new instance of the correct class
+        model_class = globals()[data['class_name']]
+        model = model_class(**data['params'])
+
+        # Restore the gateway
+        model.gateway = get_java_gateway()
+
+        # Restore other attributes
+        model.feature_importances_ = np.array(data['feature_importances_']) if data['feature_importances_'] is not None else None
+        model._num_outputs = data['_num_outputs']
+
+        # If the model was fitted deserialize it
+        if 'model_bytes' in data:
+            model_bytes = base64.b64decode(data['model_bytes'])
+            model.model_ = model.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.deserializeObject(model_bytes)
+
+        return model
 
 
 class BaseLoloRegressor(BaseLoloLearner, RegressorMixin):
