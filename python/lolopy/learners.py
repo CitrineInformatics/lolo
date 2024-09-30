@@ -269,7 +269,7 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
         model.feature_importances_ = np.array(data['feature_importances_']) if data['feature_importances_'] is not None else None
         model._num_outputs = data['_num_outputs']
 
-        # If the model was fitted, deserialize it
+        # If the model was fitted deserialize it
         if 'model_bytes' in data:
             model_bytes = base64.b64decode(data['model_bytes'])
             model.model_ = model.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.deserializeObject(model_bytes)
