@@ -68,6 +68,9 @@ case class InternalModelNode[+T](
     trainingWeight: Double
 ) extends ModelNode[T] {
 
+  private val leftPortion = left.trainingWeight / trainingWeight
+  private val rightPortion = right.trainingWeight / trainingWeight
+
   /**
     * Just propagate the prediction call through the appropriate child
     *
@@ -101,27 +104,16 @@ case class InternalModelNode[+T](
       featureWeights: Map[Int, FeatureWeightFactor]
   ): DenseMatrix[Double] = {
     val featureIndex = split.index
-
+    val goLeft = split.turnLeft(input)
     // The hot node is the one that is selected when the feature is present
-    val (hot, cold) = if (this.split.turnLeft(input)) {
-      (left, right)
-    } else {
-      (right, left)
-    }
-
     // If the feature is omitted or unknown, then the weight assigned to each child is taken
     // as the share of the training data that got split into each child
-    val hotPortion = hot.trainingWeight / trainingWeight
-    val coldPortion = cold.trainingWeight / trainingWeight
+    val (hot, cold) = if (goLeft) (left, right) else (right, left)
+    val (hotPortion, coldPortion) = if (goLeft) (leftPortion, rightPortion) else (rightPortion, leftPortion)
 
     if (omitFeatures.contains(featureIndex)) {
-      // Don't add the feature to the featureWeights
-      // Multiply the child contributions by the hotPortion and coldPortion instead
-      val hotContrib = hotPortion * hot.shapleyRecurse(input, omitFeatures, featureWeights)
-      val coldContrib = coldPortion * cold.shapleyRecurse(input, omitFeatures, featureWeights)
-
-      // Finally sum
-      hotContrib + coldContrib
+      hotPortion * hot.shapleyRecurse(input, omitFeatures, featureWeights) +
+        coldPortion * cold.shapleyRecurse(input, omitFeatures, featureWeights)
     } else {
       // Check if the feature in this node has been used already (on the way down)
       val (hotFactor, coldFactor) = featureWeights.get(featureIndex) match {
