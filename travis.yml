@@ -1,0 +1,79 @@
+language: scala
+scala: 2.13.8
+jdk: openjdk11
+dist: bionic
+
+cache:
+  directories:
+  - "~/.m2/repository"
+  - "~/.cache/pip"
+  - $HOME/.ivy2/cache
+
+before_cache:
+  # Cleanup the cached directories to avoid unnecessary cache updates
+  - find $HOME/.ivy2/cache -name "ivydata-*.properties" -print -delete
+
+before_install:
+  - git fetch --tags
+
+stages:
+  - name: test
+  - name: release
+    if: ((branch = main AND type = push) OR (tag IS present)) AND NOT fork
+
+jobs:
+  include:
+  - stage: test
+    script:
+      - sbt -Dsbt.log.noformat=true scalafmtCheckAll
+      - sbt -Dsbt.log.noformat=true +test
+  - stage: test
+    before_install:
+      - wget http://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
+      - chmod +x miniconda.sh
+      - ./miniconda.sh -b
+      - export PATH=/home/travis/miniconda3/bin:$PATH
+      - conda update --yes conda
+      - conda create --yes -n condaenv python=3.8
+      - conda install --yes -n condaenv pip
+      - source activate condaenv
+    install:
+      - cd python
+      - make
+      - pip install --only-binary=numpy,scipy -r requirements.txt
+      - pip install -r test_requirements.txt
+    script:
+      - nosetests
+  - stage: release
+    name: maven central
+    script: sbt ci-release
+  - stage: release
+    name: pypi
+    addons:
+      apt:
+        packages:
+        - pandoc
+    before_install:
+      - wget http://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
+      - chmod +x miniconda.sh
+      - ./miniconda.sh -b
+      - export PATH=/home/travis/miniconda3/bin:$PATH
+      - conda update --yes conda
+      - conda create --yes -n condaenv python=3.8
+      - conda install --yes -n condaenv pip
+      - source activate condaenv
+    install:
+      - cd python
+      - make
+      - pip install --only-binary=numpy,scipy -r requirements.txt
+    script: true
+    deploy:
+      provider: pypi
+      skip_cleanup: true
+      skip_existing: true
+      user: CitrineInformatics
+      password:
+        secure: fb/NiAH7E1zA2iRUT+NMywH7dh0HF3qLM/JhjWLQWQ8l/pxOy7HPgk1CDEkZip/4emH2ur5+bGAD0pm0ewfDWfvjTPA+woV5IEebK2KL3Gm4Oam4fZP27NZ5zfYs6Q1dx3YPjRUgI3gtJ+0Y1tVKvZrUaZHityDMJDuEsYjdmPnFsA6s6U/5GYeQfWaYjZcflqYd01H8K9kbCeBsRBlOUm1lCXmt13R4uBOoMNAkuR7knYUOE1VM6VJWTN2T0iKphS9agxPHh/9/B9gjCQExhynOWSs5E2WhhDnWUoAJgyaZdxZQOxT2jJKA4dJGMCtyQScWItjsglcpthd+DsNtx/0vF1fDV3tvdjRVfegnhcF9fMUeI30O5jGTqNhimkiQsV1L+Sn6LFVAJKZ2yGzjqyS+8wn/uGOLQ04R46aw7KcfDJthzPU+dx0W78scTnkOnOx0R6eLH/HBn619h415JSsYpQ/D4A2VzODhHfScgzEe9xoL61ArhYz/wAqEAvit8WbFs4D7ZVnBc/98wsBD2NKUlmTZfkjPDAZQr49S1Na6UKlK6p4gLkXE6hfwgkFwxLiaQxOMfg0u/7VbbJzfrB2568HerS/oilDq+Bp+jNKUwyo08P0qD+8a4Gif1uk1UcipixDWbCvNlfr1H7+2FrN0+b92Xmfjd+CTMKmfv7o=
+      distributions: sdist bdist_wheel
+      on:
+        tags: true
