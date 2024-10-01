@@ -14,18 +14,19 @@ trait BaggedModel[+T] extends Model[T] {
   override def transform(inputs: Seq[Vector[Any]]): BaggedPrediction[T]
 
   override def shapley(input: Vector[Any], omitFeatures: Set[Int] = Set()): Option[DenseMatrix[Double]] = {
-    val ensembleShapley = ensembleModels.map(model => model.shapley(input, omitFeatures))
-    if (ensembleShapley.head.isEmpty) {
+    val ensembleShapley: Seq[Option[DenseMatrix[Double]]] = ensembleModels.par.map(_.shapley(input, omitFeatures)).seq
+
+    if (ensembleShapley.isEmpty || ensembleShapley.forall(_.isEmpty)) {
       None
     } else {
-      assert(ensembleShapley.forall(x => x.isDefined))
-
-      def sumReducer(a: Option[DenseMatrix[Double]], b: Option[DenseMatrix[Double]]): Option[DenseMatrix[Double]] = {
-        Some(a.get + b.get)
+      val validMatrices: Seq[DenseMatrix[Double]] = ensembleShapley.flatten
+      if (validMatrices.isEmpty) {
+        None
+      } else {
+        val sumMatrix: DenseMatrix[Double] = validMatrices.reduce(_ + _)
+        val scale = 1.0 / ensembleModels.length
+        Some(scale * sumMatrix)
       }
-
-      val scale = 1.0 / ensembleShapley.length
-      Some(scale * ensembleShapley.reduce(sumReducer).get)
     }
   }
 }
