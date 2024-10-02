@@ -21,7 +21,7 @@ jobs:
           distribution: temurin
           java-version: ${{ env.JAVA_VERSION }}
           cache: sbt
-      - run: sbt ci-release
+      - run: sbt -Dsbt.log.noformat=true -Dsbt.log.level=debug -Dorg.slf4j.simpleLogger.defaultLogLevel=debug ci-release
         env:
           PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
           PGP_SECRET: ${{ secrets.PGP_SECRET }}
