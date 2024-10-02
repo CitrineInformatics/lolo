@@ -231,6 +231,27 @@ class TestRF(TestCase):
         rf.fit(X[:16, :], y[:16], random_seed=7834)
         self.assertLess(r2_score(y, rf.predict(X)), 1.0)  # Should not fit the whole dataset perfectly
 
+    def test_save_and_load_model(self):
+        import os
+        rf = RandomForestRegressor(min_leaf_instances=16)
+
+        # Load in the diabetes dataset
+        X, y = _make_linear_data()
+        rf.fit(X, y, random_seed=378456)
+
+        # Save the model
+        rf.save('test_model.pkl')
+
+        # Load the model
+        rf2 = RandomForestRegressor.load('test_model.pkl')
+
+        # Make sure the predictions are the same
+        pred1 = rf.predict(X)
+        pred2 = rf2.predict(X)
+        self.assertTrue((pred1 == pred2).all())
+
+        os.remove('test_model.pkl')
+
 
 class TestExtraRandomTrees(TestCase):
 
