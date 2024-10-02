@@ -2,7 +2,8 @@ name: Deploy-Maven
 
 on:
   push:
-    branches: [main]
+    branches:
+      - '**'
     tags: ['*']
 
 env:

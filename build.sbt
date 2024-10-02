@@ -1,4 +1,10 @@
 import Dependencies._
+import xerial.sbt.Sonatype._
+
+ThisBuild / sonatypeProjectHosting := Some(GitHubHosting("CitrineInformatics", "lolo", "maxhutch@citrine.io"))
+ThisBuild / publishTo := sonatypePublishToBundle.value
+ThisBuild / publishMavenStyle := true
+ThisBuild / versionScheme := Some("early-semver")
 
 ThisBuild / name := "lolo"
 ThisBuild / scalaVersion := "2.13.10"
@@ -32,7 +38,7 @@ ThisBuild / assembly / test := {}
 ThisBuild / assembly / assemblyJarName := s"lolo-jar-with-dependencies.jar"
 
 // Allows for creation of a fat jar by specifying merge strategy when dependencies conflict
-// Run `sbt assembly` to create fat jar and save in target/scala-X.X.X directory
+// Run `sbt assembly` to create fat jar and save in target/scala-X.X.X directory 
 ThisBuild / assembly / assemblyMergeStrategy := {
   case PathList(ps @ _*) if ps.last endsWith ".class" => MergeStrategy.first
   case x =>
