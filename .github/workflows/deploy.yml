@@ -19,18 +19,10 @@ jobs:
       with:
         java-version: ${{ env.JAVA_VERSION }}
         distribution: 'adopt'
-    - name: Import GPG key
-      uses: crazy-max/ghaction-import-gpg@v5
-      with:
-        gpg_private_key: ${{ secrets.PGP_SECRET }}
-        passphrase: ${{ secrets.PGP_PASSPHRASE }}
     - name: Release to Maven Central
       env:
         PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
         PGP_SECRET: ${{ secrets.PGP_SECRET }}
         SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
         SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
-      run: |
-        sbt clean compile
-        sbt publishSigned
-        sbt sonatypeRelease
+      run: sbt ci-release
