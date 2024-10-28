@@ -1,7 +1,9 @@
 name: Deploy to PyPI
 
 on:
-  workflow_call:
+  push:
+    branches: [main]
+    tags: ['*']
 
 jobs:
   publish:
