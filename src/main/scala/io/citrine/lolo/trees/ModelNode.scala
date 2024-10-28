@@ -68,8 +68,8 @@ case class InternalModelNode[+T](
     trainingWeight: Double
 ) extends ModelNode[T] {
 
-  private val leftPortion = left.trainingWeight / trainingWeight
-  private val rightPortion = right.trainingWeight / trainingWeight
+  @transient private lazy val leftPortion = left.trainingWeight / trainingWeight
+  @transient private lazy val rightPortion = right.trainingWeight / trainingWeight
 
   /**
     * Just propagate the prediction call through the appropriate child
