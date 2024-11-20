@@ -39,7 +39,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.8"]
+        python-version: ["3.12"]
         os: [ubuntu-latest]
     steps:
     - uses: actions/checkout@v2
@@ -62,4 +62,4 @@ jobs:
     - name: Run Python tests
       run: |
         cd python
-        nosetests
+        pytest lolopy/tests
