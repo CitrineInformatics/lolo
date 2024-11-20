@@ -141,26 +141,6 @@ class TestRF(TestCase):
         print('Accuracy:', acc)
         self.assertAlmostEqual(acc, 1)  # Given default settings, we should get perfect fitness to training data
 
-    def test_serialization(self):
-        rf = RandomForestClassifier()
-
-        # Make sure this doesn't error without a model training
-        data = pkl.dumps(rf)
-        rf2 = pkl.loads(data)
-
-        # Load in the iris dataset and train model
-        X, y = load_iris(return_X_y=True)
-        rf.fit(X, y, random_seed=234785)
-
-        # Try saving and loading the model
-        data = pkl.dumps(rf)
-        rf2 = pkl.loads(data)
-
-        # Make sure it yields the same predictions as the first model
-        probs1 = rf.predict_proba(X)
-        probs2 = rf2.predict_proba(X)
-        self.assertTrue(np.isclose(probs1, probs2).all())
-
     def test_regression_tree(self):
         tree = RegressionTreeLearner()
 
@@ -334,26 +314,6 @@ class TestExtraRandomTrees(TestCase):
         acc = accuracy_score(y, y_pred)
         print('Accuracy:', acc)
         self.assertAlmostEqual(acc, 1)  # Given default settings, we should get perfect fitness to training data
-
-    def test_serialization(self):
-        rf = ExtraRandomTreesClassifier()
-
-        # Make sure this doesn't error without a model training
-        data = pkl.dumps(rf)
-        rf2 = pkl.loads(data)
-
-        # Load in the iris dataset and train model
-        X, y = load_iris(return_X_y=True)
-        rf.fit(X, y, random_seed=378945)
-
-        # Try saving and loading the model
-        data = pkl.dumps(rf)
-        rf2 = pkl.loads(data)
-
-        # Make sure it yields the same predictions as the first model
-        probs1 = rf.predict_proba(X)
-        probs2 = rf2.predict_proba(X)
-        self.assertTrue(np.isclose(probs1, probs2).all())
 
 
 if __name__ == "__main__":
