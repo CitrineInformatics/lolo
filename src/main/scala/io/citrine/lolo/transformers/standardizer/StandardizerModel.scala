@@ -11,9 +11,6 @@ trait StandardizerModel[+T] extends Model[T] {
   /** Standardize the inputs and apply the base model. */
   override def transform(inputs: Seq[Vector[Any]]): StandardizerPrediction[T]
 
-  override def shapley(input: Vector[Any], omitFeatures: Set[Int] = Set()): Option[DenseMatrix[Double]] = {
-    baseModel.shapley(input, omitFeatures)
-  }
 }
 
 case class RegressionStandardizerModel(
@@ -26,7 +23,14 @@ case class RegressionStandardizerModel(
     val standardInputs = inputs.map { input => Standardization.applyMulti(input, inputTrans) }
     RegressionStandardizerPrediction(baseModel.transform(standardInputs), outputTrans, inputTrans)
   }
+
+  override def shapley(input: Vector[Any], omitFeatures: Set[Int] = Set()): Option[DenseMatrix[Double]] = {
+    val standardInput = Standardization.applyMulti(input, inputTrans)
+    baseModel.shapley(standardInput, omitFeatures)
+  }
 }
+
+
 
 case class ClassificationStandardizerModel[T](
     baseModel: Model[T],
@@ -37,4 +41,10 @@ case class ClassificationStandardizerModel[T](
     val standardInputs = inputs.map { input => Standardization.applyMulti(input, inputTrans) }
     ClassificationStandardizerPrediction(baseModel.transform(standardInputs), inputTrans)
   }
+
+  override def shapley(input: Vector[Any], omitFeatures: Set[Int] = Set()): Option[DenseMatrix[Double]] = {
+    val standardInput = Standardization.applyMulti(input, inputTrans)
+    baseModel.shapley(standardInput, omitFeatures)
+  }
+  
 }
