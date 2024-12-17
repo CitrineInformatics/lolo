@@ -186,10 +186,33 @@ class StandardizerTest extends SeedRandomMixIn {
     val learner = RegressionTreeLearner()
     val standardLearner = RegressionStandardizer(learner)
     val standardModel = standardLearner.train(data).model
+    val nonstandardModel = learner.train(data).model
 
     data.foreach {
       case row =>
-        assert(standardModel.shapley(row.inputs).isDefined, "Shapley should be defined")
+        val shapleyStandardOpt = standardModel.shapley(row.inputs)
+        val shapleyStandard = shapleyStandardOpt match {
+          case Some(matrix) => matrix.toDenseVector.toScalaVector
+          case None         => Vector.empty[Double]
+        }
+        val standardResult = standardModel.transform(Seq(row.inputs)).expected.head
+        val averageStandard = standardResult - shapleyStandard.sum
+
+        val shapleyNonstandardOpt = nonstandardModel.shapley(row.inputs)
+
+        val shapleyNonstandard = shapleyNonstandardOpt match {
+          case Some(matrix) => matrix.toDenseVector.toScalaVector
+          case None         => Vector.empty[Double]
+        }
+        val nonstandardResult = nonstandardModel.transform(Seq(row.inputs)).expected.head
+        val averageNonStandard = nonstandardResult - shapleyNonstandard.sum
+
+        assert(
+          Math.abs(averageStandard - averageNonStandard) < 1.0e-5,
+          s"Average shapley values should be the same"
+        )
+
+        assert(shapleyStandardOpt.isDefined, "Shapley should be defined")
     }
   }
 }

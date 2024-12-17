@@ -20,6 +20,10 @@ jobs:
       with:
         java-version: ${{ env.JAVA_VERSION }}
         distribution: 'adopt'
+    - name: Install SBT
+      uses: olafurpg/setup-scala@v11
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
     - name: Cache SBT dependencies
       uses: actions/cache@v2
       with:
@@ -47,6 +51,15 @@ jobs:
       uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}
+    - name: Set up JDK  # Add Java setup
+      uses: actions/setup-java@v2
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
+        distribution: 'adopt'
+    - name: Install SBT  # Add SBT setup
+      uses: olafurpg/setup-scala@v11
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
     - name: Cache pip dependencies
       uses: actions/cache@v2
       with:

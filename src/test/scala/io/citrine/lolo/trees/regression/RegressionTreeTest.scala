@@ -328,6 +328,62 @@ class RegressionTreeTest extends SeedRandomMixIn {
     val expected4 = Vector(0.0333333333333333, 0.2, 0.8666666666666667, 3.533333333333333, 16.866666666666667)
     shapleyCompare(trainingData4, Vector.fill[Any](5)(1.0), expected4)
 
+    // Referenced against SHAP documentation TreeExplainer Single Split example
+    val N = 100
+    val M = 4
+    val trainingData5 = Seq.fill(N / 2)(TrainingRow(Vector(1.0, 0.0, 0.0, 0.0, 0.0), 1.0)) ++
+      Seq.fill(N / 2)(TrainingRow(Vector(0.0, 0.0, 0.0, 0.0, 0.0), 0.0))
+
+    val expected5a = Vector(0.5, 0.0, 0.0, 0.0, 0.0)
+    val expected5b = Vector(-0.5, 0.0, 0.0, 0.0, 0.0)
+    shapleyCompare(trainingData5, Vector(1.0, 1.0, 1.0, 1.0, 1.0), expected5a)
+    shapleyCompare(trainingData5, Vector(0.0, 0.0, 0.0, 0.0, 0.0), expected5b)
+
+    // Referenced against SHAP documentation TreeExplainer Two feature AND example
+    val trainingData6 = Seq.tabulate(N) { i =>
+      val features = Vector
+        .fill(M)(0.0)
+        .updated(0, if (i < N / 2) 1.0 else 0.0)
+        .updated(1, if (i < N / 4 || (i >= N / 2 && i < 3 * N / 4)) 1.0 else 0.0)
+      val label = if (i < N / 4) 1.0 else 0.0
+      TrainingRow(features, label)
+    }
+
+    val expected6a = Vector(0.375, 0.375, 0.0, 0.0, 0.0)
+    val expected6b = Vector(-0.125, -0.125, 0.0, 0.0, 0.0)
+    shapleyCompare(trainingData6, Vector(1.0, 1.0, 1.0, 1.0, 1.0), expected6a)
+    shapleyCompare(trainingData6, Vector(0.0, 0.0, 0.0, 0.0, 0.0), expected6b)
+
+    // Referenced against SHAP documentation TreeExplainer Two feature OR example
+    val trainingData7 = Seq.tabulate(N) { i =>
+      val features = Vector
+        .fill(M)(0.0)
+        .updated(0, if (i < N / 2) 1.0 else 0.0)
+        .updated(1, if (i < N / 4 || (i >= N / 2 && i < 3 * N / 4)) 1.0 else 0.0)
+      val label = if (i < N / 2 || (i >= N / 2 && i < 3 * N / 4)) 1.0 else 0.0
+      TrainingRow(features, label)
+    }
+
+    val expected7a = Vector(0.125, 0.125, 0.0, 0.0)
+    val expected7b = Vector(-0.375, -0.375, 0.0, 0.0)
+    shapleyCompare(trainingData7, Vector(1.0, 1.0, 1.0, 1.0), expected7a)
+    shapleyCompare(trainingData7, Vector(0.0, 0.0, 0.0, 0.0), expected7b)
+
+    // Referenced against SHAP documentation TreeExplainer Two feature XOR example
+    val trainingData8 = Seq.tabulate(N) { i =>
+      val features = Vector
+        .fill(M)(0.0)
+        .updated(0, if (i < N / 2) 1.0 else 0.0)
+        .updated(1, if (i < N / 4 || (i >= N / 2 && i < 3 * N / 4)) 1.0 else 0.0)
+      val label = if ((i >= N / 4 && i < N / 2) || (i >= N / 2 && i < 3 * N / 4)) 1.0 else 0.0
+      TrainingRow(features, label)
+    }
+
+    val expected8a = Vector(-0.25, -0.25, 0.0, 0.0)
+    val expected8b = Vector(-0.25, -0.25, 0.0, 0.0)
+    shapleyCompare(trainingData8, Vector(1.0, 1.0, 1.0, 1.0), expected8a)
+    shapleyCompare(trainingData8, Vector(0.0, 0.0, 0.0, 0.0), expected8b)
+
     // Test omitted features
     val expected2a = Vector(0.0, 20.0)
     shapleyCompare(trainingData2, Vector[Any](1.0, 1.0), expected2a, omitFeatures = Set(0))
