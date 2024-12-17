@@ -18,6 +18,10 @@ jobs:
       with:
         java-version: ${{ env.JAVA_VERSION }}
         distribution: 'adopt'
+    - name: Install SBT
+      uses: olafurpg/setup-scala@v11
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
     - name: Release to Maven Central
       env:
         PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
