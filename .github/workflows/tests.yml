@@ -72,6 +72,8 @@ jobs:
         make
         pip install --only-binary=numpy,scipy -r requirements.txt
         pip install -r test_requirements.txt
+    - name: Check version
+      run: python .github/scripts/validate_version_bump.py
     - name: Run Python tests
       run: |
         cd python
