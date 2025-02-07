@@ -37,15 +37,6 @@ jobs:
         sbt -Dsbt.log.noformat=true scalafmtCheckAll
         sbt -Dsbt.log.noformat=true +test
 
-  check-version:
-    name: Check version bumped
-    runs-on: ubuntu-latest
-    steps:
-      - name: Initialize the environment
-        uses: CitrineInformatics/common-gh-actions/.github/actions/initialize@v1
-      - name: Check version
-        run: python .github/scripts/validate_version_bump.py
-
   test-python:
     name: Python ${{ matrix.python-version }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
@@ -74,6 +65,8 @@ jobs:
       with:
         path: ~/.cache/pip
         key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+    - name: Check version
+      run: python .github/scripts/validate_version_bump.py
     - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip
