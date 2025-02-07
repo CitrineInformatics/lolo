@@ -44,7 +44,7 @@ jobs:
       - name: Initialize the environment
         uses: CitrineInformatics/common-gh-actions/.github/actions/initialize@v1
       - name: Check version
-        run: python python/.github/scripts/validate_version_bump.py
+        run: python .github/scripts/validate_version_bump.py
 
   test-python:
     name: Python ${{ matrix.python-version }} on ${{ matrix.os }}

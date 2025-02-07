@@ -9,7 +9,7 @@ from typing import TextIO
 
 def main():
     repo_dir = popen("git rev-parse --show-toplevel", mode="r").read().rstrip()
-    version_path = relpath(f'{repo_dir}/src/citrine/__version__.py', getcwd())
+    version_path = relpath(f'{repo_dir}/python/lolopy/version.py', getcwd())
 
     try:
         with open(version_path, "r") as fh:
@@ -18,7 +18,7 @@ def main():
         raise ValueError(f"Couldn't extract version from {version_path}") from e
 
     try:
-        with popen(f"git fetch origin && git show origin/main:src/citrine/__version__.py", mode="r") as fh:
+        with popen(f"git fetch origin && git show origin/main:python/lolopy/version.py", mode="r") as fh:
             old_version = extract_version(fh)
     except Exception as e:
         raise ValueError(f"Couldn't extract version from main branch") from e
