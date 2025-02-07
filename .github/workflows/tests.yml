@@ -65,8 +65,6 @@ jobs:
       with:
         path: ~/.cache/pip
         key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-    - name: Check version
-      run: python .github/scripts/validate_version_bump.py
     - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip
@@ -74,6 +72,8 @@ jobs:
         make
         pip install --only-binary=numpy,scipy -r requirements.txt
         pip install -r test_requirements.txt
+    - name: Check version
+      run: python .github/scripts/validate_version_bump.py
     - name: Run Python tests
       run: |
         cd python
