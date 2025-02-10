@@ -32,6 +32,7 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
     The pattern for creating a scikit-learn compatible learner is to first implement the `_make_learner` and `__init__`
     operations in a special "Mixin" class that inherits from `BaseLoloLearner`, and then create a regression- or
     classification-specific class that inherits from both `BaseClassifier` or `BaseRegressor` and your new "Mixin".
+    Note that the "Mixin" must be earlier in the method resolution order, as of scikit-learn 1.6.
     See the RandomForest models as an example of this approach.
     """
 
@@ -277,7 +278,7 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
         return model
 
 
-class BaseLoloRegressor(BaseLoloLearner, RegressorMixin):
+class BaseLoloRegressor(RegressorMixin, BaseLoloLearner):
     """Abstract class for models that produce regression models.
 
     As written, this allows for both single-task and multi-task models.
@@ -350,7 +351,7 @@ class BaseLoloRegressor(BaseLoloLearner, RegressorMixin):
         return corr_matrix
 
 
-class BaseLoloClassifier(BaseLoloLearner, ClassifierMixin):
+class BaseLoloClassifier(ClassifierMixin, BaseLoloLearner):
     """Base class for classification models
 
     Implements a modification to the fit operation that stores the number of classes
