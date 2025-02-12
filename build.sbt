@@ -11,10 +11,10 @@ ThisBuild / licenses += "Apache-2.0" -> url("http://www.apache.org/licenses/LICE
 
 ThisBuild / developers := List(
   Developer(
-    id = "maxhutch",
-    name = "Max Hutchinson",
-    email = "maxhutch@citrine.io",
-    url = url("https://github.com/maxhutch")
+    id = "mVenetos97",
+    name = "Maxwell C. Venetos",
+    email = "mvenetos@citrine.io",
+    url = url("https://github.com/mVenetos97")
   )
 )
 ThisBuild / scmInfo := Some(
