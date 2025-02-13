@@ -35,7 +35,7 @@ copy(JAR_FILE[0], jar_path / "lolo-jar-with-dependencies.jar")
 setup(
     name="lolopy",
     version=about["__version__"],
-    python_requires='>=3.8',
+    python_requires='>=3.9',
     url="https://github.com/CitrineInformatics/lolo",
     maintainer="Maxwell Venetos",
     maintainer_email="mvenetos@citrine.io",
@@ -47,7 +47,7 @@ setup(
     package_data={"lolopy.jar": ["*.jar"]},
     install_requires=[
         "numpy>=1.21",
-        "scikit-learn>=1.2.2,<1.7",
+        "scikit-learn>=1.3.2,<1.7",
         "py4j>=0.10.9,<0.10.10"
     ],
     description="Python wrapper for the Lolo machine learning library",
@@ -55,7 +55,6 @@ setup(
     long_description_content_type="text/markdown",
     classifiers=[
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
         'Programming Language :: Python :: 3.10',
         'Programming Language :: Python :: 3.11',
