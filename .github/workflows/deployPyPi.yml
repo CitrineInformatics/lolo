@@ -1,9 +1,12 @@
 name: Deploy to PyPI
 
 on:
-  push:
-    branches: [main]
-    tags: ['*']
+  release:
+    types: [published]
+
+env:
+  JAVA_VERSION: 11
+  PYTHON_VERSION: 3.12
 
 jobs:
   publish:
@@ -13,20 +16,20 @@ jobs:
       - name: Check out repository code
         uses: actions/checkout@v4
       - name: Set up JDK
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@v4
         with:
-          java-version: '11'
+          java-version: ${{ env.JAVA_VERSION }}
           distribution: 'adopt'
       - name: Install SBT
         uses: olafurpg/setup-scala@v11
         with:
-          java-version: '11'
+          java-version: ${{ env.JAVA_VERSION }}
       - name: Build Scala project
         run: sbt assembly
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
-          python-version: '3.12'
+          python-version: ${{ env.PYTHON_VERSION }}
       - name: Install build dependencies
         run: |
           python -m pip install --upgrade pip

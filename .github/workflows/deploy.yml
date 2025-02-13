@@ -1,18 +1,19 @@
 name: Deploy-Maven
 
 on:
-  push:
-    branches: [main]
-    tags: ['*']
+  release:
+    types: [published]
 
 env:
   JAVA_VERSION: 11
 
 jobs:
-  release:
+  publish:
+    name: Publish package to Maven
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - name: Check out repository code
+      uses: actions/checkout@v4
     - name: Set up JDK
       uses: actions/setup-java@v4
       with:
