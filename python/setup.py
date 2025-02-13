@@ -1,46 +1,64 @@
 from setuptools import setup
-from glob import glob
-import shutil
-import os
+from pathlib import Path
+from shutil import copy, rmtree
 
 # single source of truth for package version
-version_ns = {}
-with open(os.path.join("lolopy", "version.py")) as f:
-    exec(f.read(), version_ns)
-version = version_ns['__version__']
+this_directory = Path(__file__).parent.absolute()
+version_file = this_directory / "lolopy" / "version.py"
+readme_file = this_directory / "README.md"
+
+about = {}
+if version_file.exists():
+    exec(version_file.read_text(), about)
+else:
+    raise Exception(f"No version file found at {version_file}")
+if readme_file.exists():
+    about["long_description"] = readme_file.read_text()
+else:
+    raise Exception(f"No readme file found at {readme_file}")
 
 # Find the lolo jar
-JAR_FILE = glob(os.path.join('..', 'target', 'scala-2.13', 'lolo-jar-with-dependencies.jar'))
+JAR_FILE = list(this_directory.parent.glob("target/**/lolo-jar-with-dependencies.jar"))
 if len(JAR_FILE) == 0:
     raise Exception('No Jar files found. Build lolo first by calling "make" or "cd ..; sbt assembly"')
 elif len(JAR_FILE) > 1:
-    raise Exception('Found >1 Jar file. Clean and rebuild lolopy: cd ..; sbt assembly')
+    raise Exception('Found >1 Jar file. Clean and rebuild lolopy: "cd ..; sbt assembly"')
 
 # Copy the jar file to a directory at the same level as the package
-jar_path = os.path.join('lolopy', 'jar')
-if os.path.isdir(jar_path):
-    shutil.rmtree(jar_path)
-os.mkdir(jar_path)
-shutil.copy(JAR_FILE[0], os.path.join(jar_path, 'lolo-jar-with-dependencies.jar'))
-
-with open('README.md') as f:
-    long_description = f.read()
+jar_path = this_directory / "lolopy" / "jar"
+if jar_path.exists():
+    rmtree(jar_path)
+jar_path.mkdir()
+copy(JAR_FILE[0], jar_path / "lolo-jar-with-dependencies.jar")
 
 # Make the installation
 setup(
-    name='lolopy',
-    version=version,
-    url='https://github.com/CitrineInformatics/lolo',
-    maintainer='Max Hutchinson',
-    maintainer_email='maxhutch@citrine.io',
+    name="lolopy",
+    version=about["__version__"],
+    python_requires='>=3.8',
+    url="https://github.com/CitrineInformatics/lolo",
+    maintainer="Maxwell Venetos",
+    maintainer_email="mvenetos@citrine.io",
     packages=[
-        'lolopy',
-        'lolopy.jar'  # Used for the PyPi packaging
+        "lolopy",
+        "lolopy.jar"  # Used for the PyPi packaging
     ],
     include_package_data=True,
-    package_data={'lolopy.jar': ['*.jar']},
-    install_requires=['scikit-learn', 'py4j'],
-    description='Python wrapper for the Lolo machine learning library',
-    long_description=long_description,
+    package_data={"lolopy.jar": ["*.jar"]},
+    install_requires=[
+        "numpy",
+        "scikit-learn<1.7",
+        "py4j<0.10.10"
+    ],
+    description="Python wrapper for the Lolo machine learning library",
+    long_description=about["long_description"],
     long_description_content_type="text/markdown",
+    classifiers=[
+        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3.10',
+        'Programming Language :: Python :: 3.11',
+        'Programming Language :: Python :: 3.12',
+    ],
 )

@@ -1,8 +1,6 @@
 name: Tests
 
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
 
@@ -77,4 +75,4 @@ jobs:
     - name: Run Python tests
       run: |
         cd python
-        pytest lolopy/tests
+        pytest tests
