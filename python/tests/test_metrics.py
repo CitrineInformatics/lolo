@@ -1,4 +1,3 @@
-from lolopy.loloserver import get_java_gateway
 from lolopy.metrics import (root_mean_squared_error, standard_confidence, standard_error, uncertainty_correlation)
 from numpy.random import multivariate_normal, uniform, normal, seed
 from unittest import TestCase

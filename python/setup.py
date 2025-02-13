@@ -46,9 +46,9 @@ setup(
     include_package_data=True,
     package_data={"lolopy.jar": ["*.jar"]},
     install_requires=[
-        "numpy",
-        "scikit-learn<1.7",
-        "py4j<0.10.10"
+        "numpy>=1.21",
+        "scikit-learn>=1.2.2,<1.7",
+        "py4j>=0.10.9,<0.10.10"
     ],
     description="Python wrapper for the Lolo machine learning library",
     long_description=about["long_description"],
@@ -60,5 +60,6 @@ setup(
         'Programming Language :: Python :: 3.10',
         'Programming Language :: Python :: 3.11',
         'Programming Language :: Python :: 3.12',
+        'Programming Language :: Python :: 3.13',
     ],
 )

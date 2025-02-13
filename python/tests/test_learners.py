@@ -11,7 +11,6 @@ from sklearn.exceptions import NotFittedError
 from sklearn.metrics import r2_score, accuracy_score, log_loss
 from sklearn.datasets import load_iris, load_diabetes, load_linnerud
 from unittest import TestCase, main
-import pickle as pkl
 import numpy as np
 
 import logging
