@@ -45,7 +45,10 @@ jobs:
       with:
         python-version: 3.12
     - name: Check version
-      run: python .github/scripts/validate_version_bump.py
+      run: |
+        python -m pip install --upgrade pip
+        pip install packaging
+        python .github/scripts/validate_version_bump.py
 
   test-python:
     name: Python ${{ matrix.python-version }} on ${{ matrix.os }}
