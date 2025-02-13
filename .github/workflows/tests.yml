@@ -5,16 +5,16 @@ on:
     branches: [main]
 
 env:
-  SCALA_VERSION: 2.13.8
   JAVA_VERSION: 11
 
 jobs:
   test-scala:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - name: Check out repository code
+      uses: actions/checkout@v4
     - name: Set up JDK
-      uses: actions/setup-java@v2
+      uses: actions/setup-java@v4
       with:
         java-version: ${{ env.JAVA_VERSION }}
         distribution: 'adopt'
@@ -64,33 +64,34 @@ jobs:
           - os: windows-latest
             python-version: "3.12"
     steps:
-    - uses: actions/checkout@v2
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v2
-      with:
-        python-version: ${{ matrix.python-version }}
-    - name: Set up JDK  # Add Java setup
-      uses: actions/setup-java@v2
-      with:
-        java-version: ${{ env.JAVA_VERSION }}
-        distribution: 'adopt'
-    - name: Install SBT  # Add SBT setup
-      uses: olafurpg/setup-scala@v11
-      with:
-        java-version: ${{ env.JAVA_VERSION }}
-    - name: Cache pip dependencies
-      uses: actions/cache@v2
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-    - name: Install Python dependencies
-      run: |
-        python -m pip install --upgrade pip
-        cd python
-        make
-        pip install --only-binary=numpy,scipy -r requirements.txt
-        pip install -r test_requirements.txt
-    - name: Run Python tests
-      run: |
-        cd python
-        pytest tests
+      - name: Check out repository code
+        uses: actions/checkout@v4
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Set up JDK  # Add Java setup
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'adopt'
+      - name: Install SBT  # Add SBT setup
+        uses: olafurpg/setup-scala@v11
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+      - name: Cache pip dependencies
+        uses: actions/cache@v2
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          cd python
+          make
+          pip install --only-binary=numpy,scipy -r requirements.txt
+          pip install -r test_requirements.txt
+      - name: Run Python tests
+        run: |
+          cd python
+          pytest tests
