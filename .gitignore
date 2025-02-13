@@ -6,11 +6,14 @@ Test.scala
 scalastyle_config.xml
 scalastyle-output.xml
 DefaultModelRegistry/
-tests/
 *.png
 doc/
+.coverage
 .DS_Store
 foobar
+python/build
+python/examples/.ipynb_checkpoints/
 python/lolopy.egg-info/
 python/lolopy/__pycache__/
 python/lolopy/jar/
+python/tests/__pycache__

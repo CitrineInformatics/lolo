@@ -16,7 +16,7 @@ __all__ = [
 
 
 class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
-    """Base object for all leaners that use Lolo.
+    """Base object for all learners that use Lolo.
 
     Contains logic for starting the JVM gateway, and the fit operations.
     It is only necessary to implement the `_make_learner` object and create an `__init__` function
@@ -73,8 +73,8 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
 
         # If needed, load the model into memory
         if state['model_'] is not None:
-            bytes = state.pop('model_')
-            self.model_ = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.deserializeObject(bytes)
+            bytes_ = state.pop('model_')
+            self.model_ = self.gateway.jvm.io.citrine.lolo.util.LoloPyDataLoader.deserializeObject(bytes_)
 
     def fit(self, X, y, weights=None, random_seed=None):
         # Instantiate the JVM object
