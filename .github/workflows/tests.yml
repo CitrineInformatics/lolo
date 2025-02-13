@@ -35,6 +35,18 @@ jobs:
         sbt -Dsbt.log.noformat=true scalafmtCheckAll
         sbt -Dsbt.log.noformat=true +test
 
+  test-python-package-version:
+    name: Check Python package version
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.12
+    - name: Check version
+      run: python .github/scripts/validate_version_bump.py
+
   test-python:
     name: Python ${{ matrix.python-version }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
@@ -75,8 +87,6 @@ jobs:
         make
         pip install --only-binary=numpy,scipy -r requirements.txt
         pip install -r test_requirements.txt
-    - name: Check version
-      run: python .github/scripts/validate_version_bump.py
     - name: Run Python tests
       run: |
         cd python
