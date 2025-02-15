@@ -1,21 +1,21 @@
-from lolopy.metrics import (root_mean_squared_error, standard_confidence, standard_error, uncertainty_correlation)
+from lolopy.metrics import root_mean_squared_error, standard_confidence, standard_error, uncertainty_correlation
 from numpy.random import multivariate_normal, uniform, normal, seed
-from unittest import TestCase
 
+from pytest import approx
 
-class TestMetrics(TestCase):
+class TestMetrics:
 
     def test_rmse(self):
-        self.assertAlmostEqual(root_mean_squared_error([1, 2], [1, 2]), 0)
-        self.assertAlmostEqual(root_mean_squared_error([4, 5], [1, 2]), 3)
+        assert root_mean_squared_error([1, 2], [1, 2]) == approx(0)
+        assert root_mean_squared_error([4, 5], [1, 2]) == approx(3)
 
-    def test_standard_confidene(self):
-        self.assertAlmostEqual(standard_confidence([1, 2], [2, 3], [1.5, 0.9]), 0.5)
-        self.assertAlmostEqual(standard_confidence([1, 2], [2, 3], [1.5, 1.1]), 1)
+    def test_standard_confidence(self):
+        assert standard_confidence([1, 2], [2, 3], [1.5, 0.9]) == approx(0.5)
+        assert standard_confidence([1, 2], [2, 3], [1.5, 1.1]) == approx(1)
 
     def test_standard_error(self):
-        self.assertAlmostEqual(standard_error([1, 2], [1, 2], [1, 1]), 0)
-        self.assertAlmostEqual(standard_error([4, 5], [1, 2], [3, 3]), 1)
+        assert standard_error([1, 2], [1, 2], [1, 1]) == approx(0)
+        assert standard_error([4, 5], [1, 2], [3, 3]) == approx(1)
 
     def test_uncertainty_correlation(self):
         seed(3893789455)
@@ -35,4 +35,4 @@ class TestMetrics(TestCase):
             # Test with a very large tolerance for now
             measured_corr = uncertainty_correlation(y_true, y_pred, y_std, random_seed=random_seed)
             corr_error = abs(measured_corr - expected)
-            self.assertLess(corr_error, 0.25, 'Error for {:.2f}: {:.2f}'.format(expected, corr_error))
+            assert corr_error < 0.25, f"Error for {expected:.2f}: {corr_error:.2f}"
