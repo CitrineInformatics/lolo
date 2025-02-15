@@ -21,8 +21,12 @@ def main():
         with popen(f"git fetch origin && git show origin/main:python/lolopy/__version__.py", mode="r") as fh:
             old_version = extract_version(fh)
     except Exception as e:
-        raise ValueError(f"Couldn't extract version from main branch") from e
-
+        try:
+            with popen(f"git fetch origin && git show origin/main:python/lolopy/version.py", mode="r") as fh:
+                old_version = extract_version(fh)
+        except Exception as e2:
+            raise ValueError(f"Couldn't extract version from main branch") from e
+    
     if new_version.major != old_version.major:
         number = "major"
         code = 1
