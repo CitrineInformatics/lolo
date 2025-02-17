@@ -48,14 +48,14 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
     def __getstate__(self):
         # Get the current state
         try:
-            state = super(BaseLoloLearner, self).__getstate__()
+            state = super(BaseLoloLearner, self).__getstate__().copy()
         except AttributeError:
             state = self.__dict__.copy()
 
         # Delete the gateway data
         try:
             del state['gateway']
-        except AttributeError:
+        except KeyError:
             pass
 
         # If there is a model set, replace it with the JVM copy
