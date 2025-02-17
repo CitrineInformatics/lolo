@@ -11,7 +11,9 @@ from sklearn.exceptions import NotFittedError
 from sklearn.metrics import r2_score, accuracy_score, log_loss
 from sklearn.datasets import load_iris, load_diabetes, load_linnerud
 from unittest import TestCase, main
+import pickle as pkl
 import numpy as np
+import os
 
 import logging
 logging.getLogger("py4j.java_gateway").setLevel(logging.ERROR)
@@ -211,7 +213,6 @@ class TestRF(TestCase):
         self.assertLess(r2_score(y, rf.predict(X)), 1.0)  # Should not fit the whole dataset perfectly
 
     def test_save_and_load_model(self):
-        import os
         rf = RandomForestRegressor(min_leaf_instances=16)
 
         # Load in the diabetes dataset
@@ -229,7 +230,19 @@ class TestRF(TestCase):
         pred2 = rf2.predict(X)
         self.assertTrue((pred1 == pred2).all())
 
-        os.remove('test_model.pkl')
+    def test_pickle(self):
+        # Train a model
+        rf = RandomForestRegressor(min_leaf_instances=16)
+        X, y = _make_linear_data()
+        rf.fit(X, y, random_seed=378456)
+
+        # Make a copy via Pickle
+        rf2 = pkl.loads(pkl.dumps(rf))
+
+        # Check that it yields the same results
+        pred1 = rf.predict(X)
+        pred2 = rf2.predict(X)
+        self.assertTrue((pred1 == pred2).all())
 
 
 class TestExtraRandomTrees(TestCase):
