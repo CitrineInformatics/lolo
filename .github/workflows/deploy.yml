@@ -1,4 +1,4 @@
-name: Deploy-Maven
+name: Deploy to Package Repositories
 
 on:
   release:
@@ -6,11 +6,14 @@ on:
 
 env:
   JAVA_VERSION: 11
+  PYTHON_VERSION: 3.12
 
 jobs:
-  publish:
+  maven:
     name: Publish package to Maven
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
     steps:
     - name: Check out repository code
       uses: actions/checkout@v4
@@ -30,3 +33,38 @@ jobs:
         SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
         SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
       run: sbt ci-release
+
+  pypi:
+    name: Publish package to PyPI
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'adopt'
+      - name: Install SBT
+        uses: olafurpg/setup-scala@v11
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+      - name: Build Scala project
+        run: sbt assembly
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install build dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install setuptools wheel
+      - name: Build Python package
+        run: |
+          cd python
+          python setup.py sdist bdist_wheel
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
+          packages-dir: python/dist/

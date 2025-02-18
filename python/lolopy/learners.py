@@ -47,16 +47,10 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
         
     def __getstate__(self):
         # Get the current state
-        try:
-            state = super(BaseLoloLearner, self).__getstate__()
-        except AttributeError:
-            state = self.__dict__.copy()
+        state = super().__getstate__().copy()
 
         # Delete the gateway data
-        try:
-            del state['gateway']
-        except AttributeError:
-            pass
+        state.pop('gateway')
 
         # If there is a model set, replace it with the JVM copy
         if self.model_ is not None:
@@ -118,7 +112,6 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
 
         Returns:
             (JavaObject) A lolo "Learner" object, which can be used to train a model"""
-        pass
 
     def clear_model(self):
         """Utility operation for deleting model from JVM when no longer needed"""
@@ -221,7 +214,7 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
         """Save the model to a file.
 
         Args:
-            filename (str): Path to save the model
+            filename (str, Path): Path to save the model
         """
         import json
         import base64
@@ -248,7 +241,7 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
         """Load the model from a file.
 
         Args:
-            filename (str): Path to the saved model
+            filename (str, Path): Path to the saved model
 
         Returns:
             BaseLoloLearner: Loaded model
@@ -278,7 +271,7 @@ class BaseLoloLearner(BaseEstimator, metaclass=ABCMeta):
         return model
 
 
-class BaseLoloRegressor(RegressorMixin, BaseLoloLearner):
+class BaseLoloRegressor(RegressorMixin, BaseLoloLearner, metaclass=ABCMeta):
     """Abstract class for models that produce regression models.
 
     As written, this allows for both single-task and multi-task models.
@@ -351,11 +344,15 @@ class BaseLoloRegressor(RegressorMixin, BaseLoloLearner):
         return corr_matrix
 
 
-class BaseLoloClassifier(ClassifierMixin, BaseLoloLearner):
+class BaseLoloClassifier(ClassifierMixin, BaseLoloLearner, metaclass=ABCMeta):
     """Base class for classification models
 
     Implements a modification to the fit operation that stores the number of classes
     and the predict/predict_proba methods"""
+
+    def __init__(self):
+        super().__init__()
+        self.n_classes_ = None
 
     def fit(self, X, y, weights=None, random_seed=None):
         # Get the number of classes
@@ -425,12 +422,12 @@ class RandomForestRegressor(BaseLoloRegressor):
     def _make_learner(self):
         if self.bias_learner is None:
             bias_learner = getattr(self.gateway.jvm.io.citrine.lolo.learners.RandomForestRegressor, "$lessinit$greater$default$3")()
-        else:
+        else:  # pragma: no cover
             bias_learner = self.gateway.jvm.scala.Some(self.bias_learner._make_learner())
 
         if self.leaf_learner is None:
             leaf_learner = getattr(self.gateway.jvm.io.citrine.lolo.learners.RandomForestRegressor, "$lessinit$greater$default$4")()
-        else:
+        else:  # pragma: no cover
             leaf_learner = self.gateway.jvm.scala.Some(self.leaf_learner._make_learner())
 
         return self.gateway.jvm.io.citrine.lolo.learners.RandomForestRegressor(
@@ -485,7 +482,7 @@ class RandomForestClassifier(BaseLoloClassifier):
     def _make_learner(self):
         if self.leaf_learner is None:
             leaf_learner = getattr(self.gateway.jvm.io.citrine.lolo.learners.RandomForestClassifier, "$lessinit$greater$default$3")()
-        else:
+        else:  # pragma: no cover
             leaf_learner = self.gateway.jvm.scala.Some(self.leaf_learner._make_learner())
 
         return self.gateway.jvm.io.citrine.lolo.learners.RandomForestClassifier(
@@ -541,7 +538,7 @@ class MultiTaskRandomForest(BaseLoloRegressor):
     def _make_learner(self):
         if self.bias_learner is None:
             bias_learner = getattr(self.gateway.jvm.io.citrine.lolo.learners.MultiTaskRandomForest, "$lessinit$greater$default$3")()
-        else:
+        else:  # pragma: no cover
             bias_learner = self.gateway.jvm.scala.Some(self.bias_learner._make_learner())
 
         return self.gateway.jvm.io.citrine.lolo.learners.MultiTaskRandomForest(
@@ -601,12 +598,12 @@ class ExtraRandomTreesRegressor(BaseLoloRegressor):
     def _make_learner(self):
         if self.bias_learner is None:
             bias_learner = getattr(self.gateway.jvm.io.citrine.lolo.learners.ExtraRandomTreesRegressor, "$lessinit$greater$default$3")()
-        else:
+        else:  # pragma: no cover
             bias_learner = self.gateway.jvm.scala.Some(self.bias_learner._make_learner())
 
         if self.leaf_learner is None:
             leaf_learner = getattr(self.gateway.jvm.io.citrine.lolo.learners.ExtraRandomTreesRegressor, "$lessinit$greater$default$4")()
-        else:
+        else:  # pragma: no cover
             leaf_learner = self.gateway.jvm.scala.Some(self.leaf_learner._make_learner())
 
         return self.gateway.jvm.io.citrine.lolo.learners.ExtraRandomTreesRegressor(
@@ -665,7 +662,7 @@ class ExtraRandomTreesClassifier(BaseLoloClassifier):
     def _make_learner(self):
         if self.leaf_learner is None:
             leaf_learner = getattr(self.gateway.jvm.io.citrine.lolo.learners.ExtraRandomTreesClassifier, "$lessinit$greater$default$3")()
-        else:
+        else:  # pragma: no cover
             leaf_learner = self.gateway.jvm.scala.Some(self.leaf_learner._make_learner())
 
         return self.gateway.jvm.io.citrine.lolo.learners.ExtraRandomTreesClassifier(

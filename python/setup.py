@@ -4,7 +4,7 @@ from shutil import copy, rmtree
 
 # single source of truth for package version
 this_directory = Path(__file__).parent.absolute()
-version_file = this_directory / "lolopy" / "version.py"
+version_file = this_directory / "lolopy" / "__version__.py"
 readme_file = this_directory / "README.md"
 
 about = {}
@@ -20,9 +20,13 @@ else:
 # Find the lolo jar
 JAR_FILE = list(this_directory.parent.glob("target/**/lolo-jar-with-dependencies.jar"))
 if len(JAR_FILE) == 0:
-    raise Exception('No Jar files found. Build lolo first by calling "make" or "cd ..; sbt assembly"')
+    raise Exception(
+        'No Jar files found. Build lolo first by calling "make" or "cd ..; sbt assembly"'
+    )
 elif len(JAR_FILE) > 1:
-    raise Exception('Found >1 Jar file. Clean and rebuild lolopy: "cd ..; sbt assembly"')
+    raise Exception(
+        'Found >1 Jar file. Clean and rebuild lolopy: "cd ..; sbt assembly"'
+    )
 
 # Copy the jar file to a directory at the same level as the package
 jar_path = this_directory / "lolopy" / "jar"
@@ -35,30 +39,30 @@ copy(JAR_FILE[0], jar_path / "lolo-jar-with-dependencies.jar")
 setup(
     name="lolopy",
     version=about["__version__"],
-    python_requires='>=3.9',
+    python_requires=">=3.9",
     url="https://github.com/CitrineInformatics/lolo",
     maintainer="Maxwell Venetos",
     maintainer_email="mvenetos@citrine.io",
-    packages=[
-        "lolopy",
-        "lolopy.jar"  # Used for the PyPi packaging
-    ],
+    packages=["lolopy", "lolopy.jar"],  # Used for the PyPi packaging
     include_package_data=True,
     package_data={"lolopy.jar": ["*.jar"]},
     install_requires=[
         "numpy>=1.21",
         "scikit-learn>=1.3.2,<1.7",
-        "py4j>=0.10.9,<0.10.10"
+        "py4j>=0.10.9,<0.10.10",
     ],
+    extras_require={
+        "tests": ["pytest"],
+    },
     description="Python wrapper for the Lolo machine learning library",
     long_description=about["long_description"],
     long_description_content_type="text/markdown",
     classifiers=[
-        'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.9',
-        'Programming Language :: Python :: 3.10',
-        'Programming Language :: Python :: 3.11',
-        'Programming Language :: Python :: 3.12',
-        'Programming Language :: Python :: 3.13',
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13",
     ],
 )

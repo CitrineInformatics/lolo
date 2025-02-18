@@ -10,6 +10,8 @@ env:
 jobs:
   test-scala:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
     steps:
     - name: Check out repository code
       uses: actions/checkout@v4
@@ -38,12 +40,14 @@ jobs:
   test-python-package-version:
     name: Check Python package version
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python
       uses: actions/setup-python@v2
       with:
-        python-version: 3.12
+        python-version: "3.12"
     - name: Check version
       run: |
         python -m pip install --upgrade pip
@@ -94,4 +98,4 @@ jobs:
       - name: Run Python tests
         run: |
           cd python
-          pytest tests
+          pytest --cov=lolopy --cov-report term-missing:skip-covered --cov-fail-under=100 tests
